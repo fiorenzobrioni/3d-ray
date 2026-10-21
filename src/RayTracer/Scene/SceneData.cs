@@ -755,8 +755,9 @@ public class MaterialData
     //                 independently of the base NormalMap. Models scratches
     //                 or orange peel in the lacquer that sit on top of an
     //                 otherwise-different substrate normal.
+    /// <summary>Coat IOR: Disney default 1.5, OpenPBR default 1.6.</summary>
     [YamlMember(Alias = "coat_ior")]
-    public float CoatIor { get; set; } = 1.5f;
+    public float? CoatIor { get; set; }
 
     // -1 sentinel matches the DisneyBsdf "use legacy gloss" path. Authors
     // should set the value in [0, 1] to take the explicit-roughness branch.
@@ -780,17 +781,54 @@ public class MaterialData
     // thin_film_ior: refractive index of the film (default 1.5 — generic
     //   lacquer). Drives the contrast of the interference fringes; higher
     //   IOR with the same thickness yields more saturated colours.
+    /// <summary>Film thickness: nanometres for <c>disney</c> (default 0),
+    /// micrometres for <c>openpbr</c> (default 0.5), as each model defines it.</summary>
     [YamlMember(Alias = "thin_film_thickness")]
-    public float ThinFilmThickness { get; set; } = 0f;
+    public float? ThinFilmThickness { get; set; }
 
+    /// <summary>Film IOR: Disney default 1.5, OpenPBR default 1.4.</summary>
     [YamlMember(Alias = "thin_film_ior")]
-    public float ThinFilmIor { get; set; } = 1.5f;
+    public float? ThinFilmIor { get; set; }
 
     [YamlMember(Alias = "thin_film_thickness_texture")]
     public TextureData? ThinFilmThicknessTexture { get; set; }
 
     [YamlMember(Alias = "thin_film_ior_texture")]
     public TextureData? ThinFilmIorTexture { get; set; }
+
+    // ── OpenPBR Surface (type: openpbr) ─────────────────────────────────────
+    // The specification's names and defaults. Each takes a number, an RGB
+    // list or a texture block. Keys shared with the Disney schema
+    // (transmission_color/_depth, subsurface_color/_radius, coat_ior,
+    // coat_roughness, thin_film_*, thin_walled, coat_normal_map) are read from
+    // the properties above, with their *_texture companions.
+    [YamlMember(Alias = "base_weight")] public MaterialParam? BaseWeight { get; set; }
+    [YamlMember(Alias = "base_color")] public MaterialParam? BaseColor { get; set; }
+    [YamlMember(Alias = "base_metalness")] public MaterialParam? BaseMetalness { get; set; }
+    [YamlMember(Alias = "base_diffuse_roughness")] public MaterialParam? BaseDiffuseRoughness { get; set; }
+    [YamlMember(Alias = "specular_weight")] public MaterialParam? SpecularWeight { get; set; }
+    [YamlMember(Alias = "specular_color")] public MaterialParam? SpecularColor { get; set; }
+    [YamlMember(Alias = "specular_roughness")] public MaterialParam? SpecularRoughness { get; set; }
+    [YamlMember(Alias = "specular_roughness_anisotropy")] public MaterialParam? SpecularRoughnessAnisotropy { get; set; }
+    [YamlMember(Alias = "specular_ior")] public MaterialParam? SpecularIor { get; set; }
+    [YamlMember(Alias = "transmission_weight")] public MaterialParam? TransmissionWeight { get; set; }
+    [YamlMember(Alias = "transmission_scatter")] public MaterialParam? TransmissionScatter { get; set; }
+    [YamlMember(Alias = "transmission_scatter_anisotropy")] public MaterialParam? TransmissionScatterAnisotropy { get; set; }
+    [YamlMember(Alias = "subsurface_weight")] public MaterialParam? SubsurfaceWeight { get; set; }
+    [YamlMember(Alias = "subsurface_radius_scale")] public MaterialParam? SubsurfaceRadiusScale { get; set; }
+    [YamlMember(Alias = "subsurface_scatter_anisotropy")] public MaterialParam? SubsurfaceScatterAnisotropy { get; set; }
+    [YamlMember(Alias = "coat_weight")] public MaterialParam? CoatWeight { get; set; }
+    [YamlMember(Alias = "coat_color")] public MaterialParam? CoatColor { get; set; }
+    [YamlMember(Alias = "coat_roughness_anisotropy")] public MaterialParam? CoatRoughnessAnisotropy { get; set; }
+    [YamlMember(Alias = "coat_darkening")] public MaterialParam? CoatDarkening { get; set; }
+    [YamlMember(Alias = "fuzz_weight")] public MaterialParam? FuzzWeight { get; set; }
+    [YamlMember(Alias = "fuzz_color")] public MaterialParam? FuzzColor { get; set; }
+    [YamlMember(Alias = "fuzz_roughness")] public MaterialParam? FuzzRoughness { get; set; }
+    [YamlMember(Alias = "thin_film_weight")] public MaterialParam? ThinFilmWeight { get; set; }
+    [YamlMember(Alias = "emission_luminance")] public MaterialParam? EmissionLuminance { get; set; }
+    [YamlMember(Alias = "emission_color")] public MaterialParam? EmissionColor { get; set; }
+    [YamlMember(Alias = "geometry_opacity")] public MaterialParam? GeometryOpacity { get; set; }
+    [YamlMember(Alias = "geometry_thin_walled")] public bool? GeometryThinWalled { get; set; }
 
     // ── Mix Material parameters ─────────────────────────────────────────────
 

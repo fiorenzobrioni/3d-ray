@@ -77,6 +77,7 @@ Per la roadmap dettagliata e le feature in corso consulta il [**PLANNING**](./PL
 - 🎨 **Lambertian** - diffuso opaco
 - 🪞 **Metal** - riflesso a microfacette GGX con rugosità (`fuzz`) configurabile, scattering multiplo fra le microfacette (un metallo ruvido mantiene la sua luminosità), colore a incidenza normale e sul bordo (`color`, `edge_color`), oppure un metallo misurato per nome (`preset: gold`, `silver`, `copper`, `aluminium`, ...) con il suo Fresnel complesso esatto.
 - 💎 **Dielectric** - vetro e trasparenti con rifrazione e riflesso di Fresnel esatto; `roughness` dà il vetro satinato, illuminato direttamente attraverso la superficie.
+- 🧬 **OpenPBR Surface** - il materiale a strati dello standard della Academy Software Foundation (`"openpbr"`), con i nomi e i default dei suoi parametri: metallo con tinta al bordo, dielettrico con diffuso ruvido che conserva l'energia, vetro, subsurface con random walk, coat che assorbe, fuzz per velluto e polvere, film sottile, emissione, fogli thin-walled e ritagli. Ogni ingresso accetta un numero, un colore o una texture, e un materiale bianco conserva l'energia in ogni combinazione di strati.
 - 💡 **Emissive** - materiale auto-luminoso; gli oggetti emissivi partecipano automaticamente alla NEE come sorgenti di luce geometriche
 - 🌟 **Disney Principled BSDF** - materiale PBR unificato (`"disney"` / `"pbr"`): un singolo tipo copre plastica, metallo, vetro, vernice auto, tessuto, pelle, bolle di sapone e qualsiasi combinazione. Oltre ai parametri classici (`metallic`, `roughness`, `specular`, `sheen`, `clearcoat`, `spec_trans`, `ior`) supporta:
   - **Anisotropia** per highlight allungati stile metallo spazzolato, capelli e vinile.
@@ -306,7 +307,7 @@ Il risultato è in `renders/hello.png`. Da qui puoi cambiare `color`, aggiungere
 │   │   ├── Denoising/          # Denoiser feature-guided (NLM, NFOR)
 │   │   ├── Geometry/           # Primitive (Sphere, Box, Cylinder, CsgObject, Group...)
 │   │   ├── Lights/             # Point, Directional, Spot, Area, Sphere, GeometryLight, EnvironmentLight
-│   │   ├── Materials/          # Lambertian, Metal, Dielectric, Emissive, Disney BSDF, MixMaterial
+│   │   ├── Materials/          # Lambertian, Metal, Dielectric, Emissive, OpenPBR, Disney BSDF, MixMaterial
 │   │   ├── Rendering/          # Renderer, SkySettings, EnvironmentMap
 │   │   ├── Scene/              # SceneLoader, SceneData
 │   │   ├── Textures/           # Checker, Noise, Marble, Wood, Image, NormalMap

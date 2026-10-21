@@ -609,7 +609,7 @@ camera:
     - { time: 1.0, position: [1.5, 2, 8], look_at: [0.5, 1, 0] }   # gentle dolly over the exposure
 ```
 ---
-### 5. **MATERIALS SECTION** - Six Types
+### 5. **MATERIALS SECTION** - Seven Types
 #### **5.1 Lambertian (Diffuse/Matte)**
 ```yaml
 - id: "matte_red"
@@ -642,7 +642,7 @@ camera:
 - id: "glass"
   type: "dielectric"
   refraction_index: 1.52                  # IOR (crown glass)
-  color: [1.0, 1.0, 1.0]                  # (optional) Tint
+  color: [1.0, 1.0, 1.0]                  # (optional) Tint, default white (clear glass)
   roughness: 0.2                          # (optional) Frosted glass, default 0 = clear
 ```
 - Transparent with refraction and exact Fresnel reflection
@@ -900,6 +900,51 @@ the volume is heterogeneous (`procedural` / `grid` / `nishita`).
 - Mask can be: `noise`, `marble`, `wood`, `checker`, `image`
 - Useful for: weathering, wear, transitions, decals
 - Mix-of-mix nesting supported
+#### **5.7 OpenPBR Surface (Layered Uber-Material)**
+The OpenPBR Surface v1.1 model of the Academy Software Foundation, with its parameter names and defaults. One material covers plastic, metal, glass, skin, car paint, fabric, paper and soap bubbles, and it conserves energy in every combination: a white material under a uniform white sky disappears (see `scenes/review/openpbr-white-furnace.yaml`).
+
+```yaml
+- id: "car_paint"
+  type: "openpbr"
+  base_color: [0.55, 0.05, 0.08]          # number, [r, g, b] or a texture block
+  base_metalness: 0.8
+  specular_roughness: 0.4
+  coat_weight: 1
+  coat_roughness: 0.03
+  coat_color: [0.95, 0.85, 0.85]          # coat absorption tint
+```
+
+Every input takes a number, an `[r, g, b]` list (or one grey number) or an inline texture block, for example `specular_roughness: { type: "noise", scale: 4, colors: [[0.2,0.2,0.2],[0.5,0.5,0.5]] }`.
+
+| Layer | Parameters (default) |
+|---|---|
+| Base | `base_weight` (1), `base_color` (0.8; `color`/`texture` accepted as fallback), `base_metalness` (0), `base_diffuse_roughness` (0) |
+| Specular | `specular_weight` (1), `specular_color` (1), `specular_roughness` (0.3), `specular_roughness_anisotropy` (0), `specular_ior` (1.5) |
+| Transmission | `transmission_weight` (0), `transmission_color` (1), `transmission_depth` (0), `transmission_scatter` (0), `transmission_scatter_anisotropy` (0) |
+| Subsurface | `subsurface_weight` (0), `subsurface_color` (0.8), `subsurface_radius` (1), `subsurface_radius_scale` ([1, 0.5, 0.25]), `subsurface_scatter_anisotropy` (0) |
+| Coat | `coat_weight` (0), `coat_color` (1), `coat_roughness` (0), `coat_roughness_anisotropy` (0), `coat_ior` (1.6), `coat_darkening` (1), `coat_normal_map` |
+| Fuzz | `fuzz_weight` (0), `fuzz_color` (1), `fuzz_roughness` (0.5) |
+| Thin film | `thin_film_weight` (0), `thin_film_thickness` (0.5, **micrometres**), `thin_film_ior` (1.4) |
+| Emission | `emission_luminance` (0), `emission_color` (1) |
+| Geometry | `geometry_opacity` (1), `geometry_thin_walled` (false; `thin_walled` accepted), `normal_map`, `bump_map` |
+
+The model, lobe by lobe:
+- **Metal**: GGX with the F82 Fresnel (`base_color` at normal incidence, `specular_color` near grazing) and multiple scattering, so a rough white metal stays white.
+- **Dielectric**: the interface of `specular_ior`; `specular_weight` scales its reflectance at normal incidence (0 removes the reflection, values above 1 raise it). Rough reflection and refraction are GGX microfacets.
+- **Diffuse**: energy-preserving Oren-Nayar (EON); `base_diffuse_roughness` 0 is Lambert. It lies under the specular layer and receives only the light the specular does not reflect.
+- **Transmission**: refraction into the object. With `transmission_depth` 0 the `transmission_color` tints the refraction once on the way in; with a depth it is the transmittance at that depth (Beer-Lambert inside). With `transmission_scatter` and a depth, the interior is a scattering medium.
+- **Subsurface**: light enters through the same interface and walks in a medium the loader binds to the object: mean free path `subsurface_radius × subsurface_radius_scale` per channel, single-scattering albedo chosen so that the object's overall colour is `subsurface_color`. Three numbers in `subsurface_radius` are read as the per-channel mean free path.
+- **Coat**: a clear or tinted lacquer of `coat_ior` over everything below. `coat_color` is the tint at normal incidence and darkens towards grazing; `coat_darkening` 1 keeps the physical darkening from internal reflections, 0 removes it. A rough coat also roughens the base.
+- **Fuzz**: the sheen of fibres or dust on top (velvet, peach skin), tinted by `fuzz_color`.
+- **Thin film**: iridescent interference on the base reflection (soap bubbles, oil, anodised metal).
+- **Emission**: radiance `emission_color × emission_luminance` in scene units, under the coat; not sampled as a light (use `emissive` for light sources).
+- **Thin-walled**: a sheet with no interior (leaves, paper, windows). Transmission is a sheet of glass; subsurface becomes diffuse reflection and transmission split by `subsurface_scatter_anisotropy`.
+
+Notes:
+- Transmission and subsurface share the object's interior: with `subsurface_weight` > 0 the interior is the subsurface medium.
+- `thin_film_thickness` is in micrometres here (OpenPBR), in nanometres for `disney`.
+- Dispersion (`transmission_dispersion_*`) is not supported: the renderer works in RGB.
+
 ---
 ### 6. **TEXTURES** - Embedded in Materials
 Textures are defined **within** material definitions. All procedural textures

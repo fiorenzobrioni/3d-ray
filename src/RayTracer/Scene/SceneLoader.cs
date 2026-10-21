@@ -130,6 +130,7 @@ public class SceneLoader
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .IgnoreUnmatchedProperties()
+            .WithTypeConverter(new MaterialParamConverter())
             .Build();
 
         var data = deserializer.Deserialize<SceneData>(yaml);
@@ -267,6 +268,11 @@ public class SceneLoader
             foreach (var m in data.Materials)
             {
                 if (m.Id == null) continue;
+                if (IsOpenPbr(m))
+                {
+                    if (BuildOpenPbrMedium(m) is { } opbMedium) embeddedSssMedium[m.Id] = opbMedium;
+                    continue;
+                }
                 if (m.SubsurfaceRadius == null) continue;
                 if (m.SubsurfaceRadius.Count == 0) continue;
 
@@ -700,6 +706,7 @@ public class SceneLoader
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .IgnoreUnmatchedProperties()
+            .WithTypeConverter(new MaterialParamConverter())
             .Build();
 
         var data = deserializer.Deserialize<SceneData>(yaml);
@@ -1069,6 +1076,160 @@ public class SceneLoader
         return new Metal(albedo, m.Fuzz ?? m.Roughness ?? 0f, edge, ior, m.MultipleScattering);
     }
 
+    // ── OpenPBR Surface (PIANO-REVIEW.md, Phase 5) ──────────────────────────
+
+    private static bool IsOpenPbr(MaterialData m) =>
+        string.Equals(m.Type, "openpbr", StringComparison.OrdinalIgnoreCase);
+
+    private static FloatTexture PbrFloat(MaterialData m, MaterialParam? p, float def, string key, string sceneDir)
+    {
+        if (p == null) return def;
+        if (p.Texture != null) return new FloatTexture(CreateTexture(p.Texture, sceneDir));
+        if (p.Values is { Count: > 0 } v)
+        {
+            if (v.Count > 1) Warn($"Material '{m.Id}': '{key}' takes one number; using the first.");
+            return v[0];
+        }
+        return def;
+    }
+
+    private static ITexture PbrColor(MaterialData m, MaterialParam? p, Vector3 def, string key, string sceneDir)
+    {
+        if (p == null) return new SolidColor(def);
+        if (p.Texture != null) return CreateTexture(p.Texture, sceneDir);
+        return new SolidColor(PbrVector(m, p.Values, def, key));
+    }
+
+    /// <summary>A colour written as [r, g, b] or as one grey number.</summary>
+    private static Vector3 PbrVector(MaterialData m, List<float>? v, Vector3 def, string key)
+    {
+        if (v == null || v.Count == 0) return def;
+        if (v.Count == 1) return new Vector3(v[0]);
+        if (v.Count == 3) return new Vector3(v[0], v[1], v[2]);
+        Warn($"Material '{m.Id}': '{key}' needs one or three numbers; using the default.");
+        return def;
+    }
+
+    /// <summary>The constant value of a scalar input, or null when textured.</summary>
+    private static float? PbrConstant(MaterialParam? p, float def) =>
+        p == null ? def : p.Texture != null ? null : p.Values is { Count: > 0 } v ? v[0] : def;
+
+    private static IMaterial CreateOpenPbr(MaterialData m, string sceneDir)
+    {
+        // base_color falls back on the common 'color' / 'texture' keys.
+        ITexture baseColor = m.BaseColor != null
+            ? PbrColor(m, m.BaseColor, new Vector3(0.8f), "base_color", sceneDir)
+            : m.Texture != null ? CreateTexture(m.Texture, sceneDir)
+            : new SolidColor(PbrVector(m, m.Color, new Vector3(0.8f), "color"));
+
+        // subsurface_radius: one number is the mean free path, three are a
+        // per-channel mean free path (radius 1 times that scale).
+        float radius = 1f;
+        Vector3 radiusScale = new(1f, 0.5f, 0.25f);
+        if (m.SubsurfaceRadius is { Count: 1 } r1) radius = r1[0];
+        else if (m.SubsurfaceRadius is { Count: 3 } r3) radiusScale = new Vector3(r3[0], r3[1], r3[2]);
+        if (m.SubsurfaceRadiusScale != null)
+            radiusScale = PbrVector(m, m.SubsurfaceRadiusScale.Values, radiusScale, "subsurface_radius_scale");
+
+        var p = new OpenPbrParameters
+        {
+            BaseWeight = PbrFloat(m, m.BaseWeight, 1f, "base_weight", sceneDir),
+            BaseColor = baseColor,
+            BaseMetalness = PbrFloat(m, m.BaseMetalness, 0f, "base_metalness", sceneDir),
+            BaseDiffuseRoughness = PbrFloat(m, m.BaseDiffuseRoughness, 0f, "base_diffuse_roughness", sceneDir),
+            SpecularWeight = PbrFloat(m, m.SpecularWeight, 1f, "specular_weight", sceneDir),
+            SpecularColor = PbrColor(m, m.SpecularColor, Vector3.One, "specular_color", sceneDir),
+            SpecularRoughness = PbrFloat(m, m.SpecularRoughness, 0.3f, "specular_roughness", sceneDir),
+            SpecularRoughnessAnisotropy = PbrFloat(m, m.SpecularRoughnessAnisotropy, 0f, "specular_roughness_anisotropy", sceneDir),
+            SpecularIor = PbrFloat(m, m.SpecularIor, 1.5f, "specular_ior", sceneDir),
+            TransmissionWeight = PbrFloat(m, m.TransmissionWeight, 0f, "transmission_weight", sceneDir),
+            TransmissionColor = m.TransmissionColorTexture != null ? CreateTexture(m.TransmissionColorTexture, sceneDir)
+                              : new SolidColor(PbrVector(m, m.TransmissionColor, Vector3.One, "transmission_color")),
+            TransmissionDepth = DisneyParam(m.TransmissionDepth, m.TransmissionDepthTexture, sceneDir),
+            TransmissionScatter = PbrColor(m, m.TransmissionScatter, Vector3.Zero, "transmission_scatter", sceneDir),
+            TransmissionScatterAnisotropy = PbrFloat(m, m.TransmissionScatterAnisotropy, 0f, "transmission_scatter_anisotropy", sceneDir),
+            SubsurfaceWeight = PbrFloat(m, m.SubsurfaceWeight, 0f, "subsurface_weight", sceneDir),
+            SubsurfaceColor = m.SubsurfaceColorTexture != null ? CreateTexture(m.SubsurfaceColorTexture, sceneDir)
+                            : new SolidColor(PbrVector(m, m.SubsurfaceColor, new Vector3(0.8f), "subsurface_color")),
+            SubsurfaceRadius = radius,
+            SubsurfaceRadiusScale = new SolidColor(radiusScale),
+            SubsurfaceScatterAnisotropy = PbrFloat(m, m.SubsurfaceScatterAnisotropy, 0f, "subsurface_scatter_anisotropy", sceneDir),
+            CoatWeight = PbrFloat(m, m.CoatWeight, 0f, "coat_weight", sceneDir),
+            CoatColor = PbrColor(m, m.CoatColor, Vector3.One, "coat_color", sceneDir),
+            CoatRoughness = DisneyParam(MathF.Max(m.CoatRoughness, 0f), m.CoatRoughnessTexture, sceneDir),
+            CoatRoughnessAnisotropy = PbrFloat(m, m.CoatRoughnessAnisotropy, 0f, "coat_roughness_anisotropy", sceneDir),
+            CoatIor = DisneyParam(m.CoatIor ?? 1.6f, m.CoatIorTexture, sceneDir),
+            CoatDarkening = PbrFloat(m, m.CoatDarkening, 1f, "coat_darkening", sceneDir),
+            FuzzWeight = PbrFloat(m, m.FuzzWeight, 0f, "fuzz_weight", sceneDir),
+            FuzzColor = PbrColor(m, m.FuzzColor, Vector3.One, "fuzz_color", sceneDir),
+            FuzzRoughness = PbrFloat(m, m.FuzzRoughness, 0.5f, "fuzz_roughness", sceneDir),
+            ThinFilmWeight = PbrFloat(m, m.ThinFilmWeight, 0f, "thin_film_weight", sceneDir),
+            ThinFilmThickness = DisneyParam(m.ThinFilmThickness ?? 0.5f, m.ThinFilmThicknessTexture, sceneDir),
+            ThinFilmIor = DisneyParam(m.ThinFilmIor ?? 1.4f, m.ThinFilmIorTexture, sceneDir),
+            EmissionLuminance = PbrFloat(m, m.EmissionLuminance, 0f, "emission_luminance", sceneDir),
+            EmissionColor = PbrColor(m, m.EmissionColor, Vector3.One, "emission_color", sceneDir),
+            GeometryOpacity = PbrFloat(m, m.GeometryOpacity, 1f, "geometry_opacity", sceneDir),
+            ThinWalled = m.GeometryThinWalled ?? m.ThinWalled,
+            CoatNormal = m.CoatNormalMap != null ? LoadNormalMap(m.CoatNormalMap, sceneDir) : null,
+        };
+        return new OpenPbr(p) { InteriorIsMedium = BuildOpenPbrMedium(m) != null };
+    }
+
+    /// <summary>
+    /// The participating medium inside an OpenPBR object, bound to every entity
+    /// that uses the material (an explicit <c>interior_medium</c> wins):
+    /// <list type="bullet">
+    /// <item>subsurface: extinction 1 / (radius · radius_scale) and the
+    /// single-scattering albedo that makes the multiple-scattering albedo
+    /// <c>subsurface_color</c> (the OpenPBR inversion, with the phase
+    /// function's g);</item>
+    /// <item>scattering transmission (<c>transmission_scatter</c> &gt; 0 with a
+    /// depth): μ_t = −ln(color) / depth, μ_s = scatter / depth, μ_a shifted to be
+    /// non-negative.</item>
+    /// </list>
+    /// Textured colours give a homogeneous medium of their default value.
+    /// </summary>
+    private static IMedium? BuildOpenPbrMedium(MaterialData m)
+    {
+        if (m.GeometryThinWalled ?? m.ThinWalled) return null;
+        float sw = PbrConstant(m.SubsurfaceWeight, 0f) ?? 1f;
+        if (sw > 0f)
+        {
+            float radius = m.SubsurfaceRadius is { Count: 1 } r1 ? r1[0] : 1f;
+            Vector3 scale = m.SubsurfaceRadius is { Count: 3 } r3 ? new Vector3(r3[0], r3[1], r3[2]) : new Vector3(1f, 0.5f, 0.25f);
+            if (m.SubsurfaceRadiusScale?.Values is { } rs) scale = PbrVector(m, rs, scale, "subsurface_radius_scale");
+            Vector3 mfp = Vector3.Max(radius * scale, new Vector3(1e-4f));
+            Vector3 color = Vector3.Clamp(PbrVector(m, m.SubsurfaceColor, new Vector3(0.8f), "subsurface_color"),
+                                          Vector3.Zero, Vector3.One);
+            float g = Math.Clamp(PbrConstant(m.SubsurfaceScatterAnisotropy, 0f) ?? 0f, -0.999f, 0.999f);
+            static float Single(float c, float g)
+            {
+                double s = 4.09712 + 4.20863 * c - Math.Sqrt(9.59217 + 41.6808 * c + 17.7126 * c * c);
+                return (float)Math.Clamp((1 - s * s) / (1 - g * s * s), 0.0, 1.0);
+            }
+            Vector3 albedo = new(Single(color.X, g), Single(color.Y, g), Single(color.Z, g));
+            Vector3 sigmaT = Vector3.One / mfp;
+            IPhaseFunction phase = MathF.Abs(g) < 1e-4f ? new IsotropicPhase() : new HenyeyGreensteinPhase(g);
+            Verbose($"OpenPBR subsurface medium: material '{m.Id}', mfp [{mfp.X:0.###},{mfp.Y:0.###},{mfp.Z:0.###}], " +
+                    $"single-scattering albedo [{albedo.X:0.###},{albedo.Y:0.###},{albedo.Z:0.###}]");
+            return new HomogeneousMedium(sigmaT * (Vector3.One - albedo), sigmaT * albedo, phase);
+        }
+
+        float tw = PbrConstant(m.TransmissionWeight, 0f) ?? 1f;
+        float depth = m.TransmissionDepth;
+        Vector3 scatter = m.TransmissionScatter?.Values is { } sv ? PbrVector(m, sv, Vector3.Zero, "transmission_scatter") : Vector3.Zero;
+        if (tw <= 0f || depth <= 0f || scatter == Vector3.Zero) return null;
+        Vector3 tc = Vector3.Clamp(PbrVector(m, m.TransmissionColor, Vector3.One, "transmission_color"), new Vector3(1e-4f), Vector3.One);
+        Vector3 mt = new Vector3(-MathF.Log(tc.X), -MathF.Log(tc.Y), -MathF.Log(tc.Z)) / depth;
+        Vector3 ms = Vector3.Max(scatter, Vector3.Zero) / depth;
+        Vector3 ma = mt - ms;
+        float shift = MathF.Min(0f, MathF.Min(ma.X, MathF.Min(ma.Y, ma.Z)));
+        ma -= new Vector3(shift);
+        float gt = Math.Clamp(PbrConstant(m.TransmissionScatterAnisotropy, 0f) ?? 0f, -0.999f, 0.999f);
+        IPhaseFunction tphase = MathF.Abs(gt) < 1e-4f ? new IsotropicPhase() : new HenyeyGreensteinPhase(gt);
+        return new HomogeneousMedium(ma, ms, tphase);
+    }
+
     private static IMaterial CreateMaterial(MaterialData m, string sceneDir)
     {
         ITexture albedo = m.Texture != null
@@ -1079,7 +1240,11 @@ public class SceneLoader
         {
             "lambertian" => new Lambertian(albedo),
             "metal"      => CreateMetal(m, albedo),
-            "dielectric" => new Dielectric(m.RefractionIndex, albedo, m.Roughness ?? 0f),
+            // Clear glass unless a colour is written (the shared default, grey
+            // 0.5, halved the light at every crossing of the interface).
+            "dielectric" => new Dielectric(m.RefractionIndex,
+                                m.Color != null || m.Texture != null ? albedo : new SolidColor(Vector3.One),
+                                m.Roughness ?? 0f),
             "emissive"   => new Emissive(albedo, m.Intensity),
             "disney" or "disney_bsdf" or "pbr"
                          => new DisneyBsdf(
@@ -1101,7 +1266,7 @@ public class SceneLoader
                                 transmissionDepth:   DisneyParam(m.TransmissionDepth,   m.TransmissionDepthTexture,   sceneDir),
                                 diffTrans:           DisneyParam(m.DiffTrans,           m.DiffTransTexture,           sceneDir),
                                 thinWalled:          m.ThinWalled,
-                                coatIor:             DisneyParam(m.CoatIor,             m.CoatIorTexture,             sceneDir),
+                                coatIor:             DisneyParam(m.CoatIor ?? 1.5f,     m.CoatIorTexture,             sceneDir),
                                 // coat_roughness: only forwarded when the user
                                 // explicitly set a non-negative value or a
                                 // texture; otherwise null selects the legacy
@@ -1109,8 +1274,9 @@ public class SceneLoader
                                 coatRoughness:       (m.CoatRoughness >= 0f || m.CoatRoughnessTexture != null)
                                                         ? DisneyParam(MathF.Max(m.CoatRoughness, 0f), m.CoatRoughnessTexture, sceneDir)
                                                         : null,
-                                thinFilmThickness:   DisneyParam(m.ThinFilmThickness,   m.ThinFilmThicknessTexture, sceneDir),
-                                thinFilmIor:         DisneyParam(m.ThinFilmIor,         m.ThinFilmIorTexture,       sceneDir)),
+                                thinFilmThickness:   DisneyParam(m.ThinFilmThickness ?? 0f, m.ThinFilmThicknessTexture, sceneDir),
+                                thinFilmIor:         DisneyParam(m.ThinFilmIor ?? 1.5f, m.ThinFilmIorTexture,       sceneDir)),
+            "openpbr"    => CreateOpenPbr(m, sceneDir),
             _            => new Lambertian(albedo)
         };
 
@@ -1128,6 +1294,7 @@ public class SceneLoader
                     case Dielectric  die: die.NormalMap = normalMap; break;
                     case Emissive    emi: emi.NormalMap = normalMap; break;
                     case DisneyBsdf  dis: dis.NormalMap = normalMap; break;
+                    case OpenPbr     opb: opb.NormalMap = normalMap; break;
                     case MixMaterial mix: mix.NormalMap = normalMap; break;
                 }
             }
@@ -1146,6 +1313,7 @@ public class SceneLoader
                     case Dielectric  die: die.BumpMap = bumpMap; break;
                     case Emissive    emi: emi.BumpMap = bumpMap; break;
                     case DisneyBsdf  dis: dis.BumpMap = bumpMap; break;
+                    case OpenPbr     opb: opb.BumpMap = bumpMap; break;
                     case MixMaterial mix: mix.BumpMap = bumpMap; break;
                 }
             }
@@ -1207,6 +1375,7 @@ public class SceneLoader
                 case Dielectric die: die.Displacement = leafDisp; break;
                 case Emissive   emi: emi.Displacement = leafDisp; break;
                 case DisneyBsdf dis: dis.Displacement = leafDisp; break;
+                    case OpenPbr     opb: opb.Displacement = leafDisp; break;
             }
         }
 
@@ -4130,6 +4299,7 @@ public class SceneLoader
     /// </summary>
     private static void ApplyEmbeddedSssDefaults(MaterialData m)
     {
+        if (IsOpenPbr(m)) return;
         if (m.SubsurfaceRadius == null || m.SubsurfaceRadius.Count == 0) return;
         bool anyPositive = false;
         foreach (var v in m.SubsurfaceRadius) if (v > 0f) { anyPositive = true; break; }
