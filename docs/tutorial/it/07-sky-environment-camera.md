@@ -446,6 +446,48 @@ renderer di produzione. Quando sono presenti sia `focal_pos` che
 - DOF richiede più sample per risultato pulito. Almeno 64 SPP; 256+
   consigliati per produzione.
 
+### Un obiettivo vero: focale e f-stop
+
+Al posto di `fov` e `aperture` puoi descrivere l'obiettivo come un
+fotografo. Con la scena modellata in metri:
+
+```yaml
+cameras:
+  - name: "ritratto"
+    position: [0, 1.2, 0]
+    look_at: [0, 0.9, -2.5]
+    focal_length: 50        # mm; sensor_width vale 36 per default (pieno formato)
+    f_stop: 1.4             # pupilla = 50 / 1.4 = 35.7 mm
+    focal_pos: [0, 0.9, -2.5]
+```
+
+`focal_length` e `sensor_width` fissano il campo visivo (la larghezza del
+sensore copre la larghezza dell'immagine), `f_stop` il diametro della
+pupilla. Una scena modellata in centimetri aggiunge `meters_per_unit: 0.01`,
+così f/1.4 resta una pupilla di 35.7 mm. Dimezzare il numero f raddoppia la
+pupilla e la sfocatura; un obiettivo più lungo allo stesso numero f sfoca di
+più lo sfondo, come su una fotocamera vera.
+
+### Forma del bokeh
+
+Le luci fuori fuoco prendono la forma del diaframma. `aperture_blades: 6`
+dà esagoni (da 5 a 9 lamelle sono tipiche), `aperture_rotation` ruota il
+poligono e `aperture_ratio: 0.5` dà gli ovali verticali di un obiettivo
+anamorfico. Le luci piccole e molto luminose chiedono molti campioni: ogni
+pixel del disco di bokeh riceve luce solo dai campioni di lente che colpiscono
+la sorgente. `scenes/showcases/camera-physical.yaml` le mostra tutte.
+
+### Bilanciamento del bianco e trasformazione di visualizzazione
+
+`white_balance: 3200` (kelvin) fa apparire bianca una luce al tungsteno a
+3200 K, come una fotocamera impostata su "tungsteno": valori più bassi
+raffreddano l'immagine, più alti la scaldano, `6504` non cambia nulla.
+L'immagine per lo schermo la produce poi la trasformazione di visualizzazione
+scelta da riga di comando: `--view agx` (il default) porta la luce intensa e
+satura verso il bianco come fa la pellicola, `--view aces` dà l'aspetto ACES
+1.x con più contrasto, `--view standard` mostra i valori lineari con la sola
+curva sRGB. `--exposure` (in stop) si applica prima della trasformazione.
+
 ---
 
 ## 7.11 Motion Blur

@@ -100,6 +100,12 @@ soglie fisse).
 | `SolverPrecisionTests.cs` | Risolutore quartico e di Sturm su polinomi con radici note; intersezione del toro contro un riferimento in doppia precisione (marcia fitta della funzione implicita più bisezione): nessun hit perso o inventato, errore su t sotto 1e-5. |
 | `NoiseQualityTests.cs` | Perlin: intervallo, zeri sul reticolo, continuità di valore e gradiente attraverso le facce del reticolo (C1), isotropia del gradiente. Worley: F1 è 1-Lipschitz (nessuna cella vicina dimenticata). |
 | `RayDifferentialAccuracyTests.cs` | Footprint delle texture: le derivate UV dalla proiezione sul piano tangente dei differenziali di camera contro la differenza finita ottenuta intersecando davvero i raggi ausiliari. Esatto sul piano; sulla sfera l'errore cala con il pixel (primo ordine). |
+| `CameraModelTests.cs` | La camera: un punto del mondo proiettato in prospettiva cade sul pixel previsto (errore angolare < 2e-6 rad); i raggi di un pixel con lente sottile convergono sul piano di fuoco (entro 1e-5 della distanza) e campionano la lente in modo uniforme; la sfocatura di ogni profondità segue la formula della lente sottile. |
+| `PhysicalCameraTests.cs` | Le chiavi fotografiche: `focal_length` + `sensor_width` danno il campo visivo, `f_stop` (con `meters_per_unit`) il diametro della pupilla; il diaframma a lamelle è campionato in modo uniforme (settori equiprobabili, distribuzione radiale ρ² nei triangoli); `aperture_ratio` stira il bokeh. |
+| `PixelFilterTests.cs` | Filtri di ricostruzione: le posizioni campionate seguono il profilo (chi-quadro) e un bordo netto renderizzato dà, colonna per colonna, la risposta al gradino del filtro (box, Gaussiano, Blackman-Harris). |
+| `ColorManagementTests.cs` | Curva sRGB a tratti; ACES 1.x contro OpenColorIO (24 colori, entro 1e-3); AgX e il look punchy contro un'implementazione indipendente; grigi neutri e monotoni in ogni vista; la vista `legacy` identica alla curva di prima. |
+| `WhiteBalanceTests.cs` | Bilanciamento del bianco: 6504 K è l'identità, una luce della temperatura scelta diventa neutra (da 1900 a 9000 K), il luogo dei colori è continuo. |
+| `DisplayQuantizerTests.cs` | Quantizzazione: il dithering conserva la media di un campo uniforme ed è deterministico; arrotondamento e 16 bit esatti agli estremi. |
 
 Il confronto con un renderer di riferimento esterno su scene complete vive fuori dalla suite, in
 `validation/` (vedi `validation/README.md`), insieme allo strumento `src/Tools/ImageCompare`.

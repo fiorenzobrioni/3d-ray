@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
 using RayTracer.Core.Sampling;
 using RayTracer.Denoising;
@@ -149,8 +150,8 @@ class Program
         // identity. Negative EV darkens (good for over-bright lighting setups
         // that ACES would otherwise squash into a near-saturated plateau);
         // positive EV brightens. The linear gain `2^EV` is applied to each
-        // pixel BEFORE the ACES tonemap so the artist slides the scene into
-        // the curve's linear sweet-spot. Mirrors Arnold `exposure`,
+        // pixel BEFORE the view transform so the artist slides the scene
+        // along the tone curve. Mirrors Arnold `exposure`,
         // Cycles "Film → Exposure", RenderMan display-filter `exposure`.
         float exposureEv = Renderer.DefaultExposureEv;
         if (float.TryParse(GetArg(args, "--exposure", null),
@@ -397,6 +398,78 @@ class Program
             transparentShadows = false;
         }
 
+        // `--filter <box|gaussian|blackman-harris>` (default gaussian): pixel
+        // reconstruction filter, applied by filter importance sampling. The
+        // box is the sharpest and the most aliased.
+        var pixelFilterKind = PixelFilterKind.Gaussian;
+        string? filterArg = GetArg(args, "--filter", null);
+        if (filterArg != null && !PixelFilter.TryParse(filterArg, out pixelFilterKind))
+        {
+            Console.WriteLine($"Error: Unknown --filter '{filterArg}'. Valid: box, gaussian, blackman-harris.");
+            return;
+        }
+
+        // Colour management: `--view <agx|aces|standard|legacy>` (default agx)
+        // turns scene-linear radiance into the display image; `--look` picks
+        // an AgX look. `legacy` reproduces the pre-review curve.
+        var view = ViewTransform.AgX;
+        string? viewArg = GetArg(args, "--view", null);
+        if (viewArg != null && !DisplayTransform.TryParseView(viewArg, out view))
+        {
+            Console.WriteLine($"Error: Unknown --view '{viewArg}'. Valid: agx, aces, standard, legacy.");
+            return;
+        }
+        var look = ViewLook.None;
+        string? lookArg = GetArg(args, "--look", null);
+        if (lookArg != null && !DisplayTransform.TryParseLook(lookArg, out look))
+        {
+            Console.WriteLine($"Error: Unknown --look '{lookArg}'. Valid: none, punchy, golden.");
+            return;
+        }
+        if (look != ViewLook.None && view != ViewTransform.AgX)
+            Console.WriteLine($"Warning: --look {lookArg} applies to the agx view only; ignored.");
+
+        // `--white-balance <K>`: overrides the camera's `white_balance`.
+        float? whiteBalanceArg = null;
+        string? wbArg = GetArg(args, "--white-balance", null);
+        if (wbArg != null)
+        {
+            if (!float.TryParse(wbArg, System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture, out var wbK)
+                || wbK < WhiteBalance.MinKelvin || wbK > WhiteBalance.MaxKelvin)
+            {
+                Console.WriteLine($"Error: --white-balance '{wbArg}' must be a temperature in {WhiteBalance.MinKelvin}-{WhiteBalance.MaxKelvin} K.");
+                return;
+            }
+            whiteBalanceArg = wbK;
+        }
+
+        // `--bit-depth <8|16>` (16 for PNG only) and `--dither <on|off>` for 8-bit.
+        int bitDepth = 8;
+        string? bitDepthArg = GetArg(args, "--bit-depth", null);
+        if (bitDepthArg != null)
+        {
+            if (bitDepthArg is not ("8" or "16"))
+            {
+                Console.WriteLine($"Error: Unknown --bit-depth '{bitDepthArg}'. Valid: 8, 16.");
+                return;
+            }
+            bitDepth = int.Parse(bitDepthArg);
+        }
+        bool dither = true;
+        string? ditherArg = GetArg(args, "--dither", null);
+        if (ditherArg != null)
+        {
+            switch (ditherArg.ToLowerInvariant())
+            {
+                case "on":  dither = true;  break;
+                case "off": dither = false; break;
+                default:
+                    Console.WriteLine($"Error: Unknown --dither '{ditherArg}'. Valid: on, off.");
+                    return;
+            }
+        }
+
         // `--seed <n>`: independent sample sequences for the same scene
         // (0 = the default sequences, bit-identical to a render without it).
         int seed = 0;
@@ -528,6 +601,9 @@ class Program
             Console.WriteLine($"  Sky:         {skyDesc}");
             if (motionBlur.Active)
                 Console.WriteLine($"  Motion blur: shutter [{motionBlur.ShutterOpen:0.##}, {motionBlur.ShutterClose:0.##}]");
+            float? whiteBalanceKelvin = whiteBalanceArg ?? camera.WhiteBalanceKelvin;
+            Console.WriteLine($"  View:        {view.ToString().ToLowerInvariant()}{(look != ViewLook.None ? $" ({look.ToString().ToLowerInvariant()})" : "")}, filter {pixelFilterKind.ToString().ToLowerInvariant()}" +
+                              (whiteBalanceKelvin is float k ? $", white balance {k:0} K" : ""));
 
             // Render (constructor may print scene analysis info before the blank line)
             var renderer = new Renderer(
@@ -538,7 +614,10 @@ class Program
                 enableCaustics: enableCaustics, causticPhotons: causticPhotons,
                 motionBlur: motionBlur,
                 referenceMode: referenceMode, seed: seed,
-                transparentShadows: transparentShadows);
+                transparentShadows: transparentShadows,
+                pixelFilter: PixelFilter.Create(pixelFilterKind),
+                displayTransform: new DisplayTransform(view, look,
+                    whiteBalanceKelvin is float wbk ? WhiteBalance.Matrix(wbk) : null));
             Console.WriteLine();
 
             var captureOptions = denoiserKind != DenoiserKind.None || aovs.Count > 0
@@ -584,7 +663,13 @@ class Program
             }
             else
             {
-                SaveImage(pixels, width, height, outputPath);
+                string ext = Path.GetExtension(outputPath).ToLowerInvariant();
+                if (bitDepth == 16 && ext is not (".png" or ""))
+                {
+                    Console.WriteLine($"  Warning: --bit-depth 16 needs a .png output; writing 8-bit {ext}.");
+                    bitDepth = 8;
+                }
+                SaveImage(pixels, width, height, outputPath, bitDepth, dither);
                 Console.WriteLine();
                 Console.WriteLine($"  \u2713 Saved: {Path.GetFullPath(outputPath)}");
             }
@@ -630,7 +715,7 @@ class Program
         Console.WriteLine("  -C, --clamp <n>              Firefly clamp: max per-sample radiance (default: off).");
         Console.WriteLine("                                Biased: cuts every sample brighter than n (try 10)");
         Console.WriteLine("      --indirect-clamp-factor  Indirect clamp = -C x factor, only with -C (default: 0.25; 1.0 = off)");
-        Console.WriteLine("      --exposure <EV>          Photographic exposure compensation in stops applied pre-ACES");
+        Console.WriteLine("      --exposure <EV>          Exposure compensation in stops, applied before the view transform");
         Console.WriteLine("                                (default: 0 = identity; -1 darkens 2×, +1 brightens 2×)");
         Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
         Console.WriteLine("      --sampler <prng|sobol>   Per-pixel sampler (default: sobol — Burley 2020)");
@@ -652,6 +737,16 @@ class Program
         Console.WriteLine("      --max-volume-bounces <n> Hard cap on random-walk bounces inside one entity");
         Console.WriteLine("      --transparent-shadows <on|off>  Glass lets shadow rays through, tinted, instead of");
         Console.WriteLine("                                casting its physical shadow and caustic (default: off)");
+        Console.WriteLine("      --filter <box|gaussian|blackman-harris>  Pixel reconstruction filter (default: gaussian,");
+        Console.WriteLine("                                sigma 0.5 px; blackman-harris is a little sharper, box the sharpest)");
+        Console.WriteLine("      --view <agx|aces|standard|legacy>  View transform from scene-linear to display");
+        Console.WriteLine("                                (default: agx; aces = ACES 1.x SDR; standard = sRGB curve,");
+        Console.WriteLine("                                no tone mapping; legacy = the pre-2026-10 curve)");
+        Console.WriteLine("      --look <none|punchy|golden>  Creative look for the agx view (default: none)");
+        Console.WriteLine("      --white-balance <K>      White balance in kelvin: a light of this temperature renders");
+        Console.WriteLine("                                neutral (default: the camera's white_balance, else none)");
+        Console.WriteLine("      --bit-depth <8|16>       Bits per channel of a .png output (default: 8)");
+        Console.WriteLine("      --dither <on|off>        Dither 8-bit output against banding (default: on)");
         Console.WriteLine("      --reference              Unbiased reference estimator for validation: no clamps,");
         Console.WriteLine("                                no transparent shadows, fixed RR, no denoiser/caustics");
         Console.WriteLine("      --seed <n>               Independent sample sequence (default 0 = standard sequence)");
@@ -789,26 +884,35 @@ class Program
         };
     }
 
-    static void SaveImage(Vector3[,] pixels, int width, int height, string path)
+    static void SaveImage(Vector3[,] pixels, int width, int height, string path, int bitDepth, bool dither)
     {
+        string ext = Path.GetExtension(path).ToLowerInvariant();
+        using var stream = File.Create(path);
+        if (bitDepth == 16)
+        {
+            // 16-bit PNG: no dithering needed, 65536 levels do not band.
+            using var image16 = new Image<Rgba64>(width, height);
+            for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
+                {
+                    var c = pixels[y, x];
+                    image16[x, y] = new Rgba64(DisplayQuantizer.To16Bit(c.X), DisplayQuantizer.To16Bit(c.Y),
+                                               DisplayQuantizer.To16Bit(c.Z), ushort.MaxValue);
+                }
+            image16.SaveAsPng(stream, new PngEncoder { BitDepth = PngBitDepth.Bit16, ColorType = PngColorType.Rgb });
+            return;
+        }
+
         using var image = new Image<Rgba32>(width, height);
         for (int y = 0; y < height; y++)
-        {
             for (int x = 0; x < width; x++)
             {
                 var c = pixels[y, x];
-                // BUG-04 fix: cast via int with clamp avoids the silent byte-overflow
-                // edge case that 255.99f could theoretically cause with Inf/NaN inputs.
-                byte r = (byte)Math.Clamp((int)(Math.Clamp(c.X, 0f, 1f) * 256f), 0, 255);
-                byte g = (byte)Math.Clamp((int)(Math.Clamp(c.Y, 0f, 1f) * 256f), 0, 255);
-                byte b = (byte)Math.Clamp((int)(Math.Clamp(c.Z, 0f, 1f) * 256f), 0, 255);
-                image[x, y] = new Rgba32(r, g, b, 255);
+                image[x, y] = new Rgba32(DisplayQuantizer.To8Bit(c.X, x, y, 0, dither),
+                                         DisplayQuantizer.To8Bit(c.Y, x, y, 1, dither),
+                                         DisplayQuantizer.To8Bit(c.Z, x, y, 2, dither), 255);
             }
-        }
 
-        // Determine format from extension
-        string ext = Path.GetExtension(path).ToLowerInvariant();
-        using var stream = File.Create(path);
         switch (ext)
         {
             case ".jpg":

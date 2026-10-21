@@ -314,20 +314,26 @@ public partial class Renderer
     private readonly bool _emitRayDifferentials;
 
     // ── Exposure (photographic stops, EV) ──────────────────────────────────
-    // Linear multiplier applied to each pixel BEFORE the ACES tonemap. Matches
-    // the "Exposure" / "Camera exposure" knob found in Arnold (`exposure`
-    // attribute), Cycles ("Film → Exposure") and RenderMan (`exposure` on the
-    // display filter). Without this control, scenes lit above ~1.0 irradiance
-    // get squashed by ACES into a 1.2:1 contrast band where procedural
-    // textures look uniformly bright; with it, the artist dials the linear
-    // gain into the ACES sweet spot (0.4-0.7 linear) where textural variation
-    // reads properly.
+    // Linear multiplier applied to each pixel BEFORE the view transform.
+    // Matches the "Exposure" / "Camera exposure" knob found in Arnold
+    // (`exposure` attribute), Cycles ("Film → Exposure") and RenderMan
+    // (`exposure` on the display filter). Without this control, scenes lit
+    // above ~1.0 irradiance land on the shoulder of the tone curve where
+    // procedural textures look uniformly bright; with it, the artist slides
+    // the linear gain back to where textural variation reads properly.
     //
     // EV semantics: factor = 2^EV. EV = 0 (default) is identity; negative EV
     // darkens, positive brightens. Typical studio compensation for an
     // over-exposed setup is EV = -1 to -2.
     public const float DefaultExposureEv = 0f;
     private readonly float _exposureScale;
+
+    // Pixel reconstruction filter, applied by filter importance sampling: it
+    // only moves each camera sample inside the filter's footprint.
+    private readonly PixelFilter _pixelFilter;
+
+    // Exposure-scaled linear radiance → display-encoded pixel (view transform).
+    private readonly DisplayTransform _display;
 
     // ── Random-walk subsurface scattering ──────────────────────────────────
     // Dispatched from ShadeSampleBounce when an entry refraction lands on an
@@ -371,8 +377,12 @@ public partial class Renderer
         MotionBlurSettings motionBlur = default,
         bool referenceMode = false,
         int seed = 0,
-        bool transparentShadows = false)
+        bool transparentShadows = false,
+        PixelFilter? pixelFilter = null,
+        DisplayTransform? displayTransform = null)
     {
+        _pixelFilter = pixelFilter ?? PixelFilter.Box;
+        _display = displayTransform ?? DisplayTransform.Legacy;
         _referenceMode = referenceMode;
         _transparentShadows = transparentShadows && !referenceMode;
         _seedMix = seed == 0 ? 0u : MixSeed((uint)seed);
@@ -710,9 +720,9 @@ public partial class Renderer
                         // Let Sobol(2D) place the camera-jitter point natively.
                         // The (0,2,2)-net property guarantees the full set of
                         // spp points covers the pixel as a perfect stratified
-                        // grid at every power-of-two prefix.
-                        float jitterU = MathUtils.RandomFloat();
-                        float jitterV = MathUtils.RandomFloat();
+                        // grid at every power-of-two prefix; the filter maps
+                        // each axis monotonically, so the stratification holds.
+                        var (jitterU, jitterV) = MathUtils.Random2D();
 
                         // Motion blur: one shutter-time dimension per camera
                         // sample, drawn AFTER the pixel jitter and BEFORE the
@@ -723,8 +733,8 @@ public partial class Renderer
                             ? _shutterOpen + (_shutterClose - _shutterOpen) * MathUtils.RandomFloat()
                             : 0f;
 
-                        float u = (i + jitterU) / width;
-                        float v = (height - j - 1 + jitterV) / height;
+                        float u = (i + _pixelFilter.SamplePosition(jitterU)) / width;
+                        float v = (height - j - 1 + _pixelFilter.SamplePosition(jitterV)) / height;
 
                         var ray = _emitRayDifferentials
                             ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy, rayTime)
@@ -766,8 +776,8 @@ public partial class Renderer
                                 ? _shutterOpen + (_shutterClose - _shutterOpen) * MathUtils.RandomFloat()
                                 : 0f;
 
-                            float u = (i + jitterU) / width;
-                            float v = (height - j - 1 + jitterV) / height;
+                            float u = (i + _pixelFilter.SamplePosition(jitterU)) / width;
+                            float v = (height - j - 1 + _pixelFilter.SamplePosition(jitterV)) / height;
 
                             var ray = _emitRayDifferentials
                                 ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy, rayTime)
@@ -788,12 +798,9 @@ public partial class Renderer
 
                 Vector3 linearColor = cumulativeColor / actualSamples;
                 // Apply the photographic exposure (linear gain = 2^EV) BEFORE
-                // ACES. Doing it pre-tonemap means the artist's EV slides the
-                // scene into the linear sweet-spot of the ACES curve where
-                // 0.18 grey maps to ≈ 0.18 grey and procedural textures keep
-                // their full contrast, instead of being squashed into the
-                // 0.85-0.99 plateau when scene irradiance lands above 1.0.
-                pixels[j, i] = AcesToneMap(linearColor * _exposureScale);
+                // the view transform, so the artist's EV slides the scene
+                // along the tone curve instead of rescaling display values.
+                pixels[j, i] = _display.Apply(linearColor * _exposureScale);
                 if (buffers != null)
                     capAcc.Store(buffers, i, j, linearColor, actualSamples);
             }
@@ -816,8 +823,8 @@ public partial class Renderer
     }
 
     /// <summary>
-    /// Applies the renderer's display transform (exposure gain → ACES filmic →
-    /// gamma 2.2) to a linear-HDR beauty buffer. Uses the exact same per-pixel
+    /// Applies the renderer's display transform (exposure gain → white balance
+    /// → view transform → display encoding) to a linear-HDR beauty buffer. Uses the exact same per-pixel
     /// math as the in-loop path, so tone-mapping a captured (or denoised)
     /// beauty buffer reproduces the legacy output for unchanged radiance.
     /// </summary>
@@ -828,7 +835,7 @@ public partial class Renderer
         Parallel.For(0, h, j =>
         {
             for (int i = 0; i < w; i++)
-                pixels[j, i] = AcesToneMap(linearBeauty.GetRgb(i, j) * _exposureScale);
+                pixels[j, i] = _display.Apply(linearBeauty.GetRgb(i, j) * _exposureScale);
         });
         return pixels;
     }
@@ -967,27 +974,6 @@ public partial class Renderer
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector3 Clamp01(Vector3 v) => Vector3.Clamp(v, Vector3.Zero, Vector3.One);
-
-    /// <summary>
-    /// ACES filmic tone mapping followed by gamma 2.2 correction.
-    /// Provides natural highlight rolloff and richer colors compared to simple sqrt gamma.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector3 AcesToneMap(Vector3 color)
-    {
-        color = Vector3.Max(color, Vector3.Zero);
-
-        // ACES filmic curve: (x * (2.51x + 0.03)) / (x * (2.43x + 0.59) + 0.14)
-        Vector3 a = color * (2.51f * color + new Vector3(0.03f));
-        Vector3 b = color * (2.43f * color + new Vector3(0.59f)) + new Vector3(0.14f);
-        Vector3 mapped = new Vector3(a.X / b.X, a.Y / b.Y, a.Z / b.Z);
-
-        const float invGamma = 1f / 2.2f;
-        return new Vector3(
-            MathF.Pow(Math.Clamp(mapped.X, 0f, 1f), invGamma),
-            MathF.Pow(Math.Clamp(mapped.Y, 0f, 1f), invGamma),
-            MathF.Pow(Math.Clamp(mapped.Z, 0f, 1f), invGamma));
-    }
 
     /// <summary>
     /// Replaces NaN/Inf components with zero and floors negatives at zero.

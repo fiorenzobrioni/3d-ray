@@ -23,7 +23,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 0 | Infrastruttura di verifica | ✅ Chiusa (2026-10-20), esito in §4 Fase 0 |
 | 1 | Fondamenta matematiche, sampler | ✅ Chiusa (2026-10-20), esito in §4 Fase 1 |
 | 2 | Geometria e intersezioni | ⬜ |
-| 3 | Camera, film e colore | ⬜ |
+| 3 | Camera, film e colore | ✅ Chiusa (2026-10-21), esito in §4 Fase 3 |
 | 4 | Texture e dati | ⬜ |
 | 5 | Materiali e BSDF | ⬜ |
 | 6 | Luci, cielo | ⬜ |
@@ -111,8 +111,8 @@ fase indicata.
 | 3.1 | **[BUG]** | `Rendering/Sky/PreethamSky.cs:197` | Funzione di Perez sbagliata. Corretta: `(1 + A*e^(B/cosθ)) (1 + C*e^(Dγ) + E*cos²γ)`. Nel codice: `(C + D*e^(Eγ) + E*cos²γ)`, cioè coefficienti scalati di una posizione ed `E` usato due volte. Anche la normalizzazione `F(0, θs)` eredita l'errore. Il sole usa una costante empirica (`SolarConstantRel = 20`) e trasmittanze ad hoc. |
 | 3.2 | **[BUG]** confermato | `Materials/DisneyBsdf.cs:1302, 1335, 1384, 1440, 1604, 1674, 1706` | Dopo aver scelto un lobo con probabilità `p`, il peso viene diviso per `max(p, 0.1)` (o `0.05`), ma `p` non è mai forzato a quel minimo in fase di scelta. **Misurato (Fase 0)**: il renderer usa `Sample()`, che per i lobi non-delta ricalcola `Evaluate`/`Pdf` e quindi non è toccato; il bug colpisce i lobi **delta** (speculare liscio, clearcoat liscio, trasmissione). Plastica liscia: riflesso speculare sottostimato del 9.4% a ogni angolo (p = 0.0906). Test `KnownBug_Disney_SmoothSpecularMatchesFresnel`. Fase 5. |
 | 3.3 | **[BUG]** | `Scene/SceneLoader.cs:1802, 1902` + `Textures/ImageTexture.cs:63` | Le mappe dati (roughness, metallic, coat roughness...) passano per `ImageTexture`, che applica sempre la decodifica sRGB. Una roughness map viene quindi "linearizzata" come fosse un colore: valori sbagliati. Manca un attributo `color_space` per texture. |
-| 3.4 | **[NON-STANDARD]** | `Textures/ImageTexture.cs:63` | Decodifica sRGB come `pow(x, 2.2)` invece della curva sRGB a tratti (IEC 61966-2-1). Errore visibile nelle ombre. |
-| 3.5 | **[NON-STANDARD]** | `Rendering/Renderer.cs:893` | Display transform = fit di Narkowicz dell'ACES applicato **per canale** su Rec.709 + gamma 2.2 pura. Effetti noti: hue shift e saturazione "Notorious 6" sulle alte luci, colori brillanti che virano a giallo/ciano, nessuna vera gestione del colore. Il fit originale prevede anche un pre-scale 0.6 assente. |
+| 3.4 | ✅ **corretto** (2026-10-21, Fase 3), era **[NON-STANDARD]** | `Textures/ImageTexture.cs` | Decodifica sRGB come `pow(x, 2.2)` invece della curva sRGB a tratti (IEC 61966-2-1): il byte 10 diventava 8.0e-4 invece di 3.0e-3, ombre delle texture troppo scure. Ora `Srgb.Decode` (stessa curva dell'uscita). |
+| 3.5 | ✅ **corretto** (2026-10-21, Fase 3), era **[NON-STANDARD]** | `Rendering/ColorManagement.cs` | Display transform = fit di Narkowicz dell'ACES applicato **per canale** su Rec.709 + gamma 2.2 pura: hue shift e saturazione "Notorious 6" sulle alte luci, nessuna gestione del colore. Ora `--view agx` (default), `aces` (ACES 1.x RRT + ODT vero, entro 7e-4 da OpenColorIO), `standard` (curva sRGB a tratti); la curva vecchia resta come `legacy`. Bilanciamento del bianco, dithering, PNG 16 bit. |
 | 3.6 | **[NON-STANDARD]** ridimensionato | `Materials/DisneyBsdf.cs:642-648, 773-778` | La trasmissione **rough** (vetro satinato) è esclusa da `Evaluate`/`Pdf`. **Misurato (Fase 0)**: `Sample()` la marca come delta, quindi non c'è bias ma solo varianza (niente NEE attraverso il vetro satinato). Il vero problema del vetro Disney è il guadagno di energia (3.17). Serve comunque il modello di Walter et al. 2007 completo (BTDF + pdf). Fase 5. |
 | 3.7 | **[BUG]** confermato, grave | `Materials/Metal.cs:86-91` vs `135-162` | Il lobo lambertiano "di riempimento" `albedo*fuzz/π` esiste **solo** in `EvaluateDirect` (la NEE), non in `Evaluate`/`Sample`: luce diretta e luce campionata dalla BSDF stimano due materiali diversi (scarto fino al 96%) e il MIS li mescola. **Misurato**: sfere di metallo bianco rough +37% di luminanza rispetto a Mitsuba, aspetto da materiale diffuso. Il `MixMaterial` lo eredita. Inoltre il GGX singolo-scattering perde molta energia ad alta rugosità (fuzz 1, bianco: albedo 0.32-0.51) e il Fresnel è Schlick con `F0 = colore`: niente Kulla-Conty, IOR complesso o F82. Test `KnownBug_Metal_DirectLightingMatchesSampling`. Fase 5. |
 | 3.8 | **[BIAS]** di default, misurato | `Rendering/Renderer.cs:208, 221, 376-378` + materiali | Attivi di default: clamp per-sample 10, clamp indiretto 0.25 (= 2.5), ombre trasparenti "dritte" del vetro, Russian Roulette con soglie da una classificazione euristica della scena, `DeadPathThroughputEpsilon`. Tutti spenti da `--reference` (Fase 0). Il peso misurato dei primi due è in 3.20 e 3.21. Fase 7. |
@@ -140,6 +140,8 @@ fase indicata.
 | 3.30 | **[NON-STANDARD]** | `Core/Perlin.cs:109-111` | Interpolazione con il fade cubico `3t² - 2t³`: il valore e il gradiente sono continui ma la curvatura salta di 12.7 attraverso le facce del reticolo (visibile come pieghe sulla griglia nei bump map di rumore, che derivano due volte). Gradienti normalizzati sul cubo: anisotropia del 5.7% fra assi e diagonali. Improved Perlin (fade quintico, 12 gradienti) cambia l'aspetto di ogni texture procedurale: Fase 4, con un'opzione per l'aspetto attuale. Anche `MultiScaleRidgedField` e `DomainWarp` (costruiti su Perlin) vanno verificati lì. |
 | 3.31 | **[NON-STANDARD]** piccolo | `Rendering/Renderer.cs:700` | I differenziali di raggio sono ridotti di `1/√spp` senza minimo: ad alti spp il filtro delle texture scende sotto il pixel (PBRT-v4 usa `max(1/8, 1/√spp)`), con aliasing e accessi di cache peggiori. Il footprint dei raggi di camera è verificato (§4 Fase 1); la propagazione dopo riflessione e rifrazione non è ancora testata. Fase 4. |
 | 3.32 | **[DEBITO]** | `Core/MathUtils.cs` (`Refract`) | Con la riflessione totale interna `Refract` prende `Abs(1 - sin²)` invece di segnalarla e restituisce una direzione senza significato: oggi tutti i chiamanti controllano prima, ma l'API non lo impone. Fase 5 (con il vetro). |
+| 3.33 | **[BUG]** | `Denoising/` (NFOR) | Attorno a luci piccole e molto luminose sfocate (bokeh) il denoiser disegna un **alone scuro** più scuro dello sfondo: la regressione al primo ordine sbanda su valori HDR estremi. Senza denoiser l'alone non c'è (verificato con `scenes/showcases/camera-physical.yaml`). Colpisce i preset `draft*`, `standard*`, `pre-final*`. Fase 9. |
+| 3.34 | **[NON-STANDARD]** rimandato | camera | Esposizione fisica (ISO, tempo di posa, EV100) non implementata: senza unità fotometriche per le luci (3.14) un'esposizione in EV100 non ha un riferimento. Va fatta con le unità nella Fase 6. |
 
 ---
 
@@ -340,17 +342,65 @@ rendering relativo alla camera.
 
 ### Fase 3 - Camera, film e colore (`Camera/`, `Rendering/` output)
 
-- [ ] Camera: generazione raggi pinhole e thin lens (campionamento lente concentrico), profondità
+- [x] Camera: generazione raggi pinhole e thin lens (campionamento lente concentrico), profondità
       di campo coerente con la formula della lente sottile, motion blur camera.
-- [ ] Filtro di ricostruzione dei pixel: verificare quale si usa (box implicito?); premium =
-      filtro Gaussiano o Blackman-Harris con *filter importance sampling*.
-- [ ] **Camera fisica** (estensione): `focal_length_mm`, `sensor_width_mm`, `f_stop`,
-      `focus_distance`, `shutter_s`, `iso`, esposizione EV100; bokeh poligonale/anamorfico.
-- [ ] **Color management** (punto 3.4-3.5): working space dichiarato (Rec.709 lineare, opzione
-      ACEScg), view transform selezionabili `standard` (sRGB a tratti), `agx` (default
-      consigliato), `aces` (RRT+ODT reale), `filmic`; look/contrast; dithering sull'8 bit;
-      PNG 16 bit. Tutti i test di confronto vanno fatti su EXR lineare, non sul PNG.
-- [ ] White balance (temperatura in Kelvin, adattamento cromatico Bradford/CAT16).
+- [x] Filtro di ricostruzione dei pixel: era un box implicito; ora Gaussiano (default),
+      Blackman-Harris o box, con *filter importance sampling*.
+- [x] **Camera fisica** (estensione): `focal_length`, `sensor_width`, `f_stop`, `meters_per_unit`,
+      messa a fuoco con le chiavi esistenti; bokeh poligonale e anamorfico. Esposizione da ISO e
+      tempo di posa (EV100) rimandata alla Fase 6 con le unità fotometriche (3.34).
+- [x] **Color management** (punto 3.4-3.5): working space dichiarato Rec.709 lineare, view
+      transform `agx` (default), `aces` (RRT+ODT reale), `standard`, `legacy`; look AgX `punchy` e
+      `golden`; dithering sull'8 bit; PNG 16 bit. I confronti restano su PFM/EXR lineari. `filmic`
+      non fatto: AgX ne è il successore dello stesso autore. ACEScg come working space e ACES 2.0
+      rimandati alla Fase 10 (semantica del colore nel formato v2).
+- [x] White balance (temperatura in Kelvin, adattamento cromatico Bradford).
+
+#### Esito Fase 3 (2026-10-21)
+
+Suite: 776 test verdi, 4 skip dei bug noti (+79 test). Tutti nuovi, in `src/RayTracer.Tests/Validation/`.
+
+**Camera: corretta, non è cambiato nulla nel modello.** La proiezione prospettica coincide con
+quella scritta indipendentemente (errore angolare < 2e-6 rad); i raggi di un pixel convergono sul
+piano di fuoco entro 1e-5 della distanza; la sfocatura di ogni profondità segue la formula della
+lente sottile `A |d - f| / d`; il campionamento della lente è uniforme. Il motion blur della camera
+era già coperto da `MotionBlurTests`.
+
+**Filtro di ricostruzione: era un box implicito.** Ora Gaussiano σ 0.5 px (default della CLI,
+stessa definizione di Mitsuba), Blackman-Harris o box, per filter importance sampling. La risposta
+al gradino di un bordo renderizzato coincide con la CDF del filtro entro 0.01 per tutti e tre. Il
+box resta bit-identico a prima (stessi numeri del sampler, stessa espressione).
+
+**Camera fisica**: `focal_length` + `sensor_width` → campo visivo, `f_stop` → pupilla (in metri
+con `meters_per_unit`), diaframma a lamelle e anamorfico campionati uniformemente (chi-quadro per
+settori e raggio). Showcase `scenes/showcases/camera-physical.yaml`.
+
+**Gestione del colore** (3.4, 3.5):
+
+| Vista | 0.18 → | 1.0 → | Verifica |
+|---|---|---|---|
+| `agx` (default) | 0.500 | 0.792 | contro un'implementazione indipendente, < 2e-4 |
+| `aces` | 0.356 | 0.812 | contro OpenColorIO 2.6 (config ACES 1.3), 24 colori, < 1e-3 (scarto massimo misurato 7e-4) |
+| `standard` | 0.461 | 1.000 | curva sRGB a tratti |
+| `legacy` | 0.548 | 0.905 | identica alla curva di prima |
+
+Grigi neutri e monotoni in ogni vista. Texture decodificate con la curva sRGB a tratti (il byte 10
+passava da 3.0e-3 a 8.0e-4 con la potenza 2.2). Bilanciamento del bianco: 6504 K è l'identità
+(< 2e-3), una luce della temperatura scelta diventa neutra da 1900 a 9000 K. Dithering a 8 bit:
+media di un campo uniforme esatta entro 0.01 livelli.
+
+**Validazione contro Mitsuba** con lo stesso filtro Gaussiano da entrambe le parti (riferimenti
+rigenerati): rapporti invariati (Cornell 0.9998 / 0.9999, `lights` 0.9997, `glass-shadow` 0.9997 /
+0.9995), relMSE in calo dove domina la differenza di filtro (Cornell di riferimento da 8.7e-5 a
+8.4e-5, default da 6.0e-5 a 5.7e-5). Il gestore dei colori non entra nel confronto: l'harness
+confronta PFM lineari.
+
+**Nuovi problemi**: 3.33 (NFOR disegna un alone scuro attorno al bokeh di luci piccole e intense,
+Fase 9), 3.34 (esposizione fisica da ISO e tempo di posa, Fase 6 con le unità delle luci).
+
+**Verdetto**: camera tenuta ed estesa; colore rifatto. Il default della CLI cambia aspetto a ogni
+render (AgX al posto della curva vecchia, filtro Gaussiano al posto del box): `--view legacy
+--filter box` riproduce i render precedenti.
 
 ### Fase 4 - Texture e dati (`Textures/`)
 
@@ -518,15 +568,15 @@ Da creare in `scenes/validation/` (YAML) e `scenes/validation/mitsuba/` (XML):
 
 ## 6. Verdetto preliminare per modulo
 
-Basato sulla sezione 3, aggiornato con le misure delle Fasi 0 e 1: da confermare fase per fase.
+Basato sulla sezione 3, aggiornato con le misure delle Fasi 0, 1 e 3: da confermare fase per fase.
 
 | Modulo | Verdetto preliminare | Motivo |
 |---|---|---|
 | Core math, noise, solver | **tenere** (Fase 1) | verificati e corretti (offset, basi, AABB, cubica); resta il Perlin (Fase 4) |
 | Sampler | **rifatto** (Fase 1) | Sobol "padded" con dimensioni per vertice: stratificato in 2D su ogni decisione |
 | Geometria e BVH | tenere / correggere | ampia e testata; triangolo watertight |
-| Camera | estendere | manca la camera fisica |
-| Tone mapping e colore | **rifare** | nessuna gestione del colore |
+| Camera | **tenere** (Fase 3) | modello verificato; aggiunte camera fisica, bokeh a lamelle e anamorfico, filtro di ricostruzione |
+| Tone mapping e colore | **rifatto** (Fase 3) | AgX, ACES 1.x verificato con OpenColorIO, sRGB esatto, bilanciamento del bianco; resta l'esposizione fisica (Fase 6) |
 | Texture | correggere | `color_space`, sRGB esatto, MikkTSpace |
 | Materiali | **rifare attorno a OpenPBR** | Fase 0: Metal con NEE incoerente (+37%), strati Disney che creano energia (sheen, coat, vetro), lobi delta sottostimati; doppia API. Si riusano Microfacet, VNDF, Fresnel, LUT (campionamento e reciprocità verificati) |
 | Luci | correggere + unità fisiche | Fase 0: luce puntiforme esatta; il bug dei raggi d'ombra (3.19) è corretto e ora tutte le luci analitiche coincidono con Mitsuba; unità assenti |

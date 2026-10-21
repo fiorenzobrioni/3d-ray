@@ -545,6 +545,32 @@ The focus plane is perpendicular to the view direction passing through `focal_po
 
 When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info message is logged). `focal_pos` is ignored with a warning when it falls behind the camera, coincides with it, or the camera is degenerate (`look_at == position`); the scalar `focal_dist` is used as fallback.
 
+#### **Physical camera: focal length, f-stop, bokeh, white balance**
+The same thin lens can be described as on a real camera. These keys win over `fov` and `aperture` when present:
+
+| Key | Default | Meaning |
+|---|---|---|
+| `focal_length` | - | Focal length in mm. With `sensor_width` it sets the field of view: the sensor width spans the image width, the height follows the image aspect. The lens is treated as focused at infinity (no focus breathing). |
+| `sensor_width` | `36` | Sensor width in mm (36 = full frame, 23.5 = APS-C, 17.3 = Micro Four Thirds). |
+| `f_stop` | - | f-number N: pupil diameter = focal length / N. Without `focal_length`, the focal length that gives `fov` on that sensor is used. |
+| `meters_per_unit` | `1` | Length of one scene unit in metres, to turn the millimetre pupil into scene units (`0.01` for a scene modelled in centimetres). |
+| `aperture_blades` | `0` | Number of straight diaphragm blades: `0` = round, `5`-`9` give polygonal bokeh. |
+| `aperture_rotation` | `0` | Rotation of the blade polygon, in degrees. |
+| `aperture_ratio` | `1` | Width / height of the aperture: below 1 the bokeh becomes a tall oval, as with an anamorphic lens (`0.5` for a 2x squeeze). |
+| `white_balance` | - | White balance in kelvin (1667-25000): a light of this colour temperature renders neutral. Lower values cool the image, higher values warm it; `6504` is the identity. Applied to the display image only (EXR stays scene-linear); `--white-balance` on the CLI wins. |
+
+```yaml
+camera:
+  position: [0, 1.2, 0]
+  look_at:  [0, 0.9, -2.5]
+  focal_length: 50          # a 50 mm lens on full frame: vertical fov 22.9° at 16:9
+  f_stop: 1.4               # pupil 35.7 mm (scene in metres)
+  focal_pos: [0, 0.9, -2.5]
+  aperture_blades: 6        # hexagonal bokeh
+  white_balance: 3200       # tungsten light renders white
+```
+The blur of a point at distance `d` with the focus at `f` is the thin-lens circle of confusion: on the focus plane it has diameter `A |d - f| / d`, where `A` is the pupil diameter. See `scenes/showcases/camera-physical.yaml`.
+
 #### **`shutter` - motion-blur exposure interval**
 Motion blur integrates the scene over the time the shutter is open. The scene's
 animation runs on a normalized timeline `[0, 1]` (see the entity `motion:` key in

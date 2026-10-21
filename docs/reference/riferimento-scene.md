@@ -548,6 +548,32 @@ Il piano focale è perpendicolare alla direzione di vista e passa per `focal_pos
 
 Quando entrambi `focal_pos` e `focal_dist` sono specificati, `focal_pos` vince (viene loggato un info message). `focal_pos` viene ignorato con un warning quando cade alle spalle della camera, coincide con essa o la camera è degenerata (`look_at == position`); in quel caso si usa lo scalare `focal_dist` come fallback.
 
+#### **Camera fisica: focale, f-stop, bokeh, bilanciamento del bianco**
+La stessa lente sottile si può descrivere come su una fotocamera vera. Quando presenti, queste chiavi vincono su `fov` e `aperture`:
+
+| Chiave | Default | Significato |
+|---|---|---|
+| `focal_length` | - | Lunghezza focale in mm. Con `sensor_width` fissa il campo visivo: la larghezza del sensore copre la larghezza dell'immagine, l'altezza segue le proporzioni dell'immagine. L'obiettivo è trattato come messo a fuoco all'infinito (niente focus breathing). |
+| `sensor_width` | `36` | Larghezza del sensore in mm (36 = pieno formato, 23.5 = APS-C, 17.3 = Micro Quattro Terzi). |
+| `f_stop` | - | Numero f N: diametro della pupilla = focale / N. Senza `focal_length` si usa la focale che dà `fov` su quel sensore. |
+| `meters_per_unit` | `1` | Lunghezza di un'unità della scena in metri, per convertire la pupilla da millimetri a unità della scena (`0.01` per una scena modellata in centimetri). |
+| `aperture_blades` | `0` | Numero di lamelle diritte del diaframma: `0` = rotondo, da `5` a `9` danno un bokeh poligonale. |
+| `aperture_rotation` | `0` | Rotazione del poligono delle lamelle, in gradi. |
+| `aperture_ratio` | `1` | Larghezza / altezza del diaframma: sotto 1 il bokeh diventa un ovale verticale, come con un obiettivo anamorfico (`0.5` per una compressione 2x). |
+| `white_balance` | - | Bilanciamento del bianco in kelvin (1667-25000): una luce di questa temperatura di colore appare neutra. Valori più bassi raffreddano l'immagine, più alti la scaldano; `6504` non cambia nulla. Solo sull'immagine per lo schermo (l'EXR resta lineare); `--white-balance` da CLI vince. |
+
+```yaml
+camera:
+  position: [0, 1.2, 0]
+  look_at:  [0, 0.9, -2.5]
+  focal_length: 50          # un 50 mm su pieno formato: fov verticale 22.9° a 16:9
+  f_stop: 1.4               # pupilla di 35.7 mm (scena in metri)
+  focal_pos: [0, 0.9, -2.5]
+  aperture_blades: 6        # bokeh esagonale
+  white_balance: 3200       # la luce al tungsteno appare bianca
+```
+La sfocatura di un punto a distanza `d` con il fuoco a `f` è il cerchio di confusione della lente sottile: sul piano di fuoco ha diametro `A |d - f| / d`, dove `A` è il diametro della pupilla. Vedi `scenes/showcases/camera-physical.yaml`.
+
 #### **`shutter` - intervallo di esposizione (motion blur)**
 Il motion blur integra la scena sul tempo in cui l'otturatore è aperto.
 L'animazione della scena gira su una timeline normalizzata `[0, 1]` (vedi la

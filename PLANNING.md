@@ -105,7 +105,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 - [ ] Refactoring: spostare `Seed` da `IHittable` a un'interfaccia dedicata (es. `ISeeded`); nodi strutturali (BvhNode, Transform) non hanno bisogno di seed.
 - [ ] Review completa dei tutorial (`tutorial/`): correttezza vs codice, omissioni, grammatica, esempi, indici.
 - [ ] Spezzare `SceneLoader.cs`.
-- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅, Fase 1 (fondamenta matematiche e sampler) ✅.
+- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅, Fase 1 (fondamenta matematiche e sampler) ✅, Fase 3 (camera, film e colore) ✅.
 
 ---
 
@@ -136,6 +136,12 @@ Fase 1 della review (fondamenta matematiche):
 - [x] **Offset dei raggi fissi a 1e-4** (§3.27), **basi ortonormali di Frisvad** (§3.26), **`AABB.Hit` con NaN** (§3.28), **cubica con soglia assoluta** che fondeva radici vicine del toro (§3.29): corretti 2026-10-20.
 - [ ] **Perlin** con fade cubico (curvatura discontinua) e gradienti anisotropi (§3.30): Fase 4.
 - [ ] **Differenziali di raggio** senza il minimo 1/8 (§3.31): Fase 4. **`MathUtils.Refract`** con riflessione totale interna silenziosa (§3.32): Fase 5.
+
+Fase 3 della review (camera, film e colore):
+
+- [x] **Decodifica sRGB delle texture con potenza 2.2** (§3.4) e **tone mapping ACES per canale con gamma 2.2** (§3.5): corretti 2026-10-21 (curva sRGB a tratti, view transform AgX / ACES 1.x / standard, `legacy` per i render vecchi).
+- [ ] **NFOR disegna un alone scuro** attorno a luci piccole e molto luminose sfocate (§3.33): Fase 9.
+- [ ] **Esposizione fisica** (ISO, tempo di posa, EV100) senza unità delle luci (§3.34): Fase 6.
 
 ---
 

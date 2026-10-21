@@ -12,6 +12,19 @@ namespace RayTracer.Camera;
 /// </summary>
 public readonly record struct CameraKey(float Time, Vector3 LookFrom, Vector3 LookAt, Vector3 Vup, float Fov);
 
+/// <summary>
+/// Shape of the lens aperture, which is the shape of the bokeh: a disk by
+/// default, a regular polygon with <see cref="Blades"/> straight blades
+/// (inscribed in the disk, a vertex at <see cref="RotationDeg"/>), stretched
+/// horizontally by <see cref="Ratio"/> (width / height; below 1 gives the tall
+/// ovals of an anamorphic lens).
+/// </summary>
+public readonly record struct ApertureShape(int Blades = 0, float RotationDeg = 0f, float Ratio = 1f)
+{
+    public static readonly ApertureShape Circular = new(0, 0f, 1f);
+    public bool IsCircular => Blades < 3 && Ratio == 1f;
+}
+
 public class Camera
 {
     /// <summary>Precomputed view frame for one camera pose.</summary>
@@ -53,11 +66,16 @@ public class Camera
 
     private readonly Basis _basis;
     private readonly float _lensRadius;
+    private readonly ApertureShape _aperture;
 
     // Retained only for the animated path, which rebuilds the basis per ray.
     private readonly CameraKey[]? _motion;
     private readonly float _aspectRatio;
     private readonly float _focusDist;
+
+    /// <summary>White balance of the camera in kelvin, or null. A film setting
+    /// read by the display transform, not by the ray generation.</summary>
+    public float? WhiteBalanceKelvin { get; set; }
 
     /// <summary>True when this camera carries motion keys (camera motion blur).</summary>
     public bool HasMotion => _motion != null;
@@ -70,10 +88,12 @@ public class Camera
         float aspectRatio,
         float aperture,
         float focusDist,
-        IReadOnlyList<CameraKey>? motion = null)
+        IReadOnlyList<CameraKey>? motion = null,
+        ApertureShape? apertureShape = null)
     {
         _basis = new Basis(lookFrom, lookAt, vUp, vFovDeg, aspectRatio, focusDist);
         _lensRadius = aperture / 2f;
+        _aperture = apertureShape ?? ApertureShape.Circular;
         _aspectRatio = aspectRatio;
         _focusDist = focusDist;
         _motion = motion is { Count: >= 2 } ? motion.OrderBy(k => k.Time).ToArray() : null;
@@ -96,7 +116,7 @@ public class Camera
                 time);
         }
 
-        Vector3 rd = _lensRadius * MathUtils.RandomInUnitDisk();
+        Vector3 rd = _lensRadius * SampleAperture();
         Vector3 offset = basis.U * rd.X + basis.V * rd.Y;
 
         return new Ray(
@@ -141,7 +161,7 @@ public class Camera
             return new Ray(basis.Origin, dir, diff, time);
         }
 
-        Vector3 rd = _lensRadius * MathUtils.RandomInUnitDisk();
+        Vector3 rd = _lensRadius * SampleAperture();
         Vector3 offset = basis.U * rd.X + basis.V * rd.Y;
         Vector3 lensOrigin = basis.Origin + offset;
 
@@ -150,6 +170,39 @@ public class Camera
         var dirYa = pixelTargetY - lensOrigin;
         var diffA = new RayDifferential(lensOrigin, dirXa, lensOrigin, dirYa);
         return new Ray(lensOrigin, dirMain, diffA, time);
+    }
+
+    /// <summary>
+    /// Uniform point on the aperture, in units of the lens radius (x along the
+    /// camera's U axis). One 2D decision: for a polygon the first coordinate
+    /// picks the triangle between the centre and one blade and is then reused
+    /// inside it, so the pair stays stratified.
+    /// </summary>
+    private Vector3 SampleAperture()
+    {
+        if (_aperture.IsCircular)
+            return MathUtils.RandomInUnitDisk();
+
+        Vector3 p;
+        if (_aperture.Blades >= 3)
+        {
+            var (u1, u2) = MathUtils.Random2D();
+            int n = _aperture.Blades;
+            float scaled = u1 * n;
+            int k = Math.Min((int)scaled, n - 1);
+            float a = MathF.Sqrt(scaled - k);       // uniform over the triangle
+            float step = 2f * MathF.PI / n;
+            float phi0 = MathUtils.DegreesToRadians(_aperture.RotationDeg) + MathF.PI / 2f + k * step;
+            var v0 = new Vector3(MathF.Cos(phi0), MathF.Sin(phi0), 0f);
+            var v1 = new Vector3(MathF.Cos(phi0 + step), MathF.Sin(phi0 + step), 0f);
+            p = a * ((1f - u2) * v0 + u2 * v1);
+        }
+        else
+        {
+            p = MathUtils.RandomInUnitDisk();
+        }
+        p.X *= _aperture.Ratio;
+        return p;
     }
 
     /// <summary>Interpolated camera pose at <paramref name="time"/> (clamped to the key range).</summary>

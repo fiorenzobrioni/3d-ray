@@ -38,7 +38,7 @@ Questo documento descrive il flusso architetturale completo del motore 3D-Ray, d
        │  Radiance HDR lineare
        ▼
 ┌─────────────┐
-│ Post-process│  Firefly clamp → ACES tone map → gamma 2.2
+│ Post-process│  Firefly clamp (opz.) → esposizione → bilanciamento del bianco → view transform
 └──────┬──────┘
        │  sRGB [0,1]
        ▼
@@ -258,17 +258,17 @@ Per ogni pixel `(i, j)`, il motore lancia `√N × √N` raggi distribuiti su un
 
 Il numero di campioni effettivi è sempre un quadrato perfetto: `-s 20` → `5×5 = 25`. Per ogni campione:
 
-1. **Coordinate UV** nel viewport: `u = (i + jitter) / width`, `v = (height - j - 1 + jitter) / height`
+1. **Coordinate UV** nel viewport: `u = (i + filter.SamplePosition(jitterU)) / width`, `v = (height - j - 1 + filter.SamplePosition(jitterV)) / height`. Il filtro di ricostruzione (`--filter`, `Rendering/PixelFilter.cs`) è applicato per *filter importance sampling*: il campione viene spostato rispetto al centro del pixel con densità proporzionale al filtro (Gaussiano σ = 0.5 px per default, Blackman-Harris, oppure box, per cui la posizione è il jitter stesso) e conta con peso 1 solo per il suo pixel. Niente splatting sui vicini: il rumore dei pixel resta indipendente, come assumono il denoiser e la stima della varianza a doppio buffer.
 2. **Generazione del raggio** tramite `Camera.GetRay(u, v)`
 3. **Tracing** con `TraceRay(ray, maxDepth)`
 4. **Firefly clamp** sul campione singolo
 5. **Accumulo** nel colore cumulativo
 
-Dopo tutti i campioni, il colore medio viene tone-mappato:
+Dopo tutti i campioni, il colore medio passa per la trasformazione di visualizzazione:
 
 ```csharp
 Vector3 linearColor = cumulativeColor / actualSamples;
-pixels[j, i] = AcesToneMap(linearColor);
+pixels[j, i] = _display.Apply(linearColor * _exposureScale);
 ```
 
 ### 3.3 Generazione del Raggio (Camera Thin-Lens)
@@ -277,7 +277,7 @@ pixels[j, i] = AcesToneMap(linearColor);
 
 La camera implementa il modello **thin-lens** per il depth of field:
 
-1. Il punto di origine del raggio viene perturbato casualmente all'interno di un disco di raggio `aperture / 2` sul piano della lente.
+1. Il punto di origine del raggio viene perturbato casualmente all'interno di un disco di raggio `aperture / 2` sul piano della lente (o di un poligono regolare inscritto con `aperture_blades`, stirato in orizzontale da `aperture_ratio`; campionamento uniforme in `Camera.SampleAperture`). `focal_length`, `sensor_width` e `f_stop` sono convertiti in campo visivo e apertura da `SceneLoader.ApplyPhysicalCamera`.
 2. La direzione punta dal punto perturbato verso il punto corrispondente sul piano focale a distanza `focal_dist`.
 
 Con `aperture = 0` il disco degenera in un punto (pinhole) e tutti gli oggetti sono a fuoco.
@@ -488,19 +488,23 @@ Vector3 linearColor = cumulativeColor / actualSamples;
 
 Il colore finale del pixel è la media aritmetica di tutti i campioni stratificati. Questo è il pixel HDR lineare.
 
-### 5.3 ACES Filmic Tone Mapping + Gamma
+### 5.3 Gestione del colore: esposizione, bilanciamento del bianco, view transform
 
 ```csharp
-pixels[j, i] = AcesToneMap(linearColor);
+pixels[j, i] = _display.Apply(linearColor * _exposureScale);
 ```
 
-La curva ACES Filmic (approssimazione Narkowicz) mappa la radiance HDR lineare in valori LDR:
+**File:** `Rendering/ColorManagement.cs`. Lo spazio di lavoro è Rec.709 lineare (primarie sRGB, bianco D65): colori della scena, texture decodificate e radianza sono in questo spazio. `DisplayTransform.Apply` riceve la radianza già moltiplicata per l'esposizione (`2^EV`) e applica, nell'ordine:
 
-$$\text{ACES}(x) = \frac{x(2.51x + 0.03)}{x(2.43x + 0.59) + 0.14}$$
+1. **Bilanciamento del bianco** (opzionale, `white_balance` della camera o `--white-balance`): adattamento cromatico Bradford dalla cromaticità della temperatura scelta (luogo del corpo nero sotto 3500 K, luogo della luce diurna CIE sopra 4500 K, miscela lineare in mezzo) al bianco D65 dello schermo. 6504 K è l'identità.
+2. **View transform** (`--view`):
+   - `agx` (default): Rec.2020, matrice di inset (avvicina le primarie al bianco, così la luce satura molto intensa sfuma verso il bianco invece di saturare un canale e virare di tinta), codifica log2 su 16.5 stop attorno a 0.18, sigmoide (polinomio di sesto grado), look opzionale (`--look punchy|golden`, CDL), outset, linearizzazione 2.2, ritorno in Rec.709.
+   - `aces`: ACES 1.x Output Transform per schermo sRGB 100 nit (RRT con glow e red modifier, desaturazione globale, curve tonali segmentate, ODT con compensazione dim surround), trascritta dal CTL dell'Academy; verificata contro OpenColorIO entro 7e-4 di valore di schermo (`ColorManagementTests`).
+   - `standard`: nessun tone mapping, taglio a [0, 1].
+   - `legacy`: la curva usata prima della review (approssimazione di Narkowicz applicata per canale, poi gamma 2.2 pura), conservata per riprodurre render precedenti.
+3. **Codifica sRGB** a tratti (IEC 61966-2-1), non una potenza 2.2: le due differiscono soprattutto nelle ombre.
 
-Seguita da gamma correction `pow(x, 1/2.2)` per la conversione in spazio sRGB.
-
-Il tone mapping produce un rolloff naturale degli highlight: le luci brillanti non "esplodono" in bianco piatto ma mantengono un gradiente morbido.
+AgX e ACES sono curve diverse: un grigio 0.18 va a 0.50 con AgX, 0.36 con ACES 1.x, 0.55 con `legacy`.
 
 ---
 
@@ -508,7 +512,7 @@ Il tone mapping produce un rolloff naturale degli highlight: le luci brillanti n
 
 **File:** `Program.cs` · **Metodo:** `SaveImage()`
 
-L'array `Vector3[height, width]` (valori sRGB [0, 1]) viene convertito in `Image<Rgba32>` tramite ImageSharp. Il formato di output è determinato dall'estensione del file (`-o`): PNG (lossless, default), JPEG (lossy), BMP.
+L'array `Vector3[height, width]` (valori sRGB [0, 1]) viene quantizzato da `Rendering/DisplayQuantizer.cs` e convertito in immagine tramite ImageSharp. A 8 bit, per default, con dithering triangolare di ±1 livello (hash deterministico del pixel): toglie le bande nei gradienti morbidi e lascia ogni pixel con la media esatta (`--dither off` arrotonda e basta). `--bit-depth 16` scrive un PNG a 16 bit per canale. Il formato di output è determinato dall'estensione del file (`-o`): PNG (lossless, default), JPEG (lossy), BMP.
 
 Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math.Clamp((int)(value * 255.999f), 0, 255)`.
 

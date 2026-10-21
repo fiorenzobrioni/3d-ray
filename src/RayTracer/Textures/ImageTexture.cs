@@ -51,8 +51,10 @@ public class ImageTexture : ITexture
     // and RenderMan ship as default.
     private const int MaxAnisotropy = 8;
 
-    // Shared sRGB→linear decode table (gamma 2.2), indexed by the raw 0-255
-    // byte value. Built once for the whole process.
+    // Shared sRGB→linear decode table, indexed by the raw 0-255 byte value.
+    // Built once for the whole process. The exact piecewise sRGB curve, not a
+    // 2.2 power: the power law darkens the shadows (byte 10 decodes to 8.0e-4
+    // instead of 3.0e-3, PIANO-REVIEW.md §3.4).
     private static readonly float[] SrgbDecodeLut = BuildSrgbDecodeLut();
 
     private static float[] BuildSrgbDecodeLut()
@@ -60,7 +62,7 @@ public class ImageTexture : ITexture
         var lut = new float[256];
         const float inv255 = 1f / 255f;
         for (int i = 0; i < 256; i++)
-            lut[i] = MathF.Pow(i * inv255, 2.2f);
+            lut[i] = RayTracer.Rendering.Srgb.Decode(i * inv255);
         return lut;
     }
 
@@ -73,7 +75,7 @@ public class ImageTexture : ITexture
         int w0, h0;
         // sRGB→linear decode via a 256-entry LUT. A byte channel has only 256
         // possible values, so the table is exact and turns millions of per-texel
-        // MathF.Pow(x, 2.2) calls at load into a single array index.
+        // sRGB decode calls at load into a single array index.
         float[] srgbToLinear = SrgbDecodeLut;
         using (var image = Image.Load<Rgba32>(imagePath))
         {

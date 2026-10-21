@@ -81,14 +81,26 @@ def _camera(mi, scene, width, height, spp, camera_index=0):
     target = _vec(cam.get("look_at"))
     up = _vec(cam.get("vup"), (0, 1, 0))
     aperture = float(cam.get("aperture", 0.0))
+    fov = float(cam.get("fov", 60.0))
+    # Physical camera keys, converted as SceneLoader.ApplyPhysicalCamera does.
+    if cam.get("aperture_blades", 0) or float(cam.get("aperture_ratio", 1.0)) != 1.0:
+        raise UnsupportedFeature("bladed or anamorphic aperture")
+    sensor_height = float(cam.get("sensor_width", 36.0)) * height / width
+    if cam.get("focal_length"):
+        fov = math.degrees(2.0 * math.atan(sensor_height / (2.0 * float(cam["focal_length"]))))
+    if cam.get("f_stop"):
+        focal = float(cam.get("focal_length") or sensor_height / (2.0 * math.tan(math.radians(fov) / 2.0)))
+        aperture = focal / float(cam["f_stop"]) / 1000.0 / float(cam.get("meters_per_unit", 1.0))
     sensor = {
         "type": "perspective" if aperture <= 0 else "thinlens",
         "fov_axis": "y",
-        "fov": float(cam.get("fov", 60.0)),
+        "fov": fov,
         "to_world": mi.ScalarTransform4f().look_at(origin=origin, target=target, up=up),
         "film": {
             "type": "hdrfilm", "width": width, "height": height,
-            "rfilter": {"type": "box"}, "pixel_format": "rgb",
+            # Same filter as the engine's default (--filter gaussian): sigma
+            # 0.5 px, truncated at 4 sigma and shifted to zero there.
+            "rfilter": {"type": "gaussian", "stddev": 0.5}, "pixel_format": "rgb",
         },
         "sampler": {"type": "independent", "sample_count": spp},
     }

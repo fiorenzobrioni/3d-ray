@@ -436,6 +436,48 @@ wins (an info message is logged).
 - DOF requires more samples for a clean result. Use at least 64 SPP;
   256+ is recommended for production.
 
+### A real lens: focal length and f-stop
+
+Instead of `fov` and `aperture` you can describe the lens as a
+photographer does. With the scene modelled in metres:
+
+```yaml
+cameras:
+  - name: "portrait"
+    position: [0, 1.2, 0]
+    look_at: [0, 0.9, -2.5]
+    focal_length: 50        # mm; sensor_width defaults to 36 (full frame)
+    f_stop: 1.4             # pupil = 50 / 1.4 = 35.7 mm
+    focal_pos: [0, 0.9, -2.5]
+```
+
+`focal_length` and `sensor_width` set the field of view (the sensor width
+spans the image width), `f_stop` the pupil diameter. A scene modelled in
+centimetres adds `meters_per_unit: 0.01`, so that f/1.4 still means a
+35.7 mm pupil. Halving the f-number doubles the pupil and the blur; a
+longer lens at the same f-number blurs the background more, as on a real
+camera.
+
+### Bokeh shape
+
+Out-of-focus highlights take the shape of the aperture. `aperture_blades: 6`
+gives hexagons (5 to 9 blades are typical), `aperture_rotation` turns
+the polygon, and `aperture_ratio: 0.5` gives the tall ovals of an
+anamorphic lens. Small, very bright highlights need many samples: each
+pixel of the bokeh disc only receives light from the lens samples that
+hit the source. `scenes/showcases/camera-physical.yaml` shows all of them.
+
+### White balance and the view transform
+
+`white_balance: 3200` (kelvin) makes a 3200 K tungsten light render
+white, as a camera set to "tungsten" does: lower values cool the image,
+higher values warm it, `6504` changes nothing. The display image is then
+made by the view transform chosen on the command line: `--view agx` (the
+default) rolls bright saturated light off towards white as film does,
+`--view aces` gives the ACES 1.x look with more contrast, and
+`--view standard` shows the linear values with only the sRGB curve.
+`--exposure` (in stops) is applied before the view transform.
+
 ---
 
 ## 7.11 Motion Blur

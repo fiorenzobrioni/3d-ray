@@ -410,6 +410,48 @@ public class CameraData
     [YamlMember(Alias = "focal_dist")]
     public float FocalDist { get; set; } = 1f;
 
+    // ── Physical camera (PIANO-REVIEW.md, Phase 3) ──────────────────────────
+    // Photographic description of the same thin lens. When set, these win
+    // over `fov` and `aperture`; the loader converts them in
+    // SceneLoader.ApplyPhysicalCamera.
+
+    /// <summary>Focal length in millimetres: sets the field of view together
+    /// with <see cref="SensorWidth"/> (the sensor width spans the image width).</summary>
+    [YamlMember(Alias = "focal_length")]
+    public float? FocalLength { get; set; }
+
+    /// <summary>Sensor width in millimetres (default 36, full frame).</summary>
+    [YamlMember(Alias = "sensor_width")]
+    public float SensorWidth { get; set; } = 36f;
+
+    /// <summary>f-number N: aperture diameter = focal length / N.</summary>
+    [YamlMember(Alias = "f_stop")]
+    public float? FStop { get; set; }
+
+    /// <summary>Length of one scene unit in metres (default 1): converts the
+    /// millimetre aperture of <see cref="FStop"/> into scene units.</summary>
+    [YamlMember(Alias = "meters_per_unit")]
+    public float MetersPerUnit { get; set; } = 1f;
+
+    /// <summary>Number of straight aperture blades (polygonal bokeh); 0 = round.</summary>
+    [YamlMember(Alias = "aperture_blades")]
+    public int ApertureBlades { get; set; } = 0;
+
+    /// <summary>Rotation of the blade polygon, degrees.</summary>
+    [YamlMember(Alias = "aperture_rotation")]
+    public float ApertureRotation { get; set; } = 0f;
+
+    /// <summary>Aperture width / height (default 1). Below 1 the bokeh is a
+    /// tall oval, as with an anamorphic lens (0.5 for a 2x squeeze).</summary>
+    [YamlMember(Alias = "aperture_ratio")]
+    public float ApertureRatio { get; set; } = 1f;
+
+    /// <summary>White balance in kelvin: a light of this colour temperature
+    /// renders neutral (lower cools the image, higher warms it). Display only:
+    /// EXR output stays scene-linear. Unset = no white balance.</summary>
+    [YamlMember(Alias = "white_balance")]
+    public float? WhiteBalance { get; set; }
+
     /// <summary>
     /// World-space focal point: alternative to <see cref="FocalDist"/>. When
     /// set, the loader computes the focus distance as the projection of

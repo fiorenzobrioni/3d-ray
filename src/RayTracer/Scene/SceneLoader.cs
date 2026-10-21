@@ -326,6 +326,7 @@ public class SceneLoader
         // resolve those now and build the actual Camera.Camera object below
         // after all entities are created.
         var camDataEarly   = ResolveCamera(data, cameraSelector);
+        var apertureShape  = ApplyPhysicalCamera(camDataEarly, (float)imageWidth / imageHeight);
         var camPosEarly    = ToVector3(camDataEarly.Position) ?? new Vector3(0, 1, -5);
         var camLookAtEarly = ToVector3(camDataEarly.LookAt)   ?? Vector3.Zero;
         var camForwardEarly = camLookAtEarly - camPosEarly;
@@ -509,7 +510,14 @@ public class SceneLoader
             camPos, camLookAt, camVup,
             camData.Fov, aspect,
             camData.Aperture, focusDist,
-            cameraMotion);
+            cameraMotion, apertureShape);
+        if (camData.WhiteBalance is float wb)
+        {
+            if (wb >= WhiteBalance.MinKelvin && wb <= WhiteBalance.MaxKelvin)
+                camera.WhiteBalanceKelvin = wb;
+            else
+                Warn($"Camera 'white_balance' must be within {WhiteBalance.MinKelvin}-{WhiteBalance.MaxKelvin} K (got {wb}); ignored.");
+        }
 
         var motionBlur = ResolveMotionBlurSettings(camData.Shutter, sceneHasMotion);
 
@@ -709,7 +717,12 @@ public class SceneLoader
         {
             var c     = data.Cameras[i];
             string label = c.Name != null ? $"  #{i}  \"{c.Name}\"" : $"  #{i}  (unnamed)";
-            Console.WriteLine($"{label}   fov={c.Fov}°  pos={FormatVec(c.Position)}");
+            // A physical lens is listed as written: its vertical fov depends on
+            // the image aspect, which is not known here.
+            string lens = c.FocalLength is float f
+                ? $"focal={f:0.#}mm/{c.SensorWidth:0.#}mm sensor" + (c.FStop is float n ? $" f/{n:0.##}" : "")
+                : $"fov={c.Fov}°";
+            Console.WriteLine($"{label}   {lens}  pos={FormatVec(c.Position)}");
         }
     }
 
@@ -3717,6 +3730,64 @@ public class SceneLoader
     {
         if (v == null || v.Count < 2) return null;
         return new System.Numerics.Vector2(v[0], v[1]);
+    }
+
+    /// <summary>
+    /// Converts the photographic camera keys into the thin-lens parameters the
+    /// camera uses: <c>focal_length</c> + <c>sensor_width</c> → vertical field
+    /// of view (the sensor width spans the image width, as on a still camera;
+    /// the lens is treated as focused at infinity, so no focus breathing), and
+    /// <c>f_stop</c> → aperture diameter = focal length / N, in scene units via
+    /// <c>meters_per_unit</c>. Without <c>focal_length</c>, <c>f_stop</c> uses
+    /// the focal length that gives the scene's <c>fov</c> on that sensor.
+    /// Returns the aperture shape (blades, rotation, ratio).
+    /// </summary>
+    public static Camera.ApertureShape ApplyPhysicalCamera(CameraData cam, float aspect)
+    {
+        float sensorWidth = cam.SensorWidth;
+        if (!(sensorWidth > 0f))
+        {
+            Warn($"Camera 'sensor_width' must be > 0 (got {sensorWidth}); using 36 mm.");
+            sensorWidth = 36f;
+        }
+        float sensorHeight = sensorWidth / aspect;
+
+        if (cam.FocalLength is float f)
+        {
+            if (f > 0f)
+                cam.Fov = 2f * MathF.Atan(sensorHeight / (2f * f)) * 180f / MathF.PI;
+            else
+                Warn($"Camera 'focal_length' must be > 0 mm (got {f}); keeping fov = {cam.Fov}.");
+        }
+
+        if (cam.FStop is float n)
+        {
+            if (n > 0f && cam.MetersPerUnit > 0f)
+            {
+                float focalMm = cam.FocalLength is > 0f
+                    ? cam.FocalLength.Value
+                    : sensorHeight / (2f * MathF.Tan(cam.Fov * MathF.PI / 360f));
+                if (cam.Aperture > 0f)
+                    Info($"Camera 'f_stop' {n} overrides 'aperture' {cam.Aperture}.");
+                cam.Aperture = focalMm / n / 1000f / cam.MetersPerUnit;
+            }
+            else
+                Warn($"Camera 'f_stop' and 'meters_per_unit' must be > 0 (got {n}, {cam.MetersPerUnit}); keeping aperture = {cam.Aperture}.");
+        }
+
+        int blades = cam.ApertureBlades;
+        if (blades is 1 or 2 || blades < 0)
+        {
+            Warn($"Camera 'aperture_blades' must be 0 (round) or at least 3 (got {blades}); using a round aperture.");
+            blades = 0;
+        }
+        float ratio = cam.ApertureRatio;
+        if (!(ratio > 0f))
+        {
+            Warn($"Camera 'aperture_ratio' must be > 0 (got {ratio}); using 1.");
+            ratio = 1f;
+        }
+        return new Camera.ApertureShape(blades, cam.ApertureRotation, ratio);
     }
 
     /// <summary>
