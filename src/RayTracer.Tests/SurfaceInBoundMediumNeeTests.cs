@@ -43,7 +43,7 @@ public class SurfaceInBoundMediumNeeTests
         aperture:    0f,
         focusDist:   1f);
 
-    private static DisneyBsdf MatchedGlass() => new(
+    private static OpenPbr MatchedGlass() => DisneyMaterial.Create(
         baseColor: new SolidColor(Vector3.One),
         roughness: new FloatTexture(0f),
         specular:  new FloatTexture(0f),

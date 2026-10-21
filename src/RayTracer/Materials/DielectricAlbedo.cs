@@ -35,6 +35,42 @@ internal static partial class DielectricAlbedo
         return e0 + (e1 - e0) * tm;
     }
 
+    // Ē_R(α, η) = 2 ∫ E_R(μ) μ dμ on the table's own nodes (Simpson, 32
+    // intervals). Built on first use: the table is a field of the other half of
+    // this partial class, whose initialisation order relative to this one is
+    // not defined.
+    private static float[]? _average;
+    private static float[] Average => _average ??= BuildAverage();
+
+    private static float[] BuildAverage()
+    {
+        var avg = new float[RoughRes * SRes];
+        for (int j = 0; j < RoughRes; j++)
+        for (int k = 0; k < SRes; k++)
+        {
+            double sum = 0;
+            for (int i = 0; i < MuRes; i++)
+            {
+                double w = i == 0 || i == MuRes - 1 ? 1 : (i % 2 == 1 ? 4 : 2);
+                sum += w * Table[(i * RoughRes + j) * SRes + k] * i / (MuRes - 1.0);
+            }
+            avg[j * SRes + k] = (float)(2 * sum / (3.0 * (MuRes - 1)));
+        }
+        return avg;
+    }
+
+    /// <summary>Ē_R(α, η), the cosine-weighted average of <see cref="E"/>.</summary>
+    public static float Avg(float alpha, float eta)
+    {
+        float fr = Math.Clamp(MathF.Sqrt(MathF.Max(alpha, 0f)), 0f, 1f) * (RoughRes - 1);
+        float fs = Math.Clamp(SOf(eta), 0f, 1f) * (SRes - 1);
+        int j = Math.Min((int)fr, RoughRes - 2), k = Math.Min((int)fs, SRes - 2);
+        float tr = fr - j, ts = fs - k;
+        float a0 = Average[j * SRes + k] + (Average[j * SRes + k + 1] - Average[j * SRes + k]) * ts;
+        float a1 = Average[(j + 1) * SRes + k] + (Average[(j + 1) * SRes + k + 1] - Average[(j + 1) * SRes + k]) * ts;
+        return a0 + (a1 - a0) * tr;
+    }
+
     /// <summary>E_F(η) = 2 ∫ F(μ, η) μ dμ for any relative IOR; below 1 by
     /// the reciprocity relation E_F(η) = 1 − η² (1 − E_F(1/η)).</summary>
     public static float FresnelAvg(float eta)

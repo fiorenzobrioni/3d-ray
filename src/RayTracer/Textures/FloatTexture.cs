@@ -65,6 +65,12 @@ public sealed class FloatTexture
         return (rgb.X + rgb.Y + rgb.Z) * (1f / 3f);
     }
 
+    /// <summary>The parameter as a colour texture (grey: the scalar or the
+    /// channel average of the texture).</summary>
+    public ITexture ToTexture() => _texture == null
+        ? new SolidColor(new Vector3(_scalar))
+        : new DerivedTexture(_texture, c => new Vector3((c.X + c.Y + c.Z) * (1f / 3f)));
+
     /// <summary>True when the parameter is a plain scalar (no texture lookup).</summary>
     public bool IsConstant => _texture == null;
 

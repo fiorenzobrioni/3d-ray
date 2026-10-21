@@ -86,8 +86,10 @@ Per la roadmap dettagliata e le feature in corso consulta il [**PLANNING**](./PL
   - **Diffuse transmission & thin-walled** per fogli, foglie, tendaggi e paralumi.
   - **Subsurface shaping** con tinte sotto-pelle dedicate per pelle, cera e marmo.
   - **Clearcoat avanzato** con IOR e normal map proprie per carrozzerie, lacche e vinile protetto.
-  - **Charlie sheen** per microfibre realistiche (velluto, pesca, muschio).
+  - **Sheen** per microfibre realistiche (velluto, pesca, muschio).
   - **Thin-film iridescence** per bolle di sapone, opal e rivestimenti dicroici.
+
+  I parametri Disney sono tradotti sul materiale OpenPBR, così ogni combinazione di strati conserva l'energia (niente bordi luminosi da sheen o clearcoat).
 
 - 🔀 **Mix Material** - blending tra due materiali qualsiasi con peso costante o texture mask spaziale (noise, marble, image…). Per effetti di ruggine, usura, transizioni graduali, decal e composizioni ricorsive (mix-of-mix)
 

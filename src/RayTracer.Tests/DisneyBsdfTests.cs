@@ -7,7 +7,7 @@ using Xunit;
 namespace RayTracer.Tests;
 
 /// <summary>
-/// BSDF-level correctness tests for <see cref="DisneyBsdf"/>'s symmetric
+/// BSDF-level correctness tests for <see cref="OpenPbr"/>'s symmetric
 /// interface (<c>Evaluate</c> / <c>Pdf</c> / <c>Sample</c>) introduced for
 /// MIS and energy-conservation work.
 ///
@@ -17,7 +17,7 @@ namespace RayTracer.Tests;
 ///      opaque material configuration (transmission is intentionally
 ///      excluded from the analytical PDF until the VNDF step).
 ///   3. Sampler consistency — the (Wo, F, Pdf) triple returned by
-///      <see cref="DisneyBsdf.Sample"/> matches what <c>Evaluate</c> and
+///      <see cref="OpenPbr.Sample"/> matches what <c>Evaluate</c> and
 ///      <c>Pdf</c> produce for the same direction.
 ///
 /// Random seeds are injected via <see cref="Xunit.InlineDataAttribute"/> so
@@ -101,12 +101,12 @@ public class DisneyBsdfTests
         yield return new object[] { 0f, 0.5f, 0.5f, 0.6f, 0f, 1f }; // dielectric + sheen
     }
 
-    private static DisneyBsdf MakeMaterial(
+    private static OpenPbr MakeMaterial(
         float metallic, float roughness, float specular,
         float sheen, float clearcoat, float clearcoatGloss)
     {
         var baseColor = new SolidColor(new Vector3(0.7f, 0.5f, 0.3f));
-        return new DisneyBsdf(
+        return DisneyMaterial.Create(
             baseColor,
             metallic:       metallic,
             roughness:      roughness,
@@ -123,13 +123,13 @@ public class DisneyBsdfTests
     // ─────────────────────────────────────────────────────────────────────────
     // 1. Reciprocity
     //
-    // The Disney BRDF is constructed from reflection lobes that are all
-    // symmetric in (V, L) — Disney diffuse (Burley 2012 eq. 4) uses the
-    // product fI(V)·fO(L) which commutes under V↔L, sheen depends only on
-    // LdotH (= VdotH by symmetry of the half-vector), and every Cook-Torrance
-    // lobe swaps NdotV ↔ NdotL without changing the value. So for any pair
-    // of directions above the surface, f(V, L) must equal f(L, V) exactly
-    // up to floating-point noise.
+    // The Disney material is OpenPBR (PIANO-REVIEW.md, Phase 5). Its base is
+    // reciprocal: GGX reflection, the conductor's Kulla-Conty lobe and the
+    // diffuse under the specular layer, weighted by the symmetric
+    // (1 − E(μV)) (1 − E(μL)) / (1 − Ē). The coat and the fuzz (sheen) are
+    // layered as the specification does, with the albedo of the view
+    // direction only: the form that conserves energy over any base, and not
+    // symmetric. Those configurations are checked for energy instead.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Theory]
@@ -138,6 +138,17 @@ public class DisneyBsdfTests
         float metallic, float roughness, float specular,
         float sheen, float clearcoat, float clearcoatGloss)
     {
+        if (sheen > 0f || clearcoat > 0f)
+        {
+            // Layered: no energy created at any view instead.
+            var layered = MakeMaterial(metallic, roughness, specular, sheen, clearcoat, clearcoatGloss);
+            foreach (float c in new[] { 0.9f, 0.5f, 0.2f })
+            {
+                var r = Validation.BsdfTestKit.Run("layered", layered, c, samples: 100_000);
+                Assert.True(r.MaxAlbedo < 1.01f, r.ToString());
+            }
+            return;
+        }
         var material = MakeMaterial(metallic, roughness, specular, sheen, clearcoat, clearcoatGloss);
         var rec = MakeRec();
 
@@ -195,10 +206,7 @@ public class DisneyBsdfTests
         }
 
         double integral = 4.0 * Math.PI * sum / N;
-        // Tolerance 8% — GGX PDFs have heavy tails near grazing angles so
-        // uniform-sphere MC converges slowly there. Failing outside ±8%
-        // with 32k samples indicates a real bug, not MC noise.
-        Assert.InRange(integral, 0.92, 1.08);
+        AssertPdfIntegralMatchesAcceptance(material, view, rec, integral);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -265,7 +273,7 @@ public class DisneyBsdfTests
     public void Diffuse_DirectionalHemisphericalReflectance_DoesNotExceedOne()
     {
         var baseColor = new Vector3(0.9f, 0.9f, 0.9f);
-        var material = new DisneyBsdf(
+        var material = DisneyMaterial.Create(
             new SolidColor(baseColor),
             metallic: 0f, roughness: 1f, specular: 0f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -319,12 +327,12 @@ public class DisneyBsdfTests
     {
         var baseColor = new SolidColor(new Vector3(0.7f, 0.5f, 0.3f));
 
-        var scalarBuild = new DisneyBsdf(baseColor,
+        var scalarBuild = DisneyMaterial.Create(baseColor,
             metallic: 1f, roughness: 0.4f, specular: 0.5f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
             clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f);
 
-        var textureBuild = new DisneyBsdf(baseColor,
+        var textureBuild = DisneyMaterial.Create(baseColor,
             metallic: new FloatTexture(new SolidColor(Vector3.One)), // 1.0 everywhere
             roughness: 0.4f, specular: 0.5f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -384,7 +392,7 @@ public class DisneyBsdfTests
     {
         // Smooth metal (α ≈ 0.09) with heavy anisotropy: αx ≈ 0.21, αy ≈ 0.039.
         var baseColor = new SolidColor(new Vector3(1f, 1f, 1f));
-        var material = new DisneyBsdf(
+        var material = DisneyMaterial.Create(
             baseColor,
             metallic: 1f, roughness: 0.3f, specular: 0.5f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -425,7 +433,7 @@ public class DisneyBsdfTests
         // stretch axis rotates accordingly and the T-vs-B relationship
         // from the previous test flips sign.
         var baseColor = new SolidColor(Vector3.One);
-        var rotated = new DisneyBsdf(
+        var rotated = DisneyMaterial.Create(
             baseColor,
             metallic: 1f, roughness: 0.3f, specular: 0.5f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -446,11 +454,27 @@ public class DisneyBsdfTests
             $"expected bitangent-aligned f > 2× tangent-aligned f after 90° rotation; got fT={fT.X}, fB={fB.X}");
     }
 
+    /// <summary>
+    /// A strongly anisotropic lobe reads its albedo from the anisotropic table
+    /// at both directions: energy conserved and reciprocity kept.
+    /// </summary>
+    [Fact]
+    public void Anisotropic_WhiteMetalConservesEnergy()
+    {
+        var white = DisneyMaterial.Create(new SolidColor(Vector3.One), metallic: 1f, roughness: 0.4f,
+                                          anisotropic: 0.8f, anisotropicRotation: 0.1f);
+        foreach (float c in new[] { 0.9f, 0.5f, 0.2f })
+        {
+            var r = Validation.BsdfTestKit.Run("aniso-white", white, c, samples: 200_000);
+            Assert.InRange(r.Albedo.X, 0.985f, 1.01f);
+        }
+    }
+
     [Fact]
     public void Anisotropic_ReciprocityHolds()
     {
         var baseColor = new SolidColor(new Vector3(0.7f, 0.5f, 0.3f));
-        var material = new DisneyBsdf(
+        var material = DisneyMaterial.Create(
             baseColor,
             metallic: 1f, roughness: 0.4f, specular: 0.5f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -497,7 +521,7 @@ public class DisneyBsdfTests
         // holds exactly for white F₀; MC noise on uniform-sphere sampling
         // of a glossy lobe floors the measurable reflectance around 0.90.
         var baseColor = new SolidColor(Vector3.One);
-        var material = new DisneyBsdf(
+        var material = DisneyMaterial.Create(
             baseColor,
             metallic: 1f, roughness: 0.9f, specular: 0.5f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -546,7 +570,7 @@ public class DisneyBsdfTests
         // to 1 than the blue channel (baseCol.Z = 0.3) — i.e. chrominance
         // is retained, not washed out.
         var baseColor = new SolidColor(new Vector3(1.0f, 0.71f, 0.29f));
-        var material = new DisneyBsdf(
+        var material = DisneyMaterial.Create(
             baseColor,
             metallic: 1f, roughness: 0.85f, specular: 0.5f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -583,7 +607,7 @@ public class DisneyBsdfTests
         var baseColor = new SolidColor(Vector3.One);
         // Rough metal — broad enough lobe to let uniform-sphere MC land
         // close to 1 in a reasonable sample budget even under anisotropy.
-        var material = new DisneyBsdf(
+        var material = DisneyMaterial.Create(
             baseColor,
             metallic: 1f, roughness: 0.7f, specular: 0.5f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -601,7 +625,25 @@ public class DisneyBsdfTests
             sum += material.Pdf(view, l, rec);
         }
         double integral = 4.0 * Math.PI * sum / N;
-        Assert.InRange(integral, 0.92, 1.08);
+        AssertPdfIntegralMatchesAcceptance(material, view, rec, integral);
+    }
+
+    /// <summary>
+    /// The pdf integrates to the probability that the sampler returns a
+    /// non-delta direction: visible-normal sampling discards the reflections
+    /// that fall below the horizon, so a rough lobe's pdf integrates below 1.
+    /// Tolerance 4%: GGX tails converge slowly under uniform-sphere MC.
+    /// </summary>
+    private static void AssertPdfIntegralMatchesAcceptance(IMaterial material, Vector3 view, HitRecord rec, double integral)
+    {
+        MathUtils.ReseedThread(77);
+        const int n = 200_000;
+        int accepted = 0;
+        for (int i = 0; i < n; i++)
+            if (material.Sample(view, rec) is { IsDelta: false }) accepted++;
+        double fraction = accepted / (double)n;
+        Assert.InRange(integral, fraction - 0.04, fraction + 0.04);
+        Assert.True(integral < 1.04, $"pdf integrates to {integral:0.000}");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -625,7 +667,7 @@ public class DisneyBsdfTests
             -MathF.Log(tColor.Y),
             -MathF.Log(tColor.Z));
 
-        var material = new DisneyBsdf(
+        var material = DisneyMaterial.Create(
             baseColor: new SolidColor(Vector3.One),
             metallic: 0f, roughness: 0.0f, specular: 0.5f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -669,7 +711,7 @@ public class DisneyBsdfTests
         // medium-switch signal on FrontFace refractions (there is no
         // interior medium to enter). The per-hit tint is carried by
         // BsdfSample.F instead.
-        var material = new DisneyBsdf(
+        var material = DisneyMaterial.Create(
             baseColor: new SolidColor(Vector3.One),
             metallic: 0f, roughness: 0.0f, specular: 0.5f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -715,7 +757,7 @@ public class DisneyBsdfTests
         // Smooth thin-walled glass with a saturated tint. Refraction samples
         // must continue along the incoming ray (no bending) and must NOT
         // emit a medium-switch signal — thin-walled has no interior volume.
-        var material = new DisneyBsdf(
+        var material = DisneyMaterial.Create(
             baseColor: new SolidColor(Vector3.One),
             metallic: 0f, roughness: 0f, specular: 0.5f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -756,7 +798,7 @@ public class DisneyBsdfTests
         // by the base colour (simulating the translucent green a leaf
         // acquires when backlit).
         var leafTint = new Vector3(0.4f, 0.6f, 0.25f);
-        var material = new DisneyBsdf(
+        var material = DisneyMaterial.Create(
             baseColor: new SolidColor(leafTint),
             metallic: 0f, roughness: 1f, specular: 0f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -792,7 +834,7 @@ public class DisneyBsdfTests
         // With diff_trans = 0.5 the PDF splits evenly between the forward
         // diffuse hemisphere and the back diff_trans hemisphere. Integrated
         // over the unit sphere it must still land on 1.
-        var material = new DisneyBsdf(
+        var material = DisneyMaterial.Create(
             baseColor: new SolidColor(new Vector3(0.5f, 0.5f, 0.5f)),
             metallic: 0f, roughness: 1f, specular: 0f,
             specularTint: 0f, sheen: 0f, sheenTint: 0f,
@@ -840,10 +882,10 @@ public class DisneyBsdfTests
         // base-Lambert default but we'll evaluate at a near-normal direction
         // where the coat lobe sits on top of it; subtracting the diffuse
         // reference would couple the two, so we sweep IOR and compare DELTA.
-        DisneyBsdf Coat(float ior) => new(
+        OpenPbr Coat(float ior) => DisneyMaterial.Create(
             baseColor,
             metallic: 0f, roughness: 1f, specular: 0f, sheen: 0f,
-            clearcoat: 1f, clearcoatGloss: 1f,
+            clearcoat: 1f, clearcoatGloss: 0.7f,   // gloss 1 is a mirror coat: a delta, not in Evaluate
             coatIor: ior);
 
         var rec = MakeRec();
@@ -875,10 +917,10 @@ public class DisneyBsdfTests
         var baseColor = new SolidColor(new Vector3(0.5f));
         // Same coat_roughness, but contradictory gloss values. If gloss
         // overrode roughness, the two would diverge. They should be equal.
-        var matA = new DisneyBsdf(baseColor,
+        var matA = DisneyMaterial.Create(baseColor,
             clearcoat: 1f, clearcoatGloss: 0.0f,   // legacy α = 0.1
             coatRoughness: 0.3f);                  // explicit α = 0.09
-        var matB = new DisneyBsdf(baseColor,
+        var matB = DisneyMaterial.Create(baseColor,
             clearcoat: 1f, clearcoatGloss: 1.0f,   // legacy α = 0.001
             coatRoughness: 0.3f);                  // explicit α = 0.09
 
@@ -901,7 +943,7 @@ public class DisneyBsdfTests
     public void CoatRoughness_LowerRoughness_NarrowsLobe()
     {
         var baseColor = new SolidColor(new Vector3(0.5f));
-        DisneyBsdf Coat(float r) => new(
+        OpenPbr Coat(float r) => DisneyMaterial.Create(
             baseColor,
             metallic: 0f, roughness: 1f, specular: 0f, sheen: 0f,
             clearcoat: 1f,
@@ -927,7 +969,7 @@ public class DisneyBsdfTests
     public void Pdf_IntegratesToOne_WithCoatRoughness()
     {
         var baseColor = new SolidColor(new Vector3(0.5f));
-        var material = new DisneyBsdf(baseColor,
+        var material = DisneyMaterial.Create(baseColor,
             metallic: 0f, roughness: 1f, specular: 0f, sheen: 0f,
             clearcoat: 1f,
             coatRoughness: 0.5f);
@@ -959,10 +1001,10 @@ public class DisneyBsdfTests
         var baseColor = new SolidColor(new Vector3(0.5f));
         // No coat_roughness → legacy path. gloss=1 → α=0.001 (very sharp);
         // gloss=0 → α=0.1 (broader).
-        var glossy = new DisneyBsdf(baseColor,
+        var glossy = DisneyMaterial.Create(baseColor,
             metallic: 0f, roughness: 1f, specular: 0f, sheen: 0f,
-            clearcoat: 1f, clearcoatGloss: 1f);
-        var satin = new DisneyBsdf(baseColor,
+            clearcoat: 1f, clearcoatGloss: 0.9f);   // gloss 1 is a mirror coat (delta)
+        var satin = DisneyMaterial.Create(baseColor,
             metallic: 0f, roughness: 1f, specular: 0f, sheen: 0f,
             clearcoat: 1f, clearcoatGloss: 0f);
 
@@ -999,7 +1041,7 @@ public class DisneyBsdfTests
     public void Sheen_PeaksAtGrazing_NotAtNormal()
     {
         var baseColor = new SolidColor(new Vector3(0.5f));
-        var material = new DisneyBsdf(baseColor,
+        var material = DisneyMaterial.Create(baseColor,
             metallic: 0f, roughness: 1f, specular: 0f,
             sheen: 1f, sheenTint: 0f,
             clearcoat: 0f, clearcoatGloss: 1f);
@@ -1039,12 +1081,12 @@ public class DisneyBsdfTests
     public void SheenRoughness_LowerRoughness_NarrowsLobe()
     {
         var baseColor = new SolidColor(new Vector3(0.5f));
-        DisneyBsdf MakeSheen(float r) => new(
+        OpenPbr MakeSheen(float r) => DisneyMaterial.Create(
             baseColor,
             metallic: 0f, roughness: 1f, specular: 0f,
             sheen: 1f, sheenTint: 0f, sheenRoughness: r,
             clearcoat: 0f, clearcoatGloss: 1f);
-        var noSheen = new DisneyBsdf(
+        var noSheen = DisneyMaterial.Create(
             baseColor,
             metallic: 0f, roughness: 1f, specular: 0f,
             sheen: 0f, sheenTint: 0f,
@@ -1090,11 +1132,11 @@ public class DisneyBsdfTests
     public void EvaluateDirect_IncludesSheenLobe()
     {
         var baseColor = new SolidColor(new Vector3(0.5f));
-        var material = new DisneyBsdf(baseColor,
+        var material = DisneyMaterial.Create(baseColor,
             metallic: 0f, roughness: 1f, specular: 0f,   // suppress all other reflective lobes
             sheen: 1f, sheenTint: 0f,
             clearcoat: 0f, clearcoatGloss: 1f);
-        var withoutSheen = new DisneyBsdf(baseColor,
+        var withoutSheen = DisneyMaterial.Create(baseColor,
             metallic: 0f, roughness: 1f, specular: 0f,
             sheen: 0f, sheenTint: 0f,
             clearcoat: 0f, clearcoatGloss: 1f);
@@ -1131,10 +1173,10 @@ public class DisneyBsdfTests
     public void ThinFilm_ZeroThickness_MatchesSchlick()
     {
         var baseColor = new SolidColor(new Vector3(0.7f, 0.2f, 0.1f));
-        var plain = new DisneyBsdf(baseColor,
+        var plain = DisneyMaterial.Create(baseColor,
             metallic: 1f, roughness: 0.15f,
             specular: 1f, clearcoat: 0f);
-        var film = new DisneyBsdf(baseColor,
+        var film = DisneyMaterial.Create(baseColor,
             metallic: 1f, roughness: 0.15f,
             specular: 1f, clearcoat: 0f,
             thinFilmThickness: 0f);
@@ -1162,7 +1204,7 @@ public class DisneyBsdfTests
     public void ThinFilm_BreaksChannelParity_OnWhiteMetal()
     {
         var baseColor = new SolidColor(new Vector3(0.9f));
-        var film = new DisneyBsdf(baseColor,
+        var film = DisneyMaterial.Create(baseColor,
             metallic: 1f, roughness: 0.1f,
             specular: 1f, clearcoat: 0f,
             thinFilmThickness: 500f, thinFilmIor: 1.5f);
@@ -1195,7 +1237,7 @@ public class DisneyBsdfTests
     public void ThinFilm_ThicknessSweep_ShiftsColour()
     {
         var baseColor = new SolidColor(new Vector3(0.9f));
-        DisneyBsdf MakeFilm(float thickness) => new(baseColor,
+        OpenPbr MakeFilm(float thickness) => DisneyMaterial.Create(baseColor,
             metallic: 1f, roughness: 0.1f,
             specular: 1f, clearcoat: 0f,
             thinFilmThickness: thickness, thinFilmIor: 1.5f);
@@ -1229,7 +1271,7 @@ public class DisneyBsdfTests
     [Fact]
     public void NearDeltaGlass_EvaluateDirectOnShadowRayIsNegligible()
     {
-        var glass = new DisneyBsdf(new SolidColor(Vector3.One),
+        var glass = DisneyMaterial.Create(new SolidColor(Vector3.One),
             metallic: 0f, roughness: 0f,
             specTrans: 1f, ior: 1.52f);
         var rec = MakeRec();
@@ -1253,7 +1295,7 @@ public class DisneyBsdfTests
     [Fact]
     public void NearDeltaGlass_PdfOnShadowRayIsNegligible()
     {
-        var glass = new DisneyBsdf(new SolidColor(Vector3.One),
+        var glass = DisneyMaterial.Create(new SolidColor(Vector3.One),
             metallic: 0f, roughness: 0f,
             specTrans: 1f, ior: 1.52f);
         var rec = MakeRec();
@@ -1272,7 +1314,7 @@ public class DisneyBsdfTests
     [Fact]
     public void NearDeltaGlass_ReflectionSamplesAreDelta()
     {
-        var glass = new DisneyBsdf(new SolidColor(Vector3.One),
+        var glass = DisneyMaterial.Create(new SolidColor(Vector3.One),
             metallic: 0f, roughness: 0f,
             specTrans: 1f, ior: 1.52f);
         var rec = MakeRec();

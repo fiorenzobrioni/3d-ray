@@ -71,7 +71,7 @@ public class AnalyticSceneTests
     private static IMaterial Glass(string name, float ior) => name switch
     {
         "dielectric" => new Dielectric(ior),
-        _ => new DisneyBsdf(new RayTracer.Textures.SolidColor(Vector3.One), metallic: 0f, roughness: 0f,
+        _ => DisneyMaterial.Create(new RayTracer.Textures.SolidColor(Vector3.One), metallic: 0f, roughness: 0f,
                             specular: 0.5f, specularTint: 0f, sheen: 0f, sheenTint: 0f, clearcoat: 0f,
                             clearcoatGloss: 1f, specTrans: 1f, ior: ior),
     };
@@ -87,7 +87,7 @@ public class AnalyticSceneTests
 
     [Theory]
     [InlineData("dielectric")]
-    // "disney-smooth" gains 3% (§3.17, KnownBug_Disney_WhiteFurnaceAlbedoDoesNotExceedOne).
+    [InlineData("disney-smooth")]   // gained 3% before the translation onto OpenPBR (§3.17)
     public void Furnace_GlassSphereFromOutside_StaysLossless(string glass)
     {
         // The n² gained on entering is given back on leaving.

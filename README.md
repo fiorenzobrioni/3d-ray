@@ -87,8 +87,10 @@ For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.
   - **Diffuse transmission & thin-walled** for sheets, leaves, curtains and lampshades.
   - **Subsurface shaping** with dedicated under-skin tints for skin, wax and marble.
   - **Advanced clearcoat** with its own IOR and normal map for car bodies, lacquers and protected vinyl.
-  - **Charlie sheen** for realistic microfibres (velvet, peach fuzz, moss).
+  - **Sheen** for realistic microfibres (velvet, peach fuzz, moss).
   - **Thin-film iridescence** for soap bubbles, opal and dichroic coatings.
+
+  The Disney parameters are translated onto the OpenPBR material, so every combination of layers conserves energy (no glowing rims from sheen or clearcoat).
 
 - 🔀 **Mix Material** - blending between any two materials with a constant weight or a spatial texture mask (noise, marble, image…). For rust, wear, gradual transitions, decals and recursive compositions (mix-of-mix).
 

@@ -52,7 +52,7 @@ public class MediumInterfaceFogTests
 
         // Matched-IOR transparent boundary so refraction is invisible and the
         // only contribution to the central pixel difference is the bound medium.
-        var glassThrough = new DisneyBsdf(
+        var glassThrough = DisneyMaterial.Create(
             baseColor: new SolidColor(Vector3.One),
             roughness: new FloatTexture(0f),
             specular:  new FloatTexture(0f),
@@ -105,7 +105,7 @@ public class MediumInterfaceFogTests
     {
         Core.Sampling.Sampler.SetKind(Core.Sampling.SamplerKind.Prng);
 
-        var glassThrough = new DisneyBsdf(
+        var glassThrough = DisneyMaterial.Create(
             baseColor: new SolidColor(Vector3.One),
             roughness: new FloatTexture(0f),
             specular:  new FloatTexture(0f),

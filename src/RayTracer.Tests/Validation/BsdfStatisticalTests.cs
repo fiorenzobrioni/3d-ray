@@ -88,10 +88,11 @@ public class BsdfStatisticalTests
     [InlineData("metal-white-fuzz0.6")]
     [InlineData("disney-plastic-r0.5")]
     [InlineData("disney-metal-aniso-r0.5")]
-    [InlineData("disney-sheen")]
-    [InlineData("disney-coat-rough")]
     [InlineData("disney-difftrans")]
     [InlineData("mix-lambert-metal")]
+    // Not here by design (OpenPBR layering, PIANO-REVIEW.md §3.38): the coat
+    // and the fuzz (sheen) scale what lies below by the view direction's
+    // albedo, the form that conserves energy over any base, not symmetric.
     public void Bsdf_IsReciprocal(string name)
         => Assert.True(BsdfTestKit.ReciprocityError(Get(name)) < 1e-3);
 
@@ -117,27 +118,30 @@ public class BsdfStatisticalTests
     public void Metal_DirectLightingMatchesSampling(string name)
         => Assert.True(BsdfTestKit.DirectVsEvaluateError(Get(name)) < 1e-3);
 
-    [Fact(Skip = "Bug noto PIANO-REVIEW.md §3.2: il lobo speculare delta viene diviso per max(p, 0.1) mentre è scelto con p ≈ 0.09, riflesso sottostimato del 9%. Fase 5.")]
-    public void KnownBug_Disney_SmoothSpecularMatchesFresnel()
+    // Was the known bug §3.2 (delta lobes weighted by max(p, 0.1) but chosen
+    // with p), fixed in Phase 5 by the translation onto OpenPBR.
+    [Fact]
+    public void Disney_SmoothSpecularMatchesFresnel()
     {
-        // Smooth plastic, specular 0.5 → F0 = 0.04: the delta part of the
-        // albedo is the Fresnel reflectance of the mirror lobe.
+        // Smooth plastic, specular 0.5 → IOR 1.5: the delta part of the
+        // albedo is the exact Fresnel reflectance of the mirror lobe.
         foreach (float cosV in Views)
         {
             var r = Run("disney-plastic-smooth", cosV);
             float deltaPart = r.Albedo.X - r.AlbedoNonDeltaSampled.X;
-            float schlick = 0.04f + 0.96f * MathF.Pow(1f - cosV, 5f);
-            Assert.InRange(deltaPart, schlick * 0.98f, schlick * 1.02f);
+            float fresnel = RayTracer.Core.MathUtils.FresnelDielectric(cosV, 1f / 1.5f);
+            Assert.InRange(deltaPart, fresnel * 0.98f, fresnel * 1.02f);
         }
     }
 
-    [Theory(Skip = "Bug noto PIANO-REVIEW.md §3.17: sheen, clearcoat e vetro Disney superano albedo 1 (energia creata). Fase 5.")]
+    // Was the known bug §3.17 (sheen, clearcoat and glass created energy), fixed in Phase 5.
+    [Theory]
     [InlineData("disney-sheen")]
     [InlineData("disney-coat-smooth")]
     [InlineData("disney-glass-smooth")]
     [InlineData("disney-glass-rough0.4")]
     [InlineData("disney-plastic-r1.0")]
-    public void KnownBug_Disney_WhiteFurnaceAlbedoDoesNotExceedOne(string name)
+    public void Disney_WhiteFurnaceAlbedoDoesNotExceedOne(string name)
     {
         // The gain grows toward grazing view, so this also checks cosθ = 0.2.
         foreach (float cosV in new[] { 0.8f, 0.3f, 0.2f })
@@ -147,7 +151,8 @@ public class BsdfStatisticalTests
         }
     }
 
-    [Fact(Skip = "Bug noto PIANO-REVIEW.md §3.18: la Pdf Disney include massa VNDF sotto l'orizzonte dove diff_trans ha supporto, peso sottostimato (~1%). Fase 5.")]
-    public void KnownBug_Disney_DiffTransSampleWeightIntegratesTheBsdf()
+    // Was the known bug §3.18 (pdf mass below the horizon where diff_trans has support), fixed in Phase 5.
+    [Fact]
+    public void Disney_DiffTransSampleWeightIntegratesTheBsdf()
         => SampleWeight_IntegratesTheBsdf("disney-difftrans");
 }

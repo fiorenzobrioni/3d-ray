@@ -6,9 +6,7 @@ namespace RayTracer.Materials;
 /// Shared anisotropic GGX microfacet utilities: tangent-frame construction,
 /// NDF, Smith masking/shadowing, and visible-normal sampling (Heitz 2018).
 ///
-/// Extracted out of <see cref="DisneyBsdf"/> so the energy-compensation LUT
-/// builder (<see cref="EnergyCompensationLut"/>) and any future BSDF that
-/// needs GGX sampling can share one implementation. Passing αx = αy recovers
+/// Shared by every GGX lobe (metal, dielectric, OpenPBR). Passing αx = αy recovers
 /// the isotropic formulae exactly, so isotropic and anisotropic call sites
 /// use the same entry points.
 /// </summary>
@@ -64,19 +62,6 @@ internal static class Microfacet
     /// </summary>
     public static float G2GgxAniso(Vector3 vloc, Vector3 lloc, float ax, float ay)
         => 1f / (1f + LambdaGgxAniso(vloc, ax, ay) + LambdaGgxAniso(lloc, ax, ay));
-
-    /// <summary>
-    /// Isotropic Smith G1 closed form — avoids allocating a Vector3 when
-    /// only the z-component is relevant (e.g. Disney's isotropic clearcoat).
-    ///   G1(NdotX) = 2·NdotX / (NdotX + sqrt(α² + (1-α²)·NdotX²))
-    /// </summary>
-    public static float SmithG1(float NdotX, float alpha)
-    {
-        float a2 = alpha * alpha;
-        float NdotX2 = NdotX * NdotX;
-        float denom = NdotX + MathF.Sqrt(a2 + (1f - a2) * NdotX2);
-        return 2f * NdotX / MathF.Max(denom, 1e-7f);
-    }
 
     /// <summary>
     /// Samples a visible microfacet normal from the anisotropic GGX

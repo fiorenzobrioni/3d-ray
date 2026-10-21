@@ -181,6 +181,38 @@ public class OpenPbrLobeTests
         Assert.Equal(0f, DielectricAlbedo.E(0.5f, 0.2f, 1f), 6);
     }
 
+    // ── Anisotropic white albedo ─────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(0.8f, 0.0f, 0.5f, 0.8f)]
+    [InlineData(0.4f, 0.7f, 0.5f, 0.72f)]
+    [InlineData(0.6f, 1.2f, 0.7f, 0.5f)]
+    [InlineData(0.25f, 0.3f, 0.35f, 0.9f)]
+    public void AnisotropicAlbedo_MatchesTheBrdfIntegral(float mu, float phi, float r, float a)
+    {
+        float at = MathF.Max(r * r * MathF.Sqrt(2f / (1f + (1f - a) * (1f - a))), 1e-4f);
+        float ab = MathF.Max((1f - a) * at, 1e-4f);
+        var v = new Vector3(MathF.Sqrt(1f - mu * mu) * MathF.Cos(phi), MathF.Sqrt(1f - mu * mu) * MathF.Sin(phi), mu);
+        double reference = Hemisphere(l =>
+        {
+            Vector3 h = Vector3.Normalize(v + l);
+            return Microfacet.DGgxAniso(h, at, ab) * Microfacet.G2GgxAniso(v, l, at, ab) / (4 * mu);
+        }, 1200, 800);
+        Assert.InRange(AnisotropicAlbedo.E(v, r, a), reference - 4e-3, reference + 4e-3);
+    }
+
+    [Fact]
+    public void AnisotropicAlbedo_IsotropicIsTheIsotropicTable()
+    {
+        foreach (float mu in new[] { 0.25f, 0.5f, 1f })
+        foreach (float r in new[] { 0.2f, 0.6f, 1f })
+        {
+            var v = new Vector3(MathF.Sqrt(1f - mu * mu), 0f, mu);
+            Assert.InRange(AnisotropicAlbedo.E(v, r, 0f), MicrofacetAlbedo.E(mu, r * r) - 4e-3f, MicrofacetAlbedo.E(mu, r * r) + 4e-3f);
+            Assert.InRange(AnisotropicAlbedo.Avg(r, 0f), MicrofacetAlbedo.Avg(r * r) - 4e-3f, MicrofacetAlbedo.Avg(r * r) + 4e-3f);
+        }
+    }
+
     [Theory]
     [InlineData(1.33f)]
     [InlineData(1.5f)]

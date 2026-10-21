@@ -55,13 +55,13 @@ public interface IMaterial
     /// emission with full weight via the prevIsDelta flag.
     ///
     /// <paramref name="rec"/> provides UV coordinates, local point, and object seed
-    /// so that textured materials (e.g. DisneyBsdf with a BaseColor texture) can
+    /// so that textured materials (e.g. OpenPbr with a base_color texture) can
     /// evaluate the correct surface properties at the hit point rather than using
     /// a fixed (0.5, 0.5) approximation.
     ///
     /// Default: zero — pure delta BSDFs (Dielectric mirror/refraction, Emissive)
     /// do not receive direct lighting. Lambertian, Metal, MixMaterial and
-    /// DisneyBsdf override this with their full analytic response.
+    /// OpenPbr override this with their full analytic response.
     /// </summary>
     /// <param name="toLight">Unit vector from hit point toward the light.</param>
     /// <param name="toEye">Unit vector from hit point toward the camera.</param>

@@ -87,7 +87,7 @@ public class CausticRenderTests
 
         var floor = new InfinitePlane(new Vector3(0f, 0f, 0f), new Vector3(0f, 1f, 0f),
                                       new Lambertian(new Vector3(0.7f, 0.7f, 0.7f)));
-        var redGlass = new DisneyBsdf(
+        var redGlass = DisneyMaterial.Create(
             baseColor:         new SolidColor(new Vector3(1f, 1f, 1f)),
             roughness:         new FloatTexture(0f),
             specTrans:         new FloatTexture(1f),
@@ -192,7 +192,7 @@ public class CausticRenderTests
         var bounds = new AABB(new Vector3(-3f, -0.5f, -3f), new Vector3(3f, 3f, 3f));
 
         // Billiard-ball material: glossy resin, smooth clearcoat, no metal.
-        var plastic = new DisneyBsdf(
+        var plastic = DisneyMaterial.Create(
             baseColor:     new SolidColor(new Vector3(0.8f, 0.1f, 0.1f)),
             roughness:     new FloatTexture(0.06f),
             clearcoat:     new FloatTexture(1f),
@@ -207,7 +207,7 @@ public class CausticRenderTests
             $"Glossy clearcoat ball must not cast caustics; got {plasticMap?.Count ?? 0} photons.");
 
         // Smooth metallic mirror: a genuine reflective-caustic caster.
-        var mirror = new DisneyBsdf(
+        var mirror = DisneyMaterial.Create(
             baseColor: new SolidColor(new Vector3(0.95f, 0.95f, 0.95f)),
             metallic:  new FloatTexture(1f),
             roughness: new FloatTexture(0.02f));

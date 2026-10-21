@@ -250,7 +250,7 @@ public class FireflyRegressionTests
 
         // Marble surface: transparent boundary; the colour comes from the
         // volume.
-        var marbleSurface = new DisneyBsdf(
+        var marbleSurface = DisneyMaterial.Create(
             baseColor: new SolidColor(Vector3.One),
             roughness: new FloatTexture(0.18f),
             specular:  new FloatTexture(0.5f),
@@ -341,7 +341,7 @@ public class FireflyRegressionTests
         Sampler.SetKind(SamplerKind.Prng);
 
         // Milk surface: Disney transparent + low IOR (1.35).
-        var milkSurface = new DisneyBsdf(
+        var milkSurface = DisneyMaterial.Create(
             baseColor: new SolidColor(Vector3.One),
             roughness: new FloatTexture(0.05f),
             specular:  new FloatTexture(0.5f),

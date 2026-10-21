@@ -21,7 +21,7 @@ public enum MediumTransition
 /// The result of a BSDF direction-sample — a sampled outgoing direction
 /// together with the BRDF value and the solid-angle PDF at that direction.
 ///
-/// Conventions (PBRT-v4 / Mitsuba, matching the naming used in DisneyBsdf):
+/// Conventions (PBRT-v4 / Mitsuba):
 ///   - V is the view direction (surface → camera), passed to the sampler.
 ///   - Wo is the sampled direction (surface → next bounce / light).
 ///   - F is the BRDF value f(V, Wo) WITHOUT the N·Wo cosine term. Callers

@@ -25,6 +25,10 @@ public sealed class OpenPbrParameters
     public FloatTexture SpecularRoughnessAnisotropy { get; init; } = 0f;
     public FloatTexture SpecularIor { get; init; } = 1.5f;
 
+    /// <summary>Extension: turns the anisotropy direction about the normal by
+    /// this fraction of a full turn (OpenPBR takes it from the tangent only).</summary>
+    public FloatTexture SpecularRotation { get; init; } = 0f;
+
     // Transmission
     public FloatTexture TransmissionWeight { get; init; } = 0f;
     public ITexture TransmissionColor { get; init; } = new SolidColor(Vector3.One);

@@ -15,11 +15,11 @@ internal static class BsdfCatalog
     private static readonly Vector3 White = new(1f);
     private static readonly Vector3 Light = new(0.8f);
 
-    private static DisneyBsdf Disney(
+    private static OpenPbr Disney(
         Vector3 baseColor, float metallic = 0f, float roughness = 0.5f, float specular = 0.5f,
         float sheen = 0f, float clearcoat = 0f, float clearcoatGloss = 1f, float specTrans = 0f,
         float anisotropic = 0f, float diffTrans = 0f, float? coatRoughness = null)
-        => new(new SolidColor(baseColor),
+        => DisneyMaterial.Create(new SolidColor(baseColor),
                metallic: metallic, roughness: roughness, specular: specular, specularTint: 0f,
                sheen: sheen, sheenTint: 0f, clearcoat: clearcoat, clearcoatGloss: clearcoatGloss,
                specTrans: specTrans, ior: 1.5f, anisotropic: anisotropic, diffTrans: diffTrans,

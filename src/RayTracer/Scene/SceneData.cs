@@ -759,7 +759,7 @@ public class MaterialData
     [YamlMember(Alias = "coat_ior")]
     public float? CoatIor { get; set; }
 
-    // -1 sentinel matches the DisneyBsdf "use legacy gloss" path. Authors
+    // -1 sentinel: the Disney translation then derives the coat roughness from clearcoat_gloss. Authors
     // should set the value in [0, 1] to take the explicit-roughness branch.
     [YamlMember(Alias = "coat_roughness")]
     public float CoatRoughness { get; set; } = -1f;

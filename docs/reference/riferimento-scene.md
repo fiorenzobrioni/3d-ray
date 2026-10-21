@@ -724,6 +724,29 @@ camera:
   # *_texture, ad es. roughness_texture: { type: "image", path: "rough.png" }.
 ```
 
+> **Trasporto della luce (PIANO-REVIEW.md, Fase 5).** Un materiale `disney`
+> è tradotto sul materiale OpenPBR (§5.7): i parametri qui sopra mantengono il
+> loro significato, il trasporto della luce è quello di OpenPBR, che conserva
+> l'energia in ogni combinazione di strati. Cosa cambia nell'aspetto delle
+> scene esistenti:
+> - Sheen, clearcoat e trasmissione non aggiungono più luce sopra la base
+>   (guadagnavano fino al 39% a incidenza radente): la base sotto un coat o uno
+>   sheen riceve solo la luce che li attraversa.
+> - `clearcoat: 1` è uno strato di lacca completo: il vecchio lobo era scalato
+>   di 0.25 (Burley 2012), quindi il riflesso del coat è più luminoso e la base
+>   sotto un po' più scura. `clearcoat_gloss` 1 è un coat a specchio.
+> - `sheen` è il fuzz di OpenPBR, uno strato di fibre (Zeltner 2022):
+>   `sheen_tint` e `sheen_roughness` mantengono il loro significato.
+> - Il diffuso è Lambert (la retro-riflessione di Burley creava energia a
+>   incidenza radente).
+> - `transmission_color` senza `transmission_depth` tingeva ogni rifrazione,
+>   quindi un oggetto pieno mostrava il colore al quadrato; resta al quadrato,
+>   ora applicato una volta all'ingresso (stesso aspetto). Senza
+>   `transmission_color` il vetro è tinto da `color`.
+> - `diff_trans` rende la superficie thin-walled.
+> - Una roughness sotto 0.03 è uno specchio perfetto (un lobo più stretto di
+>   0.06°).
+
 ##### **Riepilogo proprietà Disney**
 Riferimento a colpo d'occhio di ogni chiave Disney accettata dal loader.
 Il campo `Stato` marca le chiavi che si comportano in modo diverso dalle

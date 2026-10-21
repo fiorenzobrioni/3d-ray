@@ -59,7 +59,7 @@ public class BumpTerminatorRegressionTests
 
     private static float RenderGrazingPlaneMeanLuminance(bool withBump)
     {
-        var disney = new DisneyBsdf(
+        var disney = DisneyMaterial.Create(
             baseColor: new SolidColor(new Vector3(0.06f, 0.06f, 0.06f)),
             roughness: new FloatTexture(0.8f),
             specular:  new FloatTexture(0.5f),

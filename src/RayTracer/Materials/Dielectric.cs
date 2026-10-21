@@ -59,8 +59,8 @@ public sealed class Dielectric : IMaterial
     public Vector3 ShadowTransmittance(Vector3 wi, in HitRecord rec)
     {
         float cosTheta = MathF.Min(MathF.Abs(Vector3.Dot(wi, rec.Normal)), 1f);
-        // Straight-through shadow rays: see DisneyBsdf.ShadowTransmittance for
-        // the full rationale. Using eta = RefractionIndex on back-face hits
+        // Straight-through shadow rays are not refracted, so the Fresnel is
+        // read from the less dense side. Using eta = RefractionIndex on back-face hits
         // would spuriously trigger TIR past the critical angle and block
         // every soft shadow steeper than ~37° through a flat slab.
         float eta = 1f / RefractionIndex;

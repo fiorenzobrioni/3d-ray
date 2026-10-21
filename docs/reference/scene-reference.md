@@ -715,6 +715,27 @@ camera:
   # Same for colour parameters (transmission_color_texture, etc).
 ```
 
+> **Light transport (PIANO-REVIEW.md, Phase 5).** A `disney` material is
+> translated onto the OpenPBR material (§5.7): the parameters above keep their
+> meaning, the light transport is OpenPBR's, which conserves energy in every
+> combination of layers. What changes in the look of existing scenes:
+> - Sheen, clearcoat and transmission no longer add light on top of the base
+>   (they gained up to 39% at grazing angles): the base under a coat or a sheen
+>   receives only the light that crosses them.
+> - `clearcoat: 1` is a full lacquer layer: the old lobe was scaled by 0.25
+>   (Burley 2012), so the coat highlight is brighter and the base slightly
+>   darker under it. `clearcoat_gloss` 1 is a mirror coat.
+> - `sheen` is OpenPBR's fuzz, a layer of fibres (Zeltner 2022): `sheen_tint`
+>   and `sheen_roughness` keep their meaning.
+> - The diffuse is Lambert (Burley's retro-reflection created energy at
+>   grazing angles).
+> - `transmission_color` without `transmission_depth` used to tint every
+>   refraction, so a solid object showed the colour squared; it is still
+>   squared, now applied once on entry (same look). Without
+>   `transmission_color`, glass is tinted by `color`.
+> - `diff_trans` makes the surface thin-walled.
+> - A roughness below 0.03 is a perfect mirror (a lobe narrower than 0.06°).
+
 > **Subsurface scattering.** The Disney 2015 fake-SSS lobes
 > (`subsurface`, `flatness`) have been removed. Physically-correct SSS
 > now comes from one of two interoperable paths:

@@ -18,7 +18,7 @@ namespace RayTracer.Tests;
 ///
 /// <para>The tests exercise the full Renderer dispatch path so they catch
 /// regressions in any of the pieces that compose to produce SSS output:
-/// the entry refraction lobe in <see cref="DisneyBsdf"/>, the stack push in
+/// the entry refraction lobe in <see cref="OpenPbr"/>, the stack push in
 /// <see cref="Renderer.ShadeSampleBounce"/>, the <see cref="HitRecord.EntityRoot"/>
 /// stamping in <see cref="MediumBoundHittable"/>, the hero-wavelength MIS
 /// estimator in <see cref="Renderer.RandomWalkSubsurface"/>, and the exit
@@ -52,7 +52,7 @@ public class SssRandomWalkTests
     /// conservation test — without it the entry Fresnel would absorb some
     /// fraction of the input and the round-trip can't match unity.
     /// </summary>
-    private static DisneyBsdf MakeTransparentDisney() => new(
+    private static OpenPbr MakeTransparentDisney() => DisneyMaterial.Create(
         baseColor:    new SolidColor(Vector3.One),
         roughness:    new FloatTexture(0f),
         specular:     new FloatTexture(0f),

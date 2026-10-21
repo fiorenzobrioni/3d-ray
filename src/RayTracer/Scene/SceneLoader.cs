@@ -1076,6 +1076,45 @@ public class SceneLoader
         return new Metal(albedo, m.Fuzz ?? m.Roughness ?? 0f, edge, ior, m.MultipleScattering);
     }
 
+    private static bool IsDisney(MaterialData m) => m.Type?.ToLowerInvariant() is "disney" or "disney_bsdf" or "pbr";
+
+    /// <summary>The <c>disney</c> type, translated onto OpenPBR (<see cref="DisneyMaterial"/>).</summary>
+    private static IMaterial CreateDisney(MaterialData m, ITexture albedo, string sceneDir)
+    {
+        bool sss = m.SubsurfaceRadius is { } r && r.Any(v => v > 0f) && !m.ThinWalled;
+        bool diffTrans = m.DiffTrans > 0f || m.DiffTransTexture != null;
+        if (diffTrans && !m.ThinWalled)
+            Info($"Material '{m.Id}': 'diff_trans' makes the surface thin-walled (a sheet with no interior).");
+        return DisneyMaterial.Create(
+            albedo,
+            metallic:            DisneyParam(m.Metallic,            m.MetallicTexture,            sceneDir),
+            roughness:           DisneyParam(m.Roughness ?? 0.5f,   m.RoughnessTexture,           sceneDir),
+            specular:            DisneyParam(m.Specular,            m.SpecularTexture,            sceneDir),
+            specularTint:        DisneyParam(m.SpecularTint,        m.SpecularTintTexture,        sceneDir),
+            sheen:               DisneyParam(m.Sheen,               m.SheenTexture,               sceneDir),
+            sheenTint:           DisneyParam(m.SheenTint,           m.SheenTintTexture,           sceneDir),
+            sheenRoughness:      DisneyParam(m.SheenRoughness,      m.SheenRoughnessTexture,      sceneDir),
+            clearcoat:           DisneyParam(m.Clearcoat,           m.ClearcoatTexture,           sceneDir),
+            clearcoatGloss:      DisneyParam(m.ClearcoatGloss,      m.ClearcoatGlossTexture,      sceneDir),
+            specTrans:           DisneyParam(m.SpecTrans ?? 0f,     m.SpecTransTexture,           sceneDir),
+            ior:                 DisneyParam(m.DisneyIor,           m.IorTexture,                 sceneDir),
+            anisotropic:         DisneyParam(m.Anisotropic,         m.AnisotropicTexture,         sceneDir),
+            anisotropicRotation: DisneyParam(m.AnisotropicRotation, m.AnisotropicRotationTexture, sceneDir),
+            transmissionColor:   DisneyColorParam(m.TransmissionColor, m.TransmissionColorTexture, sceneDir),
+            transmissionDepth:   DisneyParam(m.TransmissionDepth,   m.TransmissionDepthTexture,   sceneDir),
+            diffTrans:           diffTrans ? DisneyParam(m.DiffTrans, m.DiffTransTexture, sceneDir) : null,
+            thinWalled:          m.ThinWalled,
+            coatIor:             DisneyParam(m.CoatIor ?? 1.5f,     m.CoatIorTexture,             sceneDir),
+            // coat_roughness only when written; otherwise clearcoat_gloss sets it.
+            coatRoughness:       (m.CoatRoughness >= 0f || m.CoatRoughnessTexture != null)
+                                    ? DisneyParam(MathF.Max(m.CoatRoughness, 0f), m.CoatRoughnessTexture, sceneDir)
+                                    : null,
+            thinFilmThickness:   DisneyParam(m.ThinFilmThickness ?? 0f, m.ThinFilmThicknessTexture, sceneDir),
+            thinFilmIor:         DisneyParam(m.ThinFilmIor ?? 1.5f, m.ThinFilmIorTexture,         sceneDir),
+            subsurfaceMedium:    sss,
+            coatNormal:          m.CoatNormalMap != null ? LoadNormalMap(m.CoatNormalMap, sceneDir) : null);
+    }
+
     // ── OpenPBR Surface (PIANO-REVIEW.md, Phase 5) ──────────────────────────
 
     private static bool IsOpenPbr(MaterialData m) =>
@@ -1247,35 +1286,7 @@ public class SceneLoader
                                 m.Roughness ?? 0f),
             "emissive"   => new Emissive(albedo, m.Intensity),
             "disney" or "disney_bsdf" or "pbr"
-                         => new DisneyBsdf(
-                                albedo,
-                                metallic:            DisneyParam(m.Metallic,            m.MetallicTexture,            sceneDir),
-                                roughness:           DisneyParam(m.Roughness ?? 0.5f,   m.RoughnessTexture,           sceneDir),
-                                specular:            DisneyParam(m.Specular,            m.SpecularTexture,            sceneDir),
-                                specularTint:        DisneyParam(m.SpecularTint,        m.SpecularTintTexture,        sceneDir),
-                                sheen:               DisneyParam(m.Sheen,               m.SheenTexture,               sceneDir),
-                                sheenTint:           DisneyParam(m.SheenTint,           m.SheenTintTexture,           sceneDir),
-                                sheenRoughness:      DisneyParam(m.SheenRoughness,      m.SheenRoughnessTexture,      sceneDir),
-                                clearcoat:           DisneyParam(m.Clearcoat,           m.ClearcoatTexture,           sceneDir),
-                                clearcoatGloss:      DisneyParam(m.ClearcoatGloss,      m.ClearcoatGlossTexture,      sceneDir),
-                                specTrans:           DisneyParam(m.SpecTrans ?? 0f,     m.SpecTransTexture,           sceneDir),
-                                ior:                 DisneyParam(m.DisneyIor,           m.IorTexture,                 sceneDir),
-                                anisotropic:         DisneyParam(m.Anisotropic,         m.AnisotropicTexture,         sceneDir),
-                                anisotropicRotation: DisneyParam(m.AnisotropicRotation, m.AnisotropicRotationTexture, sceneDir),
-                                transmissionColor:   DisneyColorParam(m.TransmissionColor, m.TransmissionColorTexture, sceneDir),
-                                transmissionDepth:   DisneyParam(m.TransmissionDepth,   m.TransmissionDepthTexture,   sceneDir),
-                                diffTrans:           DisneyParam(m.DiffTrans,           m.DiffTransTexture,           sceneDir),
-                                thinWalled:          m.ThinWalled,
-                                coatIor:             DisneyParam(m.CoatIor ?? 1.5f,     m.CoatIorTexture,             sceneDir),
-                                // coat_roughness: only forwarded when the user
-                                // explicitly set a non-negative value or a
-                                // texture; otherwise null selects the legacy
-                                // ClearcoatGloss path inside DisneyBsdf.
-                                coatRoughness:       (m.CoatRoughness >= 0f || m.CoatRoughnessTexture != null)
-                                                        ? DisneyParam(MathF.Max(m.CoatRoughness, 0f), m.CoatRoughnessTexture, sceneDir)
-                                                        : null,
-                                thinFilmThickness:   DisneyParam(m.ThinFilmThickness ?? 0f, m.ThinFilmThicknessTexture, sceneDir),
-                                thinFilmIor:         DisneyParam(m.ThinFilmIor ?? 1.5f, m.ThinFilmIorTexture,       sceneDir)),
+                         => CreateDisney(m, albedo, sceneDir),
             "openpbr"    => CreateOpenPbr(m, sceneDir),
             _            => new Lambertian(albedo)
         };
@@ -1293,7 +1304,6 @@ public class SceneLoader
                     case Metal       met: met.NormalMap = normalMap; break;
                     case Dielectric  die: die.NormalMap = normalMap; break;
                     case Emissive    emi: emi.NormalMap = normalMap; break;
-                    case DisneyBsdf  dis: dis.NormalMap = normalMap; break;
                     case OpenPbr     opb: opb.NormalMap = normalMap; break;
                     case MixMaterial mix: mix.NormalMap = normalMap; break;
                 }
@@ -1312,7 +1322,6 @@ public class SceneLoader
                     case Metal       met: met.BumpMap = bumpMap; break;
                     case Dielectric  die: die.BumpMap = bumpMap; break;
                     case Emissive    emi: emi.BumpMap = bumpMap; break;
-                    case DisneyBsdf  dis: dis.BumpMap = bumpMap; break;
                     case OpenPbr     opb: opb.BumpMap = bumpMap; break;
                     case MixMaterial mix: mix.BumpMap = bumpMap; break;
                 }
@@ -1320,12 +1329,6 @@ public class SceneLoader
         }
 
         // ── Coat normal map (Disney only — exclusive to the clearcoat lobe) ─
-        if (m.CoatNormalMap != null && material is DisneyBsdf disneyMat)
-        {
-            var coatNormal = LoadNormalMap(m.CoatNormalMap, sceneDir);
-            if (coatNormal != null)
-                disneyMat.CoatNormal = coatNormal;
-        }
 
         // ── Legacy "fake SSS" knobs (clean break) ───────────────────────────
         // The Hanrahan-Krueger flat-blend approximation that used to live on
@@ -1344,7 +1347,7 @@ public class SceneLoader
         // contribute nothing to the random-walk path. Warn only when these
         // are set WITHOUT subsurface_radius, so the artist knows they need to
         // migrate to one of the two real SSS paths.
-        if (material is DisneyBsdf
+        if (IsDisney(m)
             && m.SubsurfaceRadius == null
             && (m.Subsurface > 0f
                 || m.SubsurfaceColor != null
@@ -1374,7 +1377,6 @@ public class SceneLoader
                 case Metal      met: met.Displacement = leafDisp; break;
                 case Dielectric die: die.Displacement = leafDisp; break;
                 case Emissive   emi: emi.Displacement = leafDisp; break;
-                case DisneyBsdf dis: dis.Displacement = leafDisp; break;
                     case OpenPbr     opb: opb.Displacement = leafDisp; break;
             }
         }
@@ -1760,7 +1762,7 @@ public class SceneLoader
             // Anonymous Disney BSDF — keeps physical correctness even when the
             // user only supplied a colour, matching Arnold's <c>standard_surface</c>
             // floor default.
-            return new DisneyBsdf(
+            return DisneyMaterial.Create(
                 baseColor:  new SolidColor(baseColor),
                 metallic:   new FloatTexture(metallic),
                 roughness:  new FloatTexture(roughness));
@@ -2019,7 +2021,7 @@ public class SceneLoader
     /// Builds a nullable <see cref="ITexture"/> for a Disney colour parameter
     /// where "unset" is semantically meaningful — e.g. <c>transmission_color</c>,
     /// whose null value activates the legacy sqrt(baseColor) fallback in
-    /// <see cref="DisneyBsdf"/>. Prefers the texture block when supplied; else
+    /// the Disney translation. Prefers the texture block when supplied; else
     /// wraps the RGB triplet if the user provided one; else returns null.
     /// </summary>
     private static ITexture? DisneyColorParam(List<float>? scalar, TextureData? tex, string sceneDir)

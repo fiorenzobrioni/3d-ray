@@ -93,12 +93,14 @@ public sealed class OpenPbr : IMaterial
         public float Fuzz, FuzzRough; public Vector3 FuzzColor;
         public float Coat, CoatAx, CoatAy, CoatEta, CoatDarkening; public bool CoatDelta; public Vector3 CoatColor;
         public float Metal, SpecWeight; public Vector3 MetalF0, MetalTint;
-        public float Rough, Ax, Ay, MsAvg; public bool BaseDelta;
+        public float Rough, RoughB, Aniso, Ax, Ay, MsAvg; public bool BaseDelta;
         public float EtaS, Ri, F0Spec; public Vector3 SpecColor;
         public float Trans; public Vector3 TransTint, Sigma;
         public float DiffuseW, DiffRough; public Vector3 Rho;
         public float ThinSss, SubAniso; public Vector3 SubColor;
         public float Film, FilmNm, FilmIor;
+        public Vector3 SpecAvg;   // Ē_R: cosine-weighted average of the reflection albedo
+        public int Stamp;         // identifies this closure for the view-dependent cache
     }
 
     [ThreadStatic] private static OpenPbr? _cOwner;
@@ -115,6 +117,7 @@ public sealed class OpenPbr : IMaterial
             && _cEta == rec.RelativeEta && _cTan == rec.Tangent)
             return _cHit;
         Hit h = BuildHit(in rec);
+        h.Stamp = ++_hitStamp;
         _cOwner = this; _cU = rec.U; _cV = rec.V; _cSeed = rec.ObjectSeed; _cP = rec.LocalPoint;
         _cN = rec.Normal; _cFront = rec.FrontFace; _cEta = rec.RelativeEta; _cTan = rec.Tangent;
         _cHit = h;
@@ -125,6 +128,11 @@ public sealed class OpenPbr : IMaterial
     private static Vector3 Clamp01(Vector3 v) => Vector3.Clamp(v, Vector3.Zero, Vector3.One);
     private static float Lum(Vector3 c) => 0.2126f * c.X + 0.7152f * c.Y + 0.0722f * c.Z;
     private static float Lerp(float a, float b, float t) => a + (b - a) * t;
+
+    /// <summary>Below this roughness (α ≤ 1e-3, a lobe narrower than 0.06°) a
+    /// specular lobe is a perfect mirror: sampled as a delta, so the caustic
+    /// photons follow it and no near-singular lobe meets a shadow ray.</summary>
+    private const float DeltaRoughness = 0.0317f;
 
     /// <summary>OpenPBR anisotropy: α_t = r² √(2 / (1 + (1 − a)²)), α_b = (1 − a) α_t.</summary>
     private static (float ax, float ay) Alphas(float r, float aniso)
@@ -165,6 +173,12 @@ public sealed class OpenPbr : IMaterial
         {
             Microfacet.BuildTangentFrame(h.N, out h.T, out h.B);
         }
+        if (!p.SpecularRotation.IsConstant || p.SpecularRotation.ConstantValue != 0f)
+        {
+            float angle = 2f * MathF.PI * p.SpecularRotation.Value(in rec);
+            float c = MathF.Cos(angle), s = MathF.Sin(angle);
+            (h.T, h.B) = (c * h.T + s * h.B, -s * h.T + c * h.B);
+        }
 
         float ior = MathF.Max(p.SpecularIor.Value(in rec), 1e-3f);
         float nb = ModulatedIor(ior, MathF.Max(0f, p.SpecularWeight.Value(in rec)));
@@ -181,8 +195,10 @@ public sealed class OpenPbr : IMaterial
             h.TransTint = Vector3.One;
             h.Opacity = 1f;
             h.Rough = r;
-            (h.Ax, h.Ay) = Alphas(r, Clamp01(p.SpecularRoughnessAnisotropy.Value(in rec)));
-            h.BaseDelta = r <= 0f;
+            h.RoughB = r;
+            h.Aniso = Clamp01(p.SpecularRoughnessAnisotropy.Value(in rec));
+            (h.Ax, h.Ay) = Alphas(r, h.Aniso);
+            h.BaseDelta = r <= DeltaRoughness || MathF.Abs(h.Ri - 1f) < 1e-4f;
             return h;
         }
 
@@ -202,7 +218,7 @@ public sealed class OpenPbr : IMaterial
         {
             h.CoatColor = Clamp01(p.CoatColor.Value(in rec));
             rc = Clamp01(p.CoatRoughness.Value(in rec));
-            h.CoatDelta = rc <= 0f;
+            h.CoatDelta = rc <= DeltaRoughness;
             (h.CoatAx, h.CoatAy) = Alphas(rc, Clamp01(p.CoatRoughnessAnisotropy.Value(in rec)));
             float ci = MathF.Max(p.CoatIor.Value(in rec), 1e-3f);
             h.CoatEta = MathF.Max(ci >= 1f ? ci : 1f / ci, 1.0001f);
@@ -217,8 +233,10 @@ public sealed class OpenPbr : IMaterial
         float rb = r;
         if (h.Coat > 0f && rc > 0f)
             rb = Lerp(r, MathF.Min(1f, MathF.Pow(r * r * r * r + 2f * rc * rc * rc * rc, 0.25f)), h.Coat);
-        h.BaseDelta = rb <= 0f;
-        (h.Ax, h.Ay) = Alphas(rb, Clamp01(p.SpecularRoughnessAnisotropy.Value(in rec)));
+        h.BaseDelta = rb <= DeltaRoughness;
+        h.RoughB = rb;
+        h.Aniso = Clamp01(p.SpecularRoughnessAnisotropy.Value(in rec));
+        (h.Ax, h.Ay) = Alphas(rb, h.Aniso);
 
         h.Metal = Clamp01(p.BaseMetalness.Value(in rec));
         float baseWeight = MathF.Max(0f, p.BaseWeight.Value(in rec));
@@ -229,7 +247,7 @@ public sealed class OpenPbr : IMaterial
         {
             h.MetalF0 = Clamp01(baseWeight * baseColor);
             h.MetalTint = specColor;
-            h.MsAvg = AnisotropicAverage(h.Ax, h.Ay);
+            h.MsAvg = h.Aniso > 0f ? AnisotropicAlbedo.Avg(h.RoughB, h.Aniso) : MicrofacetAlbedo.Avg(h.Ax);
         }
 
         // Dielectric interface. Refraction follows the IOR stack; the
@@ -249,6 +267,9 @@ public sealed class OpenPbr : IMaterial
         {
             h.EtaS = 1f / h.Ri;
         }
+        // An index-matched interface does not bend or reflect: whatever its
+        // roughness, light crosses it straight.
+        if (MathF.Abs(h.Ri - 1f) < 1e-4f && h.Coat <= 0f) h.BaseDelta = true;
         float f0 = (ior - 1f) / (ior + 1f);
         h.F0Spec = f0 * f0;
         h.SpecColor = specColor;
@@ -294,6 +315,7 @@ public sealed class OpenPbr : IMaterial
         }
         h.Rho = Clamp01(baseWeight * baseColor);
         h.DiffRough = Clamp01(p.BaseDiffuseRoughness.Value(in rec));
+        h.SpecAvg = SpecularAverage(in h);
         return h;
     }
 
@@ -343,7 +365,7 @@ public sealed class OpenPbr : IMaterial
 
     private struct Layer
     {
-        public float MuV, MuVc, FuzzE, GFuzz, CoatE;
+        public float MuV, MuVc, FuzzE, GFuzz, CoatE, EMetalV;
         public Vector3 Dark, ER;
     }
 
@@ -360,22 +382,29 @@ public sealed class OpenPbr : IMaterial
         return MathF.Sqrt((h.Ax * h.Ax * x * x + h.Ay * h.Ay * y * y) / r2);
     }
 
-    /// <summary>E_avg of an anisotropic lobe: the isotropic average at the
-    /// projected roughness, averaged over the azimuth, so that the
-    /// Kulla-Conty lobe returns exactly what the single-scattering lobe read
-    /// at the projected roughness loses.</summary>
-    private static float AnisotropicAverage(float ax, float ay)
+
+    /// <summary>White single-scattering albedo of the base's GGX lobe at a
+    /// direction: the anisotropic table when the lobe is anisotropic, read
+    /// at both directions so that the Kulla-Conty lobe stays reciprocal.</summary>
+    private static float WhiteAlbedoAt(in Hit h, Vector3 dir)
     {
-        if (ax == ay) return MicrofacetAlbedo.Avg(ax);
-        const int n = 16;
-        float sum = 0f;
-        for (int i = 0; i < n; i++)
-        {
-            float phi = (i + 0.5f) * (0.5f * MathF.PI / n);
-            float c = MathF.Cos(phi), sn = MathF.Sin(phi);
-            sum += MicrofacetAlbedo.Avg(MathF.Sqrt(ax * ax * c * c + ay * ay * sn * sn));
-        }
-        return sum / n;
+        Vector3 l = Local(dir, h.T, h.B, h.N);
+        l.Z = MathF.Abs(l.Z);
+        return h.Aniso > 0f ? AnisotropicAlbedo.E(l, h.RoughB, h.Aniso) : MicrofacetAlbedo.E(l.Z, h.Ax);
+    }
+
+    /// <summary>Albedo of the dielectric reflection lobe (tint, film) at a
+    /// direction. Anisotropic: the isotropic Fresnel table at the projected
+    /// roughness, times the anisotropic-to-isotropic ratio of the white
+    /// tables, so that both ends of the reciprocal diffuse weight agree.</summary>
+    private static Vector3 SpecularAlbedoAt(in Hit h, Vector3 dir)
+    {
+        float mu = MathF.Min(MathF.Abs(Vector3.Dot(h.N, dir)), 1f);
+        if (h.BaseDelta || h.Aniso <= 0f) return ReflectionAlbedo(in h, mu, h.Ax);
+        float ap = ProjectedAlpha(in h, dir);
+        Vector3 e = ReflectionAlbedo(in h, mu, ap);
+        float iso = MicrofacetAlbedo.E(mu, ap);
+        return iso > 1e-6f ? Clamp01(e * (WhiteAlbedoAt(in h, dir) / iso)) : e;
     }
 
     private static Vector3 ReflectionAlbedo(in Hit h, float mu, float alpha)
@@ -391,7 +420,20 @@ public sealed class OpenPbr : IMaterial
         return h.SpecColor * table;
     }
 
+    [ThreadStatic] private static int _hitStamp;
+    [ThreadStatic] private static int _wStamp;
+    [ThreadStatic] private static Vector3 _wV;
+    [ThreadStatic] private static Layer _wLayer;
+
     private Layer Weights(in Hit h, Vector3 V)
+    {
+        if (_wStamp == h.Stamp && _wV == V) return _wLayer;
+        Layer w = ComputeWeights(in h, V);
+        _wStamp = h.Stamp; _wV = V; _wLayer = w;
+        return w;
+    }
+
+    private Layer ComputeWeights(in Hit h, Vector3 V)
     {
         var w = new Layer { MuV = Vector3.Dot(h.N, V), GFuzz = 1f, Dark = Vector3.One };
         if (h.Inside) return w;
@@ -401,7 +443,8 @@ public sealed class OpenPbr : IMaterial
             w.GFuzz = 1f - h.Fuzz * w.FuzzE;
         }
         float muV = MathF.Max(w.MuV, 0f);
-        w.ER = h.Metal < 1f ? ReflectionAlbedo(in h, muV, ProjectedAlpha(in h, V)) : Vector3.Zero;
+        if (h.Metal < 1f) w.ER = SpecularAlbedoAt(in h, V);
+        if (h.Metal > 0f && !h.BaseDelta) w.EMetalV = WhiteAlbedoAt(in h, V);
         if (h.Coat > 0f)
         {
             w.MuVc = MathF.Max(0f, Vector3.Dot(h.Nc, V));
@@ -456,6 +499,48 @@ public sealed class OpenPbr : IMaterial
         return m;
     }
 
+    /// <summary>
+    /// What reaches the diffuse base through the specular interface, in the
+    /// reciprocal form (1 − E_R(μ_V)) (1 − E_R(μ_L)) / (1 − Ē_R): exactly the
+    /// light the interface lets through for a Lambertian base, and symmetric in
+    /// the two directions, where OpenPBR's (1 − E_R(μ_V)) alone is not.
+    /// </summary>
+    private static Vector3 DiffuseUnderSpecular(in Hit h, in Layer w, Vector3 L, float muL)
+    {
+        if (h.Inside) return Vector3.One;
+        Vector3 avg = h.SpecAvg;
+        Vector3 eL = SpecularAlbedoAt(in h, L);
+        return (Vector3.One - w.ER) * (Vector3.One - eL) / Vector3.Max(Vector3.One - avg, new Vector3(1e-4f));
+    }
+
+    private static readonly float[] GaussX = { 0.0198551f, 0.1016668f, 0.2372338f, 0.4082827f, 0.5917173f, 0.7627662f, 0.8983332f, 0.9801449f };
+    private static readonly float[] GaussW = { 0.0506143f, 0.1111905f, 0.1568533f, 0.1813419f, 0.1813419f, 0.1568533f, 0.1111905f, 0.0506143f };
+
+    /// <summary>Ē_R, the cosine-weighted average of <see cref="SpecularAlbedoAt"/>
+    /// over the hemisphere: from the tables, or, when a thin film colours it
+    /// or the lobe is anisotropic, by Gauss-Legendre in μ (8 points) and the
+    /// midpoint rule in the azimuth (4 points over a quarter turn).</summary>
+    private static Vector3 SpecularAverage(in Hit h)
+    {
+        float e = h.EtaS >= 1f ? h.EtaS : 1f / h.EtaS;
+        bool aniso = h.Aniso > 0f && !h.BaseDelta;
+        if (h.Film <= 0f && !aniso)
+            return h.SpecColor * (h.BaseDelta ? DielectricAlbedo.FresnelAvg(e) : DielectricAlbedo.Avg(h.Ax, e));
+        int nPhi = aniso ? 4 : 1;
+        Vector3 sum = Vector3.Zero;
+        for (int k = 0; k < nPhi; k++)
+        {
+            float phi = (k + 0.5f) * (0.5f * MathF.PI / nPhi);
+            for (int i = 0; i < GaussX.Length; i++)
+            {
+                float mu = GaussX[i], s = MathF.Sqrt(1f - mu * mu);
+                Vector3 dir = s * MathF.Cos(phi) * h.T + s * MathF.Sin(phi) * h.B + mu * h.N;
+                sum += 2f * GaussW[i] * mu * SpecularAlbedoAt(in h, dir);
+            }
+        }
+        return sum / nPhi;
+    }
+
     // ── Lobe probabilities ──────────────────────────────────────────────────
 
     private struct Probs
@@ -508,7 +593,7 @@ public sealed class OpenPbr : IMaterial
         return (D * G / (4f * muV * muL), g1 * D / (4f * muV), Vector3.Dot(V, hw));
     }
 
-    private Vector3 MetalLobe(in Hit h, Vector3 V, Vector3 L, out float pdf)
+    private Vector3 MetalLobe(in Hit h, in Layer w, Vector3 V, Vector3 L, out float pdf)
     {
         pdf = 0f;
         var (val, p, vh) = GgxReflection(V, L, h.T, h.B, h.N, h.Ax, h.Ay);
@@ -520,12 +605,12 @@ public sealed class OpenPbr : IMaterial
         // inter-reflection between microfacets, returned in the colour of
         // the Fresnel average.
         float eAvg = h.MsAvg;
-        float eV = MicrofacetAlbedo.E(muV, ProjectedAlpha(in h, V));
+        float eV = w.EMetalV;
         if (eAvg < 0.9999f)
         {
             Vector3 fAvg = Clamp01(ConductorFresnel.F82Average(h.MetalF0, h.MetalTint) * h.SpecWeight);
             Vector3 fMs = fAvg * fAvg * eAvg / (Vector3.One - fAvg * (1f - eAvg));
-            f += fMs * ((1f - eV) * (1f - MicrofacetAlbedo.E(muL, ProjectedAlpha(in h, L))) / (MathF.PI * (1f - eAvg)));
+            f += fMs * ((1f - eV) * (1f - WhiteAlbedoAt(in h, L)) / (MathF.PI * (1f - eAvg)));
         }
         float q = Math.Clamp(eV, 0.05f, 1f);
         pdf = q * p + (1f - q) * muL / MathF.PI;
@@ -646,7 +731,7 @@ public sealed class OpenPbr : IMaterial
         Vector3 bm = BaseMultiplier(in h, in w, muL, transmitted);
         if (h.Metal > 0f && !h.BaseDelta && !transmitted)
         {
-            f += bm * h.Metal * MetalLobe(in h, V, L, out float p);
+            f += bm * h.Metal * MetalLobe(in h, in w, V, L, out float p);
             pdf += pr.Metal * p;
         }
         float d = 1f - h.Metal;
@@ -658,7 +743,6 @@ public sealed class OpenPbr : IMaterial
                 f += bm * d * fi;
                 pdf += pr.Iface * p;
             }
-            Vector3 under = Vector3.One - w.ER;
             float muV = MathF.Max(w.MuV, 0f);
             if (!transmitted)
             {
@@ -668,7 +752,7 @@ public sealed class OpenPbr : IMaterial
                 if (h.ThinSss > 0f)
                     fd += h.ThinSss * 0.5f * (1f - h.SubAniso) * h.SubColor
                         * Eon.Evaluate(Vector3.One, h.DiffRough, muL, muV, dot);
-                f += bm * d * under * fd;
+                f += bm * d * DiffuseUnderSpecular(in h, in w, L, muL) * fd;
                 pdf += pr.Diff * muL / MathF.PI;
             }
             else if (h.Thin && h.ThinSss > 0f)
@@ -678,7 +762,7 @@ public sealed class OpenPbr : IMaterial
                 // S (1 ∓ g) / 2 between the two sides (OpenPBR thin-walled).
                 Vector3 ft = h.ThinSss * 0.5f * (1f + h.SubAniso) * h.SubColor
                            * Eon.Evaluate(Vector3.One, h.DiffRough, -muL, muV, Vector3.Dot(V, Lm));
-                f += bm * d * under * ft;
+                f += bm * d * DiffuseUnderSpecular(in h, in w, L, -muL) * ft;
                 pdf += pr.DiffT * -muL / MathF.PI;
             }
         }
@@ -761,7 +845,7 @@ public sealed class OpenPbr : IMaterial
                             * (total / pr.Metal);
                 return new BsdfSample(m, wgt, 1f, isDelta: true, causticCaster: h.Metal >= 0.5f);
             }
-            float q = Math.Clamp(MicrofacetAlbedo.E(w.MuV, ProjectedAlpha(in h, V)), 0.05f, 1f);
+            float q = Math.Clamp(w.EMetalV, 0.05f, 1f);
             if (MathUtils.RandomFloat() < q)
             {
                 var (u1, u2) = MathUtils.Random2D();
@@ -820,7 +904,7 @@ public sealed class OpenPbr : IMaterial
         if (pdf <= 0f || !float.IsFinite(pdf)) return null;
         if (!refraction) return new BsdfSample(L, f, pdf, isDelta: false);
         return new BsdfSample(L, f, pdf, isDelta: false,
-                              nextSegmentAbsorption: rec.FrontFace ? h.Sigma : Vector3.Zero,
+                              nextSegmentAbsorption: NextAbsorption(in h, rec.FrontFace),
                               transition: rec.FrontFace ? MediumTransition.Enter : MediumTransition.Exit);
     }
 
@@ -846,9 +930,15 @@ public sealed class OpenPbr : IMaterial
         Vector3 L = MathUtils.Refract(-V, N, h.Ri);
         if (MathUtils.NearZero(L)) return null;
         return new BsdfSample(Vector3.Normalize(L), bm * (h.Ri * h.Ri), 1f, isDelta: true,
-                              nextSegmentAbsorption: rec.FrontFace ? h.Sigma : Vector3.Zero,
+                              nextSegmentAbsorption: NextAbsorption(in h, rec.FrontFace),
                               transition: rec.FrontFace ? MediumTransition.Enter : MediumTransition.Exit);
     }
+
+    /// <summary>Beer-Lambert coefficient for the segment after a refraction:
+    /// the material's on the way in (none to switch to when it has none),
+    /// vacuum on the way out.</summary>
+    private static Vector3? NextAbsorption(in Hit h, bool entering) =>
+        entering ? (h.Sigma == Vector3.Zero ? null : h.Sigma) : Vector3.Zero;
 
     // ── IMaterial: transmission queries ─────────────────────────────────────
 
@@ -880,7 +970,7 @@ public sealed class OpenPbr : IMaterial
     {
         Hit h = GetHit(in rec);
         if (h.Opacity < 1f) return true;
-        if (h.Inside || h.Trans <= 0f || !h.BaseDelta || h.Metal > 0f) return false;
+        if (h.Trans <= 0f || !h.BaseDelta || h.Metal > 0f) return false;
         return h.Thin || MathF.Abs(h.Ri - 1f) < 1e-4f;
     }
 
