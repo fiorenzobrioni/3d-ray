@@ -1797,9 +1797,16 @@ texture:
   type: "image"
   path: "textures/brick.png"              # Relativo al file YAML
   uv_scale: [2, 1]                        # Fattore di piastrellatura (tiling)
+  color_space: "srgb"                     # Opzionale: srgb | linear | raw
 ```
-- Supporta: PNG, JPEG, BMP, GIF, TIFF, WebP
-- Convertito automaticamente da sRGB a lineare
+- Supporta: PNG, JPEG, BMP, GIF, TIFF, WebP (8 o 16 bit per canale, letti a
+  piena precisione), più Radiance `.hdr` e OpenEXR `.exr` (sempre lineari)
+- `color_space` dice come leggere i valori salvati. Default per ruolo: una texture
+  che dà un **colore** (`color`, `base_color`, `transmission_color`, ...) viene
+  decodificata da sRGB; una texture che dà un **dato** (roughness, metallic, pesi,
+  IOR, maschera di un mix, bump, displacement, heightfield) è letta così com'è
+  (`raw`). Va impostato solo per forzare il ruolo, per esempio una roughness map
+  salvata in sRGB. `linear` e `raw` sono sinonimi (anche `data`, `non-color`).
 - Filtro bilineare per la morbidezza
 - Anti-aliasing analitico (mipmap + EWA anisotropico) quando sono
   disponibili i ray differentials - attivo di default; toggle da CLI

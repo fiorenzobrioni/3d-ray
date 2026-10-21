@@ -24,7 +24,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 1 | Fondamenta matematiche, sampler | ✅ Chiusa (2026-10-20), esito in §4 Fase 1 |
 | 2 | Geometria e intersezioni | ⬜ |
 | 3 | Camera, film e colore | ✅ Chiusa (2026-10-21), esito in §4 Fase 3 |
-| 4 | Texture e dati | ⬜ |
+| 4 | Texture e dati | 🔄 In corso |
 | 5 | Materiali e BSDF | ✅ Chiusa (2026-10-21), esito in §4 Fase 5 |
 | 6 | Luci, cielo | ⬜ |
 | 7 | Integratore | ⬜ |
@@ -110,7 +110,7 @@ fase indicata.
 |---|---|---|---|
 | 3.1 | **[BUG]** | `Rendering/Sky/PreethamSky.cs:197` | Funzione di Perez sbagliata. Corretta: `(1 + A*e^(B/cosθ)) (1 + C*e^(Dγ) + E*cos²γ)`. Nel codice: `(C + D*e^(Eγ) + E*cos²γ)`, cioè coefficienti scalati di una posizione ed `E` usato due volte. Anche la normalizzazione `F(0, θs)` eredita l'errore. Il sole usa una costante empirica (`SolarConstantRel = 20`) e trasmittanze ad hoc. |
 | 3.2 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** | `Materials/DisneyBsdf.cs:1302, 1335, 1384, 1440, 1604, 1674, 1706` | Dopo aver scelto un lobo con probabilità `p`, il peso viene diviso per `max(p, 0.1)` (o `0.05`), ma `p` non è mai forzato a quel minimo in fase di scelta. **Misurato (Fase 0)**: il renderer usa `Sample()`, che per i lobi non-delta ricalcola `Evaluate`/`Pdf` e quindi non è toccato; il bug colpisce i lobi **delta** (speculare liscio, clearcoat liscio, trasmissione). Plastica liscia: riflesso speculare sottostimato del 9.4% a ogni angolo (p = 0.0906). Test `KnownBug_Disney_SmoothSpecularMatchesFresnel`. Fase 5. **Esito**: il tipo `disney` è tradotto su OpenPBR (§3.38), che sceglie ogni lobo delta con la stessa probabilità per cui ne divide il peso. Test `Disney_SmoothSpecularMatchesFresnel` riattivato: il riflesso della plastica liscia è il Fresnel esatto a ogni angolo. Nel render spariscono i firefly della plastica liscia (`scenes/review/disney-to-openpbr.yaml`). |
-| 3.3 | **[BUG]** | `Scene/SceneLoader.cs:1802, 1902` + `Textures/ImageTexture.cs:63` | Le mappe dati (roughness, metallic, coat roughness...) passano per `ImageTexture`, che applica sempre la decodifica sRGB. Una roughness map viene quindi "linearizzata" come fosse un colore: valori sbagliati. Manca un attributo `color_space` per texture. |
+| 3.3 | ✅ **corretto** (2026-10-21, Fase 4), era **[BUG]** | `Scene/SceneLoader.cs:1802, 1902` + `Textures/ImageTexture.cs:63` | Le mappe dati (roughness, metallic, coat roughness...) passano per `ImageTexture`, che applica sempre la decodifica sRGB. Una roughness map viene quindi "linearizzata" come fosse un colore: valori sbagliati. Manca un attributo `color_space` per texture. **Esito**: `color_space: srgb | linear | raw` su ogni texture immagine, con default per ruolo: i colori decodificati da sRGB, i dati (roughness, metallic, pesi, IOR, maschere, bump, displacement, heightfield) letti come sono. Le immagini a 16 bit sono lette a 16 bit (prima a 8). Test `TextureDataTests`. Nel repo una sola scena cambia: il bump di cemento di `showcases/texture-bump-map.yaml`. |
 | 3.4 | ✅ **corretto** (2026-10-21, Fase 3), era **[NON-STANDARD]** | `Textures/ImageTexture.cs` | Decodifica sRGB come `pow(x, 2.2)` invece della curva sRGB a tratti (IEC 61966-2-1): il byte 10 diventava 8.0e-4 invece di 3.0e-3, ombre delle texture troppo scure. Ora `Srgb.Decode` (stessa curva dell'uscita). |
 | 3.5 | ✅ **corretto** (2026-10-21, Fase 3), era **[NON-STANDARD]** | `Rendering/ColorManagement.cs` | Display transform = fit di Narkowicz dell'ACES applicato **per canale** su Rec.709 + gamma 2.2 pura: hue shift e saturazione "Notorious 6" sulle alte luci, nessuna gestione del colore. Ora `--view agx` (default), `aces` (ACES 1.x RRT + ODT vero, entro 7e-4 da OpenColorIO), `standard` (curva sRGB a tratti); la curva vecchia resta come `legacy`. Bilanciamento del bianco, dithering, PNG 16 bit. |
 | 3.6 | ✅ **corretto** (2026-10-21, Fase 5) | `Materials/Dielectric.cs`, `DisneyBsdf.cs:642-648, 773-778` | La trasmissione **rough** era esclusa da `Evaluate`/`Pdf` (solo varianza, niente NEE attraverso il vetro satinato). Il `dielectric` classico ora ha `roughness` con il modello completo di Walter et al. 2007 (BTDF, pdf dalle normali visibili, reciprocità generalizzata, MIS). Il vetro rough del Disney resta da fare con la decisione OpenPBR. **Esito**: il vetro ruvido del `disney` è ora la trasmissione di Walter di OpenPBR (stesso BSDF del `dielectric`, test di riduzione esatta `FullTransmission_IsTheRoughDielectric`). |
@@ -419,7 +419,7 @@ render (AgX al posto della curva vecchia, filtro Gaussiano al posto del box): `-
 
 ### Fase 4 - Texture e dati (`Textures/`)
 
-- [ ] Attributo `color_space` per texture (`srgb`, `linear`, `raw`) e default automatico per
+- [x] Attributo `color_space` per texture (`srgb`, `linear`, `raw`) e default automatico per
       ruolo (colore = sRGB, roughness/metallic/normal/bump/displacement = raw). Corregge 3.3.
 - [ ] Curva sRGB esatta (3.4). Loader `.hdr`/`.exr`: canali, esponente RGBE, half float.
 - [ ] Filtraggio: mipmap trilineare già presente; premium = anisotropico (EWA). UDIM e texture

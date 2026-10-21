@@ -1033,6 +1033,15 @@ public class TextureData
     [YamlMember(Alias = "uv_scale")]
     public List<float>? UvScale { get; set; }
 
+    /// <summary>
+    /// Image textures: how the stored values relate to linear light,
+    /// <c>srgb</c>, <c>linear</c> or <c>raw</c> (= linear, for data). Unset:
+    /// sRGB where the texture is a colour, raw where it is data (roughness,
+    /// metallic, masks, heights, displacement). PIANO-REVIEW.md §3.3.
+    /// </summary>
+    [YamlMember(Alias = "color_space")]
+    public string? ColorSpace { get; set; }
+
     [YamlMember(Alias = "colors")]
     public List<List<float>>? Colors { get; set; }
 

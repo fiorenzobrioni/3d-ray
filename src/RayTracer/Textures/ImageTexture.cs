@@ -51,54 +51,83 @@ public class ImageTexture : ITexture
     // and RenderMan ship as default.
     private const int MaxAnisotropy = 8;
 
-    // Shared sRGB→linear decode table, indexed by the raw 0-255 byte value.
-    // Built once for the whole process. The exact piecewise sRGB curve, not a
-    // 2.2 power: the power law darkens the shadows (byte 10 decodes to 8.0e-4
-    // instead of 3.0e-3, PIANO-REVIEW.md §3.4).
-    private static readonly float[] SrgbDecodeLut = BuildSrgbDecodeLut();
+    /// <summary>The colour space the texture was decoded from.</summary>
+    public TextureColorSpace ColorSpace { get; }
 
-    private static float[] BuildSrgbDecodeLut()
+    // sRGB→linear decode table over the 16-bit code range (images are read at
+    // 16 bits per channel, so 8-bit files land on every 257th entry exactly).
+    // The exact piecewise sRGB curve, not a 2.2 power: the power law darkens
+    // the shadows (byte 10 decodes to 8.0e-4 instead of 3.0e-3, §3.4).
+    private static readonly Lazy<float[]> SrgbDecodeLut = new(() =>
     {
-        var lut = new float[256];
-        const float inv255 = 1f / 255f;
-        for (int i = 0; i < 256; i++)
-            lut[i] = RayTracer.Rendering.Srgb.Decode(i * inv255);
+        var lut = new float[65536];
+        for (int i = 0; i < lut.Length; i++)
+            lut[i] = RayTracer.Rendering.Srgb.Decode(i / 65535f);
         return lut;
-    }
+    });
 
-    public ImageTexture(string imagePath, float scaleU = 1f, float scaleV = 1f)
+    /// <summary>
+    /// Loads an image as a texture. <paramref name="colorSpace"/> says how the
+    /// stored values relate to linear light (PIANO-REVIEW.md §3.3): colour
+    /// images are sRGB-encoded, data maps (roughness, metallic, masks,
+    /// heights) are stored as they are and must not be decoded. Radiance
+    /// <c>.hdr</c> and OpenEXR files hold linear values whatever is asked.
+    /// </summary>
+    public ImageTexture(string imagePath, float scaleU = 1f, float scaleV = 1f,
+                        TextureColorSpace colorSpace = TextureColorSpace.Srgb)
     {
         _scaleU = scaleU;
         _scaleV = scaleV;
 
         float[] level0;
         int w0, h0;
-        // sRGB→linear decode via a 256-entry LUT. A byte channel has only 256
-        // possible values, so the table is exact and turns millions of per-texel
-        // sRGB decode calls at load into a single array index.
-        float[] srgbToLinear = SrgbDecodeLut;
-        using (var image = Image.Load<Rgba32>(imagePath))
+        string ext = Path.GetExtension(imagePath).ToLowerInvariant();
+        if (ext is ".hdr" or ".pic" or ".exr")
         {
-            w0 = image.Width;
-            h0 = image.Height;
-            level0 = new float[w0 * h0 * 3];
-
-            image.ProcessPixelRows(accessor =>
+            (level0, w0, h0) = ext == ".exr" ? ExrLoader.Load(imagePath) : HdrLoader.Load(imagePath);
+            ColorSpace = TextureColorSpace.Linear;
+        }
+        else
+        {
+            ColorSpace = colorSpace;
+            float[]? decode = colorSpace == TextureColorSpace.Srgb ? SrgbDecodeLut.Value : null;
+            const float inv65535 = 1f / 65535f;
+            float[] pixels;
+            int w, h;
+            // 16 bits per channel: a 16-bit PNG keeps its precision (an 8-bit
+            // read quantised heights and roughness to 256 steps).
+            using (var image = Image.Load<Rgba64>(imagePath))
             {
-                for (int y = 0; y < h0; y++)
+                w = image.Width;
+                h = image.Height;
+                pixels = new float[w * h * 3];
+                image.ProcessPixelRows(accessor =>
                 {
-                    var row = accessor.GetRowSpan(y);
-                    int baseIdx = y * w0 * 3;
-                    for (int x = 0; x < w0; x++)
+                    for (int y = 0; y < h; y++)
                     {
-                        var pixel = row[x];
-                        int idx = baseIdx + x * 3;
-                        level0[idx]     = srgbToLinear[pixel.R];
-                        level0[idx + 1] = srgbToLinear[pixel.G];
-                        level0[idx + 2] = srgbToLinear[pixel.B];
+                        var row = accessor.GetRowSpan(y);
+                        int baseIdx = y * w * 3;
+                        for (int x = 0; x < w; x++)
+                        {
+                            var px = row[x];
+                            int idx = baseIdx + x * 3;
+                            if (decode != null)
+                            {
+                                pixels[idx]     = decode[px.R];
+                                pixels[idx + 1] = decode[px.G];
+                                pixels[idx + 2] = decode[px.B];
+                            }
+                            else
+                            {
+                                pixels[idx]     = px.R * inv65535;
+                                pixels[idx + 1] = px.G * inv65535;
+                                pixels[idx + 2] = px.B * inv65535;
+                            }
+                        }
                     }
-                }
-            });
+                });
+            }
+            level0 = pixels; w0 = w; h0 = h;
         }
 
         // ── Build mip pyramid (2×2 box filter, linear space, stops at 1×1) ─

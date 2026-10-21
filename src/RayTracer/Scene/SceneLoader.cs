@@ -1123,7 +1123,7 @@ public class SceneLoader
     private static FloatTexture PbrFloat(MaterialData m, MaterialParam? p, float def, string key, string sceneDir)
     {
         if (p == null) return def;
-        if (p.Texture != null) return new FloatTexture(CreateTexture(p.Texture, sceneDir));
+        if (p.Texture != null) return new FloatTexture(CreateTexture(p.Texture, sceneDir, TextureRole.Data));
         if (p.Values is { Count: > 0 } v)
         {
             if (v.Count > 1) Warn($"Material '{m.Id}': '{key}' takes one number; using the first.");
@@ -1399,7 +1399,7 @@ public class SceneLoader
         var matB = GetMaterial(materials, m.MaterialB);
  
         // Build mask texture (optional)
-        ITexture? mask = m.Mask != null ? CreateTexture(m.Mask, sceneDir) : null;
+        ITexture? mask = m.Mask != null ? CreateTexture(m.Mask, sceneDir, TextureRole.Data) : null;
  
         float blend = Math.Clamp(m.Blend, 0f, 1f);
         IMaterial material = new MixMaterial(matA, matB, blend, mask);
@@ -1503,7 +1503,7 @@ public class SceneLoader
         }
         try
         {
-            ITexture inner = CreateTexture(bm.Texture, sceneDir);
+            ITexture inner = CreateTexture(bm.Texture, sceneDir, TextureRole.Data);
             return new BumpMapTexture(inner, bm.Strength, bm.Scale);
         }
         catch (Exception ex)
@@ -1722,7 +1722,7 @@ public class SceneLoader
         }
         if (g.HeightTexture != null)
         {
-            ITexture tex = CreateTexture(g.HeightTexture, sceneDir);
+            ITexture tex = CreateTexture(g.HeightTexture, sceneDir, TextureRole.Data);
             int res = g.Resolution > 0 ? g.Resolution : 512;
             return HeightField.FromProceduralTexture(
                 xMin, zMin, xMax, zMax,
@@ -2017,7 +2017,7 @@ public class SceneLoader
     /// the texture block when supplied, otherwise wraps the scalar value.
     /// </summary>
     private static FloatTexture DisneyParam(float scalar, TextureData? tex, string sceneDir)
-        => tex != null ? new FloatTexture(CreateTexture(tex, sceneDir)) : new FloatTexture(scalar);
+        => tex != null ? new FloatTexture(CreateTexture(tex, sceneDir, TextureRole.Data)) : new FloatTexture(scalar);
 
     /// <summary>
     /// Builds a nullable <see cref="ITexture"/> for a Disney colour parameter
@@ -2033,7 +2033,25 @@ public class SceneLoader
         return c.HasValue ? new SolidColor(c.Value) : null;
     }
 
-    private static ITexture CreateTexture(TextureData t, string sceneDir)
+    /// <summary>What a texture feeds: a colour (decoded from sRGB unless the
+    /// block says otherwise) or data, used as stored (PIANO-REVIEW.md §3.3).</summary>
+    private enum TextureRole { Color, Data }
+
+    private static TextureColorSpace ResolveColorSpace(TextureData t, TextureRole role)
+    {
+        switch (t.ColorSpace?.Trim().ToLowerInvariant())
+        {
+            case null or "": return role == TextureRole.Color ? TextureColorSpace.Srgb : TextureColorSpace.Linear;
+            case "srgb": return TextureColorSpace.Srgb;
+            case "linear" or "raw" or "non-color" or "data": return TextureColorSpace.Linear;
+            default:
+                Warn($"Texture '{t.Path ?? t.Type}': unknown color_space '{t.ColorSpace}' (srgb, linear, raw); " +
+                     $"using {(role == TextureRole.Color ? "srgb" : "raw")}.");
+                return role == TextureRole.Color ? TextureColorSpace.Srgb : TextureColorSpace.Linear;
+        }
+    }
+
+    private static ITexture CreateTexture(TextureData t, string sceneDir, TextureRole role = TextureRole.Color)
     {
         // `scale` may be a scalar (isotropic frequency) or a per-axis
         // [sx, sy, sz] vector (anisotropic stretch). Decompose into a dominant
@@ -2081,7 +2099,7 @@ public class SceneLoader
             "coordinate" or "coord" or "coords" or "texture_coord" or "tex_coord" or "st"
                 => new CoordinateTexture(),
 
-            "image" => CreateImageTexture(t, sceneDir),
+            "image" => CreateImageTexture(t, sceneDir, role),
 
             _ => new SolidColor(t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One : Vector3.One)
         };
@@ -2094,7 +2112,7 @@ public class SceneLoader
     /// Creates an ImageTexture from a file path specified in the YAML.
     /// The path is resolved relative to the scene file's directory.
     /// </summary>
-    private static ITexture CreateImageTexture(TextureData t, string sceneDir)
+    private static ITexture CreateImageTexture(TextureData t, string sceneDir, TextureRole role)
     {
         if (string.IsNullOrWhiteSpace(t.Path))
         {
@@ -2117,7 +2135,7 @@ public class SceneLoader
         {
             float scaleU = t.UvScale is { Count: > 0 } ? t.UvScale[0] : 1f;
             float scaleV = t.UvScale is { Count: > 1 } ? t.UvScale[1] : scaleU;
-            return new ImageTexture(imagePath, scaleU, scaleV);
+            return new ImageTexture(imagePath, scaleU, scaleV, ResolveColorSpace(t, role));
         }
         catch (Exception ex)
         {
@@ -2202,7 +2220,7 @@ public class SceneLoader
             if (t.ImpuritiesScale.HasValue)   mt.ImpuritiesScale   = MathF.Max(t.ImpuritiesScale.Value, 1e-4f);
             if (t.ImpurityWeight.HasValue)    mt.ImpurityWeight    = t.ImpurityWeight.Value;
             if (t.ImpuritiesTexture is not null)
-                mt.ImpuritiesTexture = CreateTexture(t.ImpuritiesTexture, sceneDir);
+                mt.ImpuritiesTexture = CreateTexture(t.ImpuritiesTexture, sceneDir, TextureRole.Data);
 
             // Anisotropic space stretch (geological compression)
             if (t.SpaceStretch != null)
@@ -2638,7 +2656,7 @@ public class SceneLoader
         }
         else if (e.HeightTexture != null)
         {
-            ITexture tex = CreateTexture(e.HeightTexture, sceneDir);
+            ITexture tex = CreateTexture(e.HeightTexture, sceneDir, TextureRole.Data);
             int res = e.Resolution > 0 ? e.Resolution : 512;
             hf = HeightField.FromProceduralTexture(
                 xMin, zMin, xMax, zMax,
@@ -3291,7 +3309,7 @@ public class SceneLoader
         ITexture inner;
         try
         {
-            inner = CreateTexture(disp.Texture, sceneDir);
+            inner = CreateTexture(disp.Texture, sceneDir, TextureRole.Data);
         }
         catch (Exception ex)
         {
