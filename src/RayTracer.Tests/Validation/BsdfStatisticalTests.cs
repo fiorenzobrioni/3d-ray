@@ -96,27 +96,12 @@ public class BsdfStatisticalTests
     public void Bsdf_IsReciprocal(string name)
         => Assert.True(BsdfTestKit.ReciprocityError(Get(name)) < 1e-3);
 
-    [Theory]
-    [InlineData("lambert-0.8")]
-    [InlineData("disney-plastic-r0.5")]
-    [InlineData("disney-metal-white-r0.6")]
-    [InlineData("disney-metal-aniso-r0.5")]
-    [InlineData("disney-sheen")]
-    [InlineData("disney-coat-rough")]
-    [InlineData("disney-difftrans")]
-    [InlineData("disney-glass-rough0.4")]
-    public void DirectLighting_UsesTheSameBsdfAsSampling(string name)
-        => Assert.True(BsdfTestKit.DirectVsEvaluateError(Get(name)) < 1e-3);
+    // Direct lighting and sampling no longer have separate entry points: NEE
+    // weighs a light sample by Evaluate · |N·L| (PIANO-REVIEW.md §3.12), so
+    // the two MIS strategies share one BSDF by construction. (The known bug
+    // §3.7, a Lambertian lobe in the Metal's direct lighting only, was this.)
 
     // ── Known bugs (PIANO-REVIEW.md §3): enable when the fix lands ───────────
-
-    // Was the known bug §3.7 (a Lambertian lobe in the Metal's direct lighting only), fixed in Phase 5.
-    [Theory]
-    [InlineData("metal-white-fuzz0.3")]
-    [InlineData("metal-white-fuzz1.0")]
-    [InlineData("mix-lambert-metal")]
-    public void Metal_DirectLightingMatchesSampling(string name)
-        => Assert.True(BsdfTestKit.DirectVsEvaluateError(Get(name)) < 1e-3);
 
     // Was the known bug §3.2 (delta lobes weighted by max(p, 0.1) but chosen
     // with p), fixed in Phase 5 by the translation onto OpenPBR.

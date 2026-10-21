@@ -63,8 +63,8 @@ public sealed class Emissive : IMaterial
     public BumpMapTexture? BumpMap { get; set; }
     public MaterialDisplacement? Displacement { get; set; }
 
-    // Default EvaluateDirect from IMaterial returns Vector3.Zero. ComputeDirectLighting
-    // does not call it at all for emissives because NeedsDirectLighting is false.
+    // No BSDF (Evaluate is zero): direct lighting is skipped altogether
+    // because NeedsDirectLighting is false.
 
     /// <summary>
     /// Returns the emitted radiance at the given surface point.

@@ -1897,7 +1897,7 @@ public partial class Renderer
     /// 0. Ambient fill — applied unconditionally to all materials.
     /// 1. Per-light, per-shadow-sample:
     ///    - shadow test + stratified emitter sample
-    ///    - material.EvaluateDirect(toLight, toEye, normal) for the BRDF shape
+    ///    - material.Evaluate(toEye, toLight) · |N·L| for the BSDF shape
     ///    - balance-heuristic MIS weight w_nee = p_light / (p_light + p_bsdf)
     ///      using the material's own IMaterial.Pdf() in solid angle.
     ///
@@ -1909,8 +1909,8 @@ public partial class Renderer
     /// suppression.
     ///
     /// PBRT/Arnold direct-lighting convention:
-    /// EvaluateDirect returns the FULL rendering-equation integrand at the
-    /// shadow-ray direction — <c>f(V, L) · max(N·L, 0) · visibility</c> — with
+    /// The integrand at the shadow-ray direction is
+    /// <c>f(V, L) · |N·L| · visibility</c>, with
     /// every material colour factor (baseColor, metallic Fresnel, sheen tint,
     /// subsurface tint) baked in. The caller adds this contribution directly
     /// to the radiance estimator: <c>L = Le + L_direct + scatter_attn × L_indirect</c>.
@@ -1937,6 +1937,18 @@ public partial class Renderer
         {
             ShadowRay.ReceiverTransmits = false;
         }
+    }
+
+    /// <summary>
+    /// The direct-lighting integrand f(V, L) |N·L| for one light direction:
+    /// the material's own BSDF, the same the indirect bounce samples
+    /// (PIANO-REVIEW.md §3.12). A surface with no material is Lambert white.
+    /// </summary>
+    private static Vector3 DirectIntegrand(IMaterial? material, in HitRecord rec, Vector3 viewDir, Vector3 dirToLight)
+    {
+        float cos = Vector3.Dot(rec.Normal, dirToLight);
+        if (material == null) return new Vector3(MathF.Max(cos, 0f) / MathF.PI);
+        return material.Evaluate(viewDir, dirToLight, in rec) * MathF.Abs(cos);
     }
 
     /// <summary>
@@ -1980,8 +1992,7 @@ public partial class Renderer
 
                 if (inShadow) continue;
 
-                Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
-                               ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
+                Vector3 brdf = DirectIntegrand(material, in rec, viewDir, dirToLight);
 
                 // Shadow-terminator softening on both the light and the view
                 // directions: cull the energy a perturbed shading normal would
@@ -2040,8 +2051,7 @@ public partial class Renderer
 
                     if (inShadow) continue;
 
-                    Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
-                                   ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
+                    Vector3 brdf = DirectIntegrand(material, in rec, viewDir, dirToLight);
 
                     // Shadow-terminator softening on both the light and the view
                     // directions: cull the energy a perturbed shading normal would

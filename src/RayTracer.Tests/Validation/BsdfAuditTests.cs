@@ -40,8 +40,7 @@ public class BsdfAuditTests
             }
             foreach (float cosV in BsdfCatalog.Views)
                 _out.WriteLine(BsdfTestKit.Run(name, material, cosV).ToString());
-            _out.WriteLine($"{name,-28} reciprocity max rel err = {BsdfTestKit.ReciprocityError(material):0.0000}, " +
-                           $"EvaluateDirect vs Evaluate*cos max rel err = {BsdfTestKit.DirectVsEvaluateError(material):0.0000}");
+            _out.WriteLine($"{name,-28} reciprocity max rel err = {BsdfTestKit.ReciprocityError(material):0.0000}");
         }
     }
 }

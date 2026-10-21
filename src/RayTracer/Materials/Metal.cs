@@ -169,14 +169,6 @@ public sealed class Metal : IMaterial
         return new BsdfSample(L, Evaluate(V, L, in rec), pdf, isDelta: false);
     }
 
-    /// <summary>Direct lighting integrand f(V, L) · cos θ_L: the same BSDF as
-    /// <see cref="Evaluate"/>, so light and BSDF sampling estimate one material.</summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
-    {
-        float NdotL = Vector3.Dot(normal, toLight);
-        return NdotL > 0f ? Evaluate(toEye, toLight, in rec) * NdotL : Vector3.Zero;
-    }
-
     private static Vector3 ToLocal(Vector3 v, Vector3 t, Vector3 b, Vector3 n) =>
         new(Vector3.Dot(v, t), Vector3.Dot(v, b), Vector3.Dot(v, n));
 }

@@ -290,30 +290,6 @@ internal static class BsdfTestKit
         return (dof > 0 ? RegularizedGammaQ(dof / 2.0, chi2 / 2.0) : 1.0, integral, chi2, dof);
     }
 
-    /// <summary>Largest relative gap between the NEE integrand the renderer uses
-    /// for direct light (<see cref="IMaterial.EvaluateDirect"/>) and the BSDF the
-    /// sampler and MIS use (<c>Evaluate · cos</c>). Both estimators of the same
-    /// integral must agree, or MIS blends two different materials.</summary>
-    public static double DirectVsEvaluateError(IMaterial material, int pairs = 2000, int seed = 7)
-    {
-        var rng = new Random(seed);
-        HitRecord rec = MakeRec();
-        double worst = 0;
-        for (int i = 0; i < pairs; i++)
-        {
-            Vector3 v = UpperHemisphere(rng), l = UpperHemisphere(rng);
-            Vector3 direct = material.EvaluateDirect(l, v, N, rec);
-            Vector3 eval = material.Evaluate(v, l, rec) * Vector3.Dot(N, l);
-            for (int c = 0; c < 3; c++)
-            {
-                double x = Get(direct, c), y = Get(eval, c);
-                double denom = Math.Max(Math.Max(Math.Abs(x), Math.Abs(y)), 1e-2);
-                worst = Math.Max(worst, Math.Abs(x - y) / denom);
-            }
-        }
-        return worst;
-    }
-
     // ── Chi-square with pooling of sparse cells (Mitsuba convention) ────────
     private static (double chi2, int dof) ChiSquare(double[] observed, double[] expected)
     {

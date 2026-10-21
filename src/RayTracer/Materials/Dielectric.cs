@@ -212,10 +212,6 @@ public sealed class Dielectric : IMaterial
         return new BsdfSample(Vector3.Normalize(L), tint * (ri * ri), 1f, isDelta: true, transition: transition);
     }
 
-    /// <summary>Direct lighting: the same BSDF, on either side of the surface.</summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
-        => IsSmooth ? Vector3.Zero : Evaluate(toEye, toLight, in rec) * MathF.Abs(Vector3.Dot(normal, toLight));
-
     private static Vector3 Local(Vector3 v, Vector3 t, Vector3 b, Vector3 n) =>
         new(Vector3.Dot(v, t), Vector3.Dot(v, b), Vector3.Dot(v, n));
 

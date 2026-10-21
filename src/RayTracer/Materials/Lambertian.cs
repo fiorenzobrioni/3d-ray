@@ -25,23 +25,6 @@ public sealed class Lambertian : IMaterial
     /// <summary>Denoiser/AOV albedo guide: the diffuse albedo texture.</summary>
     public Vector3 AovAlbedo(in HitRecord rec) => Albedo.Value(in rec);
 
-    /// <summary>
-    /// Lambertian direct lighting (NEE integrand): full BRDF · cosθ.
-    ///   f(V, L) = albedo / π    (Lambertian BRDF)
-    ///   integrand = f · max(N·L, 0) = albedo · max(N·L, 0) / π
-    ///
-    /// Conforms to the PBRT/Arnold convention: the renderer adds this
-    /// contribution to the radiance estimator without multiplying by the
-    /// indirect scatter attenuation (which would over-count the albedo).
-    /// </summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
-    {
-        float NdotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
-        if (NdotL <= 0f) return Vector3.Zero;
-        Vector3 albedo = Albedo.Value(in rec);
-        return albedo * (NdotL / MathF.PI);
-    }
-
     // ─────────────────────────────────────────────────────────────────────────
     // Symmetric BSDF API (Evaluate / Pdf / Sample) — enables full MIS.
     //

@@ -103,13 +103,6 @@ public class OpenPbrTests
         Assert.Equal(0, r.InconsistentSamples);
     }
 
-    [Theory]
-    [InlineData("everything")]
-    [InlineData("glass")]
-    [InlineData("thin-subsurface-rough")]
-    public void DirectLighting_UsesTheSameBsdfAsSampling(string config)
-        => Assert.True(BsdfTestKit.DirectVsEvaluateError(new OpenPbr(Sampling(config))) < 1e-3);
-
     // ── Reductions to the validated materials ────────────────────────────────
 
     private static double WorstGap(IMaterial a, IMaterial b, bool frontFace, bool transmission)

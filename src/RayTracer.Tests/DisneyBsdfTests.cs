@@ -1123,13 +1123,13 @@ public class DisneyBsdfTests
 
     /// <summary>
     /// Direct lighting (NEE) must include the sheen lobe — previously
-    /// EvaluateDirect omitted it entirely, so a pure-sheen material lit by
+    /// direct lighting omitted it entirely, so a pure-sheen material lit by
     /// a direct light returned zero. Pin the bug fix by evaluating
-    /// EvaluateDirect at a grazing geometry where Charlie sheen contributes
+    /// the BSDF at a grazing geometry where the sheen contributes
     /// strongly and require a non-trivial response.
     /// </summary>
     [Fact]
-    public void EvaluateDirect_IncludesSheenLobe()
+    public void DirectLighting_IncludesSheenLobe()
     {
         var baseColor = new SolidColor(new Vector3(0.5f));
         var material = DisneyMaterial.Create(baseColor,
@@ -1145,15 +1145,15 @@ public class DisneyBsdfTests
         Vector3 toEye   = new(0.996f, 0.087f, 0f);
         Vector3 toLight = new(0.996f, 0.087f, 0f);
 
-        Vector3 fOn  = material   .EvaluateDirect(toLight, toEye, rec.Normal, rec);
-        Vector3 fOff = withoutSheen.EvaluateDirect(toLight, toEye, rec.Normal, rec);
+        Vector3 fOn  = material   .Evaluate(toEye, toLight, rec);
+        Vector3 fOff = withoutSheen.Evaluate(toEye, toLight, rec);
 
         // Charlie sheen at unit weight contributes ~30-40% over the Disney
         // diffuse baseline at this geometry: Smith shadowing flattens the NDF
         // peak when V and L are both grazing, so sheen tops up the direct
         // estimator rather than dominating it. The ≥20% threshold is well
         // above floating-point noise (the actual ratio is ≈1.37) and confirms
-        // that EvaluateDirect now plumbs the sheen lobe — the previous
+        // that direct lighting now sees the sheen lobe — the previous
         // implementation forgot it entirely, leaving NEE on velvet identical
         // to a Lambertian.
         Assert.True(MathUtils.Luminance(fOn) > MathUtils.Luminance(fOff) * 1.2f,
@@ -1269,7 +1269,7 @@ public class DisneyBsdfTests
     // ─────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void NearDeltaGlass_EvaluateDirectOnShadowRayIsNegligible()
+    public void NearDeltaGlass_DirectLightingOnShadowRayIsNegligible()
     {
         var glass = DisneyMaterial.Create(new SolidColor(Vector3.One),
             metallic: 0f, roughness: 0f,
@@ -1285,7 +1285,7 @@ public class DisneyBsdfTests
         Vector3 toEye   = new(0.5f, 0.866f, 0f);
         Vector3 toLight = Vector3.UnitY;
 
-        Vector3 direct = glass.EvaluateDirect(toLight, toEye, NormalUp, rec);
+        Vector3 direct = glass.Evaluate(toEye, toLight, rec);
 
         const float cap = 1e-4f;
         Assert.True(direct.X < cap && direct.Y < cap && direct.Z < cap,

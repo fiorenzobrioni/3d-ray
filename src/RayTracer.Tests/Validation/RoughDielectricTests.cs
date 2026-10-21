@@ -72,8 +72,4 @@ public class RoughDielectricTests
         Assert.True(compared > 500, $"only {compared} pairs with transmission");
         Assert.True(worst < 1e-3, $"generalised reciprocity off by {worst:E2}");
     }
-
-    [Fact]
-    public void DirectLighting_UsesTheSameBsdfAsSampling()
-        => Assert.True(BsdfTestKit.DirectVsEvaluateError(Glass(0.4f)) < 1e-3);
 }

@@ -17,7 +17,7 @@ public interface IMaterial
 
     /// <summary>
     /// True when the renderer should run next-event estimation on this hit
-    /// (sample every light, call <see cref="EvaluateDirect"/>). False means
+    /// (sample every light, weigh it by <see cref="Evaluate"/>). False means
     /// NEE is a waste of shadow rays — used by <see cref="Emissive"/>, which
     /// is the light source itself and absorbs no incoming illumination.
     /// </summary>
@@ -33,42 +33,6 @@ public interface IMaterial
     /// is ignored.
     /// </summary>
     bool IsDeltaScatter => false;
-
-    /// <summary>
-    /// Evaluates the rendering-equation integrand at one shadow-ray direction
-    /// for direct lighting (NEE). Called once per unshadowed light sample in
-    /// <c>ComputeDirectLighting</c>.
-    ///
-    /// PBRT/Arnold convention — the returned value is the FULL integrand
-    /// <c>f(V, L) · max(N·L, 0)</c>, with every material colour factor
-    /// (baseColor/albedo, metallic Fresnel, sheen tint, subsurface tint,
-    /// thin-film iridescence) already baked in. The caller multiplies by the
-    /// light radiance and adds the result directly to the radiance estimator:
-    /// <c>L = Le + L_direct + scatter_attn · L_indirect</c>. The scatter
-    /// attenuation never multiplies the direct term — that would couple the
-    /// indirect importance sample to the shadow estimator and bias the
-    /// direct contribution for any direction-dependent BSDF.
-    ///
-    /// Delta lobes (Dirac mirror / refraction / near-delta GGX) return zero
-    /// here: their f/pdf collapses to a mirror direction, no shadow ray can
-    /// reach them, and the delta path in <see cref="Sample"/> handles
-    /// emission with full weight via the prevIsDelta flag.
-    ///
-    /// <paramref name="rec"/> provides UV coordinates, local point, and object seed
-    /// so that textured materials (e.g. OpenPbr with a base_color texture) can
-    /// evaluate the correct surface properties at the hit point rather than using
-    /// a fixed (0.5, 0.5) approximation.
-    ///
-    /// Default: zero — pure delta BSDFs (Dielectric mirror/refraction, Emissive)
-    /// do not receive direct lighting. Lambertian, Metal, MixMaterial and
-    /// OpenPbr override this with their full analytic response.
-    /// </summary>
-    /// <param name="toLight">Unit vector from hit point toward the light.</param>
-    /// <param name="toEye">Unit vector from hit point toward the camera.</param>
-    /// <param name="normal">Shading normal (may be perturbed by normal map).</param>
-    /// <param name="rec">Hit record with UV, LocalPoint, ObjectSeed for texture lookups.</param>
-    Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
-        => Vector3.Zero;
 
     /// <summary>
     /// Per-channel transmission factor for a "transparent shadow ray" travelling
@@ -166,10 +130,11 @@ public interface IMaterial
     // ─────────────────────────────────────────────────────────────────────────
     // Symmetric BSDF interface (BRDF value, PDF, sampling).
     //
-    // These complement Scatter/EvaluateDirect and are what MIS, furnace tests,
-    // and reciprocity tests consume directly. Unlike EvaluateDirect, Evaluate
-    // returns the BRDF WITHOUT the cosine term so that reciprocity holds
-    // symbolically: f(V, L) = f(L, V) for reciprocal materials.
+    // The one description of the material: direct lighting weighs each light
+    // sample by Evaluate · |N·L|, the indirect bounce samples with Sample, and
+    // MIS combines the two with Pdf, so both strategies estimate the same
+    // integrand by construction (PIANO-REVIEW.md §3.12). Evaluate returns the
+    // BSDF WITHOUT the cosine term, so reciprocity reads f(V, L) = f(L, V).
     //
     // Default implementations return zero / no-sample — materials that want
     // to participate in MIS and the BSDF test suite must override.

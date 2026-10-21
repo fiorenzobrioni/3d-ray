@@ -100,7 +100,7 @@ public class EnvironmentLight : ILight
             return (true, Vector3.Zero, dir, distance);
 
         // L / (pdf × ShadowSamples): each sample contributes 1/ShadowSamples of total energy.
-        // The N·L factor is applied by ComputeDirectLighting in Renderer (via EvaluateDirect).
+        // The N·L factor is applied by ComputeDirectLighting in Renderer (Evaluate · |N·L|).
         Vector3 attenuation = color * trans / (pdf * ShadowSamples);
         return (false, attenuation, dir, distance);
     }

@@ -790,9 +790,6 @@ public sealed class OpenPbr : IMaterial
         return pdf;
     }
 
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
-        => Evaluate(toEye, toLight, in rec) * MathF.Abs(Vector3.Dot(rec.Normal, toLight));
-
     // ── IMaterial: sampling ─────────────────────────────────────────────────
 
     public BsdfSample? Sample(Vector3 V, in HitRecord rec)
