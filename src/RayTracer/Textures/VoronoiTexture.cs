@@ -84,7 +84,8 @@ public class VoronoiTexture : ITexture
     public enum OutputMode { F1, F2, F2MinusF1, F1PlusF2, Cell, F3, F4, F3MinusF1, Position, Random }
 
     private readonly WorleyNoise _worley;
-    private readonly Perlin _warpNoise;
+    /// <summary>Lattice-noise basis of the domain warp (<see cref="PerlinBasis"/>).</summary>
+    public PerlinBasis NoiseBasis { get; set; } = PerlinBasis.Improved;
     private readonly float _scale;
     private readonly Vector3 _colorA;
     private readonly Vector3 _colorB;
@@ -134,7 +135,6 @@ public class VoronoiTexture : ITexture
     public VoronoiTexture(float scale, Vector3 colorA, Vector3 colorB)
     {
         _worley = new WorleyNoise();
-        _warpNoise = new Perlin();
         _scale = scale;
         _colorA = colorA;
         _colorB = colorB;
@@ -211,7 +211,7 @@ public class VoronoiTexture : ITexture
         Vector3 q = _scale * transformedP;
         if (Distortion > 0f)
         {
-            Perlin warp = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _warpNoise;
+            Perlin warp = Perlin.GetOrCreate(objectSeed, NoiseBasis);
             q += Distortion * warp.NoiseVector(q + new Vector3(17.3f, 5.1f, 11.7f));
         }
 

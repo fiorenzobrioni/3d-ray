@@ -1042,6 +1042,15 @@ public class TextureData
     [YamlMember(Alias = "color_space")]
     public string? ColorSpace { get; set; }
 
+    /// <summary>
+    /// Procedurals built on lattice noise (noise, marble, wood, voronoi's
+    /// warp, brick): <c>improved</c> (default, Perlin 2002) or <c>classic</c>
+    /// (the basis of earlier versions, for a scene that must keep its exact
+    /// pattern). PIANO-REVIEW.md §3.30.
+    /// </summary>
+    [YamlMember(Alias = "noise_basis")]
+    public string? NoiseBasis { get; set; }
+
     [YamlMember(Alias = "colors")]
     public List<List<float>>? Colors { get; set; }
 

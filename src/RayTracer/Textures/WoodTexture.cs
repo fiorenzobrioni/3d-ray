@@ -374,7 +374,8 @@ public class WoodTexture : ITexture
     /// </summary>
     public ColorRamp? ColorRamp { get; set; }
 
-    private readonly Perlin _noise;
+    /// <summary>Lattice-noise basis of the grain warp (<see cref="PerlinBasis"/>).</summary>
+    public PerlinBasis NoiseBasis { get; set; } = PerlinBasis.Improved;
     private readonly float _scale;
     private readonly ITexture _lightWoodColor;
     private readonly ITexture _darkWoodColor;
@@ -386,7 +387,6 @@ public class WoodTexture : ITexture
 
     public WoodTexture(float scale, float grainStrength, Vector3 lightColor, Vector3 darkColor)
     {
-        _noise = Perlin.GetOrCreate(0);
         _scale = scale;
         GrainStrength = grainStrength;
         _lightWoodColor = new SolidColor(lightColor);
@@ -413,7 +413,7 @@ public class WoodTexture : ITexture
         Vector3 qGeom = TextureTransform.ApplyRandomRotation(
             TextureTransform.ApplyManual(p, ScaleRatio, Offset, Rotation),
             objectSeed, RandomizeRotation);
-        Perlin noise = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
+        Perlin noise = Perlin.GetOrCreate(objectSeed, NoiseBasis);
 
         // Per-instance decorrelation. NEVER added to the geometric pipeline —
         // the rings must stay concentric around the trunk axis regardless of

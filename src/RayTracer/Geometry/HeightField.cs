@@ -41,7 +41,9 @@ public sealed class HeightField : IHittable
     // Perlin used to perturb the altitude/slope coordinates of the strata
     // selector — gives the band transitions an organic, noise-driven
     // boundary instead of a sharp altitude contour.
-    private readonly Perlin _noise = Perlin.GetOrCreate(0);
+    // Classic basis: the strata only shift colour bands, where the improved
+    // basis' smoother curvature changes nothing but the pattern.
+    private readonly Perlin _noise = Perlin.GetOrCreate(0, PerlinBasis.Classic);
     // Maximum jitter amplitude in normalised-altitude units. Calibrated
     // so a band transition on the ~25-unit-tall demo terrain spreads
     // over roughly 3-4 world units — comparable to a real snowline that

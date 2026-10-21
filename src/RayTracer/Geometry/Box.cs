@@ -89,75 +89,34 @@ public class Box : IHittable, ISamplable
 
         // Per-face planar UV mapping on the unit cube.
         //
-        // BUG-09 fix: Tangent and Bitangent are now chosen so that
-        // Cross(T, B) is aligned with the outward normal for every face,
-        // guaranteeing a right-handed TBN frame. Previously T and B were
-        // fixed per axis without considering the face sign, producing a
-        // left-handed frame on 3 out of 6 faces (+X, +Y, −Z). This caused
-        // the Z component of normal maps (the "out of surface" direction)
-        // to be inverted on those faces — bumps appeared as dents and
-        // vice versa.
-        //
-        // Convention per face: T always follows +U (∂P/∂u); where the face's
-        // UVs are mirrored (∂P/∂u × ∂P/∂v points inward) B is flipped instead.
-        //   +X: T = +Z, B = +Y  → Cross(+Z, +Y) = −X … flip B → −Y  ✓ Cross(+Z,−Y) = +X
-        //   −X: T = +Z, B = +Y  → Cross(+Z,+Y) = −X  ✓
-        //   +Y: T = +X, B = −Z  → Cross(+X,−Z) = +Y  ✓
-        //   −Y: T = +X, B = +Z  → Cross(+X,+Z) = −Y  ✓
-        //   +Z: T = +X, B = +Y  → Cross(+X,+Y) = +Z  ✓
-        //   −Z: T = +X, B = +Y  → Cross(+X,+Y) = +Z … flip B → −Y  ✓ Cross(+X,−Y) = −Z
-        //
-        // ∂P/∂u, ∂P/∂v are the unflipped axes: each face spans the unit cube's
-        // side, so one unit of U or V is one unit of length.
+        // T follows +U and B follows +V on every face (∂P/∂u, ∂P/∂v, each one
+        // unit long: a face spans the unit cube's side). Where a face's UVs are
+        // mirrored (+X, +Y, −Z: ∂P/∂u × ∂P/∂v points inward) the frame is
+        // left-handed, as MikkTSpace's is on a mirrored UV island: the normal
+        // map's Z goes along N whatever the handedness (ApplyNormalMap), and
+        // its green channel goes along +V as every baker writes it. (BUG-09
+        // had flipped B on those faces to make the frame right-handed, which
+        // turned the green channel, and an image bump's V slope, upside down
+        // there; PIANO-REVIEW.md Phase 4.)
         switch (hitAxis)
         {
             case 0: // X faces
                 rec.U = (rec.Point.Z - Min.Z) / (Max.Z - Min.Z);
                 rec.V = (rec.Point.Y - Min.Y) / (Max.Y - Min.Y);
-                if (!hitNeg) // +X face: outward = +X
-                {
-                    rec.Tangent   = Vector3.UnitZ;
-                    rec.Bitangent = -Vector3.UnitY;
-                }
-                else // −X face: outward = −X
-                {
-                    rec.Tangent   = Vector3.UnitZ;
-                    rec.Bitangent = Vector3.UnitY;
-                }
-                rec.DpDu = Vector3.UnitZ;
-                rec.DpDv = Vector3.UnitY;
+                rec.Tangent = rec.DpDu = Vector3.UnitZ;
+                rec.Bitangent = rec.DpDv = Vector3.UnitY;
                 break;
             case 1: // Y faces
                 rec.U = (rec.Point.X - Min.X) / (Max.X - Min.X);
                 rec.V = (rec.Point.Z - Min.Z) / (Max.Z - Min.Z);
-                if (!hitNeg) // +Y face: outward = +Y
-                {
-                    rec.Tangent   = Vector3.UnitX;
-                    rec.Bitangent = -Vector3.UnitZ;
-                }
-                else // −Y face: outward = −Y
-                {
-                    rec.Tangent   = Vector3.UnitX;
-                    rec.Bitangent = Vector3.UnitZ;
-                }
-                rec.DpDu = Vector3.UnitX;
-                rec.DpDv = Vector3.UnitZ;
+                rec.Tangent = rec.DpDu = Vector3.UnitX;
+                rec.Bitangent = rec.DpDv = Vector3.UnitZ;
                 break;
             default: // Z faces
                 rec.U = (rec.Point.X - Min.X) / (Max.X - Min.X);
                 rec.V = (rec.Point.Y - Min.Y) / (Max.Y - Min.Y);
-                if (!hitNeg) // +Z face: outward = +Z
-                {
-                    rec.Tangent   = Vector3.UnitX;
-                    rec.Bitangent = Vector3.UnitY;
-                }
-                else // −Z face: outward = −Z
-                {
-                    rec.Tangent   = Vector3.UnitX;
-                    rec.Bitangent = -Vector3.UnitY;
-                }
-                rec.DpDu = Vector3.UnitX;
-                rec.DpDv = Vector3.UnitY;
+                rec.Tangent = rec.DpDu = Vector3.UnitX;
+                rec.Bitangent = rec.DpDv = Vector3.UnitY;
                 break;
         }
 

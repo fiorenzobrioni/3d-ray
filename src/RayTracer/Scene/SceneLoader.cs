@@ -2105,7 +2105,30 @@ public class SceneLoader
         };
 
         ApplyTextureParams(tex, t, sceneDir);
+        ApplyNoiseBasis(tex, t);
         return tex;
+    }
+
+    private static void ApplyNoiseBasis(ITexture tex, TextureData t)
+    {
+        PerlinBasis basis;
+        switch (t.NoiseBasis?.Trim().ToLowerInvariant())
+        {
+            case null or "" or "improved": basis = PerlinBasis.Improved; break;
+            case "classic" or "legacy": basis = PerlinBasis.Classic; break;
+            default:
+                Warn($"Texture '{t.Type}': unknown noise_basis '{t.NoiseBasis}' (improved, classic); using improved.");
+                basis = PerlinBasis.Improved;
+                break;
+        }
+        switch (tex)
+        {
+            case NoiseTexture n:   n.NoiseBasis = basis; break;
+            case MarbleTexture m:  m.NoiseBasis = basis; break;
+            case WoodTexture w:    w.NoiseBasis = basis; break;
+            case VoronoiTexture v: v.NoiseBasis = basis; break;
+            case BrickTexture b:   b.NoiseBasis = basis; break;
+        }
     }
 
     /// <summary>

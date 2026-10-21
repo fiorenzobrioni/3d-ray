@@ -42,7 +42,8 @@ namespace RayTracer.Textures;
 /// </summary>
 public class BrickTexture : ITexture
 {
-    private readonly Perlin _noise;
+    /// <summary>Lattice-noise basis of the per-brick variation (<see cref="PerlinBasis"/>).</summary>
+    public PerlinBasis NoiseBasis { get; set; } = PerlinBasis.Improved;
     private readonly Vector3 _brickA;
     private readonly Vector3 _brickB;
     private readonly Vector3 _mortar;
@@ -61,7 +62,6 @@ public class BrickTexture : ITexture
 
     public BrickTexture(Vector3 brickA, Vector3 brickB, Vector3 mortar)
     {
-        _noise = new Perlin();
         _brickA = brickA;
         _brickB = brickB;
         _mortar = mortar;
@@ -110,7 +110,7 @@ public class BrickTexture : ITexture
 
         if (NoiseScale > 0f)
         {
-            Perlin n = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
+            Perlin n = Perlin.GetOrCreate(objectSeed, NoiseBasis);
             Vector3 qNoise = qGeom + TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
             float weather = (n.Noise(qNoise * (1f / MathF.Max(NoiseScale, 1e-3f))) + 1f) * 0.5f;
             // Weathering darkens or lightens the brick by up to 30% based on noise.

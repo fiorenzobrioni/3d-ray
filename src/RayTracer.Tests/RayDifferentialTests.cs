@@ -198,7 +198,9 @@ public class RayDifferentialTests
         var samples = new (float u, float f)[n];
         for (int i = 0; i < n; i++)
         {
-            Vector3 p = new(i * 0.05f, 0f, 0f);
+            // Off the lattice: at scale 20, x = i·0.05 alone would land every
+            // octave on integer lattice points, where Perlin noise is zero.
+            Vector3 p = new(i * 0.05f + 0.013f, 0.37f, 0.71f);
             samples[i].u = noise.Value(0.5f, 0.5f, p, 0).X;
             samples[i].f = noise.Value(0.5f, 0.5f, p, 0, widefp).X;
             unfilteredMean += samples[i].u;
