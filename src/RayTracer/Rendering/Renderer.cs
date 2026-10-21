@@ -575,7 +575,7 @@ public partial class Renderer
 
     /// <summary>
     /// Renders the scene using stratified (jittered) sampling for superior anti-aliasing.
-    /// Uses Parallel.For over scanlines for multi-core rendering.
+    /// Parallel over 16×16 tiles for multi-core rendering.
     /// </summary>
     public Vector3[,] Render(int width, int height)
         => Render(width, height, RenderCaptureOptions.None).Pixels;
@@ -1055,7 +1055,7 @@ public partial class Renderer
     // Multiple Importance Sampling (Veach, balance heuristic)
     //
     // Each bounce threads forward (prevBsdfPdf, prevIsDelta) to the next
-    // ShadeSurface / sky miss. This encodes three cases:
+    // ShadeSurface / sky miss. This encodes two cases:
     //
     //   prevIsDelta = true                 Emission is shown at full weight.
     //                                      Used for camera rays and for pure-
@@ -1066,19 +1066,9 @@ public partial class Renderer
     //   prevIsDelta = false, pdf > 0       Proper MIS balance-heuristic weight
     //                                      on any emission. w_bsdf = pdf /
     //                                      (pdf + p_light). Used for materials
-    //                                      that expose IMaterial.Sample() and
-    //                                      return a non-delta reflection sample
-    //                                      (Disney BSDF today).
-    //
-    //   prevIsDelta = false, pdf = 0       Legacy "NEE replaced emission" mode
-    //                                      for materials that only expose
-    //                                      Scatter() (Lambert, Metal, Dielectric).
-    //                                      Emission from NEE-registered emitters
-    //                                      is zeroed; unregistered emissives keep
-    //                                      their full emission. This preserves
-    //                                      the pre-MIS behavior without double-
-    //                                      counting until those materials are
-    //                                      migrated to the Sample() API.
+    //                                      return a non-delta sample. Emitters no
+    //                                      light sampler can reach (not
+    //                                      registered) keep their full weight.
     // ═════════════════════════════════════════════════════════════════════════
 
     private Vector3 ShadeSurface(in Ray ray, ref HitRecord rec, int depth,
@@ -1155,7 +1145,7 @@ public partial class Renderer
         // Stamp the relative refraction ratio η_incident/η_transmitted onto the
         // hit from the per-ray IorStack so transmissive materials bend/Fresnel
         // against the medium the ray is actually inside (e.g. wine against
-        // glass), not always air. Resolved here, before Sample/Scatter consume
+        // glass), not always air. Resolved here, before Sample consumes
         // it. Front face = entering the material (outside = current medium,
         // IorStack.Top); back face = exiting it into the enclosing medium
         // (IorStack.Enclosing). With air outside (Top/Enclosing == 1) this
@@ -1243,7 +1233,7 @@ public partial class Renderer
         }
 
         // ── AOV first-non-delta decision (Sample path) ──────────────────────
-        // Mirrors the legacy Scatter hook: delta lobes accumulate their tint
+        // Delta lobes accumulate their tint
         // (s.F carries the full delta attenuation) and stay pending, the first
         // non-delta lobe commits the tentative surface. Before RR, so the AOV
         // guides stay RR-noise-free.
@@ -1344,8 +1334,7 @@ public partial class Renderer
         {
             // No medium transition (reflection / opaque sample): the stack is
             // unchanged, so recurse against the caller's stack directly rather
-            // than copying the whole MediumStack on every such bounce — exactly
-            // what the legacy Scatter() path already does.
+            // than copying the whole MediumStack on every such bounce.
             indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
                                  ref mediums, ref iors,
                                  currentAbsorption: nextAbsorption,
@@ -1355,7 +1344,7 @@ public partial class Renderer
                                      ShadowPassable(material, in rec, s.Wo)));
         }
         // Sanitize NaN/Inf every frame (idempotent); magnitude clamp applied
-        // once, camera-relative, below — see ShadeSurface's Scatter path.
+        // once, camera-relative, below.
         indirect = SanitizeRadiance(indirect);
         Vector3 contribution = attenuation * indirect;
         if (depth == _maxDepth)
@@ -1902,11 +1891,8 @@ public partial class Renderer
     ///      using the material's own IMaterial.Pdf() in solid angle.
     ///
     /// For delta lights (point/directional/spot) no BSDF sampler can reach them,
-    /// so w_nee = 1 unconditionally. For materials that do not implement Pdf()
-    /// (Lambert, Metal, Dielectric, Mix) the default IMaterial.Pdf returns 0,
-    /// which also yields w_nee = 1 — equivalent to the pre-MIS behavior and
-    /// unbiased when paired with those materials' Scatter() legacy emission
-    /// suppression.
+    /// so w_nee = 1 unconditionally. A pure-delta material has Pdf 0 for every
+    /// light direction and Evaluate 0 there too, so it gets no direct light.
     ///
     /// PBRT/Arnold direct-lighting convention:
     /// The integrand at the shadow-ray direction is
@@ -1994,10 +1980,10 @@ public partial class Renderer
 
                 Vector3 brdf = DirectIntegrand(material, in rec, viewDir, dirToLight);
 
-                // Shadow-terminator softening on both the light and the view
-                // directions: cull the energy a perturbed shading normal would
-                // fabricate where either grazes below the true surface horizon
-                // (no-op where the normal is unperturbed).
+                // Shadow-terminator softening on the light side (Chiang 2019):
+                // cull the energy a perturbed shading normal would fabricate where
+                // the light grazes below the true surface horizon (no-op where the
+                // normal is unperturbed). The BSDF-sampled bounce carries it too.
                 brdf *= LightSideTerminator(in rec, dirToLight);
 
                 // The contribution is wNee · lightColor · brdf · Tr. When the
@@ -2053,10 +2039,10 @@ public partial class Renderer
 
                     Vector3 brdf = DirectIntegrand(material, in rec, viewDir, dirToLight);
 
-                    // Shadow-terminator softening on both the light and the view
-                    // directions: cull the energy a perturbed shading normal would
-                    // fabricate where either grazes below the true surface horizon
-                    // (no-op where the normal is unperturbed).
+                    // Shadow-terminator softening on the light side (Chiang 2019):
+                    // cull the energy a perturbed shading normal would fabricate where
+                    // the light grazes below the true surface horizon (no-op where the
+                    // normal is unperturbed). The BSDF-sampled bounce carries it too.
                     brdf *= LightSideTerminator(in rec, dirToLight);
 
                     // Zero integrand (light below the hemisphere / delta lobe) →

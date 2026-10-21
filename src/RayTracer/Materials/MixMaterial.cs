@@ -8,11 +8,10 @@ namespace RayTracer.Materials;
 /// A composite material that interpolates between two child materials using
 /// a blend factor (constant scalar or spatially-varying texture mask).
 ///
-/// <b>Scatter (indirect lighting)</b> — Stochastic lobe selection: at each hit,
-/// a random number is compared against the blend factor to select material A or B.
-/// This is the standard unbiased approach used by production renderers (Blender
-/// Cycles Mix Shader, Mitsuba, PBRT). No re-weighting is needed because the
-/// selection probability exactly equals the blend weight.
+/// <b>Sample (indirect lighting)</b>: a random number against the blend factor
+/// selects material A or B (the one-sample mixture estimator, PBRT §14.3.3). A
+/// delta sample keeps its weight, the selection probability equalling the blend
+/// weight; a continuous sample reports the whole mixture's value and pdf.
 ///
 /// <b>Evaluate (NEE and MIS)</b> — Deterministic weighted average of both materials'
 /// BRDF responses. Lower variance than stochastic selection for direct lighting

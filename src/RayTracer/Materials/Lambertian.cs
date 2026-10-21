@@ -32,8 +32,7 @@ public sealed class Lambertian : IMaterial
     // zero in the back hemisphere. Sampling is cosine-weighted, so the PDF is
     // max(N·L, 0) / π. With this contract the renderer's MIS path computes
     //   attenuation = F · NdotWo / Pdf = (albedo/π) · cosθ / (cosθ/π) = albedo
-    // which is energetically identical to Scatter() above — so the legacy
-    // path is preserved bit-for-bit while emission can now be weighted by the
+    // so emission reached by a Lambertian-sampled ray is weighted by the
     // balance/power heuristic when a Lambertian-sampled ray hits a registered
     // emitter.
     // ─────────────────────────────────────────────────────────────────────────

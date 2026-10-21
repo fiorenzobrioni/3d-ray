@@ -37,12 +37,9 @@ The phase function is HG with `g` from the medium (default 0). The HG-sample den
 
 ## Energy & Fresnel coupling
 
-The entry Fresnel transmission is applied by the surface BSDF *before* the walk: the throughput passed to `RandomWalkSubsurface` is already `T_entry · viewBSDF`. The walk itself never sees the surface again until it tries to escape.
+Light enters through the material's own dielectric interface: the smooth (delta) or rough (Walter 2007, non-delta) refraction lobe of `Dielectric` or `OpenPbr`. The refraction sample carries `MediumTransition.Enter`, and its weight (Fresnel transmission, tint, the `(η_i/η_t)²` radiance factor, and for a rough interface `F × |cos| / pdf`) is already in the throughput passed to `RandomWalkSubsurface`. The walk itself never sees the surface again until it escapes.
 
-At a boundary hit during the walk, the surface BSDF is sampled to decide whether the photon:
-
-- Refracts out (probability = Fresnel transmission). Walk terminates; the exit ray is fed back into `TraceRay` to continue accumulating radiance in world space.
-- Reflects back (probability = Fresnel reflection / TIR). Walk continues with the reflected direction; bounce counter decrements as normal. This handles the polished-marble look — without it, all the light that hits the back of the surface at grazing angle would leak out instead of refracting back into the volume.
+When a free flight reaches the boundary, the walk pops the medium (and the IOR pushed with it) and hands the ray, unchanged in direction, back to `TraceRay` from the exit point. No second Fresnel evaluation is applied at the exit: the entry-side transmission is the only Fresnel coupling, which is exactly energy-preserving with matched IORs (the white-furnace configuration). The walk's own boundary is likewise a null interface for the shadow rays of its in-walk NEE (`ShadowRay.PassThroughEntity`), consistent with the way the walk exits.
 
 ## Russian Roulette + max-bounces cap
 
@@ -107,8 +104,9 @@ exposes two interoperable ways to set this up.
 
 The artist defines a `homogeneous` medium in the top-level `mediums:`
 block (or inline in the scene) and binds it on the entity via
-`interior_medium: <id>`. The surface material only needs `spec_trans`
-> 0 and an `ior` to emit `MediumTransition.Enter` on refraction.
+`interior_medium: <id>`. The surface material only needs a refractive
+interface that emits `MediumTransition.Enter`: `transmission_weight > 0` on
+`openpbr`, `spec_trans > 0` on `disney`, or a `dielectric`, with its IOR.
 
 ```yaml
 mediums:
@@ -130,14 +128,40 @@ entities:
     interior_medium: marble_int
 ```
 
-### Path 2 — Material-embedded (`subsurface_radius`)
+### Path 2 - Material-embedded (`subsurface_weight` / `subsurface_radius`)
 
-The artist declares `subsurface_radius` on the Disney material and the
-loader synthesises an anonymous `HomogeneousMedium` and auto-injects it
-on every entity that uses the material and does not already have an
-explicit `interior_medium`. This emulates volumetric subsurface
-scattering inside the material, with all parameters expressed as artistic
-subsurface controls.
+The artist declares the subsurface on the material and the loader
+synthesises an anonymous `HomogeneousMedium` and auto-injects it on every
+entity that uses the material and does not already have an explicit
+`interior_medium`. This emulates volumetric subsurface scattering inside
+the material, with all parameters expressed as artistic subsurface
+controls. Thin-walled materials get no medium (a sheet has no interior).
+
+**On `openpbr`**, `subsurface_weight > 0` binds the medium. The mean free
+path is `subsurface_radius × subsurface_radius_scale` per channel (scalar
+radius, default 1; RGB scale, default `[1, 0.5, 0.25]`), and the
+single-scattering albedo is inverted from `subsurface_color` (the
+multiple-scattering albedo the artist sees) with the OpenPBR formula, which
+takes the phase function's `g = subsurface_scatter_anisotropy` into
+account. In the material the subsurface share goes through the dielectric
+interface with the transmission (`T' = T + (1 − T) S`), so subsurface light
+refracts in through the same smooth or rough lobe and the walk carries it.
+
+```yaml
+materials:
+  - id: opb_marble
+    type: openpbr
+    base_color: [0.92, 0.89, 0.85]
+    subsurface_weight: 1.0
+    subsurface_color: [0.95, 0.90, 0.85]
+    subsurface_radius: 0.45
+    subsurface_radius_scale: [1.0, 0.78, 0.49]
+    specular_roughness: 0.2
+```
+
+**On `disney`**, `subsurface_radius` builds the medium as below, and
+`spec_trans` is the share of light that enters it (the translation onto
+OpenPBR maps it to `subsurface_weight`).
 
 ```yaml
 materials:
@@ -157,7 +181,7 @@ entities:
     # no interior_medium, no mediums: section — SSS still works
 ```
 
-The medium is built from the per-channel formula
+For `disney` the medium is built from the per-channel formula
 
 ```
 σ_t = 1 / (radius · scale)

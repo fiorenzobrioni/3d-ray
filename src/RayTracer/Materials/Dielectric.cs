@@ -51,8 +51,8 @@ public sealed class Dielectric : IMaterial
 
     // Transparent shadow rays: report (1 - Fresnel) · albedo as the per-hit
     // straight-through transmission. The shadow ray is not refracted — Snell-
-    // bent light contributes to focused lighting only through the indirect
-    // Scatter path (and would need photon mapping to NEE-sample directly). Each
+    // bent light contributes to focused lighting only through the sampled
+    // bounce (and would need photon mapping to NEE-sample directly). Each
     // dielectric interface attenuates by 1−F; a glass sphere crosses two
     // interfaces, so the receiver still sees the proper Fresnel-squared
     // shadowing at grazing angles.

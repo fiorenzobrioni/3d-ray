@@ -34,7 +34,7 @@ public static class MathUtils
 
     /// <summary>
     /// Shadow-terminator softening factor for perturbed shading normals
-    /// (Conty &amp; Kulla 2019). When a normal/bump map tilts the shading normal
+    /// (Chiang, Li and Burley 2019, "Taming the Shadow Terminator"). When a normal/bump map tilts the shading normal
     /// <paramref name="ns"/> away from the geometric normal <paramref name="ng"/>,
     /// a direction <paramref name="w"/> can sit above the shading horizon while
     /// already below the geometric one, letting the clamped cosine fabricate

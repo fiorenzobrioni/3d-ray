@@ -24,13 +24,11 @@ public interface IMaterial
     bool NeedsDirectLighting => true;
 
     /// <summary>
-    /// True when the indirect bounce produced by <see cref="Scatter"/> is a
-    /// delta function (perfect mirror, ideal refraction). The renderer uses
-    /// this to set <c>prevIsDelta</c> for the next TraceRay call — delta
-    /// bounces see emission at full weight since no NEE sampler can reach
-    /// through them. Materials that use the <see cref="Sample"/> API instead
-    /// convey deltaness via <see cref="BsdfSample.IsDelta"/> and this flag
-    /// is ignored.
+    /// True when every lobe of the material is a delta function (perfect
+    /// mirror, ideal refraction): no light sample can reach it, so the renderer
+    /// skips the caustic photon gather there. Each sample still reports its own
+    /// deltaness through <see cref="BsdfSample.IsDelta"/>, which is what drives
+    /// the emission weight of the next hit.
     /// </summary>
     bool IsDeltaScatter => false;
 

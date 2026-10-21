@@ -10,7 +10,7 @@ Materials never own media. Coupling a shading model to scene topology would bind
 
 ## Stack semantics
 
-The path tracer threads a `MediumStack` (a `ref struct` over `InlineArray8<IMedium?>`, zero-allocation) through every recursion. The stack records *which media the ray is currently inside*.
+The path tracer threads a `MediumStack` (a plain value struct over an 8-slot inline array of media and their bounding entities, zero-allocation) through every recursion, next to an `IorStack` that tracks the refractive indices of nested dielectrics. The stack records *which media the ray is currently inside*.
 
 ```
 ray enters a refractive boundary:  push(rec.MediumIface.Interior)
@@ -18,9 +18,9 @@ ray exits  a refractive boundary:  pop()
 active medium at any point:        Top ?? _globalMedium
 ```
 
-This is non-negotiable for correctness on nested transmissive bodies. Single-current-medium designs break the instant you have a glass ampoule containing marble: when the ray exits marble back into glass-interior-vacuum, the single-current logic loses track of "we're still inside glass" and either applies the wrong absorption or re-pushes the wrong medium. The 8-slot inline array handles the realistic deepest stack (ice in water in tank, ≈ 4 deep) with headroom; overflow drops the **oldest** entry and emits a deferred warning.
+This is non-negotiable for correctness on nested transmissive bodies. Single-current-medium designs break the instant you have a glass ampoule containing marble: when the ray exits marble back into glass-interior-vacuum, the single-current logic loses track of "we're still inside glass" and either applies the wrong absorption or re-pushes the wrong medium. The 8-slot inline array handles the realistic deepest stack (ice in water in tank, ≈ 4 deep) with headroom; overflow drops the **oldest** entry (`Push` returns `false`; the renderer does not report it).
 
-The stack is copy-on-write at every transmission event. The recursive `TraceRay` call receives a `ref` to the **caller's** stack and mutates it, but when a transition needs branching (e.g., during random-walk dispatch) the SSS integrator first `Clone()`s the stack so its internal walk cannot corrupt the parent frame's view.
+The stack is copy-on-write at every transmission event. `ShadeSampleBounce` copies the caller's stack (a plain struct copy) only when the sample carries an `Enter`/`Exit` transition, pushes or pops on the copy, and hands the copy by `ref` to the recursive `TraceRay` or to the random walk, so the parent frame's view is intact when the recursion returns. Samples with no transition recurse on the caller's stack directly, without copying.
 
 ## Refraction transitions
 
@@ -28,9 +28,9 @@ Every BSDF capable of transmitting light emits a `BsdfSample.Transition` enum on
 
 - `MediumTransition.None` — surface reflection or thin-walled transmission. No stack change.
 - `MediumTransition.Enter` — front-face refraction into the geometry. Stack pushes `MediumIface.Interior`.
-- `MediumTransition.Exit` — back-face refraction out of the geometry. Stack pops; if the popped medium is not the one expected (mismatch — e.g., a bug in scene authoring) the renderer logs a deferred warning and continues with the new top.
+- `MediumTransition.Exit`: back-face refraction out of the geometry. Stack pops (an empty stack pops to nothing, which guards the rare grazing-angle path whose Enter/Exit pairing desyncs); the renderer does not check which medium was popped.
 
-`Dielectric` and `OpenPbr` (which also serves the `disney` type) are the two materials that emit these transitions, on their refraction samples: the smooth (delta) and the rough (non-delta) refraction alike, while reflection samples return `None`. `MixMaterial` passes on the transition of the child it sampled. Thin-walled surfaces (`thin_walled: true` on `openpbr` or `disney`) never change the stack: the ray model treats a thin sheet as a single interface, not a volume, so their transmission returns `None` and `TryGetDielectricIor` keeps them out of the IOR stack too.
+`Dielectric` and `OpenPbr` (which also serves the `disney` type) are the two materials that emit these transitions, on their refraction samples: the smooth (delta) and the rough (non-delta) refraction alike, while reflection samples return `None`. `MixMaterial` passes on the transition of the child it sampled. Thin-walled surfaces (`geometry_thin_walled: true` on `openpbr`, `thin_walled: true` on `disney`) never change the stack: the ray model treats a thin sheet as a single interface, not a volume, so their transmission returns `None` and `TryGetDielectricIor` keeps them out of the IOR stack too.
 
 ## Walk dispatch
 
@@ -56,7 +56,7 @@ The walk uses `entityRoot.Hit(...)` for boundary detection — never `_world.Hit
 ## Performance notes
 
 - The wrapper is a single-virtual-call indirection over the underlying `IHittable.Hit`. AABBs are forwarded unchanged so the BVH builder sees the inner geometry's box exactly.
-- The stack is `ref struct` and lives entirely on the stack (literally — the `InlineArray8` storage is inline in the struct). No GC traffic in the hot loop.
+- The stack is a value struct whose inline-array storage lives in the struct itself (two 8-slot arrays of references plus a count), so it stays on the call stack. No GC traffic in the hot loop.
 - Restricted-BVH queries during the walk are typically faster than full-world queries because they're scoped to the entity's local BVH only.
 - `IsScatteringMedium(hm)` is a sub-microsecond predicate (`σ_s.X + σ_s.Y + σ_s.Z > 0`) so the dispatch site adds no measurable overhead even for non-SSS scenes.
 

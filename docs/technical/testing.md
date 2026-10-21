@@ -17,10 +17,13 @@ La regola di test è: **differenziale vs oracolo**. Non asseriamo valori numeric
 src/RayTracer.Tests/
 ├── RayTracer.Tests.csproj    # xunit 2.9.2, Microsoft.NET.Test.Sdk 17.11.1, net10.0
 ├── AabbTests.cs              # Differential test AABB.Hit vs slab scalare
-└── BvhEquivalenceTests.cs    # BvhNode.Hit vs HittableList.Hit
+├── BvhEquivalenceTests.cs    # BvhNode.Hit vs HittableList.Hit
+├── ...                       # geometria, materiali, luci, volumi, rendering (circa 50 file)
+├── TestScenes/               # scene YAML usate dai test di regressione
+└── Validation/               # correttezza fisica (§4.3)
 ```
 
-Il progetto **non è incluso** nel path di build CI principale (`src/RayTracer/RayTracer.csproj`), ma è presente nella soluzione `3d-ray.slnx`. Un hook CI dedicato (es. `dotnet test src/RayTracer.Tests/`) è il prossimo passo naturale.
+Il progetto non è referenziato da `src/RayTracer/RayTracer.csproj`, ma è presente nella soluzione `3d-ray.slnx` e la CI (`.github/workflows/ci.yml`) lo esegue con `dotnet test` su Linux, Windows e macOS.
 
 ## 3. Eseguire i test
 
@@ -89,10 +92,15 @@ soglie fisse).
 
 | File | Cosa verifica |
 |---|---|
-| `BsdfTestKit.cs` | Strumenti statistici per ogni materiale con API `Sample`/`Evaluate`/`Pdf`: chi-quadro di Pearson (le direzioni campionate seguono la `Pdf` dichiarata), integrale della `Pdf` sulla sfera, albedo direzionale (white furnace), confronto tra albedo campionato e integrale di `Evaluate * cos` per quadratura (il peso del campione è lo stimatore giusto), reciprocità, coerenza tra `EvaluateDirect` (luce diretta) ed `Evaluate * cos`. |
+| `BsdfTestKit.cs` | Strumenti statistici per ogni materiale con API `Sample`/`Evaluate`/`Pdf`: chi-quadro di Pearson (le direzioni campionate seguono la `Pdf` dichiarata), integrale della `Pdf` sulla sfera, albedo direzionale (white furnace), confronto tra albedo campionato e integrale di `Evaluate * cos` per quadratura (il peso del campione è lo stimatore giusto), coerenza di `F` e `Pdf` del campione con `Evaluate` e `Pdf`, reciprocità. Il peso controllato è quello del renderer: `F * |cos| / Pdf` per un campione non-delta, `F` per un campione delta. |
 | `BsdfStatisticalTests.cs` | I gate costruiti sul kit per il catalogo `BsdfCatalog.cs`. I test con `Skip` riproducono bug noti e citano la sezione di `PIANO-REVIEW.md` che li corregge: si riattivano con la correzione. |
 | `BsdfAuditTests.cs` | Report completo del kit, opt-in: `RAYTRACER_AUDIT=1 dotnet test --filter "Category=Audit" --logger "console;verbosity=detailed"` (`RAYTRACER_AUDIT_ONLY=<nome>` aggiunge le celle peggiori del chi-quadro). |
-| `AnalyticSceneTests.cs` | Scene con soluzione esatta: sfera lambertiana in ambiente uniforme (= albedo), sfera di vetro e specchio (= 1), piano sotto luce puntiforme (legge dell'inverso del quadrato). |
+| `AnalyticSceneTests.cs` | Scene con soluzione esatta: sfera lambertiana in ambiente uniforme (= albedo), sfera di vetro liscio, specchio e dielettrici annidati (= 1), radianza dentro una sfera di vetro chiaro scalata di $\eta^2$ e fornace della stessa sfera vista da fuori (il fattore torna indietro all'uscita), per `dielectric` e per il `disney` liscio, lastra unitaria di vetro OpenPBR a indice 1 con trasmittanza esatta $C^{1/D}$ (`transmission_color` $C$ a `transmission_depth` $D$, Beer-Lambert), piano sotto luce puntiforme (legge dell'inverso del quadrato). |
+| `MicrofacetTests.cs` | Il nucleo GGX di tutti i lobi glossy: NDF normalizzata, identità dell'area proiettata con il termine di masking di Smith, il campionamento delle normali visibili estrae la densità promessa, G2 correlato in altezza fra la versione non correlata e il minimo. |
+| `MetalTests.cs` | Il conduttore: Fresnel complesso dei preset contro valori di riferimento, proprietà del modello F82 (Schlick con tinta bianca, la tinta raggiunta a 82°), medie di Fresnel contro quadratura, un metallo bianco riflette tutta la luce a ogni rugosità (lobo Kulla-Conty), tabella dell'albedo a scattering singolo contro l'integrale diretto. |
+| `RoughDielectricTests.cs` | Il dielettrico ruvido (Walter 2007): riflessione e trasmissione campionate secondo la propria pdf, da fuori e da dentro (con riflessione totale), coerenti con `Evaluate`; al tendere a zero della rugosità la ripartizione è quella di Fresnel; reciprocità generalizzata della rifrazione. |
+| `OpenPbrTests.cs` | Il materiale OpenPBR: fornace bianca in ogni configurazione elencata dalla specifica, chi-quadro e peso del campione per ogni lobo (anche da dentro), riduzioni esatte al conduttore (metalness 1) e al dielettrico ruvido (trasmissione 1) e a Lambert (specular 0), `specular_weight`, colore e oscuramento del coat, emissione. |
+| `OpenPbrLobeTests.cs` | I lobi di OpenPBR contro il proprio integrale: EON (un bianco resta bianco a ogni rugosità, albedo in forma chiusa, Lambert a rugosità 0), fuzz LTC (il sampler estrae la densità del lobo, albedo minore di 1), tabelle di albedo del dielettrico e anisotropa contro l'integrale diretto della BRDF. |
 | `ReferenceModeTests.cs` | `--reference` toglie il clamp e rende opachi i raggi d'ombra; `--seed 0` è bit-identico, un seed diverso dà un'immagine indipendente. |
 | `SamplerQualityTests.cs` | Il sampler: integra funzioni 2D note (una gaussiana liscia e un disco, cioè un bordo d'ombra) su 512 pixel indipendenti e misura la pendenza dell'errore RMS rispetto al numero di campioni. Numeri indipendenti danno N^-0.5; una coppia stratificata in 2D N^-1.4 sul liscio e N^-0.75 sul bordo. Gate su `Sample2D` a varie profondità e sui blocchi di dimensioni per vertice (`Sampler.BeginVertex`). Report opt-in con `RAYTRACER_AUDIT=1` (anche correlazioni fra dimensioni). |
 | `SamplingRoutineTests.cs` | Chi-quadro e integrale della pdf delle routine di base: sfera e emisfero uniformi, cono verso una sfera (anche piccolissima o lontana), le phase function dei volumi, il campionamento importance della HDRI (continuo dentro i texel, pdf coerente con `PdfDirection`), disco concentrico; base ortonormale entro 1e-5 anche vicino a -Z. |
@@ -106,6 +114,13 @@ soglie fisse).
 | `ColorManagementTests.cs` | Curva sRGB a tratti; ACES 1.x contro OpenColorIO (24 colori, entro 1e-3); AgX e il look punchy contro un'implementazione indipendente; grigi neutri e monotoni in ogni vista; la vista `legacy` identica alla curva di prima. |
 | `WhiteBalanceTests.cs` | Bilanciamento del bianco: 6504 K è l'identità, una luce della temperatura scelta diventa neutra (da 1900 a 9000 K), il luogo dei colori è continuo. |
 | `DisplayQuantizerTests.cs` | Quantizzazione: il dithering conserva la media di un campo uniforme ed è deterministico; arrotondamento e 16 bit esatti agli estremi. |
+
+Fuori da `Validation/`, due file coprono i materiali OpenPBR dal lato del caricamento e della traduzione:
+
+| File | Cosa verifica |
+|---|---|
+| `OpenPbrLoaderTests.cs` | Il tipo `openpbr` in YAML: i default della specifica, ogni input come numero, colore o blocco texture, il mezzo del subsurface legato agli oggetti che usano il materiale, nessun interno per una superficie thin-walled. |
+| `DisneyBsdfTests.cs` | Il tipo `disney` tradotto su `OpenPbr` (`DisneyMaterial.Create`): reciprocità, integrale della pdf, coerenza di `Sample` con `Evaluate`/`Pdf`, anisotropia, scattering multiplo del metallo, trasmissione (sigma di Beer-Lambert in entrata, nessun cambio di mezzo per il vetro sottile e thin-walled), `diff_trans`, coat, sheen, film sottile, vetro quasi delta. |
 
 Il confronto con un renderer di riferimento esterno su scene complete vive fuori dalla suite, in
 `validation/` (vedi `validation/README.md`), insieme allo strumento `src/Tools/ImageCompare`.
