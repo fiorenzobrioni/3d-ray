@@ -390,10 +390,20 @@ passava da 3.0e-3 a 8.0e-4 con la potenza 2.2). Bilanciamento del bianco: 6504 K
 media di un campo uniforme esatta entro 0.01 livelli.
 
 **Validazione contro Mitsuba** con lo stesso filtro Gaussiano da entrambe le parti (riferimenti
-rigenerati): rapporti invariati (Cornell 0.9998 / 0.9999, `lights` 0.9997, `glass-shadow` 0.9997 /
-0.9995), relMSE in calo dove domina la differenza di filtro (Cornell di riferimento da 8.7e-5 a
-8.4e-5, default da 6.0e-5 a 5.7e-5). Il gestore dei colori non entra nel confronto: l'harness
-confronta PFM lineari.
+rigenerati). Il gestore dei colori non entra nel confronto: l'harness confronta PFM lineari.
+
+| Scena | Riferimento | Default | relMSE default, Fase 1 → Fase 3 |
+|---|---|---|---|
+| cornell-lambert d32 | 0.9998 | 0.9999 | 6.0e-5 → 5.7e-5 |
+| cornell-lambert d2 | 0.998 | 0.998 | 3.8e-5 → 4.1e-5 |
+| lights | 0.9997 | 0.9997 | 1.6e-5 → 1.3e-5 |
+| glass-shadow | 0.9997 | 0.9995 | 4.1e-4 → 4.0e-4 |
+| null-shell | 1.0001 | 1.0001 | 3.7e-5 → 1.9e-5 |
+| metal-rough, disney-spheres, furnace-disney-glass | invariati | | 3.7 e 3.17, Fase 5 |
+
+Rapporti invariati; il relMSE scende dove pesava la differenza di filtro fra i due motori (prima
+box contro box, ma con il rumore distribuito diversamente). Convergenza Cornell: pendenza -1.14 sui
+spp e -0.98 sui seed, soglia 3.2e-5 (il rumore del riferimento): stimatore non distorto.
 
 **Nuovi problemi**: 3.33 (NFOR disegna un alone scuro attorno al bokeh di luci piccole e intense,
 Fase 9), 3.34 (esposizione fisica da ISO e tempo di posa, Fase 6 con le unità delle luci).
