@@ -266,6 +266,9 @@ public static class ObjLoader
             return null;
         }
 
+        // Per-vertex tangents in the frame normal-map bakers use (MikkTSpace).
+        MeshTangents.Generate(triangles);
+
         // displacement_bound: pad each BVH leaf AABB by the artist-supplied
         // safety margin. The displaced positions are already baked into the
         // triangles, so the padding is a defensive measure — it absorbs

@@ -59,6 +59,25 @@ public class SmoothTriangle : IHittable, ISamplable
     private readonly Vector3 _tangent;
     private readonly Vector3 _bitangent;
 
+    // ∂P/∂u, ∂P/∂v of the UV mapping (unnormalised): the texture footprint
+    // needs the rate, not just the direction. Zero when the UVs are degenerate.
+    private readonly Vector3 _dpdu;
+    private readonly Vector3 _dpdv;
+
+    // Per-vertex tangents (MeshTangents), interpolated at the hit like the
+    // normals, and the face's bitangent sign: B = sign · (N × T). Without
+    // them the face tangent is used, constant per triangle.
+    private Vector3 _vt0, _vt1, _vt2;
+    private float _tangentSign;
+    private bool _hasVertexTangents;
+
+    /// <summary>True when the triangle was given real texture coordinates.</summary>
+    public bool HasTextureUvs { get; }
+
+    /// <summary>The face tangent (∂P/∂u direction) and bitangent of the UV mapping.</summary>
+    public Vector3 FaceTangent => _tangent;
+    public Vector3 FaceBitangent => _bitangent;
+
     // Precomputed edges + area — immutable across the mesh's lifetime so the
     // hit-time subtractions and the SampleAt Cross/Length are wasted work.
     private readonly Vector3 _edge1;
@@ -77,6 +96,7 @@ public class SmoothTriangle : IHittable, ISamplable
         N2 = Vector3.Normalize(n2);
         UV0 = uv0; UV1 = uv1; UV2 = uv2;
         Material = material;
+        HasTextureUvs = true;
 
         _edge1 = v1 - v0;
         _edge2 = v2 - v0;
@@ -115,6 +135,8 @@ public class SmoothTriangle : IHittable, ISamplable
             {
                 _tangent = t / tLen;
                 _bitangent = b / bLen;
+                _dpdu = t;
+                _dpdv = b;
             }
             else
             {
@@ -142,7 +164,21 @@ public class SmoothTriangle : IHittable, ISamplable
         : this(v0, v1, v2, n0, n1, n2,
                new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1),
                material)
-    { }
+    {
+        HasTextureUvs = false;
+    }
+
+    /// <summary>
+    /// Gives the triangle per-vertex tangents (unit, in the plane of each
+    /// vertex normal) and the sign of its bitangent, as computed over the
+    /// whole mesh by <see cref="MeshTangents"/>.
+    /// </summary>
+    public void SetVertexTangents(Vector3 t0, Vector3 t1, Vector3 t2, float sign)
+    {
+        _vt0 = t0; _vt1 = t1; _vt2 = t2;
+        _tangentSign = sign < 0f ? -1f : 1f;
+        _hasVertexTangents = true;
+    }
 
     public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
@@ -188,8 +224,26 @@ public class SmoothTriangle : IHittable, ISamplable
         rec.V = interpUV.Y;
 
         // ── TBN basis ───────────────────────────────────────────────────
-        rec.Tangent = _tangent;
-        rec.Bitangent = _bitangent;
+        // With vertex tangents the frame is MikkTSpace's: the tangent
+        // interpolated and made orthogonal to the interpolated normal, the
+        // bitangent sign · (N × T) rebuilt at the hit. A baked normal map is
+        // encoded in exactly this frame, so it shows no seams between faces.
+        Vector3 tangent = _tangent, bitangent = _bitangent;
+        if (_hasVertexTangents)
+        {
+            Vector3 ti = w0 * _vt0 + w1 * _vt1 + w2 * _vt2;
+            ti -= Vector3.Dot(ti, shadingNormal) * shadingNormal;
+            float tl = ti.Length();
+            if (tl > 1e-8f)
+            {
+                tangent = ti / tl;
+                bitangent = _tangentSign * Vector3.Cross(shadingNormal, tangent);
+            }
+        }
+        rec.Tangent = tangent;
+        rec.Bitangent = bitangent;
+        rec.DpDu = _dpdu;
+        rec.DpDv = _dpdv;
 
         rec.ObjectSeed = Seed;
         rec.Material = Material;

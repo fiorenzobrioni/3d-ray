@@ -1,21 +1,22 @@
 using System.Numerics;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace RayTracer.Textures;
 
 /// <summary>
 /// A texture that loads a normal map image and returns tangent-space normals.
 ///
-/// Unlike ImageTexture, this does NOT apply sRGB→linear gamma correction
-/// because normal maps store directional data, not color data.
+/// The image is read as data, never decoded from sRGB, through
+/// <see cref="ImageTexture"/>: 8 or 16 bits per channel (or EXR), bilinear,
+/// texel-centred, wrapping at the edges so a tiled map has no seam.
 ///
 /// The RGB channels are mapped from [0, 1] to [-1, 1]:
 ///   normalXYZ = RGB * 2.0 - 1.0
 /// The result is then normalized.
 ///
-/// Convention: OpenGL-style normal maps (Y+ points up in tangent space).
-/// If you have DirectX-style maps (Y inverted), set <c>flipY: true</c>.
+/// Convention: OpenGL-style normal maps (Y+ points up in tangent space, along
+/// +v). If you have DirectX-style maps (Y inverted), set <c>flipY: true</c>.
+/// On a mesh the tangent frame is MikkTSpace's (<see cref="Geometry.MeshTangents"/>),
+/// the one bakers write in.
 ///
 /// In YAML:
 ///   normal_map:
@@ -25,11 +26,7 @@ namespace RayTracer.Textures;
 /// </summary>
 public class NormalMapTexture
 {
-    private readonly float[] _pixels;  // Flat RGB array (LINEAR, no gamma)
-    private readonly int _width;
-    private readonly int _height;
-    private readonly float _scaleU;
-    private readonly float _scaleV;
+    private readonly ImageTexture _image;
     private readonly float _strength;
     private readonly bool _flipY;
 
@@ -51,34 +48,8 @@ public class NormalMapTexture
                             float scaleU = 1f, float scaleV = 1f, bool flipY = false)
     {
         _strength = Math.Clamp(strength, 0f, 3f);
-        _scaleU = scaleU;
-        _scaleV = scaleV;
         _flipY = flipY;
-
-        using var image = Image.Load<Rgba32>(imagePath);
-        _width = image.Width;
-        _height = image.Height;
-        _pixels = new float[_width * _height * 3];
-
-        // Store as linear float — NO gamma correction (normal maps are linear data)
-        const float inv255 = 1f / 255f;
-
-        image.ProcessPixelRows(accessor =>
-        {
-            for (int y = 0; y < _height; y++)
-            {
-                var row = accessor.GetRowSpan(y);
-                int baseIdx = y * _width * 3;
-                for (int x = 0; x < _width; x++)
-                {
-                    var pixel = row[x];
-                    int idx = baseIdx + x * 3;
-                    _pixels[idx]     = pixel.R * inv255;
-                    _pixels[idx + 1] = pixel.G * inv255;
-                    _pixels[idx + 2] = pixel.B * inv255;
-                }
-            }
-        });
+        _image = new ImageTexture(imagePath, scaleU, scaleV, TextureColorSpace.Linear);
     }
 
     /// <summary>
@@ -88,38 +59,7 @@ public class NormalMapTexture
     /// </summary>
     public Vector3 SampleNormal(float u, float v)
     {
-        // Apply UV tiling
-        u *= _scaleU;
-        v *= _scaleV;
-
-        // Wrap to [0, 1)
-        u -= MathF.Floor(u);
-        v -= MathF.Floor(v);
-
-        // Flip V (image top-left origin → UV bottom-left)
-        v = 1f - v;
-
-        // Map to pixel coordinates (continuous)
-        float px = u * (_width - 1);
-        float py = v * (_height - 1);
-
-        // Bilinear filtering
-        int x0 = (int)px;
-        int y0 = (int)py;
-        int x1 = Math.Min(x0 + 1, _width - 1);
-        int y1 = Math.Min(y0 + 1, _height - 1);
-
-        float fx = px - x0;
-        float fy = py - y0;
-
-        Vector3 c00 = GetPixel(x0, y0);
-        Vector3 c10 = GetPixel(x1, y0);
-        Vector3 c01 = GetPixel(x0, y1);
-        Vector3 c11 = GetPixel(x1, y1);
-
-        Vector3 top = Vector3.Lerp(c00, c10, fx);
-        Vector3 bot = Vector3.Lerp(c01, c11, fx);
-        Vector3 rgb = Vector3.Lerp(top, bot, fy);
+        Vector3 rgb = _image.Value(u, v, Vector3.Zero, 0);
 
         // Convert [0, 1] → [-1, 1]
         Vector3 normal = rgb * 2f - Vector3.One;
@@ -142,13 +82,8 @@ public class NormalMapTexture
             normal.X *= _strength;
             normal.Y *= _strength;
         }
-        
-        return Vector3.Normalize(normal);
-    }
 
-    private Vector3 GetPixel(int x, int y)
-    {
-        int idx = (y * _width + x) * 3;
-        return new Vector3(_pixels[idx], _pixels[idx + 1], _pixels[idx + 2]);
+        // A black texel (or a 16-bit file's padding) decodes to no direction.
+        return normal.LengthSquared() > 1e-12f ? Vector3.Normalize(normal) : Vector3.UnitZ;
     }
 }
