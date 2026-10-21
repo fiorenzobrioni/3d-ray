@@ -1236,7 +1236,10 @@ public partial class Renderer
             float absNdotWo = MathF.Abs(NdotWo);
             if (absNdotWo <= 0f || s.Pdf <= 0f)
                 return emitted + directLight;
-            attenuation = s.F * absNdotWo / s.Pdf;
+            // The shadow-terminator factor belongs to the integrand, so the
+            // BSDF-sampled path carries it as NEE does (both MIS strategies
+            // estimate the same function, PIANO-REVIEW.md §3.11).
+            attenuation = s.F * (absNdotWo * LightSideTerminator(in rec, s.Wo) / s.Pdf);
         }
 
         // ── AOV first-non-delta decision (Sample path) ──────────────────────
@@ -1953,13 +1956,6 @@ public partial class Renderer
     {
         Vector3 result = Vector3.Zero;
 
-        // View-side shadow-terminator factor: when a normal/bump map has tilted
-        // the shading normal toward the eye, the grazing-view Fresnel of the BSDF
-        // (e.g. Disney's diffuse retro-reflection) fabricates energy. This culls
-        // it symmetrically with the light-side factor applied per sample below.
-        // Unity (no-op) wherever the shading normal is unperturbed.
-        float viewTerm = MathUtils.ShadowTerminatorTerm(rec.ShadingNg, rec.Normal, viewDir);
-
         if (_lightDist != null)
         {
             // ── Single-light picking (power or uniform) ──────────────────────
@@ -1991,7 +1987,7 @@ public partial class Renderer
                 // directions: cull the energy a perturbed shading normal would
                 // fabricate where either grazes below the true surface horizon
                 // (no-op where the normal is unperturbed).
-                brdf *= viewTerm * LightSideTerminator(in rec, dirToLight);
+                brdf *= LightSideTerminator(in rec, dirToLight);
 
                 // The contribution is wNee · lightColor · brdf · Tr. When the
                 // BRDF integrand is zero (light below the shading hemisphere,
@@ -2051,7 +2047,7 @@ public partial class Renderer
                     // directions: cull the energy a perturbed shading normal would
                     // fabricate where either grazes below the true surface horizon
                     // (no-op where the normal is unperturbed).
-                    brdf *= viewTerm * LightSideTerminator(in rec, dirToLight);
+                    brdf *= LightSideTerminator(in rec, dirToLight);
 
                     // Zero integrand (light below the hemisphere / delta lobe) →
                     // the sample contributes nothing; skip the medium walk and

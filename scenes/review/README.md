@@ -2,12 +2,13 @@
 
 Scene costruite durante la revisione del motore (`PIANO-REVIEW.md`) per controllare un risultato nel renderer completo, non solo nei test unitari. Restano nel repo come riferimento e come esempi: ognuna dice nell'intestazione cosa verifica, come renderizzarla e cosa ci si deve aspettare.
 
-Le scene confrontate con Mitsuba stanno invece in `validation/scenes/`; gli showcase delle funzionalità in `scenes/showcases/`.
+Le scene confrontate con Mitsuba stanno invece in `validation/scenes/`; gli showcase delle funzionalità in `scenes/showcases/`. Le immagini di confronto prodotte durante la revisione sono in `images/`.
 
 | Scena | Fase | Cosa verifica | Risultato atteso |
 |---|---|---|---|
 | `white-furnace-classic.yaml` | 5 | Fornace bianca di `lambertian`, `metal` (ruvido e specchio), `dielectric` ruvido | Ogni sfera vale 1 nel buffer beauty (il vetro ruvido 0.98: scattering singolo dell'interfaccia) |
 | `openpbr-white-furnace.yaml` | 5 | Fornace bianca del materiale `openpbr` in tutte le configurazioni della specifica | Ogni sfera vale 1 (vetro ruvido 0.98) |
+| `disney-to-openpbr.yaml` | 5 | Il tipo `disney` prima e dopo la traduzione su OpenPBR: plastica liscia, velluto, lacca, vetro colorato, metallo spazzolato, foglia | Confronto in `images/disney-to-openpbr.jpg`: plastica senza firefly, velluto senza energia in più, lacca col riflesso pieno |
 
 ## Come leggere una fornace bianca
 
