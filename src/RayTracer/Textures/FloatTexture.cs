@@ -56,6 +56,15 @@ public sealed class FloatTexture
         return (rgb.X + rgb.Y + rgb.Z) * (1f / 3f);
     }
 
+    /// <summary>Sample at a hit, through the texture's own hit overload
+    /// (coordinate textures read the world point from it).</summary>
+    public float Value(in HitRecord rec)
+    {
+        if (_texture == null) return _scalar;
+        Vector3 rgb = _texture.Value(in rec);
+        return (rgb.X + rgb.Y + rgb.Z) * (1f / 3f);
+    }
+
     /// <summary>True when the parameter is a plain scalar (no texture lookup).</summary>
     public bool IsConstant => _texture == null;
 
