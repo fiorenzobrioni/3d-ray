@@ -190,7 +190,7 @@ public static class CausticPhotonTracer
                 // scattered photons that gather into spurious discs.
                 if (s.IsDelta && s.CausticCaster)
                 {
-                    power *= s.F;                       // delta lobe: F is the full attenuation
+                    power *= s.F * PowerScale(material, rec, s.Wo);   // delta lobe: F is the full attenuation
                     EnterMediumIfRefracting(material, rec, s.Wo, ref inMedium, ref sigmaA, ref entryPoint);
                     ray = ContinueRay(rec, s.Wo, ray.Time);
                     specularBounces++;
@@ -205,7 +205,7 @@ public static class CausticPhotonTracer
             {
                 if (material.IsDeltaScatter)
                 {
-                    power *= atten;                     // mirror / glass: continue the chain
+                    power *= atten * PowerScale(material, rec, scattered.Direction);   // mirror / glass: continue the chain
                     EnterMediumIfRefracting(material, rec, scattered.Direction, ref inMedium, ref sigmaA, ref entryPoint);
                     ray = scattered.WithTime(ray.Time);
                     specularBounces++;
@@ -233,6 +233,23 @@ public static class CausticPhotonTracer
                 power /= survive;
             }
         }
+    }
+
+    /// <summary>
+    /// Materials weight a refraction for camera paths, which carry radiance:
+    /// radiance scales by (η_i/η_t)² across an interface. A photon carries
+    /// power, which is conserved (Veach 1997, §5.2, the adjoint BSDF), so the
+    /// factor comes back out here. The photon tracer leaves
+    /// <see cref="HitRecord.RelativeEta"/> unset, so the materials used the
+    /// air-relative ratio, the same one rebuilt below. Thin walls do not
+    /// refract and carry no factor.
+    /// </summary>
+    private static float PowerScale(IMaterial material, in HitRecord rec, Vector3 wo)
+    {
+        if (Vector3.Dot(wo, rec.Normal) >= 0f) return 1f;                // reflection
+        if (!material.TryGetDielectricIor(in rec, out float ior) || ior <= 0f) return 1f;
+        float eta = rec.FrontFace ? 1f / ior : ior;
+        return 1f / (eta * eta);
     }
 
     private static void Deposit(List<Photon> outPhotons, in HitRecord rec, in Ray ray,

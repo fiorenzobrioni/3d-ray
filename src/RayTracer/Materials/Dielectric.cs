@@ -96,10 +96,23 @@ public sealed class Dielectric : IMaterial
         // reflection exists: an index-matched medium shell showed a rim and a
         // highlight (PIANO-REVIEW.md §3.24), and real glass was off by a few
         // percent at grazing angles.
-        if (cannotRefract || MathUtils.FresnelDielectric(cosTheta, ri) > MathUtils.RandomFloat())
-            direction = MathUtils.Reflect(unitDirection, normal);
-        else
+        if (!cannotRefract && MathUtils.FresnelDielectric(cosTheta, ri) <= MathUtils.RandomFloat())
             direction = MathUtils.Refract(unitDirection, normal, ri);
+        else
+            direction = Vector3.Zero;
+
+        if (MathUtils.NearZero(direction))
+            direction = MathUtils.Reflect(unitDirection, normal);   // reflection or TIR
+        else
+        {
+            // Radiance crossing an interface scales by (η_i/η_t)²: L/n² is
+            // the conserved quantity (Veach 1997, §5.2). It cancels for a ray
+            // that enters and leaves the same object, but not for a camera or
+            // a light inside the medium (PIANO-REVIEW.md §3.35). Camera paths
+            // carry radiance; the photon tracer, which carries power, divides
+            // it back out (CausticPhotonTracer.PowerScale).
+            attenuation *= ri * ri;
+        }
 
         // Offset the ray origin onto the side of the surface that matches the
         // chosen direction — reflection sits on the outgoing-normal side,

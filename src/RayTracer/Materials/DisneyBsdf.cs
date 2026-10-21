@@ -1566,6 +1566,7 @@ public sealed class DisneyBsdf : IMaterial
             direction = MathUtils.Reflect(unitDir, N);
             isReflection = true;
         }
+        bool refracted = !isReflection && !ThinWalled;
 
         scattered = new Ray(rec.Point, Vector3.Normalize(direction));
 
@@ -1592,6 +1593,12 @@ public sealed class DisneyBsdf : IMaterial
         }
 
         attenuation = attenColor;
+
+        // Radiance crossing an interface scales by (η_i/η_t)² (L/n² is
+        // conserved; PIANO-REVIEW.md §3.35). Not for a thin wall, which has no
+        // interior medium; the photon tracer divides it back out.
+        if (refracted)
+            attenuation *= eta * eta;
 
         // ── VNDF geometry weight for rough microfacet glass ────────────────
         // Same F · G1(L) simplification as ScatterSpecular: with VNDF

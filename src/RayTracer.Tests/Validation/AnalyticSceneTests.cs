@@ -49,6 +49,71 @@ public class AnalyticSceneTests
         Assert.InRange(mean.X, 0.98f, 1.02f);
     }
 
+    /// <summary>
+    /// Camera at the centre of a large clear glass sphere in a uniform
+    /// environment of radiance 1. Radiance divided by n² is what is conserved
+    /// across an interface, so inside a lossless closed dielectric the
+    /// equilibrium radiance is n² in every direction (PIANO-REVIEW.md §3.35).
+    /// From the centre every ray meets the surface head-on: transmitted
+    /// (1 - R) plus the internal reflections, (1 - R) / (1 - R) = 1, times n².
+    /// </summary>
+    private static Vector3 InsideGlass(IMaterial glass, int spp)
+    {
+        Sampler.SetKind(SamplerKind.Sobol);
+        var world = new HittableList(new IHittable[] { new Sphere(Vector3.Zero, 10f, glass) });
+        var cam = RenderHarness.LookAt(Vector3.Zero, new Vector3(0, 0, -1), 30f, W, H);
+        return RenderHarness.Mean(RenderHarness.RenderLinear(world, new List<ILight>(), new SkySettings(Vector3.One),
+                                                             cam, W, H, spp, 64));
+    }
+
+    public static TheoryData<string> Glasses => new() { "dielectric", "disney-smooth" };
+
+    private static IMaterial Glass(string name, float ior) => name switch
+    {
+        "dielectric" => new Dielectric(ior),
+        _ => new DisneyBsdf(new RayTracer.Textures.SolidColor(Vector3.One), metallic: 0f, roughness: 0f,
+                            specular: 0.5f, specularTint: 0f, sheen: 0f, sheenTint: 0f, clearcoat: 0f,
+                            clearcoatGloss: 1f, specTrans: 1f, ior: ior),
+    };
+
+    [Theory]
+    [MemberData(nameof(Glasses))]
+    public void InsideClearGlass_RadianceIsScaledByEtaSquared(string glass)
+    {
+        const float n = 1.33f;
+        var mean = InsideGlass(Glass(glass, n), spp: 64);
+        Assert.InRange(mean.X, 0.99f * n * n, 1.01f * n * n);
+    }
+
+    [Theory]
+    [InlineData("dielectric")]
+    // "disney-smooth" gains 3% (§3.17, KnownBug_Disney_WhiteFurnaceAlbedoDoesNotExceedOne).
+    public void Furnace_GlassSphereFromOutside_StaysLossless(string glass)
+    {
+        // The n² gained on entering is given back on leaving.
+        var mean = Furnace(Glass(glass, 1.5f), spp: 256, depth: 64);
+        Assert.InRange(mean.X, 0.98f, 1.02f);
+    }
+
+    [Fact]
+    public void Furnace_NestedDielectrics_StayLossless()
+    {
+        // A glass core (n 1.5) inside a water sphere (n 1.33): every η² factor
+        // gained on entering a medium must be given back on leaving it, so the
+        // lossless pair reads 1. (The relative IOR at the inner interface does
+        // not show here, energy is conserved either way: it is checked against
+        // Mitsuba with explicit interfaces, PIANO-REVIEW.md §4 Fase 5.)
+        Sampler.SetKind(SamplerKind.Sobol);
+        var world = new HittableList(new IHittable[]
+        {
+            new Sphere(Vector3.Zero, 1f, new Dielectric(1.33f)),
+            new Sphere(Vector3.Zero, 0.5f, new Dielectric(1.5f)),
+        });
+        var mean = RenderHarness.Mean(RenderHarness.RenderLinear(world, new List<ILight>(), new SkySettings(Vector3.One),
+                                                                  FillCam(), W, H, 256, 64));
+        Assert.InRange(mean.X, 0.98f, 1.02f);
+    }
+
     [Fact]
     public void Furnace_PerfectMirror_IsLossless()
     {

@@ -193,12 +193,20 @@ public static class MathUtils
     public static Vector3 Reflect(Vector3 v, Vector3 n) =>
         v - 2f * Vector3.Dot(v, n) * n;
 
+    /// <summary>
+    /// Refracts the unit direction <paramref name="uv"/> through the normal
+    /// <paramref name="n"/> (facing the incoming side) with η_i/η_t. Returns
+    /// <see cref="Vector3.Zero"/> under total internal reflection, so callers
+    /// must test it: it used to return a meaningless direction there
+    /// (PIANO-REVIEW.md §3.32).
+    /// </summary>
     public static Vector3 Refract(Vector3 uv, Vector3 n, float etaiOverEtat)
     {
         float cosTheta = MathF.Min(Vector3.Dot(-uv, n), 1f);
         Vector3 rOutPerp = etaiOverEtat * (uv + cosTheta * n);
-        Vector3 rOutParallel = -MathF.Sqrt(MathF.Abs(1f - rOutPerp.LengthSquared())) * n;
-        return rOutPerp + rOutParallel;
+        float k = 1f - rOutPerp.LengthSquared();
+        if (k < 0f) return Vector3.Zero;
+        return rOutPerp - MathF.Sqrt(k) * n;
     }
 
     public static float Schlick(float cosine, float refractionIndex)
