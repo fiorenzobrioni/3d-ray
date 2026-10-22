@@ -120,7 +120,7 @@ class Program
 
         // Light selection strategy. See LightSamplingStrategy. A quality preset
         // may set a default (standard → power); an explicit flag still wins.
-        LightSamplingStrategy lightSampling = quality?.LightSampling ?? LightSamplingStrategy.All;
+        LightSamplingStrategy lightSampling = quality?.LightSampling ?? LightSamplingStrategy.Auto;
         string? lightSamplingArg = GetArg(args, "--light-sampling", null);
         if (lightSamplingArg != null)
         {
@@ -129,8 +129,10 @@ class Program
                 case "all":     lightSampling = LightSamplingStrategy.All;     break;
                 case "power":   lightSampling = LightSamplingStrategy.Power;   break;
                 case "uniform": lightSampling = LightSamplingStrategy.Uniform; break;
+                case "bvh":     lightSampling = LightSamplingStrategy.Bvh;     break;
+                case "auto":    lightSampling = LightSamplingStrategy.Auto;    break;
                 default:
-                    Console.WriteLine($"Error: Unknown --light-sampling '{lightSamplingArg}'. Valid: all, power, uniform.");
+                    Console.WriteLine($"Error: Unknown --light-sampling '{lightSamplingArg}'. Valid: auto, all, power, uniform, bvh.");
                     return;
             }
         }
@@ -549,7 +551,7 @@ class Program
             Console.WriteLine($"  Camera:      {cameraSelector}");
         Console.WriteLine($"  Sampler:     {samplerKind.ToString().ToLowerInvariant()}");
         Console.WriteLine($"  MIS:         {misHeuristic.ToString().ToLowerInvariant()} heuristic");
-        if (lightSampling != LightSamplingStrategy.All)
+        if (lightSampling is not (LightSamplingStrategy.All or LightSamplingStrategy.Auto))
             Console.WriteLine($"  Light pick:  {lightSampling.ToString().ToLowerInvariant()}");
         if (sssMode != SssMode.Auto)
             Console.WriteLine($"  SSS mode:    {sssMode.ToString().ToLowerInvariant()}");
@@ -722,7 +724,7 @@ class Program
         Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
         Console.WriteLine("      --sampler <prng|sobol>   Per-pixel sampler (default: sobol — Burley 2020)");
         Console.WriteLine("      --mis <balance|power>    MIS combination heuristic (default: balance)");
-        Console.WriteLine("      --light-sampling <all|power|uniform>  NEE light strategy (default: all)");
+        Console.WriteLine("      --light-sampling <auto|all|power|uniform|bvh>  NEE light strategy (default: auto = all up to 16 lights, bvh above)");
         Console.WriteLine("      --texture-filtering <auto|on|off>     Analytic anti-aliasing via ray differentials (default: auto)");
         Console.WriteLine("      --caustics <on|off>      Photon-mapped caustics (default: off, on for final/ultra)");
         Console.WriteLine("      --caustic-photons <n>    Caustic photon budget when --caustics on (default: 2-4M by preset)");

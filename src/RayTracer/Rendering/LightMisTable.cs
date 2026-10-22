@@ -33,20 +33,22 @@ namespace RayTracer.Rendering;
 internal sealed class LightMisTable
 {
     private readonly LightDistribution? _dist;
+    private readonly LightBvh? _bvh;
     private readonly Dictionary<ILight, int> _index = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<ILight> _bsdfReachable = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<ILight> _skySet = new(ReferenceEqualityComparer.Instance);
-    private readonly (ILight Light, float Pick)[] _sky;
-    private readonly (PhysicalSun Sun, float Pick)[] _suns;
+    private readonly ILight[] _sky;
+    private readonly PhysicalSun[] _suns;
     private readonly Dictionary<IMaterial, EmitterOwners> _emitters = new(ReferenceEqualityComparer.Instance);
 
-    public LightMisTable(IReadOnlyList<ILight> lights, LightDistribution? dist)
+    public LightMisTable(IReadOnlyList<ILight> lights, LightDistribution? dist, LightBvh? bvh = null)
     {
         _dist = dist;
+        _bvh = bvh;
         for (int i = 0; i < lights.Count; i++) _index[lights[i]] = i;
 
-        var sky = new List<(ILight, float)>();
-        var suns = new List<(PhysicalSun, float)>();
+        var sky = new List<ILight>();
+        var suns = new List<PhysicalSun>();
         foreach (var light in lights)
         {
             switch (light)
@@ -56,12 +58,12 @@ internal sealed class LightMisTable
                     _bsdfReachable.Add(gl);
                     break;
                 case EnvironmentLight or PortalLight:
-                    sky.Add((light, Pick(light)));
+                    sky.Add(light);
                     _skySet.Add(light);
                     _bsdfReachable.Add(light);
                     break;
                 case PhysicalSun sun:
-                    suns.Add((sun, Pick(sun)));
+                    suns.Add(sun);
                     _bsdfReachable.Add(sun);
                     break;
                 default:
@@ -86,14 +88,27 @@ internal sealed class LightMisTable
         return owners;
     }
 
-    /// <summary>Probability that next-event estimation picks <paramref name="light"/> (1 when every light is sampled).</summary>
-    public float Pick(ILight light) => _dist == null ? 1f : _dist.PdfPick(_index[light]);
+    /// <summary>True when next-event estimation samples one light per vertex instead of every light.</summary>
+    public bool PicksOneLight => _dist != null || _bvh != null;
+
+    /// <summary>Picks the light for a vertex at <paramref name="p"/>: its index (−1 for none) and probability.</summary>
+    public (int Index, float Pick) Choose(Vector3 p, float u)
+        => _bvh != null ? _bvh.Sample(p, u) : _dist!.Sample(u);
+
+    /// <summary>
+    /// Probability that next-event estimation at <paramref name="p"/> picks
+    /// <paramref name="light"/> (1 when every light is sampled).
+    /// </summary>
+    public float Pick(ILight light, Vector3 p)
+        => _bvh != null ? _bvh.Pmf(p, _index[light])
+         : _dist != null ? _dist.PdfPick(_index[light])
+         : 1f;
 
     /// <summary>True when a BSDF (or phase) sample can also deliver this light, so its samples share the MIS weight.</summary>
     public bool PairsWithBsdf(ILight light) => !light.IsDelta && _bsdfReachable.Contains(light);
 
-    /// <summary>The analytic suns BSDF rays that leave the scene can reach, with their pick probabilities.</summary>
-    public ReadOnlySpan<(PhysicalSun Sun, float Pick)> Suns => _suns;
+    /// <summary>The analytic suns BSDF rays that leave the scene can reach.</summary>
+    public ReadOnlySpan<PhysicalSun> Suns => _suns;
 
     /// <summary>True when the environment (or a portal onto it) is a next-event light.</summary>
     public bool HasSkyLights => _sky.Length > 0;
@@ -116,9 +131,9 @@ internal sealed class LightMisTable
     public (float Sum, float SumSq) SkyDensity(Vector3 origin, Vector3 dir)
     {
         float sum = 0f, sumSq = 0f;
-        foreach (var (light, pick) in _sky)
+        foreach (var light in _sky)
         {
-            float p = pick * light.PdfSolidAngle(origin, dir);
+            float p = Pick(light, origin) * light.PdfSolidAngle(origin, dir);
             sum += p;
             sumSq += p * p;
         }

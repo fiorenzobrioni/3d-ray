@@ -105,7 +105,9 @@ public class SamplingRoutineTests
         // gradient and one bright texel: sampling the texel centres, as before
         // §3.9, piles every sample into a few cells (chi2 1.3e6 on 799 dof).
         // The pdf is piecewise constant over texel edges that cut the cells, so
-        // the expected counts need a finer quadrature than a smooth BSDF.
+        // the expected counts need a finer quadrature than a smooth BSDF: with
+        // MIS compensation (the default) half the texels drop to zero, and the
+        // jumps from zero need 128 sub-cells.
         const int w = 16, h = 8;
         var pixels = new float[w * h * 3];
         for (int y = 0; y < h; y++)
@@ -122,7 +124,7 @@ public class SamplingRoutineTests
             var (d, pdf) = env.SampleDirection();
             if (MathF.Abs(pdf - env.PdfDirection(d)) > 1e-3f * pdf) inconsistent++;
             return d;
-        }, w => env.PdfDirection(w), "EnvironmentMap", sub: 32);
+        }, w => env.PdfDirection(w), "EnvironmentMap", sub: 128);
         // The returned pdf is the one MIS sees from the other strategy (a
         // sample on a texel border may land in its neighbour: a few per mille).
         Assert.True(inconsistent < 200, $"{inconsistent} samples whose pdf disagrees with PdfDirection");

@@ -4,6 +4,7 @@ using RayTracer.Geometry;
 using RayTracer.Lights;
 using RayTracer.Materials;
 using RayTracer.Rendering;
+using RayTracer.Textures;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -269,6 +270,51 @@ public class LightTransportTests
         Check("environment", got, se, expected);
     }
 
+    private static EnvironmentMap BlobSky()
+    {
+        // An even sky of 0.3 with a bright patch (20, 15° wide) up and to the side.
+        const int w = 64, h = 32;
+        var px = new float[w * h * 3];
+        Vector3 c = EnvironmentMap.DirectionOf(40f * MathF.PI / 180f, 35f * MathF.PI / 180f);
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                var d = EnvironmentMap.DirectionOf(((x + 0.5f) / w - 0.5f) * 2f * MathF.PI, (0.5f - (y + 0.5f) / h) * MathF.PI);
+                float L = Vector3.Dot(d, c) > MathF.Cos(15f * MathF.PI / 180f) ? 20f : 0.3f;
+                px[(y * w + x) * 3] = L; px[(y * w + x) * 3 + 1] = 0.9f * L; px[(y * w + x) * 3 + 2] = 0.8f * L;
+            }
+        return new EnvironmentMap(px, w, h);
+    }
+
+    [Theory]
+    [InlineData("diffuse", true)]
+    [InlineData("diffuse", false)]
+    [InlineData("glossy", true)]
+    [InlineData("glossy", false)]
+    public void EnvironmentLight_Hdri(string floor, bool compensation)
+    {
+        // With or without MIS compensation (Karlík 2019) the estimate is the
+        // integral; compensation only moves which strategy carries what.
+        var m = Floor(floor);
+        var map = BlobSky();
+        var sky = new SkySettings(map);
+        Vector3 expected = Cone(m, Vector3.UnitY, 0f, (d, _) => map.Sample(d), 1500, 720);
+        var lights = new List<ILight> { new EnvironmentLight(sky, 4) };
+        map.UseMisCompensation = compensation;
+        // The renderer turns compensation on for an HDRI sky unless shadows are transparent.
+        var objects = new List<IHittable> { FloorQuad(m) };
+        var cam = RenderHarness.LookAt(Cam, Vector3.Zero, 0.01f, W, H);
+        var renderer = new Renderer(new HittableList(objects), cam, lights, sky, 1024, 2,
+                                    lightSamplingStrategy: LightSamplingStrategy.All, referenceMode: true,
+                                    transparentShadows: !compensation);
+        var result = renderer.Render(W, H, new RenderCaptureOptions { CaptureBeautyHalves = true });
+        var img = new Vector3[H, W];
+        for (int y = 0; y < H; y++) for (int x = 0; x < W; x++) img[y, x] = result.Buffers!.Beauty.GetRgb(x, y);
+        Vector3 mean = RenderHarness.Mean(img), var = Vector3.Zero;
+        foreach (var px in img) var += (px - mean) * (px - mean);
+        Check($"hdri {(compensation ? "compensated" : "plain")}", mean, Vector3.SquareRoot(var / (img.Length - 1) / img.Length), expected);
+    }
+
     [Theory]
     [InlineData("diffuse", 0.265f, false)]
     [InlineData("glossy", 0.265f, false)]
@@ -305,6 +351,8 @@ public class LightTransportTests
     [InlineData("diffuse", LightSamplingStrategy.Power)]
     [InlineData("glossy", LightSamplingStrategy.Power)]
     [InlineData("glossy", LightSamplingStrategy.Uniform)]
+    [InlineData("diffuse", LightSamplingStrategy.Bvh)]
+    [InlineData("glossy", LightSamplingStrategy.Bvh)]
     public void OneLightPicked_IsUnbiased(string floor, LightSamplingStrategy strategy)
     {
         // Several non-delta lights, one picked per vertex: the MIS weight of a

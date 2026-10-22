@@ -132,14 +132,65 @@ public class EnvironmentMap
         }
     }
 
+    // The two sampling distributions: by luminance, and by the luminance in
+    // excess of the mean (MIS compensation). _margCdf / _condCdf point at the
+    // one in use.
+    private float[] _plainMarg = [], _compMarg = [];
+    private float[][] _plainCond = [], _compCond = [];
+    private bool _useCompensation;
+
+    /// <summary>
+    /// MIS compensation (Karlík, Šik, Vévoda, Skřivan, Křivánek 2019): next-event
+    /// estimation samples the luminance in excess of the map's mean, leaving
+    /// the even part of the sky to the BSDF samples it is combined with, which
+    /// already cover it well; the bright features get the light samples. Only
+    /// sound where every light sample is MIS-weighted against a BSDF sample:
+    /// the renderer turns it off when it lets light samples own the transport
+    /// (straight-through transparent shadows). A map with nothing above its
+    /// mean keeps the plain distribution.
+    /// </summary>
+    public bool UseMisCompensation
+    {
+        get => _useCompensation;
+        set
+        {
+            _useCompensation = value && _compMarg.Length > 0;
+            (_margCdf, _condCdf) = _useCompensation ? (_compMarg, _compCond) : (_plainMarg, _plainCond);
+        }
+    }
+
     private void BuildCdfs()
     {
-        float[] rowWeights = new float[_height];
-        _condCdf = new float[_height][];
-        
+        // Solid-angle-weighted mean luminance (texels shrink as sin θ).
+        double sum = 0, weights = 0;
         for (int y = 0; y < _height; y++)
         {
-            _condCdf[y] = new float[_width];
+            float sinTheta = MathF.Sin(MathF.PI * (y + 0.5f) / _height);
+            for (int x = 0; x < _width; x++)
+            {
+                int idx = (y * _width + x) * 3;
+                sum += (0.2126f * _pixels[idx] + 0.7152f * _pixels[idx + 1] + 0.0722f * _pixels[idx + 2]) * sinTheta;
+                weights += sinTheta;
+            }
+        }
+        float mean = weights > 0 ? (float)(sum / weights) : 0f;
+
+        (_plainMarg, _plainCond, _) = Build(0f);
+        var (cm, cc, total) = Build(mean);
+        // Compensation needs something left above the mean: at least 1% of the
+        // plain weight, or the light samples would starve.
+        if (total > 0.01 * sum) (_compMarg, _compCond) = (cm, cc);
+        UseMisCompensation = true;
+    }
+
+    private (float[] Marg, float[][] Cond, double Total) Build(float subtract)
+    {
+        float[] rowWeights = new float[_height];
+        var cond = new float[_height][];
+
+        for (int y = 0; y < _height; y++)
+        {
+            cond[y] = new float[_width];
             float rowSum = 0f;
             // sin(theta) factor for solid angle weighting. theta is 0 at zenith, pi at bottom.
             float theta = MathF.PI * (y + 0.5f) / _height;
@@ -149,34 +200,36 @@ public class EnvironmentMap
             {
                 int idx = (y * _width + x) * 3;
                 float lum = 0.2126f * _pixels[idx] + 0.7152f * _pixels[idx+1] + 0.0722f * _pixels[idx+2];
-                rowSum += lum * sinTheta;
-                _condCdf[y][x] = rowSum;
+                rowSum += MathF.Max(0f, lum - subtract) * sinTheta;
+                cond[y][x] = rowSum;
             }
 
             if (rowSum > 0f)
             {
-                for (int x = 0; x < _width; x++) _condCdf[y][x] /= rowSum;
+                for (int x = 0; x < _width; x++) cond[y][x] /= rowSum;
             }
             rowWeights[y] = rowSum;
         }
 
-        _margCdf = new float[_height];
-        float totalWeight = 0f;
+        var marg = new float[_height];
+        double totalWeight = 0;
         for (int y = 0; y < _height; y++)
         {
             totalWeight += rowWeights[y];
-            _margCdf[y] = totalWeight;
+            marg[y] = (float)totalWeight;
         }
 
-        if (totalWeight > 0f)
+        if (totalWeight > 0)
         {
-            for (int y = 0; y < _height; y++) _margCdf[y] /= totalWeight;
+            for (int y = 0; y < _height; y++) marg[y] = (float)(marg[y] / totalWeight);
+            marg[_height - 1] = 1f;
         }
         else
         {
             // Fallback for completely black HDRI
-            for (int y = 0; y < _height; y++) _margCdf[y] = (y + 1f) / _height;
+            for (int y = 0; y < _height; y++) marg[y] = (y + 1f) / _height;
         }
+        return (marg, cond, totalWeight);
     }
 
     /// <summary>

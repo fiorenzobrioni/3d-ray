@@ -38,13 +38,21 @@ public enum MisHeuristic
 ///   O(S) per shading point after O(N) construction.</description></item>
 ///   <item><description><b>Uniform</b> — sample one light uniformly at random. Useful
 ///   as a baseline/debug comparison against <c>Power</c>.</description></item>
+///   <item><description><b>Bvh</b> — sample one light per NEE event through a light
+///   BVH (<see cref="LightBvh"/>): the probability follows what each light can
+///   deliver at the shading point (power, distance, orientation). O(log N);
+///   the strategy for scenes with many lights.</description></item>
+///   <item><description><b>Auto</b> — <b>All</b> up to <see cref="Renderer.AutoBvhLightCount"/>
+///   lights, <b>Bvh</b> beyond.</description></item>
 /// </list>
 /// </summary>
 public enum LightSamplingStrategy
 {
     All,
     Power,
-    Uniform
+    Uniform,
+    Bvh,
+    Auto,
 }
 
 /// <summary>
@@ -125,7 +133,10 @@ public partial class Renderer
     private readonly bool _verbose;
     private readonly MisHeuristic _misHeuristic;
     private readonly LightSamplingStrategy _lightSamplingStrategy;
-    private readonly LightDistribution? _lightDist; // non-null when strategy ≠ All
+    private readonly LightDistribution? _lightDist; // non-null for power / uniform
+
+    /// <summary>Above this many lights, <see cref="LightSamplingStrategy.Auto"/> uses the light BVH.</summary>
+    public const int AutoBvhLightCount = 16;
 
     // ── Caustics (photon mapping) ────────────────────────────────────────────
     // Built once in the constructor from a photon-emission pre-pass when
@@ -491,12 +502,23 @@ public partial class Renderer
 
         // Light importance sampling: build CDF for power/uniform strategies.
         // The 'all' strategy skips this — it sums every light directly.
-        if (lightSamplingStrategy != LightSamplingStrategy.All && lights.Count > 0)
+        if (lightSamplingStrategy == LightSamplingStrategy.Auto)
+            lightSamplingStrategy = lights.Count > AutoBvhLightCount ? LightSamplingStrategy.Bvh : LightSamplingStrategy.All;
+        LightBvh? lightBvh = null;
+        if (lightSamplingStrategy is LightSamplingStrategy.Power or LightSamplingStrategy.Uniform && lights.Count > 0)
         {
             bool forceUniform = lightSamplingStrategy == LightSamplingStrategy.Uniform;
             _lightDist = new LightDistribution(lights, sceneBounds, forceUniform);
         }
-        _mis = new LightMisTable(lights, _lightDist);
+        else if (lightSamplingStrategy == LightSamplingStrategy.Bvh && lights.Count > 0)
+            lightBvh = new LightBvh(lights, sceneBounds);
+        _mis = new LightMisTable(lights, _lightDist, lightBvh);
+
+        // MIS compensation of the environment map assumes every light sample
+        // shares its weight with a BSDF sample; straight-through transparent
+        // shadows let light samples own the transport behind glass.
+        if (sky.LightingModel is Sky.HdriSky hdri)
+            hdri.Map.UseMisCompensation = !_transparentShadows;
 
         
         if (isIndirectDominant)
@@ -1566,7 +1588,7 @@ public partial class Renderer
         if (light == null)
             return rawEmission;   // no next-event sampler covers it: full weight
 
-        float pLight = _mis.Pick(light) * light.PdfSolidAngle(ray.Origin, ray.Direction);
+        float pLight = _mis.Pick(light, ray.Origin) * light.PdfSolidAngle(ray.Origin, ray.Direction);
         if (prevBsdfPdf + pLight <= 1e-20f)
             return Vector3.Zero;
         return rawEmission * BsdfWeight(prevBsdfPdf, pLight, pLight * pLight);
@@ -1842,11 +1864,18 @@ public partial class Renderer
         bool showSun = prevIsDelta;
         var cat = prevIsDelta ? RayCategory.Camera : RayCategory.Diffuse;
 
-        // LOD heuristic for glossy HDRI lookups. The sky body handles the
-        // is-HDRI / not check internally — passing a non-zero LOD on a
-        // gradient/Preetham sky is a no-op.
+        // LOD heuristic for glossy HDRI lookups: a prefiltered (blurred) sky
+        // tames the fireflies of a bright HDRI that only BSDF rays find. It
+        // is not the sky the light samples see: when the environment is a
+        // next-event light the MIS weights pair the two, and the blur spread
+        // the bright features' light into directions weighted for the BSDF,
+        // counting it twice (+26% on a diffuse floor under a bright patch,
+        // PIANO-REVIEW.md Phase 6). There MIS already removes the fireflies,
+        // so the prefilter is kept for a sky no light samples, never in the
+        // reference estimator. The sky body handles the is-HDRI / not check
+        // internally: a non-zero LOD on a gradient/Preetham sky is a no-op.
         float lod = 0f;
-        if (!prevIsDelta && prevBsdfPdf > 1e-6f
+        if (!prevIsDelta && prevBsdfPdf > 1e-6f && !_mis.HasSkyLights && !_referenceMode
             && _sky.LightingModel is Sky.HdriSky hdriSky)
         {
             int W = hdriSky.Map.Width;
@@ -1886,11 +1915,11 @@ public partial class Renderer
         // collects it here with the matching weight (it used to collect
         // nothing while the sun's samples were still weighted, losing light
         // on glossy surfaces).
-        foreach (var (sun, pick) in _mis.Suns)
+        foreach (var sun in _mis.Suns)
         {
             Vector3 Ls = sun.RadianceToward(ray.Direction);
             if (Ls == Vector3.Zero) continue;
-            float pSun = pick * sun.PdfSolidAngle(ray.Origin, ray.Direction);
+            float pSun = _mis.Pick(sun, ray.Origin) * sun.PdfSolidAngle(ray.Origin, ray.Direction);
             result += Ls * BsdfWeight(prevBsdfPdf, pSun, pSun * pSun);
         }
         return result;
@@ -1974,9 +2003,9 @@ public partial class Renderer
     {
         Vector3 result = Vector3.Zero;
 
-        if (_lightDist != null)
+        if (_mis.PicksOneLight)
         {
-            // ── Single-light picking (power or uniform) ──────────────────────
+            // ── Single-light picking (power, uniform or light BVH) ───────────
             // Unbiased single-sample estimator (PBRT §16.3.2):
             //   contribution = lightAccum / pPick
             // MIS uses pdf_combined = pPick × pLightSample for non-delta lights.
@@ -1985,7 +2014,8 @@ public partial class Renderer
                 return result;
             }
             float xi = MathUtils.RandomFloat();
-            var (lightIdx, pPick) = _lightDist.Sample(xi);
+            var (lightIdx, pPick) = _mis.Choose(rec.Point, xi);
+            if (lightIdx < 0) return result;
             ILight light = _lights[lightIdx];
 
             int samples = light.ShadowSamples;
@@ -2168,12 +2198,13 @@ public partial class Renderer
         // Passing Zero ensures OffsetOrigin returns the point unchanged.
         Vector3 dummyNormal = Vector3.Zero;
 
-        if (_lightDist != null)
+        if (_mis.PicksOneLight)
         {
             // ── Single-light picking in volumetric path ──────────────────────
             if (_lights.Count == 0) return result;
             float xi = MathUtils.RandomFloat();
-            var (lightIdx, pPick) = _lightDist.Sample(xi);
+            var (lightIdx, pPick) = _mis.Choose(p, xi);
+            if (lightIdx < 0) return result;
             ILight light = _lights[lightIdx];
 
             int samples = light.ShadowSamples;
