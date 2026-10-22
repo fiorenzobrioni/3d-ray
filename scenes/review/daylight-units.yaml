@@ -1,0 +1,62 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  daylight-units.yaml - cielo fisico in nit ed esposizione EV100
+#  (PIANO-REVIEW.md, Fase 6)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Cielo Hosek-Wilkie in unità fotometriche (turbidità 3, sole a 45°) e
+#  camera esposta come una fotocamera vera con la regola del "sunny 16"
+#  (EV100 15). Pavimento grigio 18%, sfere bianca (0.8), grigia (0.18),
+#  nera (0.04) e a specchio.
+#
+#  Cosa verifica:
+#  - sole e cielo vengono dalla stessa luce: il sole illumina il piano
+#    orizzontale circa 3-4 volte più del cielo (prima della revisione il
+#    disco era circa 15 000 volte troppo debole e le ombre quasi sparivano);
+#  - le unità: il loader stampa l'illuminanza del piano a terra ("Sky
+#    light: ... lux"); il pavimento lontano dalle ombre deve valere
+#    0.18 × E / π nit nel buffer beauty. Con il codice di chiusura della
+#    Fase 6: E = 75 190 lux (58 590 dal sole), atteso 4308 nit, misurato
+#    4290 sulle righe in basso dell'immagine (-0.4%);
+#  - l'esposizione: con EV100 15 il pavimento al sole viene un grigio medio
+#    e il cielo non brucia.
+#
+#  Per il confronto fra i modelli cambiare `type` in "preetham" o "nishita"
+#  (Nishita: aria molto pulita, sole più forte e cielo più scuro, perché
+#  diffonde una volta sola).
+#
+#  Render consigliato:
+#    -s 256 -w 960 -H 540 --denoiser none --aov beauty
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "hosek_wilkie"
+    units: "photometric"
+    turbidity: 3
+    ground_albedo: [0.18, 0.18, 0.18]
+    sun:
+      direction: [0.5, 0.7071, 0.5]     # verso il sole, 45° sull'orizzonte
+  ground:
+    type: "infinite_plane"
+    material: "grey18"
+    y: 0
+
+lights: []
+
+camera:
+  position: [0, 1.6, -7]
+  look_at: [0, 0.6, 0]
+  fov: 40
+  ev100: 15
+
+materials:
+  - { id: "grey18", type: "lambertian", color: [0.18, 0.18, 0.18] }
+  - { id: "white",  type: "lambertian", color: [0.8, 0.8, 0.8] }
+  - { id: "black",  type: "lambertian", color: [0.04, 0.04, 0.04] }
+  - { id: "mirror", type: "metal", color: [0.95, 0.95, 0.95], roughness: 0 }
+
+entities:
+  - { name: "white",  type: "sphere", center: [ 2.4, 0.6, 0], radius: 0.6, material: "white" }
+  - { name: "grey",   type: "sphere", center: [ 0.8, 0.6, 0], radius: 0.6, material: "grey18" }
+  - { name: "black",  type: "sphere", center: [-0.8, 0.6, 0], radius: 0.6, material: "black" }
+  - { name: "mirror", type: "sphere", center: [-2.4, 0.6, 0], radius: 0.6, material: "mirror" }

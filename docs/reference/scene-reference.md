@@ -85,38 +85,76 @@ attached as a separate `PhysicalSun` light with cone sampling and limb darkening
 ```yaml
 sky:
   type: "nishita"
-  turbidity: 3.0                           # remapped internally to a Mie-dust scalar
+  turbidity: 3.0                           # haze knob: dust 0.5 at 1, 0.9 at 3, 2.3 at 10
+  ground_albedo: [0.3, 0.3, 0.3]
+  units: "relative"                        # "relative" (default) or "photometric" (nits)
   intensity: 1.0
   sun:
     direction:       [0.4, 0.5, 0.3]      # direction TOWARDS the sun
     angular_radius:  0.265
     shadow_samples:  4
 ```
-Integrated single-scattering model - superior to Preetham/Hosek-Wilkie at low
-sun elevations (correct sunrise/sunset red disc and orange halo from physical
-principles, not from a fitted approximation). The view ray is marched through
-the atmosphere with 16 samples; each sample looks up sun transmittance in a
-precomputed 16×64 LUT (Bruneton). The LUT is height-resolved so future
-aerial-perspective integration with a participating medium is a drop-in
-addition.
+Integrated single-scattering model (Nishita et al. 1993): the view ray is marched
+through an atmosphere of Rayleigh and Mie scattering and ozone absorption over a
+6360 km planet; at each step the sun's light, attenuated down to that point
+(transmittance table), is scattered toward the viewer. Sunrise and sunset
+colours come from the physics, not from a fit, and the sky keeps working with
+the sun at the horizon.
+
+The sun's illuminance at the top of the atmosphere feeds both the scattering
+and the disc: 20 on the `relative` scale the model always had, 133 800 lux on
+the `photometric` one. Below the horizon, the same ground as the analytic skies.
+
+`turbidity` here maps to a light dust load (an exceptionally clean atmosphere at
+3): the model scatters once, and with the aerosol of a real turbidity 3 its
+horizon would go dark where multiple scattering keeps a real one bright. For the
+same reason its sky is darker than a measured one against the sun (about half):
+for a daylight balance closest to measurements use `hosek_wilkie`.
 
 #### **Hosek-Wilkie / Preetham** (analytical clear-sky daylight):
 ```yaml
 sky:
-  type: "hosek_wilkie"                     # alias of "preetham" (analytical model)
-  turbidity:     3.0                       # 1 = pristine, 3 = clear, 5 = haze, 10 = smog
-  ground_albedo: [0.3, 0.3, 0.3]
+  type: "hosek_wilkie"                     # alias "physical"; or "preetham"
+  turbidity:     3.0                       # Linke turbidity: 1 = pure air, 3 = clear, 6 = hazy, 10 = very hazy
+  ground_albedo: [0.3, 0.3, 0.3]           # ground below the horizon (also tints the Hosek-Wilkie sky)
+  units:         "relative"                # "relative" (default) or "photometric" (nits)
   intensity:     1.0
   sun:
     direction:       [0.3, 0.8, 0.2]      # direction TOWARDS the sun
     angular_radius:  0.265                 # default = real solar disc
     shadow_samples:  4
 ```
-Analytical daylight distribution parametrised by atmospheric turbidity and ground
-albedo. The model exposes the sun direction as an analytical light, so a
-`PhysicalSun` is auto-registered alongside the environment - clean cone shadows
-without sampling 1px on a CDF. Air-mass attenuation tints the sun warm at low
-elevations (sunset/sunrise) via Rayleigh transmittance.
+Two analytic clear-sky models, parametrised by turbidity, ground albedo and the
+sun's elevation:
+
+- **`hosek_wilkie`** (and its alias `physical`): Hosek and Wilkie 2012, RGB
+  version, from the authors' fitted tables. Fits measured skies well, low suns
+  included. Turbidity 1-10, ground albedo 0-1 per channel.
+- **`preetham`**: Preetham, Shirley and Smits 1999, the earlier model. Brighter
+  sky for the same turbidity, a pinkish tint near the horizon at mid
+  elevations, poor at low suns: kept as a baseline.
+
+**The sun comes from the same light as the sky.** Its disc shows the sun's
+illuminance at the top of the atmosphere (133.8 klux), attenuated along its
+path through an atmosphere of Rayleigh and Mie scattering and ozone with the
+dust of the same turbidity, spread over the disc's solid angle. On a clear day
+with the sun at 45° it gives a horizontal plane about 3-4 times what the sky
+gives; at 15° about as much. The disc is registered as a separate `PhysicalSun`
+light (cone sampling, limb darkening). It warms and dims as the sun sets.
+
+**Units.** `relative` keeps the scale the sky body always had (kcd/m²: a clear
+zenith is about 4-10); `photometric` gives nits, the scale of the photometric
+lights and of the camera's `ev100` (a clear noon sky is thousands of nits, the
+sun's disc about 1.5×10⁹; expose at EV100 about 15). At load the console reports
+the illuminance the sky gives a horizontal plane on the ground, and the sun's
+part of it (`Sky light: 75190 lux on the ground, 58593 of it from the sun`).
+
+**Below the horizon** the sky shows a ground: a Lambertian plane of
+`ground_albedo` lit by that sky and sun, reached over the first 3° below the
+horizon so there is no seam. A scene with its own ground plane hides it.
+
+The sun below the horizon: the sky stays at its sunset state and the disc goes
+dark (use `nishita` for twilight).
 
 #### **HDRI/IBL** (image-based, .hdr + .exr):
 ```yaml
@@ -418,7 +456,7 @@ g: 0.6
 - **Fireflies with area lights in fog:** the `cosLight/d²` term in the area estimator can diverge at grazing angles in dense media. Set `soft_radius` on area lights (see §8.4). Sphere lights use a solid-angle estimator that is bounded by construction - no `soft_radius` needed. If spikes remain, the opt-in clamp `-C 10 --indirect-clamp-factor 0.25` (CLI) suppresses deep-bounce spikes at the cost of some bias.
 - **Advanced firefly control:** `--clamp` is off by default (it is biased: an absolute radiance ceiling also removes legitimate light). When given, `--indirect-clamp-factor <f>` (default `0.25`; `1.0` = no extra suppression) multiplies it for the indirect contribution. E.g. `--clamp 10 --indirect-clamp-factor 0.25` gives an indirect clamp of 2.5 (primary 10). The clamp is applied **once, camera-relative**, to the throughput-weighted indirect contribution at the primary surface - not compounded at every bounce.
 - **Photographic exposure:** `--exposure <EV>` (default `0`) applies a linear gain `2^EV` to every pixel before ACES tone mapping. Use negative EV (`-1`, `-2`) when the scene reads washed-out because the lights drive arriving radiance above ~2.0, where ACES flattens onto a 0.95-0.99 plateau and hides texture contrast. Positive EV brightens scenes that fall below the curve's linear range. Mirrors the standard photographic exposure compensation found in production renderers.
-- **Light importance sampling:** `--light-sampling power` (default `all`) samples one light per NEE event with probability ∝ `ApproximatePower`. Dramatically reduces variance in scenes with many lights of mixed brightness (e.g. 1 area + 10 dim point lights). Use `uniform` as a reference baseline.
+- **Light importance sampling:** `--light-sampling auto|all|power|uniform|bvh` (default `auto`). `all` samples every light at each vertex; `power` and `uniform` pick one light per NEE event (∝ `ApproximatePower`, or uniformly); `bvh` picks one light by a light BVH that weighs each light's power by its distance and orientation to the shading point (Conty and Kulla 2018): with many lights, the near ones get the samples. `auto` is `all` up to 16 lights and `bvh` above. Every strategy is unbiased.
 
 #### **Named Mediums** (top-level `mediums:` block)
 
@@ -557,6 +595,8 @@ The same thin lens can be described as on a real camera. These keys win over `fo
 | `aperture_blades` | `0` | Number of straight diaphragm blades: `0` = round, `5`-`9` give polygonal bokeh. |
 | `aperture_rotation` | `0` | Rotation of the blade polygon, in degrees. |
 | `aperture_ratio` | `1` | Width / height of the aperture: below 1 the bokeh becomes a tall oval, as with an anamorphic lens (`0.5` for a 2x squeeze). |
+| `ev100` | - | Exposure value at ISO 100, for a scene in photometric units (lights in lumens, candela, nits or lux; a `photometric` sky): the image is exposed as on a camera. 15 for a sunny day (the "sunny 16" rule), 12 overcast, 7-8 a lit interior, 3-5 a dim one. Adds to `--exposure`. |
+| `iso`, `shutter_speed` | - | Instead of `ev100`, with `f_stop`: EV100 = log₂(N²/t) − log₂(ISO/100) (`shutter_speed` in seconds, `0.008` = 1/125 s). |
 | `white_balance` | - | White balance in kelvin (1667-25000): a light of this colour temperature renders neutral. Lower values cool the image, higher values warm it; `6504` is the identity. Applied to the display image only (EXR stays scene-linear); `--white-balance` on the CLI wins. |
 
 ```yaml
@@ -569,6 +609,13 @@ camera:
   aperture_blades: 6        # hexagonal bokeh
   white_balance: 3200       # tungsten light renders white
 ```
+**Physical exposure.** A scene in nits needs an exposure, as a photograph does:
+with `ev100` (or ISO, shutter and f-stop) a surface of luminance `L` reaches the
+display transform as `L / (1.2 × 2^EV100)` (the saturation-based convention: an
+18% grey card lit as the EV calls for lands near mid-grey). Without it, a
+photometric scene is far too bright. See `scenes/review/daylight-units.yaml`
+(sunny day, EV100 15) and `scenes/review/light-units.yaml` (interior, EV100 5).
+
 The blur of a point at distance `d` with the focus at `f` is the thin-lens circle of confusion: on the focus plane it has diameter `A |d - f| / d`, where `A` is the pupil diameter. See `scenes/showcases/camera-physical.yaml`.
 
 #### **`shutter` - motion-blur exposure interval**
@@ -655,10 +702,14 @@ camera:
   type: "emissive"
   color: [0.2, 0.4, 1.0]                   # (optional) default white
   intensity: 8.0                           # Radiance multiplier
+  # luminance: 500                         # instead of intensity: luminance in nits (cd/m²);
+  #                                        #   the colour is then a tint (divided by its luminance)
+  # temperature: 3000                      # black-body colour in kelvin, multiplying `color`
   texture: (optional)                      # Supports procedural texture
 ```
 - Objects glow and emit light into the scene
 - Intensity ranges: 0.5–2 (subtle glow), 3–10 (visible neon), 10–25 (bright panel), 25–100 (overexposed)
+- `luminance` (nits) is the photometric form, for scenes exposed with `ev100`: a neon tube is about 1000-5000 nits, an LED panel 3000-10 000, a TV screen 200-500. With a texture, the texture keeps its values and `luminance` scales it.
 - Participate in NEE (Next Event Estimation) for reduced noise
 - Emits only from front faces
 #### **5.5 Disney Principled BSDF (PBR Unified)**
@@ -2526,8 +2577,8 @@ entities:
   lighting receive noise-free samples.
 - Ray intersection is analytic quadratic for `linear`; for spline modes
   the ray-surface equation is a polynomial of degree 6 solved with a
-  Sturm chain + Newton-Raphson hybrid (`SturmSolver`), matching the
-  approach used by PovRay's `lathe` and PBRT's `Curve`. Expect ~10× the
+  Sturm chain + Newton-Raphson hybrid (`SturmSolver`), the standard
+  approach for spline surfaces of revolution. Expect ~10× the
   per-ray cost of a Cone hit on spline segments - prefer `linear` when
   faceting is acceptable.
 
@@ -2708,6 +2759,53 @@ Primitives that expose a `center:` key - **sphere, cylinder, cone, capsule, toru
 
 ---
 ### 8. **LIGHTS SECTION** - Five Types
+#### **8.0 Photometric units, colour temperature, IES**
+Every light accepts `intensity` (unitless, as before) or one physical quantity
+instead. With a physical quantity the `color` only tints the light: it is divided
+by its luminance, so `[1, 0.5, 0.2]` and `[2, 1, 0.4]` give the same light. The
+scene unit of radiance is then the **nit** (cd/m²), and the camera needs an
+exposure (`ev100`, §4).
+
+| Key | Unit | Lights | Meaning |
+|---|---|---|---|
+| `power` | W or lm (`power_unit: "watt"` default, or `"lumen"`) | point, spot, area, sphere | Emitted flux. Watts are radiant, at 683 lm/W. A spot's power is that of the point light it would be: the cone cuts the light, it does not concentrate it. |
+| `candela` | cd | point, spot | Luminous intensity (a 60 W bulb is about 65 cd, 800 lm). |
+| `luminance` | nit (cd/m²) | area, sphere | Luminance of the emitting surface. |
+| `illuminance` | lux | directional | Illuminance on a surface facing the light (direct sun about 100 000 lux). |
+| `temperature` | K | all | Black-body colour (Planckian locus), multiplying `color`: 2700 a warm bulb, 4000 neutral, 6500 daylight. With a photometric quantity it only changes the colour, not the luminance. |
+| `normalize` | bool | area, sphere | With the unitless `intensity`: it becomes the total power instead of the radiance, so resizing the light keeps its output. |
+| `exposure` | stops | all | Multiplies the light by 2^exposure. |
+| `ies` | file | point, spot | An IES LM-63 photometric profile (type C), relative to the scene. The light emits the profile's absolute candela distribution, nadir along the spot's `direction` (a point light's `direction`, default straight down). `power` or `candela` rescale it to that flux or that peak; `intensity` multiplies it. TILT data are ignored with a warning. |
+
+```yaml
+lights:
+  - type: "point"          # a 60 W-equivalent bulb
+    position: [0, 2.4, 0]
+    power: 800
+    power_unit: "lumen"
+    temperature: 2700
+  - type: "spot"           # a downlight with a measured profile
+    position: [1.5, 2.8, 0]
+    direction: [0, -1, 0]
+    ies: "assets/ies/downlight.ies"
+    power: 900
+    power_unit: "lumen"
+  - type: "area"           # an LED panel
+    corner: [-0.3, 2.79, -0.3]
+    u: [0.6, 0, 0]
+    v: [0, 0, 0.6]
+    luminance: 3000
+    temperature: 4000
+```
+`scenes/review/light-units.yaml` checks each unit against a hand calculation
+(four lights over a grey floor, measured within 0.1%).
+
+**Sampling.** Rectangular area lights and portals are sampled uniformly in the
+solid angle they subtend (Ureña et al. 2013) instead of over their area: much less
+noise close to the light. The sample of each light carries the probability of
+picking that light (`--light-sampling`, below) in its multiple-importance weight;
+the environment and portals share one weight group.
+
 #### **8.1 Point Light (Omnidirectional)**
 ```yaml
 - type: "point"
@@ -2815,6 +2913,17 @@ Primitives that expose a `center:` key - **sphere, cylinder, cone, capsule, toru
 | Area (panel) | 20–60 | Depends on rectangle size |
 | Sphere (small) | 20–50 | Radius 0.1–0.3 |
 | Sphere (large) | 15–40 | Radius 0.5–1.5 |
+
+Photometric references (§8.0), with the camera exposed in `ev100`:
+
+| Source | Value | Exposure |
+|---|---|---|
+| Candle | 1 cd, about 12 lm | EV100 1-3 |
+| Household bulb | 800 lm (60 W equivalent), 2700 K | EV100 5-7 for the room |
+| LED panel, office | 3000-4000 lm, luminance 3000-10 000 nits, 4000 K | EV100 7-8 |
+| Street lamp | 10 000-20 000 lm | EV100 3-5 at night |
+| Direct sun | 100 000 lux (`directional`, `illuminance`), 5500-6500 K | EV100 15 |
+| Overcast sky | 1000-10 000 lux on the ground | EV100 11-13 |
 ---
 ### 9. **IMPORTS** - Reusing Scene Fragments
 ```yaml

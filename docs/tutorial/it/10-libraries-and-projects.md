@@ -221,10 +221,11 @@ entities:
     material: "emi_tungsteno"
 ```
 
-Suggerimento: le luci geometriche partecipano automaticamente alla NEE
-pesata per potenza. Per scene con molte luci geometriche,
-`--light-sampling power` riduce la varianza quando le intensità delle
-luci differiscono notevolmente.
+Suggerimento: le luci geometriche partecipano automaticamente alla NEE.
+Con più di 16 luci il default `--light-sampling auto` sceglie una luce
+per punto attraverso un BVH delle luci (per potenza, distanza e
+orientamento), che tiene veloci e poco rumorose le scene con molti
+oggetti emissivi.
 
 ### Light hardening: ridurre i firefly senza alzare gli spp
 
@@ -251,9 +252,9 @@ Per le scene volumetriche pesanti (mezzi `procedural`/`grid`, oppure
 
 ```
 -C 10 --indirect-clamp-factor 0.25   # firefly clamp opzionale (introduce bias): rimbalzi indiretti a 1/4 di -C
---light-sampling power         # campiona una luce per evento NEE in
-                               # proporzione alla potenza (riduce varianza
-                               # con molte luci di brillanza mista)
+--light-sampling bvh           # una luce per evento NEE, per potenza,
+                               # distanza e orientamento (il default
+                               # `auto` lo usa oltre le 16 luci)
 ```
 
 In sintesi: prima di alzare `-s` per togliere il rumore, controlla se
@@ -440,7 +441,7 @@ L'insieme completo dei parametri della riga di comando:
 | `-c` | `--camera`          | `0`                           | Seleziona la fotocamera per nome o indice base zero          |
 |      | `--sampler`         | `sobol`                       | Sampler per-pixel: `sobol` (Owen-scrambled) o `prng`         |
 |      | `--mis`             | `balance`                     | Heuristica MIS: `balance` o `power`                          |
-|      | `--light-sampling`  | `all`                         | Strategia NEE: `all`, `power`, `uniform`                     |
+|      | `--light-sampling`  | `auto`                        | Strategia NEE: `auto`, `all`, `power`, `uniform`, `bvh`      |
 |      | `--indirect-clamp-factor` | `0.25`                  | Fattore di clamp del contributo indiretto, applicato una volta relativo alla camera (`0.25` → clamp indiretto = ¼ di `-C`; `1.0` = disattivato), solo con `-C` |
 |      | `--transparent-shadows` | `off`                     | `on`: il vetro lascia passare i raggi d'ombra, tinti (niente ombra né caustica; approssimazione artistica) |
 |      | `--texture-filtering` | `auto`                      | Anti-aliasing analitico delle texture procedurali / image via ray differentials: `auto` / `on` (filtering attivo) o `off` (point-sampled, per benchmark) |

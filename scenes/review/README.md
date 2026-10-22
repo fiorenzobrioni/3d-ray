@@ -10,6 +10,8 @@ Le scene confrontate con Mitsuba stanno invece in `validation/scenes/`; gli show
 | `openpbr-white-furnace.yaml` | 5 | Fornace bianca del materiale `openpbr` in tutte le configurazioni della specifica | Ogni sfera vale 1 (vetro ruvido 0.98) |
 | `disney-to-openpbr.yaml` | 5 | Il tipo `disney` prima e dopo la traduzione su OpenPBR: plastica liscia, velluto, lacca, vetro colorato, metallo spazzolato, foglia | Confronto in `images/disney-to-openpbr.jpg`: plastica senza firefly, velluto senza energia in più, lacca col riflesso pieno |
 | `texture-frames.yaml` | 4 | Frame tangente di normal map e bump: tre cubi con la stessa normal map ruotati di 0°, 90°, 45°; tre sfere con lo stesso bump procedurale, ferma, ruotata, scalata 2× | `images/texture-frames.jpg`: fughe incavate su ogni faccia di ogni cubo; le tre sfere con lo stesso rilievo (la prima e la terza identiche) |
+| `light-units.yaml` | 6 | Unità fotometriche: lampadina in lumen, spot in candele, spot con profilo IES, pannello in nit, sopra un pavimento grigio; camera in EV100 | Luminanza del pavimento sotto ogni luce uguale al calcolo a mano nell'intestazione (2.596, 8.868, 17.892, 19.793 nit) entro lo 0.1%; `images/light-units.jpg` |
+| `daylight-units.yaml` | 6 | Cielo Hosek-Wilkie in nit con il sole coerente, esposizione EV100 15 ("sunny 16") | Pavimento grigio 18% al sole uguale a 0.18 × E / π, con E l'illuminanza che il loader stampa (4290 contro 4308 nit); ombre piene; `images/daylight-units.jpg`, confronto dei tre modelli in `images/daylight-sky-models.jpg`, prima/dopo delle scene con cielo fisico in `images/sky-before-after.jpg` |
 
 ## Come leggere una fornace bianca
 

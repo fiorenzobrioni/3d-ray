@@ -814,6 +814,57 @@ is *which slice* of the ACES curve your radiance lands on.
 
 ---
 
+## 6.14 Physical Units and Photographic Exposure
+
+Every light so far had a unitless `intensity`. Each one can instead be
+written in the units a lighting catalogue uses, and the camera then
+exposes the image as a photograph:
+
+```yaml
+camera:
+  position: [0, 1.6, 4]
+  look_at:  [0, 1, 0]
+  ev100: 6                       # a lit living room
+
+lights:
+  - type: "point"                # a 60 W-equivalent bulb
+    position: [0, 2.4, 0]
+    power: 800
+    power_unit: "lumen"
+    temperature: 2700            # warm white, black-body colour
+  - type: "area"                 # an LED panel
+    corner: [1, 2.79, -0.3]
+    u: [0.6, 0, 0]
+    v: [0, 0, 0.6]
+    luminance: 3000              # nits
+    temperature: 4000
+  - type: "spot"                 # a downlight with a measured profile
+    position: [-1.5, 2.8, 0]
+    direction: [0, -1, 0]
+    ies: "assets/ies/downlight.ies"
+```
+
+| Key | Unit | Lights |
+|---|---|---|
+| `power` (+ `power_unit`) | watt or lumen | point, spot, area, sphere |
+| `candela` | cd | point, spot |
+| `luminance` | nit (cd/m²) | area, sphere, `emissive` material |
+| `illuminance` | lux | directional |
+| `temperature` | kelvin | all |
+| `ies` | IES LM-63 file | point, spot |
+
+With a photometric unit the `color` only tints the light. The camera's
+`ev100` (or `iso`, `shutter_speed` and `f_stop`) then plays the part of a
+real exposure: 15 for a sunny day, 7-8 for a lit interior, 3-5 for a dim
+one. A physical sky can be written in nits too (`units: "photometric"`,
+chapter 7). `scenes/review/light-units.yaml` checks each unit against a
+hand calculation.
+
+**Many lights.** With more than 16 lights the renderer picks one light
+per shading point through a light BVH that favours the lights near the
+point and facing it (`--light-sampling auto`, the default); every
+strategy converges to the same image.
+
 ## What You Have Learned
 
 - **Point** lights radiate from a point (inverse-square falloff, hard
@@ -842,7 +893,8 @@ is *which slice* of the ACES curve your radiance lands on.
 - **Firefly controls:**
   - `soft_radius` on point/spot/area lights → floors the attenuation denominator
   - `-C 10 --indirect-clamp-factor 0.25` → opt-in clamp (biased), tighter on bounce ≥ 1
-  - `--light-sampling power` → pick one light ∝ `ApproximatePower` (faster convergence in multi-light scenes)
+  - `--light-sampling bvh` → pick one light by power, distance and orientation (the default `auto` switches to it above 16 lights)
+- **Physical units** (`power`, `candela`, `luminance`, `illuminance`, `temperature`, `ies`) with the camera's `ev100` light and expose a scene as in reality.
 
 ---
 

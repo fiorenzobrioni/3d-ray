@@ -26,7 +26,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 3 | Camera, film e colore | ✅ Chiusa (2026-10-21), esito in §4 Fase 3 |
 | 4 | Texture e dati | ✅ Chiusa (2026-10-21), esito in §4 Fase 4 |
 | 5 | Materiali e BSDF | ✅ Chiusa (2026-10-21), esito in §4 Fase 5 |
-| 6 | Luci, cielo | ⬜ |
+| 6 | Luci, cielo | ✅ Chiusa (2026-10-22), esito in §4 Fase 6 |
 | 7 | Integratore | ⬜ |
 | 8 | Volumi e SSS | ⬜ |
 | 9 | Post-processing e denoiser | ⬜ |
@@ -108,7 +108,7 @@ fase indicata.
 
 | # | Etichetta | Dove | Problema |
 |---|---|---|---|
-| 3.1 | **[BUG]** | `Rendering/Sky/PreethamSky.cs:197` | Funzione di Perez sbagliata. Corretta: `(1 + A*e^(B/cosθ)) (1 + C*e^(Dγ) + E*cos²γ)`. Nel codice: `(C + D*e^(Eγ) + E*cos²γ)`, cioè coefficienti scalati di una posizione ed `E` usato due volte. Anche la normalizzazione `F(0, θs)` eredita l'errore. Il sole usa una costante empirica (`SolarConstantRel = 20`) e trasmittanze ad hoc. |
+| 3.1 | ✅ **corretto** (2026-10-22, Fase 6), era **[BUG]** | `Rendering/Sky/PreethamSky.cs:197` | Funzione di Perez sbagliata. Corretta: `(1 + A*e^(B/cosθ)) (1 + C*e^(Dγ) + E*cos²γ)`. Nel codice: `(C + D*e^(Eγ) + E*cos²γ)`, cioè coefficienti scalati di una posizione ed `E` usato due volte. Anche la normalizzazione `F(0, θs)` eredita l'errore. Il sole usa una costante empirica (`SolarConstantRel = 20`) e trasmittanze ad hoc. **Esito**: Perez corretta e normalizzata allo zenit (test `Preetham_ZenithIsTheZenithLuminance`, `Preetham_GlowsAroundTheSun`). Il sole di ogni cielo fisico viene dalla stessa luce del cielo (§3.57). `hosek_wilkie` non è più un alias di Preetham ma il modello vero (§3.58). |
 | 3.2 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** | `Materials/DisneyBsdf.cs:1302, 1335, 1384, 1440, 1604, 1674, 1706` | Dopo aver scelto un lobo con probabilità `p`, il peso viene diviso per `max(p, 0.1)` (o `0.05`), ma `p` non è mai forzato a quel minimo in fase di scelta. **Misurato (Fase 0)**: il renderer usa `Sample()`, che per i lobi non-delta ricalcola `Evaluate`/`Pdf` e quindi non è toccato; il bug colpisce i lobi **delta** (speculare liscio, clearcoat liscio, trasmissione). Plastica liscia: riflesso speculare sottostimato del 9.4% a ogni angolo (p = 0.0906). Test `KnownBug_Disney_SmoothSpecularMatchesFresnel`. Fase 5. **Esito**: il tipo `disney` è tradotto su OpenPBR (§3.38), che sceglie ogni lobo delta con la stessa probabilità per cui ne divide il peso. Test `Disney_SmoothSpecularMatchesFresnel` riattivato: il riflesso della plastica liscia è il Fresnel esatto a ogni angolo. Nel render spariscono i firefly della plastica liscia (`scenes/review/disney-to-openpbr.yaml`). |
 | 3.3 | ✅ **corretto** (2026-10-21, Fase 4), era **[BUG]** | `Scene/SceneLoader.cs:1802, 1902` + `Textures/ImageTexture.cs:63` | Le mappe dati (roughness, metallic, coat roughness...) passano per `ImageTexture`, che applica sempre la decodifica sRGB. Una roughness map viene quindi "linearizzata" come fosse un colore: valori sbagliati. Manca un attributo `color_space` per texture. **Esito**: `color_space: srgb | linear | raw` su ogni texture immagine, con default per ruolo: i colori decodificati da sRGB, i dati (roughness, metallic, pesi, IOR, maschere, bump, displacement, heightfield) letti come sono. Le immagini a 16 bit sono lette a 16 bit (prima a 8). Test `TextureDataTests`. Nel repo una sola scena cambia: il bump di cemento di `showcases/texture-bump-map.yaml`. |
 | 3.4 | ✅ **corretto** (2026-10-21, Fase 3), era **[NON-STANDARD]** | `Textures/ImageTexture.cs` | Decodifica sRGB come `pow(x, 2.2)` invece della curva sRGB a tratti (IEC 61966-2-1): il byte 10 diventava 8.0e-4 invece di 3.0e-3, ombre delle texture troppo scure. Ora `Srgb.Decode` (stessa curva dell'uscita). |
@@ -121,7 +121,7 @@ fase indicata.
 | 3.11 | ✅ **corretto** (2026-10-21, Fase 5), era **[NON-STANDARD]** | `Rendering/Renderer.cs:1897` + `Core/MathUtils.cs:44` | Il fattore "shadow terminator" è applicato anche alla direzione di vista, oltre a quella della luce: non corrisponde a nessun modello pubblicato (Chiang 2019 / Estevez 2019 agiscono sul lato luce). Va verificato con il furnace test. **Esito**: il fattore lato vista è tolto (compensava la retro-riflessione del vecchio Disney, che non c'è più). Il fattore lato luce (Chiang 2019) era applicato solo alla NEE: il campionamento BSDF stimava un integrando diverso e il MIS mescolava due funzioni. Ora entra nel peso di entrambe le strategie (`ShadeSampleBounce`). Nessun effetto dove la normale non è perturbata. |
 | 3.12 | ✅ **corretto** (2026-10-21, Fase 5), era **[DEBITO]** | `Materials/IMaterial.cs`, `Renderer`, `CausticPhotonTracer` | Due API in parallelo. `Scatter` è stato tolto: ogni materiale campiona con `Sample` (anche il vetro liscio) e null vuol dire assorbito. Il ripiego su `Scatter` introduceva due distorsioni: un `Sample` che restituiva null perché la direzione finiva sotto l'orizzonte (luce assorbita) veniva **ripescato** da `Scatter`, aggiungendo energia (+1.7% su `metal-rough` con il nuovo Metal), e il `MixMaterial` con un componente senza `Sample` ripescava un componente diverso (con Lambert + vetro liscio il Lambert contava (1 + t) volte). **Esito**: tolto anche `EvaluateDirect`: la NEE pesa ogni campione di luce con `Evaluate` per `|cos θ|` (`Renderer.DirectIntegrand`), la stessa funzione che il campionamento BSDF stima, quindi le due strategie MIS non possono più divergere (era la radice del §3.7). Render identici (Mitsuba: cornell, glass-rough, metal-rough, lights, stesse metriche alla quarta cifra). L'API dei materiali è ora `Evaluate` / `Pdf` / `Sample` più le query di trasmissione. |
 | 3.13 | ✅ **verificato, nessun bug** | `DisneyBsdf` + `Renderer` | `Sample()` restituisce per i lobi non-delta `Evaluate`/`Pdf` della miscela, quindi peso e MIS sono coerenti: il chi-quadro e il cross-check dell'albedo passano su tutti i lobi rough (Fase 0). |
-| 3.14 | **[NON-STANDARD]** | tutte le luci + `Emissive` | `intensity` senza unità: impossibile illuminare "come nella realtà" (sole 100.000 lux, lampadina 800 lm) e scambiare scene con altri motori. Nessuna temperatura colore, nessun IES. |
+| 3.14 | ✅ **corretto** (2026-10-22, Fase 6), era **[NON-STANDARD]** | tutte le luci + `Emissive` | `intensity` senza unità: impossibile illuminare "come nella realtà" (sole 100.000 lux, lampadina 800 lm) e scambiare scene con altri motori. Nessuna temperatura colore, nessun IES. **Esito**: `power` (W a 683 lm/W o lm), `candela`, `luminance` (nit), `illuminance` (lux), `temperature` (corpo nero), `normalize`, `exposure` su ogni luce; `luminance` e `temperature` sull'`emissive`; profili IES LM-63 tipo C su point e spot. Scena in nit, colore ridotto a tinta. Verificato contro un calcolo a mano entro lo 0.1% (`scenes/review/light-units.yaml`) e dai test `PhysicalUnitsTests`, `IesProfileTests`. Cieli fisici in nit con `units: photometric`. |
 | 3.15 | **[DEBITO]** | `scenes/cornell-box.yaml` e altre | Commenti obsoleti: dicono che l'emissivo "non usa NEE", mentre oggi entra nel pool NEE come `GeometryLight`. |
 | 3.16 | **[DEBITO]** | `Rendering/Renderer.cs` (2314 righe), `Scene/SceneLoader.cs` (4368), `Materials/DisneyBsdf.cs` (2006) | `TraceRay` è ricorsivo, con molti casi speciali: ostacola path guiding, light path expressions, BDPT e il debug. |
 | 3.17 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** | `Materials/DisneyBsdf.cs` (sheen, clearcoat, trasmissione) | **Guadagno di energia** nel white furnace (albedo > 1 con materiale bianco): sheen fino a 1.38, clearcoat liscio 1.39 a incidenza radente, vetro liscio 1.015-1.13, vetro rough 1.03-1.12; diffuso Disney r=1 1.026 a incidenza radente (retro-riflessione di Burley, [NON-STANDARD]). Render: sfera di vetro Disney in furnace +3.1% (deve valere 1), sfera sheen +34% e clearcoat +5% rispetto al principled di Mitsuba. Gli strati vanno sommati con albedo-scaling che conserva l'energia (OpenPBR). Test `KnownBug_Disney_WhiteFurnaceAlbedoDoesNotExceedOne`. Fase 5. **Esito**: con la traduzione su OpenPBR gli strati si compongono con l'albedo-scaling: test `Disney_WhiteFurnaceAlbedoDoesNotExceedOne` riattivato (sheen, coat liscio, vetro liscio e ruvido, diffuso r 1), fornace della sfera di vetro Disney 1.00 (`Furnace_GlassSphereFromOutside_StaysLossless`). Il diffuso è Lambert: la retro-riflessione di Burley creava energia a incidenza radente. |
@@ -140,8 +140,8 @@ fase indicata.
 | 3.30 | ✅ **corretto** (2026-10-21, Fase 4), era **[NON-STANDARD]** | `Core/Perlin.cs:109-111` | Interpolazione con il fade cubico `3t² - 2t³`: il valore e il gradiente sono continui ma la curvatura salta di 12.7 attraverso le facce del reticolo (visibile come pieghe sulla griglia nei bump map di rumore, che derivano due volte). Gradienti normalizzati sul cubo: anisotropia del 5.7% fra assi e diagonali. Improved Perlin (fade quintico, 12 gradienti) cambia l'aspetto di ogni texture procedurale: Fase 4, con un'opzione per l'aspetto attuale. Anche `MultiScaleRidgedField` e `DomainWarp` (costruiti su Perlin) vanno verificati lì. **Esito**: `PerlinBasis.Improved` (Perlin 2002: fade quintico, 16 gradienti sugli spigoli del cubo) è la base di default di noise, marble, wood, warp del voronoi e brick, riscalata a 0.67 per avere la deviazione standard della base classica (range e color ramp restano tarati); `noise_basis: classic` riproduce esattamente il disegno di prima. Salto di curvatura sulle facce del reticolo: da oltre 5 volte a circa 1 volta quello dentro la cella; anisotropia fra asse e diagonale sotto il 2%. Gli strata dell'heightfield restano sulla base classica (spostano solo bande di colore). `MultiScaleRidgedField` e `DomainWarp` verificati: usano `Noise`/`Ridged` senza assunzioni sulla base. Test `PerlinBasisTests`. |
 | 3.31 | ✅ **corretto** (2026-10-21, Fase 4), era **[NON-STANDARD]** piccolo | `Rendering/Renderer.cs:700` | I differenziali di raggio sono ridotti di `1/√spp` senza minimo: ad alti spp il filtro delle texture scende sotto il pixel (PBRT-v4 usa `max(1/8, 1/√spp)`), con aliasing e accessi di cache peggiori. Il footprint dei raggi di camera è verificato (§4 Fase 1); la propagazione dopo riflessione e rifrazione non è ancora testata. Fase 4. **Esito**: footprint `max(1/8, 1/√spp)` del pixel (`Renderer.DifferentialFloor`). La propagazione dopo riflessione e rifrazione non esiste per scelta: solo il primo hit del raggio di camera è filtrato, i rimbalzi sono campionati in un punto e l'antialias lo fa la media dei campioni (non distorto). Test `DifferentialFloorTests` (1, 16 e 1024 spp; nessun lookup filtrato oltre il primo hit). |
 | 3.32 | ✅ **corretto** (2026-10-21, Fase 5), era **[DEBITO]** | `Core/MathUtils.cs` (`Refract`) | Con la riflessione totale interna `Refract` prendeva `Abs(1 - sin²)` e restituiva una direzione senza significato. Ora restituisce il vettore nullo e i chiamanti ripiegano sulla riflessione (vicino all'angolo critico l'arrotondamento poteva sfuggire al controllo preventivo). |
-| 3.33 | **[BUG]** | `Denoising/` (NFOR) | Attorno a luci piccole e molto luminose sfocate (bokeh) il denoiser disegna un **alone scuro** più scuro dello sfondo: la regressione al primo ordine sbanda su valori HDR estremi. Senza denoiser l'alone non c'è (verificato con `scenes/showcases/camera-physical.yaml`). Colpisce i preset `draft*`, `standard*`, `pre-final*`. Fase 9. |
-| 3.34 | **[NON-STANDARD]** rimandato | camera | Esposizione fisica (ISO, tempo di posa, EV100) non implementata: senza unità fotometriche per le luci (3.14) un'esposizione in EV100 non ha un riferimento. Va fatta con le unità nella Fase 6. |
+| 3.33 | **[BUG]** | `Denoising/` (NFOR) | Attorno a luci piccole e molto luminose sfocate (bokeh) il denoiser disegna un **alone scuro** più scuro dello sfondo: la regressione al primo ordine sbanda su valori HDR estremi. Senza denoiser l'alone non c'è (verificato con `scenes/showcases/camera-physical.yaml`). Colpisce i preset `draft*`, `standard*`, `pre-final*`. Fase 9. **Mitigato nella Fase 6**: il sole a piena luminosità in uno specchio diventava un quadrato bianco con il bordo scuro; ora le luci estreme (oltre 32 volte il 99° percentile) sono tolte dal filtro e riaggiunte intatte, e un candidato che scende sotto zero perde la selezione (test `DenoiserHighlightTests`). Resta una cucitura sottile e leggermente tinta lungo i bordi illuminati dal sole su sfondo scuro (`showcases/extrusion.yaml`): la soluzione vera è un denoiser appreso (OIDN, Fase 9). |
+| 3.34 | ✅ **corretto** (2026-10-22, Fase 6), era **[NON-STANDARD]** rimandato | camera | Esposizione fisica (ISO, tempo di posa, EV100) non implementata: senza unità fotometriche per le luci (3.14) un'esposizione in EV100 non ha un riferimento. Va fatta con le unità nella Fase 6. **Esito**: `ev100`, oppure `iso` + `shutter_speed` + `f_stop`; esposizione `-EV100 - log2(1.2)` (convenzione basata sulla saturazione). Regola del "sunny 16" verificata: con un cielo fotometrico e EV100 15 un grigio 18% al sole viene grigio medio (`scenes/review/daylight-units.yaml`). |
 | 3.35 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** | `Materials/Dielectric.cs`, `DisneyBsdf.cs` (trasmissione), `Rendering/CausticPhotonTracer.cs` | Alla rifrazione mancava il fattore `(η_i/η_t)²` della radianza (si conserva `L/n²`, Veach 1997 §5.2). Si compensa per un oggetto attraversato avanti e indietro, quindi non si vedeva, ma una camera dentro l'acqua o il vetro vedeva il fuori `n²` volte troppo scuro e una luce dentro il vetro usciva `n²` volte troppo forte. **Misurato**: camera al centro di una sfera di vetro n 1.33 in ambiente uniforme, 1.00 invece di 1.769 (Mitsuba 1.7689). Ora 1.769 per `dielectric` e per il vetro Disney; i fotoni, che portano potenza, tolgono il fattore. Test `InsideClearGlass_RadianceIsScaledByEtaSquared`. |
 | 3.36 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** | `Rendering/Renderer.cs` (`LightSideTerminator`, `DirectLightingAt`), `Lights/*`, `ShadowRay` | La NEE non raggiungeva mai una luce dietro una superficie che trasmette (vetro satinato, `diff_trans` del Disney): il fattore di shadow terminator valeva 0 sotto l'orizzonte geometrico, alcune luci scartavano quei campioni e l'origine del raggio d'ombra stava sempre dal lato della camera. Il MIS dava comunque al campionamento BSDF solo la sua quota, quindi luce persa. Ora `IMaterial.HasTransmission`, terminator dal lato della luce, origine dal lato della luce (`MathUtils.OffsetToward`). Misura: `glass-rough` (vetro satinato contro il `roughdielectric` di Mitsuba) da 0.948 a **1.0013**. |
 | 3.37 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** | `Scene/SceneLoader.cs` (`dielectric`) | Un `dielectric` senza `color` riceveva il default condiviso grigio 0.5: il vetro dimezzava la luce a ogni attraversamento (una sfera trasmetteva il 25%). Riguardava 13 vetri delle scene del repo (`cornell-box`, `sample`, `castello-sforzesco`, `pendolo-newton`, showcase), tutti pensati trasparenti. Ora il default è bianco. Fornace bianca di riferimento: `scenes/review/white-furnace-classic.yaml`. |
@@ -156,6 +156,18 @@ fase indicata.
 | 3.46 | ✅ **corretto** (2026-10-21, Fase 4), era **[BUG]** | `Textures/BumpMapTexture.cs`, `Rendering/Renderer.cs` (`ApplyBumpMap`) | Il bump di una texture 3D spostava il punto locale (`LocalPoint`, senza rotazione) lungo la tangente in coordinate mondo: su un oggetto ruotato la pendenza era presa lungo l'asse sbagliato (a 90° nulla). L'altezza di un bump da immagine era per unità di UV, quindi dipendeva da quanto è grande la superficie. Ora l'altezza è `strength × luminanza` in unità di scena per ogni tipo di texture: un passo sulla superficie muove (u, v) con l'inversa di ∂P/∂u, ∂P/∂v e il punto 3D con l'inversa della rotazione dei transform (`HitRecord.LocalToWorld`, `BumpFrame`). I bump procedurali delle scene del repo (32 su 33) non cambiano; cambia solo il bump da immagine. Test `NormalAndBumpFrameTests`. |
 | 3.47 | ✅ **corretto** (2026-10-21, Fase 4), era **[BUG]** | `Geometry/*` (∂P/∂u), `Geometry/Box.cs`, `MeshTangents.cs`, `Textures/NormalMapTexture.cs` | Dieci primitive (box, cilindro, cono, tronco, disco, anello, capsula, toro, piano, lathe) non riportavano ∂P/∂u, ∂P/∂v: il filtro delle immagini usava la tangente unitaria (sfocatura sbagliata) e il bump non aveva la scala. Ora tutte, verificate numericamente (`PrimitiveUvDerivativeTests`). Il box capovolgeva la bitangente su tre facce (BUG-09) per avere un frame destrorso: il canale verde delle normal map era invertito lì; ora la bitangente segue +V ovunque, come MikkTSpace sulle isole UV specchiate. Capsula, cono e lathe avevano tangente o bitangente contro ∂P/∂u o ∂P/∂v. Le mesh avevano una tangente costante per faccia (cuciture con le normal map cotte): ora tangenti per vertice MikkTSpace. `NormalMapTexture` leggeva a 8 bit con mezzo texel di sfasamento e clamp ai bordi: ora passa per `ImageTexture` (16 bit, EXR, centrata, wrap). |
 | 3.48 | ✅ **corretto** (2026-10-21, Fase 4), era **[BUG]** | `Core/Perlin.cs` (`Fbm`, `Ridged`, `Billow`), `Textures/NoiseTexture.cs` | Quando il footprint toglieva le ottave fini, fBm, ridged e billow normalizzavano per l'ampiezza delle sole ottave tenute (e HeteroTerrain/Hybrid per la loro varianza): il rumore lontano guadagnava contrasto invece di sfumare alla media (una ottava su otto: ampiezza doppia). Ora un'ottava filtrata conta per la sua media (0 per fBm e multifrattali, E[\|n\|] per billow, E[(1−\|n\|)²] per ridged) e la normalizzazione copre tutte le ottave. Test `FilteredOctaves_FadeToTheMean_WithoutGainingContrast`. |
+| 3.49 | ✅ **corretto** (2026-10-22, Fase 6), era **[BUG]** | `Rendering/Renderer.cs` (MIS), ora `Rendering/LightMisTable.cs` | Con una sola luce scelta per vertice (`--light-sampling power\|uniform`, i preset FINAL-FAST) il peso MIS dell'emissione colpita dalla BSDF ometteva la probabilità di scelta: luce diretta al 76-89% del valore giusto. Ora la probabilità entra in entrambi i lati (test `OneLightPicked_IsUnbiased`). |
+| 3.50 | ✅ **corretto** (2026-10-22, Fase 6), era **[BUG]** | `Lights/PortalLight.cs`, MIS | Environment e portali campionano lo stesso cielo ma erano pesati come se fossero soli: un portale aggiungeva il 7-19% sopra l'environment. Ora formano un gruppo MIS (densità sommate). |
+| 3.51 | ✅ **corretto** (2026-10-22, Fase 6), era **[BUG]** | MIS di `DirectionalLight` (disco) e `PhysicalSun` | Il disco di una luce direzionale con `angular_radius`, che nessun raggio BSDF può raggiungere, teneva un peso MIS minore di uno e perdeva luce; il sole analitico non era raccolto dai raggi BSDF. Ora il primo pesa 1, il secondo è raggiungibile e pesato (`PhysicalSun.RadianceToward`). |
+| 3.52 | ✅ **corretto** (2026-10-22, Fase 6), era **[BUG]** | tutte le luci (stratificazione), `Box`, `Mesh` | Griglia di stratificazione ⌈√n⌉²: con 8 campioni d'ombra (il default dei portali) un nono della luce non era mai campionato (+0.7-1.1%); il box sceglieva le facce a turno, la mesh non arrivava mai in fondo alla sua CDF. `MathUtils.Stratum2D` divide in esattamente n celle. |
+| 3.53 | ✅ **corretto** (2026-10-22, Fase 6), era **[BUG]** | MIS degli emissivi | La luce di una superficie emissiva colpita era trovata dal materiale: più superfici con lo stesso materiale emissivo, o un `mix` con una parte emissiva, prendevano la pdf della prima. Ora dalla superficie colpita. |
+| 3.54 | ✅ **corretto** (2026-10-22, Fase 6), era **[BUG]** piccolo | `Lights/SphereLight.cs` (`ApproximatePower`) | Ignorava il raggio: la scelta proporzionale alla potenza sbagliava il peso delle sphere light. `LightPowerTests` confronta la potenza dichiarata di ogni luce finita con il flusso misurato. |
+| 3.55 | ✅ **fatto** (2026-10-22, Fase 6), era **[NON-STANDARD]** | `Lights/AreaLight.cs`, `PortalLight.cs`, `Geometry/Quad.cs` | Luci rettangolari campionate per area: il termine cos/d² esplode vicino alla luce. Ora angolo solido sferico (Ureña 2013): deviazione standard relativa a 0.3 / 1 / 4 lati dalla luce da 27% / 6.1% / 0.71% a 4.8% / 1.7% / 0.19%. Pdf di area e portale da una faccia sola come i campioni. |
+| 3.56 | ✅ **corretto** (2026-10-22, Fase 6), era **[BIAS]** | `Rendering/Renderer.cs` (`SampleSky`, LOD mip dell'HDRI) | Sui rimbalzi BSDF il cielo HDRI era letto pre-filtrato (mip sfocato) anche sotto MIS: la luce di una zona luminosa finiva in direzioni pesate per la BSDF e contava due volte, +26% su un pavimento diffuso (da solo ne perdeva un terzo). Ora il mip si usa solo per un cielo che nessuna luce campiona, mai in riferimento. In più la compensazione MIS di Karlík 2019 sulla CDF dell'HDRI. |
+| 3.57 | ✅ **corretto** (2026-10-22, Fase 6), era **[BUG]** grave | `Rendering/Sky/*` (sole di Preetham, "Hosek-Wilkie", Nishita), `PhysicalSun` | Ogni cielo fisico dava al disco del sole come radianza il valore che usava come irradianza dello scattering: il sole era circa **15 000 volte** troppo debole rispetto al suo cielo, le ombre quasi assenti. Ora il disco vale l'illuminanza al limite dell'atmosfera (133.8 klux) per la trasmittanza lungo il percorso, diviso l'angolo solido (`Atmosphere`, `AnalyticSky`). A mezzogiorno sereno 75-110 klux a terra, il sole 3-5 volte il cielo, il disco 1.35×10⁹ nit. L'oscuramento al bordo usava l'angolo nel cielo (nessun effetto su 0.265°): ora sulla superficie del sole, normalizzato. Test `SkyModelTests`. |
+| 3.58 | ✅ **fatto** (2026-10-22, Fase 6), era **[NON-STANDARD]** | `Rendering/Sky/HosekWilkieSky.cs` | `hosek_wilkie` era un alias di Preetham (il README prometteva Hosek-Wilkie). Ora il modello RGB vero dalle tabelle degli autori (`validation/gen_hosek_wilkie_data.py`), verificato su 24 punti contro il loro codice C compilato (scarto sotto 1e-4). |
+| 3.59 | **[BUG]**, da Fase 8 | `Volumetrics/` (height fog, atmosfera di Nishita) | NaN/Inf azzerati nei render con un mezzo: `showcases/ground-alpine-lake.yaml` 31 627 a draft-tiny (1.5% dei campioni, già al primo vertice, spariscono togliendo l'`height_fog`), `showcases/sky-aerial.yaml` 688. Presenti anche prima della Fase 6. Fase 8. |
+| 3.60 | **[BUG]**, da Fase 8 | `Volumetrics/NishitaAtmosphereMedium.cs` | In `showcases/sky-aerial.yaml` una banda di firefly nel cielo verso il sole, con netta separazione a un cerchio massimo, già a profondità 1 e con entrambi i sampler: la NEE del mezzo verso il sole. Invisibile prima della Fase 6 (sole 15 000 volte più debole). Sospetti: il rapporto cromatico `exp(τ̄ - τc)` senza limite e il tetto di 256 passi del delta tracking. Fase 8. |
 
 ---
 
@@ -552,23 +564,75 @@ più energia. Cambia l'aspetto delle scene con sheen, clearcoat o vetri senza `c
 
 ### Fase 6 - Luci e illuminazione diretta (`Lights/`, `Rendering/Sky/`)
 
-- [ ] Per ogni luce (point, spot, directional, area, sphere, geometry, portal, environment,
+- [x] Per ogni luce (point, spot, directional, area, sphere, geometry, portal, environment,
       physical sun): radianza, pdf in angolo solido, conversione area → angolo solido,
       `ApproximatePower` coerente con la potenza reale (serve alla scelta proporzionale).
-- [ ] Area light rettangolari: campionamento sferico del rettangolo (Ureña 2013) invece che
-      per area: molto meno rumore vicino alla luce.
-- [ ] Spot: falloff fisico, profili **IES** (estensione).
-- [ ] **Unità fisiche** (3.14): `power` in W o lm, `intensity` in cd, `luminance` in nit, sole in
+      Fatto con `LightTransportTests` (render contro la quadratura) e `LightPowerTests`;
+      trovati e corretti 3.49-3.54.
+- [x] Area light rettangolari: campionamento sferico del rettangolo (Ureña 2013) invece che
+      per area: molto meno rumore vicino alla luce (3.55).
+- [x] Spot: profili **IES** (estensione). Il falloff del cono resta la smoothstep artistica fra
+      `inner_angle` e `outer_angle`; la distribuzione fisica di un apparecchio la dà l'IES.
+- [x] **Unità fisiche** (3.14): `power` in W o lm, `intensity` in cd, `luminance` in nit, sole in
       lux; `temperature` in Kelvin (corpo nero); flag `normalize` (potenza indipendente
-      dall'area, come Arnold/Karma); esposizione per luce in stop.
-- [ ] Many-light sampling: **light BVH** (Conty-Kulla 2018) per scene con molte luci/emissivi.
-- [ ] HDRI: campionamento continuo nel texel (3.9), rotazione, MIS compensation
-      (Karlík 2019).
-- [ ] **Cielo**: correggere Preetham (3.1) o, meglio, sostituirlo con **Hosek-Wilkie** o
-      **Prague 2021**; validare Nishita (ozono, unità, coerenza sole/cielo). Sole e cielo devono
-      condividere le stesse unità fotometriche.
+      dall'area, come Arnold/Karma); esposizione per luce in stop. Più l'esposizione della
+      camera in EV100 (3.34).
+- [x] Many-light sampling: **light BVH** (Conty-Kulla 2018) per scene con molte luci/emissivi.
+- [x] HDRI: campionamento continuo nel texel (3.9, Fase 1), rotazione (`orientation`, esistente),
+      MIS compensation (Karlík 2019). Il mip pre-filtrato sotto MIS era distorto (3.56).
+- [x] **Cielo**: Preetham corretto (3.1) e **Hosek-Wilkie** vero (3.58); Nishita con ozono e
+      atmosfera condivisa; sole coerente con il cielo in tutti i modelli (3.57), unità relative
+      o fotometriche. Prague 2021 non fatto: Hosek-Wilkie basta per il cielo sereno diurno, il
+      crepuscolo lo copre Nishita.
 - [x] Ombre trasparenti (3.8, 3.21): `--transparent-shadows`, spente per default e in riferimento
       (2026-10-20). Da valutare un controllo per materiale nella Fase 10.
+
+#### Esito Fase 6 (2026-10-22)
+
+Suite: 1065 test verdi, 0 skip (era 951 alla Fase 4).
+
+**Ogni luce verificata contro il suo integrale.** `LightTransportTests` renderizza un pavimento
+illuminato da ogni tipo di luce a profondità 2 (NEE più un rimbalzo BSDF, combinati dal MIS) e lo
+confronta con la quadratura di ∫ L f cos sulla luce, su pavimento diffuso, lucido e quasi speculare,
+con ogni strategia di scelta. Ha trovato sei errori, tutti corretti (3.49-3.54): il più grave la
+probabilità di scelta assente dal lato BSDF del MIS (luce diretta al 76-89% con `power`/`uniform`),
+poi portali che si sommavano all'environment (+7-19%), dischi irraggiungibili pesati come
+raggiungibili, griglie di stratificazione con celle vuote (+0.7-1.1% a 8 campioni). La tabella delle
+densità MIS è ora un oggetto solo (`LightMisTable`).
+
+**Campionamento.** Rettangoli per angolo solido (3.55: rumore da 27% a 4.8% a 0.3 lati dalla luce).
+Light BVH: con 90 luci a griglia media identica a `all` (0.8372 contro 0.8345), rumore per pixel 4.3
+volte minore di `uniform`; `auto` lo attiva oltre 16 luci. HDRI con la compensazione di Karlík e
+senza il mip pre-filtrato sotto MIS (3.56, era +26%).
+
+**Unità fisiche** (3.14, 3.34): watt, lumen, candele, nit, lux, kelvin, IES; esposizione EV100.
+`scenes/review/light-units.yaml`: quattro luci in quattro unità sopra un pavimento grigio,
+luminanza misurata uguale al calcolo a mano entro lo 0.1% (2.596, 8.868, 17.89, 19.80 nit).
+
+**Cieli** (3.1, 3.57, 3.58). Hosek-Wilkie vero, verificato contro il C degli autori; Preetham con la
+Perez corretta; atmosfera comune con ozono. Il sole era 15 000 volte troppo debole rispetto al cielo
+in ogni modello: ora viene dalla stessa luce. Rapporto sole/cielo sul piano orizzontale (torbidità
+3): Hosek-Wilkie 0.83 / 2.2 / 4.1 con il sole a 15° / 30° / 60°, Preetham 0.56 / 1.4 / 2.5 (cielo più
+luminoso, noto), Nishita 5 / 10 / 18 (scattering singolo in aria pulitissima: il cielo è circa metà
+di uno misurato). In nit, sole a 60°: 97 klux a terra con Hosek-Wilkie, disco 1.35×10⁹ nit.
+`scenes/review/daylight-units.yaml` (EV100 15): pavimento grigio 18% misurato 4290 nit contro i
+4308 attesi dall'illuminanza del cielo (-0.4%). Confronto dei modelli in
+`images/daylight-sky-models.jpg`, prima/dopo delle otto scene con cielo fisico in
+`images/sky-before-after.jpg`.
+
+**Denoiser** (3.33 mitigato): il sole in uno specchio non diventa più un quadrato.
+
+**Validazione Mitsuba**: invariata rispetto alla Fase 5 su tutte le scene (cornell 0.9998 / 0.9999,
+lights 0.9997, glass-shadow 0.9996, metal-presets 1.0001 / 1.0000, glass-rough 1.0009 / 1.0001,
+null-shell 1.0001).
+
+**Verdetto**: luci e illuminazione diretta corrette e verificate tipo per tipo; le unità fisiche
+permettono di illuminare ed esporre una scena come nella realtà. Cambia l'aspetto delle scene con
+un cielo fisico (sole molto più forte, ombre piene: vanno riviste con le altre alla fine della
+review, insieme al passaggio a unità fotometriche dove serve) e di quelle con `hosek_wilkie` (ora un
+modello diverso da Preetham). Restano per altre fasi: NaN e firefly nei mezzi con il sole vero (3.59,
+3.60, Fase 8), scattering multiplo per Nishita (PLANNING), le cuciture del denoiser sui bordi HDR
+(3.33, Fase 9).
 
 ### Fase 7 - Integratore (`Rendering/Renderer.cs`)
 

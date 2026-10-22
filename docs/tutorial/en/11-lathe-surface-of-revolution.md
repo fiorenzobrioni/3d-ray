@@ -407,8 +407,8 @@ For a **spline** profile (`catmull_rom` or `bezier`) each segment is
 a cubic curve in the meridian plane. Revolving a cubic around Y and
 intersecting with a line yields a **polynomial of degree 6** in the
 curve parameter `u`. There is no closed-form solution beyond degree
-4, so 3D-Ray solves it numerically using the approach taken by
-PovRay's `lathe` and PBRT's hair `Curve` primitive:
+4, so 3D-Ray solves it numerically with the standard approach for
+spline surfaces:
 
 1. **Build a Sturm chain** from the degree-6 polynomial and its
    derivatives.

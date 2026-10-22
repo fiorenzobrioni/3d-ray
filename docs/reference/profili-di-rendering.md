@@ -180,7 +180,7 @@ RayTracer -i my-scene -q standard --denoiser none
 | `--indirect-clamp-factor` | `0.25` (solo con `-C`: clamp indiretto = `-C` × fattore) | `Renderer.DefaultIndirectClampFactor` |
 | `--transparent-shadows` | `off` (il vetro proietta la sua ombra e caustica fisiche) | `Program.cs` |
 | `--exposure` | `0` EV (identità) | `Renderer.DefaultExposureEv` |
-| `--light-sampling` | `all` (somma su tutte le luci) | `LightSamplingStrategy.All` |
+| `--light-sampling` | `auto` (`all` fino a 16 luci, `bvh` oltre) | `LightSamplingStrategy.Auto` |
 | `--texture-filtering` | `auto` (filtering attivo) | `Renderer.TextureFilteringMode.Auto` |
 | `--sampler` | `sobol` (Owen scramble) | `Program.cs` / `Sampler.SetKind` |
 | `--mis` | `balance` (balance heuristic Veach) | `Program.cs` / `MisHeuristic` |
@@ -284,11 +284,13 @@ Seleziona come il renderer sceglie quale luce interrogare per ogni evento NEE:
 
 | Valore | Comportamento | Quando usarlo |
 |---|---|---|
-| `all` | Somma su tutte le luci (originale) | **Default** - sicuro, backward compat |
-| `power` | Campiona una luce ∝ `ApproximatePower` | Scene con molte luci di luminosità mista |
+| `auto` | `all` fino a 16 luci, `bvh` oltre | **Default** |
+| `all` | Somma su tutte le luci | Poche luci: ogni luce campionata a ogni vertice |
+| `power` | Campiona una luce ∝ `ApproximatePower` | Scene con molte luci di luminosità mista, tutte visibili da ovunque |
 | `uniform` | Campiona una luce uniformemente | Debug / baseline di confronto con `power` |
+| `bvh` | Campiona una luce attraverso un BVH delle luci (Conty e Kulla 2018): la potenza di ogni luce pesata con la sua distanza e il suo orientamento rispetto al punto | Molte luci sparse nello spazio (una strada di lampioni, una stanza di faretti, strisce emissive): i campioni vanno alle luci vicine |
 
-Con `all` il renderer lancia `ShadowSamples` raggi d'ombra per luce per shading point - O(N·S). Con `power` o `uniform` li lancia per una sola luce e divide per la probabilità di campionamento per restare unbiased - O(S). In una scena con 1 area light intensa + 20 point light deboli, `power` converge notevolmente più in fretta.
+Con `all` il renderer lancia `ShadowSamples` raggi d'ombra per luce per shading point - O(N·S). Con `power`, `uniform` o `bvh` li lancia per una sola luce e divide per la probabilità di averla scelta per restare non distorto - O(S); la stessa probabilità entra nei pesi di importance sampling multiplo dal lato della BSDF, quindi ogni strategia converge alla stessa immagine. In una scena con 90 piccole luci a griglia, `bvh` riduce il rumore per pixel di circa quattro volte rispetto a `uniform` a parità di campioni. L'environment e il sole analitico sono scelti per primi con probabilità 1/(numero di luci infinite + 1), poi il BVH.
 
 #### **6d. Texture filtering (`--texture-filtering`)**
 

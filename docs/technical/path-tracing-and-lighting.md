@@ -28,7 +28,7 @@ Per accelerare la convergenza (ridurre il rumore) su scene con sorgenti di luce 
 
 ### 2.1 Funzionamento
 Ad ogni "hit" del raggio sulla superficie, invece di aspettare che un rimbalzo casuale colpisca una luce per accumulare l'energia, il motore:
-1.  **Campiona ogni luce** nella scena (`ComputeDirectLighting`).
+1.  **Campiona le luci** (`ComputeDirectLighting`): tutte, oppure una sola scelta con probabilità nota (`--light-sampling`, §7.3).
 2.  Lancia un **raggio d'ombra (Shadow Ray)** verso un punto casuale della luce (per le Area Light) o verso la posizione della luce (Point/Spot).
 3.  Se la luce è visibile dal punto di hit, valuta l'integrando in quella direzione: `material.Evaluate(V, L) × |N.L|` (`Renderer.DirectIntegrand`, la stessa BSDF che il rimbalzo indiretto campiona), moltiplicato per il fattore di shadow terminator sul lato della luce (`LightSideTerminator`, Chiang et al. 2019: attenua la luce che una normale perturbata vedrebbe sotto l'orizzonte vero; vale 1 dove la normale non è perturbata).
 4.  Aggiunge all'accumulatore il contributo (peso MIS × radiance della luce × integrando × trasmittanza del mezzo).
@@ -321,6 +321,29 @@ Per una sfera di raggio 0.3 a distanza 5 dal punto di shading, con 16 shadow sam
 Il vantaggio cresce proporzionalmente alla distanza: più la sfera è piccola/lontana, più il solid-angle sampling è superiore.
 
 ---
+
+## 7. Luci: stratificazione, unità, scelta, cielo (review Fase 6)
+
+### 7.1 Stratificazione esatta
+Gli `shadow_samples` di ogni luce sono stratificati su una griglia di esattamente N celle (`MathUtils.StratumGrid`/`Stratum2D`: righe = il più grande divisore di N non oltre √N), per qualunque N. Prima la griglia era √N × √N arrotondata: con 8 campioni ne copriva 9 celle e una restava vuota, con un errore sistematico dello 0.7-1.1%. Il box usa una striscia 6×1 (una faccia per stratum), le mesh e le primitive a CDF lo stratum lungo la CDF.
+
+### 7.2 Luci d'area rettangolari: angolo solido sferico
+Un rettangolo è campionato in modo uniforme nell'angolo solido che sottende (Ureña, Fajardo, King 2013, `Core/SphericalRectangle.cs`, in doppia precisione): la pdf è $1/\Omega$ e il peso di ogni campione è $L\,\Omega$, senza il termine $\cos/d^2$ che esplode vicino alla luce. Deviazione standard relativa di un campione a distanza 0.3, 1 e 4 volte il lato: 4.8%, 1.7%, 0.19% (per area: 27%, 6.1%, 0.71%). Sotto $10^{-3}$ sr e per i parallelogrammi resta il campionamento per area. La luce emette da una faccia sola e la pdf è 0 da dietro. Vale anche per i portali.
+
+### 7.3 Scelta della luce
+`--light-sampling all` somma tutte le luci; `power`/`uniform` ne scelgono una con una CDF globale; `bvh` con un BVH delle luci (`Lights/LightBvh.cs`, Conty e Kulla 2018): ogni nodo porta potenza, bounding box e cono delle normali, e l'importanza di un nodo per il punto è la potenza divisa per la distanza al quadrato, moltiplicata per il coseno del cono ridotto dell'angolo sotteso (senza la normale del ricevitore, che non serve alla correttezza). Le luci infinite (environment, sole) sono scelte per prime con probabilità $1/(n_\text{inf}+1)$. La probabilità di una luce si ricostruisce scendendo l'albero lungo i bit del suo percorso (`Pmf`), ed entra nei pesi MIS di entrambi i lati. Un nodo con importanza nulla in entrambi i figli restituisce −1 (nessun campione), che non introduce distorsione: lì nessuna luce del sottoalbero può contribuire. `auto` usa `all` fino a 16 luci e `bvh` oltre. Con 90 luci a griglia: stessa media di `all` (0.8372 contro 0.8345), deviazione standard per pixel 0.064 contro 0.275 di `uniform`.
+
+### 7.4 Unità fisiche
+L'unità di radianza della scena è il nit. `LightUnits` converte watt in lumen (683 lm/W), riduce il colore a una tinta di luminanza 1, dà il colore di un corpo nero (luogo di Planck); il loader traduce potenza, candele, luminanza e illuminamento nell'intensità di ogni tipo di luce (`SceneLoader.LightEmission`). Un profilo IES (`Lights/IesProfile.cs`, LM-63 tipo C) è tabulato in candele assolute, con i piani orizzontali mancanti ricostruiti dalla simmetria del file e il flusso integrato numericamente; `power` o `candela` lo riscalano. L'esposizione EV100 della camera vale $-\text{EV}_{100} - \log_2 1.2$ stop (convenzione basata sulla saturazione).
+
+### 7.5 Cieli fisici
+`Rendering/Sky/Atmosphere.cs` è l'atmosfera comune: scattering di Rayleigh e di Mie, assorbimento della polvere e dell'ozono (coefficienti di Bruneton 2017 a 680/550/440 nm), una tabella di trasmittanza. `AnalyticSky` è la base dei tre cieli fisici:
+
+- **Sole coerente con il cielo**: il disco vale l'illuminanza solare al limite dell'atmosfera (133.8 klux, Darula et al. 2005, oppure 20 nella scala relativa di Nishita) per la trasmittanza lungo il percorso del sole, divisa per l'angolo solido del disco. Prima ogni modello dava al disco come radianza il valore che usava come irradianza dello scattering: il sole era circa 15 000 volte troppo debole rispetto al suo cielo.
+- **Oscuramento al bordo** (`PhysicalSun.LimbFactor`): legge lineare con u = 0.6 sul coseno dell'angolo sulla superficie del sole, normalizzata così che la media sul disco valga 1. Prima la legge usava l'angolo nel cielo, che sul disco vero non scende mai sotto cos 0.265°: non faceva nulla.
+- **Terreno sotto l'orizzonte**: albedo × illuminanza a terra / π, con la stessa illuminanza integrata (48×96 direzioni) che dà anche la luminanza media.
+
+Hosek-Wilkie (`HosekWilkieSky.cs`) usa le tabelle RGB degli autori, generate da `validation/gen_hosek_wilkie_data.py` e verificate punto per punto contro il loro codice C di riferimento; la torbidità entra come torbidità di Linke anche nella polvere dell'atmosfera del sole. Preetham ha la funzione di Perez corretta $(1 + A e^{B/\cos\theta})(1 + C e^{D\gamma} + E \cos^2\gamma)$ normalizzata allo zenit. Nishita integra lo scattering singolo attraverso la stessa atmosfera.
 
 ## Riferimenti
 

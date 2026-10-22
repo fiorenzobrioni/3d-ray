@@ -86,10 +86,12 @@ float  PdfSolidAngle(Vector3 hitPoint, Vector3 wi);      // 0 per delta lights
 | Luce | `IsDelta` | `PdfSolidAngle` |
 |---|---|---|
 | `PointLight`, `DirectionalLight`, `SpotLight` | `true` | 0 (irraggiungibili da BSDF sampling). |
-| `AreaLight` | `false` | $\dfrac{r^2}{A \cos\theta_\text{light}}$ (PBRT §14.2.4). |
+| `AreaLight` | `false` | Rettangolo: $1/\Omega$, uniforme nell'angolo solido sotteso (Ureña et al. 2013, `Core/SphericalRectangle.cs`); sotto $10^{-3}$ sr e per i parallelogrammi $\dfrac{r^2}{A \cos\theta_\text{light}}$. Una faccia sola: 0 da dietro. |
+| `PortalLight` | `false` | Come l'`AreaLight`, sul rettangolo della finestra. |
 | `SphereLight` | `false` | $\dfrac{1}{2\pi(1-\cos\theta_\text{max})}$ (uniform cone sampling). |
-| `GeometryLight` | `false` | Delegato a `ISolidAngleSamplable` (sphere) o area-sampling fallback. |
-| `EnvironmentLight` | `false` | Delegato a `SkySettings.PdfSolidAngle` (CDF 2D per HDRI o gradient analitico). |
+| `GeometryLight` | `false` | Delegato a `ISolidAngleSamplable` (sfera, quad) o area-sampling fallback. |
+| `EnvironmentLight` | `false` | Delegato a `SkySettings.PdfSolidAngle` (CDF 2D per HDRI, compensata alla Karlík et al. 2019, o gradient analitico). |
+| `PhysicalSun` | `false` | $1/\Omega_\text{disco}$ dentro il disco. |
 
 ### 3.3 `IPhaseFunction` — analogo per i media
 
@@ -103,11 +105,18 @@ Per le 5 phase function fornite (Isotropic, Henyey-Greenstein, double-HG, Raylei
 
 ## 4. Punti di applicazione nel `Renderer`
 
+Le densità delle strategie di luce le tiene `Rendering/LightMisTable.cs` (PIANO-REVIEW.md Fase 6). Per ogni direzione la somma dei pesi di tutte le strategie che la possono produrre vale 1:
+
+- **Probabilità di scelta.** Con `--light-sampling power|uniform|bvh` la densità di un campione di luce è `pPick × pLight`, e la stessa `pPick` (per il BVH dipende dal punto) entra nel peso del lato BSDF. Prima il lato BSDF la ometteva: con una luce scelta su N la luce diretta perdeva fino al 24%.
+- **Gruppo del cielo.** L'environment e i portali campionano lo stesso cielo: in ogni peso le loro densità si sommano (prima un portale aggiungeva la sua luce sopra quella dell'environment, +7-19%).
+- **Luci che la BSDF non raggiunge** (il disco di una `directional` con `angular_radius`, un'area o sphere light senza proxy visibile): il campione di luce tiene peso 1, nessun'altra strategia porta quella luce. Il sole analitico invece è raggiungibile: un raggio BSDF che esce dentro il suo disco ne raccoglie la radianza (`PhysicalSun.RadianceToward`), pesata.
+- **Proprietario dell'emettitore.** La luce di una superficie emissiva colpita si trova dalla superficie, non solo dal materiale: più superfici con lo stesso materiale emissivo, o che emettono attraverso un `mix`, tengono ciascuna la propria pdf (il raggio è intersecato di nuovo con le sole superfici di quel materiale, attraverso un piccolo BVH quando sono molte).
+
 Il `Renderer` applica MIS in quattro punti:
 
-1. **`ComputeDirectLighting`** (surface NEE). Per ogni shadow ray non in ombra, contributo `wNee × lightColor × Evaluate × |N.L| × terminator × Tr`, con `wNee = MisWeight(pPick × pLight, pBsdf)` se la luce è non-delta e `material.Pdf > 0` in quella direzione (altrimenti 1).
-2. **`WeightEmission`** (BSDF-hit-emitter). Quando un raggio BSDF non-delta colpisce un emitter NEE-registrato, peso `wBsdf = MisWeight(prevBsdfPdf, pLight)`. Per `prevIsDelta = true` (raggio di camera o lobo delta) e per gli emettitori non registrati il peso è 1: nessun campione di luce li ha contati.
-3. **`SampleSky`** (BSDF-escape-into-sky). Quando un raggio BSDF esce dalla scena verso un environment campionabile, peso `wBsdf = MisWeight(prevBsdfPdf, pEnv)`.
+1. **`ComputeDirectLighting`** (surface NEE). Per ogni shadow ray non in ombra, contributo `wNee × lightColor × Evaluate × |N.L| × terminator × Tr`, con `wNee = LightSampleWeight(light, pPick, …, pBsdf)` se la BSDF può raggiungere la luce (altrimenti 1).
+2. **`WeightEmission`** (BSDF-hit-emitter). Quando un raggio BSDF non-delta colpisce un emitter NEE-registrato, peso `wBsdf = BsdfWeight(prevBsdfPdf, Σ pPick·pLight)` sulle strategie del suo proprietario. Per `prevIsDelta = true` (raggio di camera o lobo delta) e per gli emettitori non registrati il peso è 1: nessun campione di luce li ha contati.
+3. **`SampleSky`** (BSDF-escape-into-sky). Quando un raggio BSDF esce dalla scena, il corpo del cielo è pesato contro la densità sommata del gruppo del cielo e ogni sole analitico nella cui direzione cade il raggio contro la propria.
 4. **`ComputeDirectLightingMedium`** (volumetric NEE). Analogo a (1) ma con la phase function al posto della BRDF e `phasePdf` al posto di `pBsdf`.
 
 L'identificazione della "controparte" delle PDF si basa sui flag `ILight.IsDelta` (luci) e `BsdfSample.IsDelta` (il lobo effettivamente campionato); quando uno dei due lati è delta, il peso degenera a 1. `IMaterial.IsDeltaScatter` (vero solo se ogni lobo è delta) serve ad altro, per esempio a saltare il gather delle caustiche.
@@ -154,6 +163,8 @@ La suite `MisMaterialsTests` (`src/RayTracer.Tests/MisMaterialsTests.cs`) copre:
 - **Sample / Pdf / Evaluate consistency** — Lambertian e Metal (rough): la `BsdfSample.F` e `BsdfSample.Pdf` riportate da `Sample` devono coincidere con `Evaluate(V, Wo)` e `Pdf(V, Wo)` (entro 1e-3).
 - **MixMaterial linearity** — `Pdf_mix == (1-t)·Pdf_A + t·Pdf_B` analiticamente, su 5 valori di blend.
 - **Delta-mirror invariants** — `Metal` con `fuzz = 0`: `Sample` ritorna `IsDelta = true, Pdf = 1`, mentre `Pdf(V, L) = 0` per ogni `L`.
+
+La luce diretta di ogni tipo di luce è verificata nel renderer completo da `Validation/LightTransportTests.cs`: un render a profondità 2 (NEE più un rimbalzo BSDF, con MIS) contro la quadratura dell'integrale ∫ L f cos della luce, su pavimenti diffuso, lucido e quasi speculare, con ogni strategia di scelta della luce.
 
 Le scene `scenes/review/white-furnace-classic.yaml` (`lambertian`, `metal`, `dielectric`) e `scenes/review/openpbr-white-furnace.yaml` (le configurazioni OpenPBR della specifica) sono banchi diagnostici di conservazione di energia: una sfera di albedo 1 in un environment di luminanza 1 deve restituire un'immagine in cui la sfera è indistinguibile dallo sfondo, a meno di rumore Monte Carlo (il vetro ruvido perde circa il 2% per lo scattering singolo dell'interfaccia). I gate statistici per materiale sono in `src/RayTracer.Tests/Validation/` (vedi [Testing](./testing.md) §4.3).
 

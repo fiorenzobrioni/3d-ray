@@ -221,9 +221,10 @@ entities:
     material: "emi_tungsteno"
 ```
 
-Tip: geometry lights participate in power-weighted NEE automatically.
-For scenes with many geometry lights, `--light-sampling power` reduces
-variance when light intensities differ widely.
+Tip: geometry lights participate in NEE automatically. With more than
+16 lights the default `--light-sampling auto` picks one light per point
+through a light BVH (by power, distance and orientation), which keeps
+scenes with many emissive objects fast and quiet.
 
 ### Light Hardening: cut fireflies without raising spp
 
@@ -250,9 +251,9 @@ also consider these CLI flags:
 
 ```
 -C 10 --indirect-clamp-factor 0.25   # opt-in firefly clamp (biased): indirect bounces at 1/4 of -C
---light-sampling power         # power-weighted single-light NEE
-                               # (variance reduction with mixed-brightness
-                               # lights, e.g. 1 area + 10 dim points)
+--light-sampling bvh           # one light per NEE event, by power,
+                               # distance and orientation (the default
+                               # `auto` uses it above 16 lights)
 ```
 
 In short: before raising `-s` to chase noise, check whether fireflies
@@ -437,7 +438,7 @@ The complete set of command-line parameters:
 | `-c` | `--camera`         | `0`                           | Select camera by name or zero-based index                |
 |      | `--sampler`        | `sobol`                       | Per-pixel sampler: `sobol` (Owen-scrambled) or `prng`    |
 |      | `--mis`            | `balance`                     | MIS heuristic: `balance` or `power`                      |
-|      | `--light-sampling` | `all`                         | NEE strategy: `all`, `power`, `uniform`                  |
+|      | `--light-sampling` | `auto`                        | NEE strategy: `auto`, `all`, `power`, `uniform`, `bvh`   |
 |      | `--indirect-clamp-factor` | `0.25`                 | Indirect-contribution clamp factor, only with `-C`, applied once camera-relative (`0.25` → indirect clamp = ¼ of `-C`; `1.0` = off) |
 |      | `--transparent-shadows` | `off`                    | `on`: glass lets shadow rays through, tinted (no shadow or caustic; artistic approximation) |
 |      | `--texture-filtering` | `auto`                     | Analytic anti-aliasing of procedural / image textures via ray differentials: `auto` / `on` (filtering on) or `off` (point-sampled, for benchmarks) |

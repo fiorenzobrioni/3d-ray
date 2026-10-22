@@ -177,7 +177,7 @@ RayTracer -i my-scene -q standard --denoiser none
 | `--indirect-clamp-factor` | `0.25` (only with `-C`: indirect clamp = `-C` × factor) | `Renderer.DefaultIndirectClampFactor` |
 | `--transparent-shadows` | `off` (glass casts its physical shadow and caustic) | `Program.cs` |
 | `--exposure` | `0` EV (identity) | `Renderer.DefaultExposureEv` |
-| `--light-sampling` | `all` (sum over every light) | `LightSamplingStrategy.All` |
+| `--light-sampling` | `auto` (`all` up to 16 lights, `bvh` above) | `LightSamplingStrategy.Auto` |
 | `--texture-filtering` | `auto` (filtering on) | `Renderer.TextureFilteringMode.Auto` |
 | `--sampler` | `sobol` (Owen-scrambled) | `Program.cs` / `Sampler.SetKind` |
 | `--mis` | `balance` (Veach balance heuristic) | `Program.cs` / `MisHeuristic` |
@@ -281,11 +281,13 @@ Selects how the renderer chooses which light to query per NEE event:
 
 | Value | Behaviour | When to use |
 |---|---|---|
-| `all` | Sum over every light (original) | **Default** - always safe, backward compat |
-| `power` | Sample one light ∝ `ApproximatePower` | Scenes with many lights of mixed brightness |
+| `auto` | `all` up to 16 lights, `bvh` above | **Default** |
+| `all` | Sum over every light | Few lights: every light sampled at every vertex |
+| `power` | Sample one light ∝ `ApproximatePower` | Scenes with many lights of mixed brightness, all of them seen from everywhere |
 | `uniform` | Sample one light uniformly | Debug / baseline comparison against `power` |
+| `bvh` | Sample one light through a light BVH (Conty and Kulla 2018): each light's power weighed by its distance and orientation to the shading point | Many lights spread out in space (a street of lamps, a room of fixtures, emissive strips): the near lights get the samples |
 
-With `all` the renderer fires `ShadowSamples` shadow rays per light per shading point - O(N·S). With `power` or `uniform` it fires shadow rays for one light, then divides by the sampling probability to remain unbiased - O(S). In a scene with 1 bright area light + 20 dim point lights, `power` converges substantially faster.
+With `all` the renderer fires `ShadowSamples` shadow rays per light per shading point - O(N·S). With `power`, `uniform` or `bvh` it fires shadow rays for one light, then divides by the probability of picking it to remain unbiased - O(S); the same probability enters the multiple-importance weights of the BSDF side, so every strategy converges to the same image. In a scene with 90 small lights in a grid, `bvh` cuts the per-pixel noise about four times against `uniform` at the same sample count. The environment and the analytic sun are picked first with probability 1/(number of infinite lights + 1), then the BVH.
 
 #### **6d. Texture filtering (`--texture-filtering`)**
 

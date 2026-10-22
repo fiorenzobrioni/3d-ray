@@ -1,0 +1,83 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  light-units.yaml - unità fotometriche delle luci
+#  (PIANO-REVIEW.md, Fase 6)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Quattro luci a 2 m da un pavimento grigio (albedo 0.5), ciascuna scritta
+#  in un'unità diversa, sopra un cielo nero: l'illuminanza del pavimento
+#  sotto ogni luce si calcola a mano, e la sua luminanza è ρE/π.
+#  Unità della scena: 1 = 1 nit (cd/m²), 1 unità = 1 m.
+#
+#    luce (x)            scritta come                  E propria   E totale   L attesa
+#    lampadina (+4.5)    power 800 lm, 2700 K           15.92 lux   16.31 lux   2.596 nit
+#    spot (+1.5)         candela 200, 4000 K            50.00 lux   55.72 lux   8.868 nit
+#    spot IES (-1.5)     profilo cos⁴, candela 400     100.00 lux  112.42 lux  17.892 nit
+#    pannello (-4.5)     luminance 2000 nit, 0.5×0.5   122.45 lux  124.36 lux  19.793 nit
+#
+#  E propria: lampadina 800 / 4π / 2²; spot 200 / 2²; IES il picco del
+#  profilo riscalato a 400 cd, al nadir; pannello 2000 × ∫ h²/r⁴ dA.
+#  E totale aggiunge la luce che arriva dalle altre tre (il pannello dà
+#  11.8 lux sotto lo spot IES, a 3 m di distanza). La temperatura colora la
+#  luce senza cambiarne la luminanza.
+#
+#  Misura con il codice di chiusura della Fase 6 (256 campioni): 2.596,
+#  8.868, 17.89, 19.80 (il pannello è campionato, ±0.05).
+#
+#  La camera guarda dall'alto ed è esposta in EV100 5 (un interno poco
+#  illuminato): il pavimento sotto la lampadina è scuro, sotto il pannello
+#  chiaro. Il valore si legge nel buffer beauty (luminanza Rec.709 del
+#  pixel più luminoso sotto ogni luce):
+#
+#    -s 256 -w 960 -H 480 --denoiser none --aov beauty
+#    (renders/<nome>.beauty.pfm: radianza lineare prima dell'esposizione)
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "flat"
+    color: [0, 0, 0]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0
+
+camera:
+  position: [0, 9, 0]
+  look_at: [0, 0, 0]
+  vup: [0, 0, 1]
+  fov: 36.87              # verticale: con 2:1 copre x in [-6, 6]
+  ev100: 5
+
+materials:
+  - { id: "floor", type: "lambertian", color: [0.5, 0.5, 0.5] }
+
+lights:
+  - type: "point"
+    position: [4.5, 2, 0]
+    power: 800
+    power_unit: "lumen"
+    temperature: 2700
+
+  - type: "spot"
+    position: [1.5, 2, 0]
+    direction: [0, -1, 0]
+    candela: 200
+    temperature: 4000
+    inner_angle: 25
+    outer_angle: 35
+
+  - type: "spot"
+    position: [-1.5, 2, 0]
+    direction: [0, -1, 0]
+    ies: "../assets/ies/downlight-cos4.ies"
+    candela: 400
+    inner_angle: 89
+    outer_angle: 90
+
+  - type: "area"
+    corner: [-4.75, 2, -0.25]
+    u: [0.5, 0, 0]
+    v: [0, 0, 0.5]
+    luminance: 2000
+    visible_to_camera: false
+    shadow_samples: 4

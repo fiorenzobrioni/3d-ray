@@ -1826,8 +1826,9 @@ public class SceneLoader
 
     /// <summary>
     /// Builds a <see cref="SkySettings"/> from the YAML sky section.
-    /// Supported modes: <c>flat</c>, <c>gradient</c>, <c>hdri</c>,
-    /// <c>preetham</c>/<c>hosek_wilkie</c> (analytical physical sky). When the
+    /// Supported modes: <c>flat</c>, <c>gradient</c>, <c>hdri</c>, and the
+    /// physical skies <c>hosek_wilkie</c> (<c>physical</c>), <c>preetham</c>,
+    /// <c>nishita</c>. When the
     /// <c>world.sky</c> block is missing or its <c>type</c> is unrecognised,
     /// falls back to a flat sky using <see cref="DefaultSkyColor"/>.
     /// </summary>
@@ -1839,6 +1840,14 @@ public class SceneLoader
         string skyType = skyData.Type?.ToLowerInvariant() ?? "";
 
         ISkyModel lightingModel = BuildSkyModel(skyType, skyData, sceneDir);
+        if (lightingModel is AnalyticSky analytic)
+        {
+            // What the sky gives a horizontal plane on the ground: the scale to
+            // expose for (photometric: lux).
+            string unit = analytic.Units == SkyUnits.Photometric ? "lux" : "(relative)";
+            Info($"Sky light:   {analytic.SkyIlluminance * analytic.Intensity:0.###} {unit} on the ground, " +
+                 $"{analytic.SunIlluminance * analytic.Intensity:0.###} of it from the sun");
+        }
         ISkyModel? backgroundModel = null;
         if (skyData.Background != null)
         {
