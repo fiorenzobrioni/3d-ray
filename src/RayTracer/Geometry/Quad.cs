@@ -95,17 +95,14 @@ public class Quad : IHittable, ISamplable
         return (point, _normal, new Vector2(u, v), _area);
     }
 
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
 
-        var (jitU, jitV) = MathUtils.Random2D();
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
 
-        float u = (su + jitU) * inv;
+        float u = xs1;
 
-        float v = (sv + jitV) * inv;
+        float v = xs2;
         Vector3 point = Q + u * U + v * V;
         return (point, _normal, new Vector2(u, v), _area);
     }

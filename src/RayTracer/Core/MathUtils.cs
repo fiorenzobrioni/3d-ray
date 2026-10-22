@@ -86,6 +86,36 @@ public static class MathUtils
     /// </summary>
     public static (float U, float V) Random2D() => Sampler.Sample2D();
 
+    /// <summary>
+    /// Grid for <paramref name="count"/> stratified samples of the unit square:
+    /// <c>Rows × Cols = count</c> exactly, rows the largest divisor of the count
+    /// not above its square root (16 → 4 × 4, 8 → 2 × 4, 7 → 1 × 7). Every cell
+    /// gets one sample and holds 1/count of the square, so a sample weighted
+    /// 1/count is unbiased. (A ⌈√n⌉ × ⌈√n⌉ grid left cells unvisited whenever
+    /// n was not a square: 8 samples on 3 × 3 never sampled the last ninth.)
+    /// </summary>
+    public static (int Cols, int Rows) StratumGrid(int count)
+    {
+        count = Math.Max(1, count);
+        int rows = (int)MathF.Sqrt(count);
+        while (rows > 1 && count % rows != 0) rows--;
+        return (count / rows, rows);
+    }
+
+    /// <summary>
+    /// The <paramref name="sampleIndex"/>-th of <paramref name="sampleCount"/>
+    /// stratified points of the unit square (<see cref="StratumGrid"/>), jittered
+    /// in its cell with one 2D draw. A negative index draws an unstratified point.
+    /// </summary>
+    public static (float U, float V) Stratum2D(int sampleIndex, int sampleCount)
+    {
+        var (ju, jv) = Random2D();
+        if (sampleIndex < 0 || sampleCount <= 1) return (ju, jv);
+        var (cols, rows) = StratumGrid(sampleCount);
+        int i = sampleIndex % (cols * rows);
+        return (((i % cols) + ju) / cols, ((i / cols) + jv) / rows);
+    }
+
     public static Vector3 RandomVector3() =>
         new(RandomFloat(), RandomFloat(), RandomFloat());
 

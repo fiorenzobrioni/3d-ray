@@ -18,12 +18,13 @@ internal static class RenderHarness
     public static Vector3[,] RenderLinear(
         IHittable world, List<ILight> lights, SkySettings sky, Camera.Camera camera,
         int width, int height, int spp, int depth,
-        bool reference = true, int seed = 0, float? clamp = null, PixelFilter? filter = null)
+        bool reference = true, int seed = 0, float? clamp = null, PixelFilter? filter = null,
+        LightSamplingStrategy lightSampling = LightSamplingStrategy.All)
     {
         var renderer = new Renderer(
             world, camera, lights, sky, spp, depth,
             maxSampleRadiance: clamp,
-            lightSamplingStrategy: LightSamplingStrategy.All,
+            lightSamplingStrategy: lightSampling,
             referenceMode: reference, seed: seed, pixelFilter: filter);
         var result = renderer.Render(width, height, new RenderCaptureOptions { CaptureBeautyHalves = true });
         var beauty = result.Buffers!.Beauty;

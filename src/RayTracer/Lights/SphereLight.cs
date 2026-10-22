@@ -60,10 +60,6 @@ public class SphereLight : ILight
     /// <inheritdoc/>
     public Emissive? ProxyMaterial { get; }
 
-    // ── Stratified sampling grid ────────────────────────────────────────────
-    private readonly int _sqrtSamples;
-    private readonly float _invSqrtSamples;
-
     // Note: this light deliberately exposes no `SoftRadius` knob. Solid-angle
     // cone sampling produces an `L = Intensity × Ω / N` estimator that is
     // bounded above by `4π · Intensity` even when the receiver is inside the
@@ -80,19 +76,19 @@ public class SphereLight : ILight
         ShadowSamples = Math.Max(1, shadowSamples);
         ProxyMaterial = proxyMaterial;
 
-        _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
-        _invSqrtSamples = 1f / _sqrtSamples;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
     //  ILight — ApproximatePower (deterministic, used for scene classification)
     // ═════════════════════════════════════════════════════════════════════════
 
-    // Isotropic spherical emitter with radiant intensity I (W/sr) — the
-    // IlluminateAndTest formula is L = I · Ω/N, so I is per-steradian and the
-    // total flux integrated over 4π sr is 4π · I.
+    // `Intensity` is the radiance of the sphere's surface (each sample carries
+    // Intensity × Ω, the irradiance of a uniform sphere of that radiance), so
+    // the flux is π L over the area 4πR². (It used to read 4π·I, ignoring the
+    // radius: power-weighted picking gave a small and a large sphere of the
+    // same intensity the same share.)
     public float ApproximatePower(AABB sceneBounds) =>
-        4f * MathF.PI * MathUtils.Luminance(Color) * Intensity;
+        MathF.PI * 4f * MathF.PI * Radius * Radius * MathUtils.Luminance(Color) * Intensity;
 
     // ═════════════════════════════════════════════════════════════════════════
     //  ILight — IlluminateAndTest (stochastic, called per-hit during render)
@@ -141,11 +137,7 @@ public class SphereLight : ILight
         if (sampleIndex >= 0)
         {
             // Stratified jitter within the assigned grid cell
-            int su = sampleIndex % _sqrtSamples;
-            int sv = sampleIndex / _sqrtSamples;
-            var (jitU, jitV) = MathUtils.Random2D();
-            xi1 = (su + jitU) * _invSqrtSamples;
-            xi2 = (sv + jitV) * _invSqrtSamples;
+            (xi1, xi2) = MathUtils.Stratum2D(sampleIndex, ShadowSamples);
         }
         else
         {

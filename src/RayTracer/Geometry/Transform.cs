@@ -304,12 +304,12 @@ public class Transform : IHittable, ISamplable
     }
 
     /// <inheritdoc/>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
         if (_object is not ISamplable inner)
             return (Vector3.Zero, Vector3.UnitY, new Vector2(0.5f, 0.5f), 0f);
 
-        var (pointObj, normalObj, uvObj, areaObj) = inner.SampleStratified(sampleIndex, sqrtSamples);
+        var (pointObj, normalObj, uvObj, areaObj) = inner.SampleStratified(sampleIndex, sampleCount);
         return TransformSample(pointObj, normalObj, uvObj, areaObj);
     }
 

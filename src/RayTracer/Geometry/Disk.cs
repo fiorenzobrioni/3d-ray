@@ -85,14 +85,11 @@ public class Disk : IHittable, ISamplable
     /// <c>sqrtSamples × sqrtSamples</c> grid. Using r² rather than r
     /// preserves the uniform-area property of the sampling.
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
-        var (jitU, jitV) = MathUtils.Random2D();
-        float xi1 = (su + jitU) * inv;
-        float xi2 = (sv + jitV) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleAt(xi1, xi2);
     }
 

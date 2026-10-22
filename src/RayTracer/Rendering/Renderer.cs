@@ -119,7 +119,7 @@ public partial class Renderer
     private readonly SkySettings _sky;
     private readonly int _maxDepth;
     private readonly int _samplesPerPixel;
-    private readonly Dictionary<Emissive, ILight> _emitterToLight;
+    private readonly LightMisTable _mis;
     private readonly EnvironmentLight? _envLight;
     private readonly IMedium? _globalMedium;
     private readonly bool _verbose;
@@ -487,23 +487,6 @@ public partial class Renderer
                 Console.WriteLine("  Caustics:    on (no caustic photons deposited — no specular casters)");
         }
 
-        _emitterToLight = new Dictionary<Emissive, ILight>();
-        foreach (var gl in lights.OfType<GeometryLight>())
-        {
-            // Last-write-wins if the same material is shared across multiple
-            // geometry lights — that's degenerate and not expected in practice.
-            _emitterToLight[gl.Material] = gl;
-        }
-        // Sphere/area lights register a visible emissive proxy so BSDF rays
-        // can hit them (closing Veach's MIS estimator on smooth-specular
-        // surfaces — see ILight.ProxyMaterial). The proxy material is bound
-        // to its parent light here so WeightEmission can pull the light's own
-        // PdfSolidAngle for the MIS weight at the next-bounce emission.
-        foreach (var light in lights)
-        {
-            if (light.ProxyMaterial is { } proxy)
-                _emitterToLight[proxy] = light;
-        }
         _envLight = lights.OfType<EnvironmentLight>().FirstOrDefault();
 
         // Light importance sampling: build CDF for power/uniform strategies.
@@ -513,6 +496,7 @@ public partial class Renderer
             bool forceUniform = lightSamplingStrategy == LightSamplingStrategy.Uniform;
             _lightDist = new LightDistribution(lights, sceneBounds, forceUniform);
         }
+        _mis = new LightMisTable(lights, _lightDist);
 
         
         if (isIndirectDominant)
@@ -1136,7 +1120,7 @@ public partial class Renderer
             Vector3 raw = material.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
             if (raw.X > 0f || raw.Y > 0f || raw.Z > 0f)
             {
-                emitted = WeightEmission(raw, material, ray, prevBsdfPdf, prevIsDelta);
+                emitted = WeightEmission(raw, material, ray, rec.T, prevBsdfPdf, prevIsDelta);
             }
         }
 
@@ -1537,42 +1521,55 @@ public partial class Renderer
     }
 
     /// <summary>
-    /// Computes the MIS weight w(p, q) under the configured heuristic
-    /// (balance or power, see <see cref="MisHeuristic"/>). The denominator
-    /// epsilon prevents 0/0 when both samplers report zero density.
+    /// MIS weight of a light sample whose own density is <paramref name="own"/>,
+    /// against every light strategy that samples the same emitter in that
+    /// direction (<paramref name="sum"/>, <paramref name="sumSq"/>, own included)
+    /// and the BSDF or phase density <paramref name="pBsdf"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private float MisWeight(float p, float q)
+    private float NeeWeight(float own, float sum, float sumSq, float pBsdf)
+        => _misHeuristic == MisHeuristic.Power
+            ? own * own / (sumSq + pBsdf * pBsdf + 1e-30f)
+            : own / (sum + pBsdf + 1e-30f);
+
+    /// <summary>MIS weight of emission reached by a BSDF sample: the complement of <see cref="NeeWeight"/>.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private float BsdfWeight(float pBsdf, float sum, float sumSq)
+        => _misHeuristic == MisHeuristic.Power
+            ? pBsdf * pBsdf / (pBsdf * pBsdf + sumSq + 1e-30f)
+            : pBsdf / (pBsdf + sum + 1e-30f);
+
+    /// <summary>
+    /// MIS weight for a light sample at a surface or medium vertex: 1 when no
+    /// BSDF sample can deliver this light (delta lights, a directional disc,
+    /// a proxy-less area light), otherwise the share of the light strategies.
+    /// </summary>
+    private float LightSampleWeight(ILight light, float pPick, Vector3 origin, Vector3 dir, float pBsdf)
     {
-        if (_misHeuristic == MisHeuristic.Power)
-        {
-            float p2 = p * p;
-            float q2 = q * q;
-            return p2 / (p2 + q2 + 1e-30f);
-        }
-        return p / (p + q + 1e-30f);
+        if (pBsdf <= 0f || !_mis.PairsWithBsdf(light)) return 1f;
+        var (own, sum, sumSq) = _mis.NeeDensity(light, pPick, origin, dir);
+        return NeeWeight(own, sum, sumSq, pBsdf);
     }
 
     /// <summary>
     /// Applies the MIS weight to surface emission at the current hit — the
-    /// "BSDF-sample hit a light" half of Veach's estimator.
+    /// "BSDF-sample hit a light" half of Veach's estimator. The light is the
+    /// one that owns the surface hit at <paramref name="t"/>.
     /// </summary>
-    private Vector3 WeightEmission(Vector3 rawEmission, IMaterial material, Ray ray,
+    private Vector3 WeightEmission(Vector3 rawEmission, IMaterial material, Ray ray, float t,
                                     float prevBsdfPdf, bool prevIsDelta)
     {
         if (prevIsDelta)
             return rawEmission;
 
-        if (material is Emissive em && _emitterToLight.TryGetValue(em, out var light))
-        {
-            float pLight = light.PdfSolidAngle(ray.Origin, ray.Direction);
-            if (prevBsdfPdf + pLight <= 1e-20f)
-                return Vector3.Zero;
-            return rawEmission * MisWeight(prevBsdfPdf, pLight);
-        }
+        ILight? light = _mis.EmitterOwner(material, ray, t);
+        if (light == null)
+            return rawEmission;   // no next-event sampler covers it: full weight
 
-        // Unregistered emitter (no NEE sampler could reach it) — full weight.
-        return rawEmission;
+        float pLight = _mis.Pick(light) * light.PdfSolidAngle(ray.Origin, ray.Direction);
+        if (prevBsdfPdf + pLight <= 1e-20f)
+            return Vector3.Zero;
+        return rawEmission * BsdfWeight(prevBsdfPdf, pLight, pLight * pLight);
     }
 
     /// <summary>
@@ -1870,15 +1867,33 @@ public partial class Renderer
         if (_captureAovs && t_aovProbe is { Pending: true } aovProbe)
             aovProbe.CommitAs(Clamp01(sky), Vector3.Zero);
 
-        // When the sky isn't registered as an NEE light, or this is a delta
-        // bounce / camera ray, show it at full weight — nothing else sampled it.
-        if (prevIsDelta || _envLight == null || !_envLight.Sky.CanSampleDirectly)
+        // A delta bounce or a camera ray sees the sky (sun included) at full
+        // weight: no light sampler produces its direction.
+        if (prevIsDelta)
             return sky;
 
-        float pLight = _envLight.PdfSolidAngle(ray.Origin, ray.Direction);
-        if (prevBsdfPdf + pLight <= 1e-20f)
-            return Vector3.Zero;
-        return sky * MisWeight(prevBsdfPdf, pLight);
+        // The sky body, weighted against the environment and every portal
+        // (they all sample it), when any of them is a next-event light.
+        Vector3 result = sky;
+        if (_mis.HasSkyLights)
+        {
+            var (sum, sumSq) = _mis.SkyDensity(ray.Origin, ray.Direction);
+            result = prevBsdfPdf + sum <= 1e-20f ? Vector3.Zero : sky * BsdfWeight(prevBsdfPdf, sum, sumSq);
+        }
+
+        // The analytic sun is left out of the sky body above: it is a light of
+        // its own, sampled by its own NEE, and a BSDF ray inside its disc
+        // collects it here with the matching weight (it used to collect
+        // nothing while the sun's samples were still weighted, losing light
+        // on glossy surfaces).
+        foreach (var (sun, pick) in _mis.Suns)
+        {
+            Vector3 Ls = sun.RadianceToward(ray.Direction);
+            if (Ls == Vector3.Zero) continue;
+            float pSun = pick * sun.PdfSolidAngle(ray.Origin, ray.Direction);
+            result += Ls * BsdfWeight(prevBsdfPdf, pSun, pSun * pSun);
+        }
+        return result;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -2006,18 +2021,10 @@ public partial class Renderer
                     Tr = shadowMedium.Transmittance(new Ray(rec.Point, dirToLight, rec.Time), mediumDist);
                 }
 
-                // MIS: combined NEE pdf = pPick × pLightSample
-                float wNee = 1f;
-                if (!light.IsDelta && material != null)
-                {
-                    float pBsdf = material.Pdf(viewDir, dirToLight, rec);
-                    if (pBsdf > 0f)
-                    {
-                        float pLightSample = light.PdfSolidAngle(rec.Point, dirToLight);
-                        float pNee = pPick * pLightSample; // combined pdf for this direction
-                        wNee = (pNee + pBsdf > 0f) ? MisWeight(pNee, pBsdf) : 1f;
-                    }
-                }
+                // MIS: the NEE density carries the pick probability.
+                float wNee = material != null && _mis.PairsWithBsdf(light)
+                    ? LightSampleWeight(light, pPick, rec.Point, dirToLight, material.Pdf(viewDir, dirToLight, rec))
+                    : 1f;
 
                 if (LightSampleOwnsTransport()) wNee = 1f;
                 lightAccum += wNee * lightColor * brdf * Tr;
@@ -2068,16 +2075,9 @@ public partial class Renderer
                     // Delta lights: always weight 1 (no BSDF sampler can hit them).
                     // Non-delta lights: if the material exposes Pdf() > 0, the
                     // weight reduces variance via Veach's combined estimator.
-                    float wNee = 1f;
-                    if (!light.IsDelta && material != null)
-                    {
-                        float pBsdf = material.Pdf(viewDir, dirToLight, rec);
-                        if (pBsdf > 0f)
-                        {
-                            float pLight = light.PdfSolidAngle(rec.Point, dirToLight);
-                            wNee = (pLight + pBsdf > 0f) ? MisWeight(pLight, pBsdf) : 1f;
-                        }
-                    }
+                    float wNee = material != null && _mis.PairsWithBsdf(light)
+                        ? LightSampleWeight(light, 1f, rec.Point, dirToLight, material.Pdf(viewDir, dirToLight, rec))
+                        : 1f;
 
                     if (LightSampleOwnsTransport()) wNee = 1f;
                 lightAccum += wNee * lightColor * brdf * Tr;
@@ -2191,18 +2191,9 @@ public partial class Renderer
                 float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity, 1e-7f, time);
                 Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight, time), mediumDist);
 
-                float wNee = 1f;
-                if (!light.IsDelta)
-                {
-                    float phasePdf = medium.Phase.Pdf(wo, dirToLight);
-                    if (phasePdf > 0f)
-                    {
-                        float pLightSample = light.PdfSolidAngle(p, dirToLight);
-                        float pNee = pPick * pLightSample;
-                        if (pNee + phasePdf > 0f)
-                            wNee = MisWeight(pNee, phasePdf);
-                    }
-                }
+                float wNee = _mis.PairsWithBsdf(light)
+                    ? LightSampleWeight(light, pPick, p, dirToLight, medium.Phase.Pdf(wo, dirToLight))
+                    : 1f;
 
                 if (LightSampleOwnsTransport()) wNee = 1f;
                 lightAccum += wNee * lightColor * phaseVal * Tr;
@@ -2244,17 +2235,9 @@ public partial class Renderer
                     // Delta lights cannot be reached by phase sampling; emit at
                     // full weight. Otherwise pair the analytic phase PDF against
                     // the light PDF using the configured heuristic.
-                    float wNee = 1f;
-                    if (!light.IsDelta)
-                    {
-                        float phasePdf = medium.Phase.Pdf(wo, dirToLight);
-                        if (phasePdf > 0f)
-                        {
-                            float pLight = light.PdfSolidAngle(p, dirToLight);
-                            if (pLight + phasePdf > 0f)
-                                wNee = MisWeight(pLight, phasePdf);
-                        }
-                    }
+                    float wNee = _mis.PairsWithBsdf(light)
+                        ? LightSampleWeight(light, 1f, p, dirToLight, medium.Phase.Pdf(wo, dirToLight))
+                        : 1f;
 
                     if (LightSampleOwnsTransport()) wNee = 1f;
                 lightAccum += wNee * lightColor * phaseVal * Tr;

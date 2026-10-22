@@ -890,7 +890,8 @@ public class SceneLoader
             // ── Leaf primitive: try to register it
             default:
             {
-                if (!TryGetSamplableEmissive(obj, out ISamplable? samplable, out Emissive? emissive))
+                if (!TryGetSamplableEmissive(obj, out ISamplable? samplable, out Emissive? emissive,
+                                             out IMaterial? surfaceMaterial))
                     return;
 
                 // Wrap in a Transform only when there is an accumulated outer transform.
@@ -900,7 +901,8 @@ public class SceneLoader
                     ? new Transform(obj, outerMatrix)
                     : samplable;
 
-                lights.Add(new GeometryLight(finalSamplable, emissive, shadowSamples));
+                lights.Add(new GeometryLight(finalSamplable, emissive, shadowSamples,
+                                             surfaceMaterial: surfaceMaterial));
                 break;
             }
         }
@@ -920,10 +922,12 @@ public class SceneLoader
     private static bool TryGetSamplableEmissive(
         IHittable obj,
         [NotNullWhen(true)] out ISamplable? samplable,
-        [NotNullWhen(true)] out Emissive? material)
+        [NotNullWhen(true)] out Emissive? material,
+        out IMaterial? surfaceMaterial)
     {
         samplable = null;
         material = null;
+        surfaceMaterial = null;
 
         if (obj is not ISamplable s)
             return false;
@@ -945,6 +949,7 @@ public class SceneLoader
             _ => null
         };
 
+        surfaceMaterial = mat;
         switch (mat)
         {
             // Proxy emissives back a sphere/area light's visible primitive —

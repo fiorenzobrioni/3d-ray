@@ -57,13 +57,6 @@ public class AreaLight : ILight
     private readonly Vector3 _normal;
     private readonly float _area;
 
-    // ── Stratified sampling grid ────────────────────────────────────────────
-    // Pre-compute the grid dimensions for stratified sampling on the light
-    // surface. sqrt(N) × sqrt(N) gives the best noise reduction; the actual
-    // sample count is rounded up to the nearest perfect square.
-    private readonly int _sqrtSamples;
-    private readonly float _invSqrtSamples;
-
     public AreaLight(Vector3 corner, Vector3 u, Vector3 v, Vector3 color,
                      float intensity = 20f, int shadowSamples = 4, float softRadius = 0f,
                      Emissive? proxyMaterial = null)
@@ -80,30 +73,19 @@ public class AreaLight : ILight
         Vector3 cross = Vector3.Cross(U, V);
         _area = cross.Length();
         _normal = cross / _area;
-
-        // Pre-compute stratification grid
-        _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
-        _invSqrtSamples = 1f / _sqrtSamples;
     }
 
     /// <summary>
     /// Samples a point on the light surface using stratified sampling.
-    /// The light rectangle is divided into a grid of <c>_sqrtSamples × _sqrtSamples</c>
-    /// cells. Given a sample index, the method identifies the cell and picks a jittered
+    /// The light rectangle is divided into one cell per shadow sample
+    /// (<see cref="MathUtils.Stratum2D"/>). Given a sample index, the method identifies the cell and picks a jittered
     /// random point within it. This is far superior to pure random sampling for noise
     /// reduction in soft shadows.
     /// </summary>
     /// <param name="sampleIndex">Index of the current sample (0..ShadowSamples-1).</param>
     private Vector3 StratifiedSurfacePoint(int sampleIndex)
     {
-        int su = sampleIndex % _sqrtSamples;
-        int sv = sampleIndex / _sqrtSamples;
-
-        var (jitU, jitV) = MathUtils.Random2D();
-
-        float ru = (su + jitU) * _invSqrtSamples;
-
-        float rv = (sv + jitV) * _invSqrtSamples;
+        var (ru, rv) = MathUtils.Stratum2D(sampleIndex, ShadowSamples);
 
         return Corner + ru * U + rv * V;
     }

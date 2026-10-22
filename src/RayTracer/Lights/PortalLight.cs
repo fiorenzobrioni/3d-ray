@@ -61,8 +61,6 @@ public class PortalLight : ILight
     public bool IsDelta => false;
 
     private readonly SkySettings _sky;
-    private readonly int _sqrtSamples;
-    private readonly float _invSqrtSamples;
 
     public PortalLight(SkySettings sky, Vector3 anchor, Vector3 u, Vector3 v, int shadowSamples = 8)
     {
@@ -75,8 +73,6 @@ public class PortalLight : ILight
         Normal = Area > 1e-8f ? cross / Area : Vector3.UnitY;
 
         ShadowSamples = Math.Max(1, shadowSamples);
-        _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
-        _invSqrtSamples = 1f / _sqrtSamples;
     }
 
     /// <summary>
@@ -102,11 +98,7 @@ public class PortalLight : ILight
         float xi1, xi2;
         if (sampleIndex >= 0)
         {
-            int su = sampleIndex % _sqrtSamples;
-            int sv = sampleIndex / _sqrtSamples;
-            var (jitU, jitV) = MathUtils.Random2D();
-            xi1 = (su + jitU) * _invSqrtSamples;
-            xi2 = (sv + jitV) * _invSqrtSamples;
+            (xi1, xi2) = MathUtils.Stratum2D(sampleIndex, ShadowSamples);
         }
         else
         {

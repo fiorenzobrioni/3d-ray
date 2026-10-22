@@ -147,23 +147,19 @@ public class Box : IHittable, ISamplable
     }
 
     /// <summary>
-    /// Stratified version: the 6 faces × sqrtSamples² cells form a uniform
-    /// grid. The sample index is split into a face index (round-robin) and a
-    /// jittered (u, v) within the face. Dividing the total strata across faces
-    /// keeps each face's share of samples proportional to its area, and each
-    /// face sees its own sub-grid of stratified points.
+    /// Stratified version: the six faces side by side form a 6 × 1 strip, and
+    /// the stratified point of the unit square (<see cref="MathUtils.Stratum2D"/>)
+    /// stretched over it picks the face and the point on it. Every face keeps
+    /// its 1/6 share whatever the sample count. (A face picked round-robin by
+    /// index never received a sample when the count was below 6: four shadow
+    /// samples lit a box from four faces only.)
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        int face = sampleIndex % 6;
-        int within = sampleIndex / 6;
-        int su = within % sqrtSamples;
-        int sv = within / sqrtSamples;
-        float inv = 1f / sqrtSamples;
-        var (jitU, jitV) = MathUtils.Random2D();
-        float xi1 = (su + jitU) * inv;
-        float xi2 = (sv + jitV) * inv;
-        return SampleFace(face, xi1, xi2);
+        var (s1, s2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float strip = s1 * 6f;
+        int face = Math.Min((int)strip, 5);
+        return SampleFace(face, strip - face, s2);
     }
 
     private static (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleFace(int face, float xi1, float xi2)

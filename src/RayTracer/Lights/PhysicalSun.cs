@@ -43,8 +43,6 @@ public class PhysicalSun : ILight
 
     private readonly float _cosHalfAngle;
     private readonly float _solidAngle;
-    private readonly int _sqrtSamples;
-    private readonly float _invSqrtSamples;
 
     public int ShadowSamples { get; }
 
@@ -65,8 +63,6 @@ public class PhysicalSun : ILight
         _solidAngle = 2f * MathF.PI * (1f - _cosHalfAngle);
 
         ShadowSamples = shadowSamples > 0 ? shadowSamples : 4;
-        _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
-        _invSqrtSamples = 1f / _sqrtSamples;
     }
 
     // Φ = E · π · R². For a directional emitter the irradiance on a
@@ -90,11 +86,7 @@ public class PhysicalSun : ILight
         float xi1, xi2;
         if (sampleIndex >= 0)
         {
-            int su = sampleIndex % _sqrtSamples;
-            int sv = sampleIndex / _sqrtSamples;
-            var (jitU, jitV) = MathUtils.Random2D();
-            xi1 = (su + jitU) * _invSqrtSamples;
-            xi2 = (sv + jitV) * _invSqrtSamples;
+            (xi1, xi2) = MathUtils.Stratum2D(sampleIndex, ShadowSamples);
         }
         else
         {
@@ -130,6 +122,21 @@ public class PhysicalSun : ILight
         // mean across N stratified samples.
         Vector3 contribution = sampleRadiance * _solidAngle * trans / ShadowSamples;
         return (false, contribution, toLight, MathUtils.Infinity);
+    }
+
+    /// <summary>
+    /// Radiance the sun shows in direction <paramref name="dir"/>, zero off its
+    /// disc: what a BSDF ray that reaches the sun collects, the same function
+    /// the light samples.
+    /// </summary>
+    public Vector3 RadianceToward(Vector3 dir)
+    {
+        float len = dir.Length();
+        if (len < MathUtils.Epsilon) return Vector3.Zero;
+        float cosTheta = Vector3.Dot(dir / len, Direction);
+        if (cosTheta < _cosHalfAngle) return Vector3.Zero;
+        Vector3 radiance = Color * Intensity;
+        return LimbDarkening ? radiance * HestrofferLimb(cosTheta) : radiance;
     }
 
     public float PdfSolidAngle(Vector3 hitPoint, Vector3 wi)

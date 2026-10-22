@@ -40,8 +40,6 @@ public class DirectionalLight : ILight
     private readonly float _solidAngle;       // 2π(1 − cos) — used by PdfSolidAngle for MIS
 
     // Stratified grid for shadow samples in disc mode
-    private readonly int _sqrtSamples;
-    private readonly float _invSqrtSamples;
 
     /// <inheritdoc/>
     public int ShadowSamples { get; }
@@ -68,8 +66,6 @@ public class DirectionalLight : ILight
         // shadowSamples = 0 → use sensible defaults: 1 for delta, 4 for disc
         ShadowSamples = shadowSamples > 0 ? shadowSamples : (hasDisc ? 4 : 1);
 
-        _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
-        _invSqrtSamples = 1f / _sqrtSamples;
     }
 
     // Directional emitter: irradiance I (W/m²) on a plane perpendicular to the
@@ -111,11 +107,7 @@ public class DirectionalLight : ILight
             float xi1, xi2;
             if (sampleIndex >= 0)
             {
-                int su = sampleIndex % _sqrtSamples;
-                int sv = sampleIndex / _sqrtSamples;
-                var (jitU, jitV) = MathUtils.Random2D();
-                xi1 = (su + jitU) * _invSqrtSamples;
-                xi2 = (sv + jitV) * _invSqrtSamples;
+                (xi1, xi2) = MathUtils.Stratum2D(sampleIndex, ShadowSamples);
             }
             else
             {

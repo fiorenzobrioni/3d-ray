@@ -39,8 +39,6 @@ public class SpotLight : ILight
     // Precomputed ONB for disc jittering when softRadius > 0 && shadowSamples > 1.
     private readonly Vector3 _tangentU;
     private readonly Vector3 _tangentV;
-    private readonly int _sqrtSamples;
-    private readonly float _invSqrtSamples;
 
     public SpotLight(Vector3 position, Vector3 direction, Vector3 color,
                      float intensity = 1f, float innerAngleDeg = 15f, float outerAngleDeg = 30f,
@@ -54,9 +52,6 @@ public class SpotLight : ILight
         CosOuterAngle = MathF.Cos(MathUtils.DegreesToRadians(outerAngleDeg));
         SoftRadius = MathF.Max(0f, softRadius);
         ShadowSamples = Math.Max(1, shadowSamples);
-
-        _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
-        _invSqrtSamples = 1f / _sqrtSamples;
 
         // Precompute an orthonormal basis perp to Direction for disc jittering.
         // Used when softRadius > 0 and shadowSamples > 1.
@@ -106,11 +101,7 @@ public class SpotLight : ILight
         Vector3 sourcePos = Position;
         if (SoftRadius > 0f && ShadowSamples > 1 && sampleIndex >= 0)
         {
-            int su = sampleIndex % _sqrtSamples;
-            int sv = sampleIndex / _sqrtSamples;
-            var (jitU, jitV) = MathUtils.Random2D();
-            float xi1 = (su + jitU) * _invSqrtSamples;
-            float xi2 = (sv + jitV) * _invSqrtSamples;
+            var (xi1, xi2) = MathUtils.Stratum2D(sampleIndex, ShadowSamples);
 
             // Uniform disc sampling: map [0,1)² to a disc of radius SoftRadius.
             float r = SoftRadius * MathF.Sqrt(xi1);

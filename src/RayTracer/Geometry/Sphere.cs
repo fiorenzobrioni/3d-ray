@@ -98,17 +98,14 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
         return (Center + p * Radius, p, new Vector2(u, v), area);
     }
 
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
 
         // Stratified sampling in (cosTheta, phi) space — uniform on the sphere.
         // cosTheta ∈ [-1, 1], phi ∈ [0, 2π]
-        var (jitU, jitV) = MathUtils.Random2D();
-        float cosTheta = 1f - 2f * (su + jitU) * inv;
-        float phi = 2f * MathF.PI * (sv + jitV) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float cosTheta = 1f - 2f * xs1;
+        float phi = 2f * MathF.PI * xs2;
 
         float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
         Vector3 p = new(sinTheta * MathF.Cos(phi), sinTheta * MathF.Sin(phi), cosTheta);
@@ -143,14 +140,11 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
 
     /// <inheritdoc/>
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float SolidAnglePdf)
-        SampleSolidAngleStratified(Vector3 from, int sampleIndex, int sqrtSamples)
+        SampleSolidAngleStratified(Vector3 from, int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
-        var (jitU, jitV) = MathUtils.Random2D();
-        float xi1 = (su + jitU) * inv;
-        float xi2 = (sv + jitV) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleSolidAngleCore(from, xi1, xi2);
     }
 
