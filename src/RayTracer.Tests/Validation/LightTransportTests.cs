@@ -328,7 +328,7 @@ public class LightTransportTests
         float cosMax = MathF.Cos(halfDeg * MathF.PI / 180f);
         // Same irradiance whatever the disc: radiance scaled by 1/Ω.
         float L = 3f / (2f * MathF.PI * (1f - cosMax));
-        Vector3 expected = Cone(m, toSun, cosMax, (_, c) => new Vector3(L * MathF.Max(0f, 1f - 0.6f * (1f - c))));
+        Vector3 expected = Cone(m, toSun, cosMax, (_, c) => new Vector3(L * Lights.PhysicalSun.LimbFactor(c, cosMax)));
         var sun = new Lights.PhysicalSun(toSun, Vector3.One, L, halfDeg, limbDarkening: true, shadowSamples: 16);
         var (got, se) = Render(m, new(), new() { sun }, Black, 256);
         Check($"sun {halfDeg}° {(inHighlight ? "in the highlight" : "")}", got, se, expected);

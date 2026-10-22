@@ -10,7 +10,8 @@ namespace RayTracer.Denoising;
 /// Pipeline:
 ///   1. depth normalisation (sky sentinel → far plane, scale to [0,1]);
 ///   2. feature prefiltering (albedo/normal/depth, dual-buffer cross NL-means);
-///   3. beauty variance estimation from the A/B halves;
+///   3. highlights far above the image's level set aside (added back
+///      unfiltered at the end), beauty variance from the A/B halves;
 ///   4. main filter —
 ///      <see cref="DenoiserKind.Nlm"/>: joint NL-means, cross-filtered halves;
 ///      <see cref="DenoiserKind.Nfor"/>: NL-means-weighted first-order
@@ -43,19 +44,93 @@ public static class NforDenoiser
         var normal = FeaturePrefilter.Prefilter(buffers.NormalA!, buffers.NormalB!, nA, nB);
         var depth  = FeaturePrefilter.Prefilter(depthNa, depthNb, nA, nB);
 
-        // ── 3. Beauty variance ──────────────────────────────────────────────
-        var beautyMean = PlaneOps.Combine(buffers.BeautyA, buffers.BeautyB, nA, nB);
-        var fullVar = VarianceEstimator.FullVariance(buffers.BeautyA, buffers.BeautyB, beautyMean);
+        // ── 3. Highlights set aside, beauty variance ────────────────────────
+        var (beautyA, beautyB, excess) = SplitHighlights(buffers);
+        var beautyMean = PlaneOps.Combine(beautyA, beautyB, nA, nB);
+        var fullVar = VarianceEstimator.FullVariance(beautyA, beautyB, beautyMean);
         var halfVar = VarianceEstimator.HalfFromFull(fullVar);
 
         // ── 4. Main filter ──────────────────────────────────────────────────
-        return opts.Kind switch
+        var result = opts.Kind switch
         {
-            DenoiserKind.Nlm => JointNlm(buffers, halfVar, albedo, normal, depth, opts),
-            DenoiserKind.Nfor => NforRegression.Run(buffers, halfVar, albedo, normal, depth, opts),
+            DenoiserKind.Nlm => JointNlm(buffers, beautyA, beautyB, halfVar, albedo, normal, depth, opts),
+            DenoiserKind.Nfor => NforRegression.Run(buffers, beautyA, beautyB, halfVar, albedo, normal, depth, opts),
             _ => throw new ArgumentOutOfRangeException(nameof(opts), $"Unexpected denoiser kind {opts.Kind}."),
         };
+        if (excess != null)
+        {
+            var r = result.Data;
+            var e = excess.Data;
+            for (int i = 0; i < r.Length; i++) r[i] += e[i];
+        }
+        return result;
     }
+
+    /// <summary>
+    /// Highlights above this multiple of the image's 99th-percentile luminance
+    /// are not filtered (<see cref="SplitHighlights"/>).
+    /// </summary>
+    internal const float HighlightFactor = 32f;
+
+    /// <summary>
+    /// Sets aside what the brightest pixels have above a threshold, so the
+    /// filter sees them clamped and the excess is added back unfiltered: the
+    /// image keeps its energy, and the highlight its size. A pixel thousands
+    /// of times brighter than its neighbours (the sun in a mirror, a small
+    /// light) otherwise dominates every regression window that holds it, and
+    /// the denoiser spreads it into a square with a dark rim (PIANO-REVIEW.md
+    /// Phase 6). The clamp keeps the colour's hue (it scales by luminance).
+    /// Returns the inputs unchanged and a null excess when nothing exceeds it.
+    /// </summary>
+    internal static (FrameBuffer A, FrameBuffer B, FrameBuffer? Excess) SplitHighlights(RenderBuffers buffers)
+    {
+        int w = buffers.Width, h = buffers.Height, n = w * h;
+        int nA = buffers.SamplesA, nB = buffers.SamplesB;
+        var mean = PlaneOps.Combine(buffers.BeautyA, buffers.BeautyB, nA, nB);
+        var lum = new float[n];
+        var m = mean.Data;
+        for (int i = 0; i < n; i++) lum[i] = Luminance(m[i], m[n + i], m[2 * n + i]);
+        float p99 = PlaneOps.PercentileOfNonNegative(lum, 0.99f, fallback: 0f);
+        if (!(p99 > 0f)) return (buffers.BeautyA, buffers.BeautyB, null);
+        float limit = HighlightFactor * p99;
+
+        bool any = false;
+        foreach (var half in new[] { buffers.BeautyA, buffers.BeautyB })
+        {
+            var d = half.Data;
+            for (int i = 0; i < n && !any; i++)
+                any = Luminance(d[i], d[n + i], d[2 * n + i]) > limit;
+        }
+        if (!any) return (buffers.BeautyA, buffers.BeautyB, null);
+
+        FrameBuffer Clamp(FrameBuffer src, FrameBuffer excess)
+        {
+            var dst = new FrameBuffer(w, h, 3);
+            Array.Copy(src.Data, dst.Data, src.Data.Length);
+            var d = dst.Data; var x = excess.Data;
+            for (int i = 0; i < n; i++)
+            {
+                float l = Luminance(d[i], d[n + i], d[2 * n + i]);
+                if (!(l > limit)) continue;
+                float k = limit / l;
+                for (int c = 0; c < 3; c++)
+                {
+                    int p = c * n + i;
+                    x[p] = d[p] * (1f - k);
+                    d[p] *= k;
+                }
+            }
+            return dst;
+        }
+
+        var excessA = new FrameBuffer(w, h, 3);
+        var excessB = new FrameBuffer(w, h, 3);
+        var a = Clamp(buffers.BeautyA, excessA);
+        var b = Clamp(buffers.BeautyB, excessB);
+        return (a, b, PlaneOps.Combine(excessA, excessB, nA, nB));
+    }
+
+    private static float Luminance(float r, float g, float b) => 0.2126f * r + 0.7152f * g + 0.0722f * b;
 
     /// <summary>
     /// Joint NL-means: weights from the colour patch distance of one half
@@ -63,7 +138,7 @@ public static class NforDenoiser
     /// cross-applied to the other half; the two filtered halves recombine
     /// sample-weighted.
     /// </summary>
-    private static FrameBuffer JointNlm(RenderBuffers buffers, FrameBuffer halfVar,
+    private static FrameBuffer JointNlm(RenderBuffers buffers, FrameBuffer beautyA, FrameBuffer beautyB, FrameBuffer halfVar,
                                         FrameBuffer albedo, FrameBuffer normal, FrameBuffer depth,
                                         DenoiserOptions opts)
     {
@@ -77,9 +152,9 @@ public static class NforDenoiser
         var prm = new NlmParams(opts.SearchRadius, DenoiserOptions.PatchRadius, k);
 
         var filteredA = NlMeansCore.Filter(
-            guide: buffers.BeautyB, guideVar: halfVar, target: buffers.BeautyA, prm, guides);
+            guide: beautyB, guideVar: halfVar, target: beautyA, prm, guides);
         var filteredB = NlMeansCore.Filter(
-            guide: buffers.BeautyA, guideVar: halfVar, target: buffers.BeautyB, prm, guides);
+            guide: beautyA, guideVar: halfVar, target: beautyB, prm, guides);
         return PlaneOps.Combine(filteredA, filteredB, buffers.SamplesA, buffers.SamplesB);
     }
 

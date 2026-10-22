@@ -7,7 +7,7 @@ namespace RayTracer.Lights;
 /// <summary>
 /// Physically-grounded sun: a directional emitter with a finite angular
 /// radius (the real sun subtends 0.265° half-angle), MIS-correct cone
-/// sampling, and optional Hestroffer (1997) limb darkening.
+/// sampling, and optional limb darkening.
 ///
 /// <para>This light is decoupled from the sky model: it can be paired with
 /// Hosek-Wilkie / Preetham (analytical sun direction inherited from the model),
@@ -20,16 +20,16 @@ namespace RayTracer.Lights;
 /// <c>cosθ = 1 − ξ₁(1 − cosα)</c>, <c>φ = 2πξ₂</c>, PDF = <c>1 / (2π(1 − cosα))</c>.
 /// Stratified over <c>ShadowSamples</c> for low-variance penumbras.</para>
 ///
-/// <para><b>Limb darkening.</b> When enabled, multiplies the per-sample
-/// radiance by Hestroffer's 5-parameter polynomial in <c>μ = cos(angle from disc centre)</c>,
-/// reproducing the observed ~40% intensity drop from disc centre to limb.</para>
+/// <para><b>Limb darkening.</b> When enabled, the disc is brighter at its
+/// centre and darker at its rim (<see cref="LimbFactor"/>), with the same
+/// mean.</para>
 /// </summary>
 public class PhysicalSun : ILight
 {
     /// <summary>Unit vector pointing FROM the scene TO the sun, sky-space (Y up).</summary>
     public Vector3 Direction { get; }
 
-    /// <summary>Linear HDR radiance at the disc centre (W/m²/sr units, relative).</summary>
+    /// <summary>Mean radiance over the disc (limb darkening redistributes it, <see cref="LimbFactor"/>).</summary>
     public Vector3 Color { get; }
 
     /// <summary>Multiplicative intensity scale; folded into <see cref="Color"/> at NEE time.</summary>
@@ -38,7 +38,7 @@ public class PhysicalSun : ILight
     /// <summary>Disc half-angle in degrees. 0.265° = real Sun.</summary>
     public float AngularRadiusDeg { get; }
 
-    /// <summary>Apply Hestroffer (1997) limb-darkening to per-sample radiance.</summary>
+    /// <summary>Darken the disc toward its rim (<see cref="LimbFactor"/>).</summary>
     public bool LimbDarkening { get; }
 
     private readonly float _cosHalfAngle;
@@ -113,7 +113,7 @@ public class PhysicalSun : ILight
 
         Vector3 sampleRadiance = Color * Intensity;
         if (LimbDarkening)
-            sampleRadiance *= HestrofferLimb(cosTheta);
+            sampleRadiance *= LimbFactor(cosTheta, _cosHalfAngle);
 
         // Per-sample contribution: L * Ω / N (radiance × disc solid angle,
         // divided by sample count). The cone PDF is 1/Ω, so dividing by Ω
@@ -136,7 +136,7 @@ public class PhysicalSun : ILight
         float cosTheta = Vector3.Dot(dir / len, Direction);
         if (cosTheta < _cosHalfAngle) return Vector3.Zero;
         Vector3 radiance = Color * Intensity;
-        return LimbDarkening ? radiance * HestrofferLimb(cosTheta) : radiance;
+        return LimbDarkening ? radiance * LimbFactor(cosTheta, _cosHalfAngle) : radiance;
     }
 
     public float PdfSolidAngle(Vector3 hitPoint, Vector3 wi)
@@ -149,20 +149,23 @@ public class PhysicalSun : ILight
     }
 
     /// <summary>
-    /// Hestroffer 1997 5-parameter limb darkening polynomial in
-    /// μ = cos(angle from disc centre). Values for the visible band; produces
-    /// a ~40% dim from centre to limb that matches solar photographs.
+    /// Limb darkening of the solar disc, normalised so that its mean over the
+    /// disc is 1: the disc delivers the same irradiance with it or without it,
+    /// <see cref="Color"/> being the disc's mean radiance. Linear law
+    /// I(μ)/I(1) = 1 − u(1 − μ) with u = 0.6 (visible band), μ the cosine of
+    /// the angle on the solar surface, √(1 − (r/R)²) at a fraction r/R of the
+    /// disc's radius; the mean of μ over the disc is 2/3.
+    ///
+    /// <para>The law used to take μ as the cosine of the angle in the sky from
+    /// the disc's centre, which never drops below cos 0.265° on the real sun:
+    /// the darkening did nothing.</para>
     /// </summary>
-    private static float HestrofferLimb(float mu)
+    public static float LimbFactor(float cosAngle, float cosHalfAngle)
     {
-        // Coefficients from Hestroffer & Magnan (1997), V-band fit:
-        //   I(μ)/I(1) = 1 − u₁(1 − μ) − u₂(1 − μ)² ...
-        // We use the two-coefficient form with u₁ = 0.6, u₂ = 0.0 (Eddington-ish).
-        const float u1 = 0.6f;
-        const float u2 = 0.0f;
-        float one_mu = 1f - mu;
-        float darkening = 1f - u1 * one_mu - u2 * one_mu * one_mu;
-        return MathF.Max(0f, darkening);
+        const float u = 0.6f;
+        float r2 = Math.Clamp((1f - cosAngle) / MathF.Max(1e-12f, 1f - cosHalfAngle), 0f, 1f);
+        float mu = MathF.Sqrt(1f - r2);
+        return (1f - u * (1f - mu)) / (1f - u / 3f);
     }
 
     private static Vector3 LocalToWorld(Vector3 local, Vector3 w)

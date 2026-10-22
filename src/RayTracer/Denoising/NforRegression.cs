@@ -51,7 +51,7 @@ internal static class NforRegression
         SelectionMarginOverride
         ?? (Core.Sampling.Sampler.Kind == Core.Sampling.SamplerKind.Sobol ? 0.5f : 0f);
 
-    public static FrameBuffer Run(RenderBuffers buffers, FrameBuffer halfVar,
+    public static FrameBuffer Run(RenderBuffers buffers, FrameBuffer beautyA, FrameBuffer beautyB, FrameBuffer halfVar,
                                   FrameBuffer albedo, FrameBuffer normal, FrameBuffer depth,
                                   DenoiserOptions opts)
     {
@@ -60,10 +60,10 @@ internal static class NforRegression
         float[] ks = opts.CandidateK;
         int searchRadius = opts.SearchRadius;
 
-        var regA = RegressAllCandidates(guide: buffers.BeautyB, guideVar: halfVar,
-                                        target: buffers.BeautyA, feat, w, h, ks, searchRadius);
-        var regB = RegressAllCandidates(guide: buffers.BeautyA, guideVar: halfVar,
-                                        target: buffers.BeautyB, feat, w, h, ks, searchRadius);
+        var regA = RegressAllCandidates(guide: beautyB, guideVar: halfVar,
+                                        target: beautyA, feat, w, h, ks, searchRadius);
+        var regB = RegressAllCandidates(guide: beautyA, guideVar: halfVar,
+                                        target: beautyB, feat, w, h, ks, searchRadius);
 
         int nA = buffers.SamplesA, nB = buffers.SamplesB;
 
@@ -72,7 +72,7 @@ internal static class NforRegression
         // feature-blind filter is biased) plus one filtered candidate per k.
         int nCand = ks.Length + 1;
         var candidates = new FrameBuffer[nCand];
-        var beautyMean = PlaneOps.Combine(buffers.BeautyA, buffers.BeautyB, nA, nB);
+        var beautyMean = PlaneOps.Combine(beautyA, beautyB, nA, nB);
         candidates[0] = beautyMean;
         for (int ki = 0; ki < ks.Length; ki++)
             candidates[ki + 1] = PlaneOps.Combine(regA[ki], regB[ki], nA, nB);
@@ -93,7 +93,7 @@ internal static class NforRegression
         mse[0] = new float[n];
         PlaneOps.BoxSmooth(tmp, mse[0], w, h, MseSmoothRadius);
 
-        float[] hvA = buffers.BeautyA.Data, hvB = buffers.BeautyB.Data;
+        float[] hvA = beautyA.Data, hvB = beautyB.Data;
         float[] hv = halfVar.Data;
         float selMargin = SelectionMargin;
         for (int ki = 0; ki < ks.Length; ki++)
@@ -128,6 +128,10 @@ internal static class NforRegression
         // Softened per-pixel argmin: candidate indicator planes are box
         // blurred (avoids hard selection seams) and renormalised, then the
         // candidates are blended.
+        // A filtered candidate that overshoots below zero in any channel is
+        // out of the running at that pixel: the regression extrapolated across
+        // an HDR edge (a sunlit silhouette against a dark background), and
+        // clamping its prediction to zero leaves a dark, coloured seam.
         var weights = new float[nCand][];
         var indicator = new float[n];
         for (int ci = 0; ci < nCand; ci++)
@@ -136,7 +140,7 @@ internal static class NforRegression
             {
                 float best = mse[0][i]; int bestIdx = 0;
                 for (int cj = 1; cj < nCand; cj++)
-                    if (mse[cj][i] < best) { best = mse[cj][i]; bestIdx = cj; }
+                    if (mse[cj][i] < best && !Overshoots(candidates[cj].Data, i, n)) { best = mse[cj][i]; bestIdx = cj; }
                 indicator[i] = bestIdx == ci ? 1f : 0f;
             }
             weights[ci] = new float[n];
@@ -160,13 +164,21 @@ internal static class NforRegression
             }
         }
 
-        // Regression can overshoot below zero on HDR edges — radiance is
-        // non-negative by definition.
+        // Regression can still overshoot below zero where the softened
+        // selection blends in a neighbour's candidate. Radiance is
+        // non-negative: such a pixel keeps its unfiltered mean (clamping the
+        // negative channel alone would tint it, a blue seam on a sunlit edge).
         var data = result.Data;
-        for (int i = 0; i < data.Length; i++)
-            if (data[i] < 0f) data[i] = 0f;
+        var mean = candidates[0].Data;
+        for (int i = 0; i < n; i++)
+        {
+            if (!Overshoots(data, i, n)) continue;
+            for (int c = 0; c < 3; c++) data[c * n + i] = MathF.Max(0f, mean[c * n + i]);
+        }
         return result;
     }
+
+    private static bool Overshoots(float[] d, int i, int n) => d[i] < 0f || d[n + i] < 0f || d[2 * n + i] < 0f;
 
     /// <summary>Feature stack scaled to unit global standard deviation so the
     /// Tikhonov term and bandwidths are feature-magnitude independent.</summary>

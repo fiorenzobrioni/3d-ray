@@ -1862,8 +1862,9 @@ public class SceneLoader
             "flat" or "" => new FlatSky(ToVector3(skyData.Color) ?? DefaultSkyColor),
             "gradient"   => BuildGradientSkyModel(skyData),
             "hdri"       => BuildHdriSkyModel(skyData, sceneDir),
-            "preetham" or "hosek_wilkie" or "physical"
-                         => BuildPhysicalSkyModel(skyData),
+            "preetham"   => BuildPhysicalSkyModel(skyData, hosekWilkie: false),
+            "hosek_wilkie" or "physical"
+                         => BuildPhysicalSkyModel(skyData, hosekWilkie: true),
             "nishita"    => BuildNishitaSkyModel(skyData),
             _            => WarnUnknownSkyTypeModel(skyType),
         };
@@ -1935,32 +1936,41 @@ public class SceneLoader
             sunHalfAngleDeg: halfAngle);
     }
 
-    private static NishitaSky BuildNishitaSkyModel(SkyData skyData)
-    {
-        Vector3 dirToSun = skyData.Sun?.Direction is { Count: >= 3 }
+    private static Vector3 SkySunDirection(SkyData skyData)
+        => skyData.Sun?.Direction is { Count: >= 3 }
             ? Vector3.Normalize(ToVector3(skyData.Sun.Direction) ?? Vector3.UnitY)
-            : Vector3.Normalize(new Vector3(0.2f, 1f, 0.3f));
-        float intensity = skyData.Intensity > 0f ? skyData.Intensity : 1f;
-        // Reuse turbidity as a coarse haze knob: 1 → clean (dust=0.3), 10 → smoggy (dust=2.0).
-        float dust = MathF.Max(0.1f, (skyData.Turbidity - 1f) * 0.2f + 0.5f);
-        return new NishitaSky(dirToSun, airDensity: 1f, dustDensity: dust, intensity: intensity);
+            : Vector3.Normalize(new Vector3(0.2f, 1f, 0.3f)); // noon-ish, slightly south
+
+    private static SkyUnits ParseSkyUnits(SkyData skyData)
+    {
+        switch (skyData.Units?.Trim().ToLowerInvariant())
+        {
+            case null or "" or "relative": return SkyUnits.Relative;
+            case "photometric" or "nits": return SkyUnits.Photometric;
+            default:
+                Warn($"Unknown sky units '{skyData.Units}' (relative | photometric). Using relative.");
+                return SkyUnits.Relative;
+        }
     }
 
-    private static PreethamSky BuildPhysicalSkyModel(SkyData skyData)
+    private static NishitaSky BuildNishitaSkyModel(SkyData skyData)
     {
-        Vector3 dirToSun;
-        if (skyData.Sun?.Direction is { Count: >= 3 })
-        {
-            dirToSun = Vector3.Normalize(ToVector3(skyData.Sun.Direction) ?? Vector3.UnitY);
-        }
-        else
-        {
-            // Default: noon-ish sun pointing slightly south of overhead.
-            dirToSun = Vector3.Normalize(new Vector3(0.2f, 1f, 0.3f));
-        }
+        float intensity = skyData.Intensity > 0f ? skyData.Intensity : 1f;
+        return new NishitaSky(SkySunDirection(skyData), airDensity: 1f,
+                              dustDensity: NishitaSky.DustFromTurbidity(skyData.Turbidity),
+                              intensity: intensity,
+                              groundAlbedo: ToVector3(skyData.GroundAlbedo),
+                              units: ParseSkyUnits(skyData));
+    }
+
+    private static AnalyticSky BuildPhysicalSkyModel(SkyData skyData, bool hosekWilkie)
+    {
         var albedo = ToVector3(skyData.GroundAlbedo) ?? new Vector3(0.3f);
         float intensity = skyData.Intensity > 0f ? skyData.Intensity : 1f;
-        return new PreethamSky(dirToSun, skyData.Turbidity, albedo, intensity);
+        var units = ParseSkyUnits(skyData);
+        return hosekWilkie
+            ? new HosekWilkieSky(SkySunDirection(skyData), skyData.Turbidity, albedo, intensity, units)
+            : new PreethamSky(SkySunDirection(skyData), skyData.Turbidity, albedo, intensity, units);
     }
 
     private static ISkyModel BuildHdriSkyModel(SkyData skyData, string sceneDir)

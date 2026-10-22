@@ -265,10 +265,9 @@ public class SkyData
 {
     /// <summary>
     /// Sky model: <c>flat</c> (uniform colour), <c>gradient</c> (zenith/horizon/ground
-    /// vertical lerp + optional analytical sun), <c>hdri</c> (equirect IBL), or
-    /// <c>preetham</c> / <c>hosek_wilkie</c> (analytical physical sky). The
-    /// <c>hosek_wilkie</c> alias currently routes to the Preetham implementation
-    /// — see <c>docs/technical/sky-environment.md</c>.
+    /// vertical lerp + optional analytical sun), <c>hdri</c> (equirect IBL), or a
+    /// physical sky: <c>hosek_wilkie</c> (alias <c>physical</c>), <c>preetham</c>,
+    /// <c>nishita</c>.
     /// </summary>
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
@@ -300,11 +299,19 @@ public class SkyData
 
     // ── Pro features (added with the sky/environment overhaul) ───────────────
 
-    /// <summary>Atmospheric turbidity for <c>preetham</c> / <c>hosek_wilkie</c>. 1 = pristine, 3 ≈ clear, 5 = haze, 10 = smog. Default 3.</summary>
+    /// <summary>Atmospheric turbidity for the physical skies (the dust of <c>nishita</c>). 1 = pristine, 3 ≈ clear, 5 = haze, 10 = smog. Default 3.</summary>
     [YamlMember(Alias = "turbidity")]
     public float Turbidity { get; set; } = 3f;
 
-    /// <summary>RGB ground albedo for the physical sky's ground-bounce term. Default 0.3.</summary>
+    /// <summary>
+    /// Units of a physical sky (<c>preetham</c>, <c>hosek_wilkie</c>, <c>nishita</c>):
+    /// <c>relative</c> (default, the sky body's historical scale) or
+    /// <c>photometric</c> (nits, to go with photometric lights and the camera's EV100).
+    /// </summary>
+    [YamlMember(Alias = "units")]
+    public string? Units { get; set; }
+
+    /// <summary>RGB albedo of the ground below the horizon, which also tints the Hosek-Wilkie sky. Default 0.3.</summary>
     [YamlMember(Alias = "ground_albedo")]
     public List<float>? GroundAlbedo { get; set; }
 
