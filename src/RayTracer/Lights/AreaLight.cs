@@ -56,6 +56,7 @@ public class AreaLight : ILight
 
     private readonly Vector3 _normal;
     private readonly float _area;
+    private readonly bool _rectangular;
 
     public AreaLight(Vector3 corner, Vector3 u, Vector3 v, Vector3 color,
                      float intensity = 20f, int shadowSamples = 4, float softRadius = 0f,
@@ -73,22 +74,9 @@ public class AreaLight : ILight
         Vector3 cross = Vector3.Cross(U, V);
         _area = cross.Length();
         _normal = cross / _area;
+        _rectangular = SphericalRectangle.IsRectangle(U, V);
     }
 
-    /// <summary>
-    /// Samples a point on the light surface using stratified sampling.
-    /// The light rectangle is divided into one cell per shadow sample
-    /// (<see cref="MathUtils.Stratum2D"/>). Given a sample index, the method identifies the cell and picks a jittered
-    /// random point within it. This is far superior to pure random sampling for noise
-    /// reduction in soft shadows.
-    /// </summary>
-    /// <param name="sampleIndex">Index of the current sample (0..ShadowSamples-1).</param>
-    private Vector3 StratifiedSurfacePoint(int sampleIndex)
-    {
-        var (ru, rv) = MathUtils.Stratum2D(sampleIndex, ShadowSamples);
-
-        return Corner + ru * U + rv * V;
-    }
 
     // Lambertian rectangular emitter: Φ = π · L · A, where L is the radiance
     // (the per-sample `Intensity` in our parameterisation — see IlluminateAndTest
@@ -114,16 +102,31 @@ public class AreaLight : ILight
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
         IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
     {
-        Vector3 samplePoint;
-        if (sampleIndex >= 0)
+        // The light emits on the side its normal faces: a receiver behind its
+        // plane gets nothing, before any sample or shadow ray.
+        if (Vector3.Dot(hitPoint - Corner, _normal) <= 0f)
+            return (false, Vector3.Zero, _normal, 0f);
+
+        var (ru, rv) = MathUtils.Stratum2D(sampleIndex, ShadowSamples);
+
+        // A rectangle is sampled uniformly over the solid angle it subtends
+        // (Ureña 2013): every sample carries L / pdf = L Ω, so the estimate no
+        // longer swings with the A cos / d² of area sampling close to the
+        // light. Small or parallelogram lights are sampled by area.
+        if (_rectangular && SphericalRectangle.TrySample(hitPoint, Corner, U, V, ru, rv,
+                                                         out Vector3 sphPoint, out float pdfOmega))
         {
-            samplePoint = StratifiedSurfacePoint(sampleIndex);
+            Vector3 d = sphPoint - hitPoint;
+            float dist = d.Length();
+            if (dist < MathUtils.RayEpsilon) return (true, Vector3.Zero, Vector3.UnitY, 0f);
+            Vector3 dir = d / dist;
+            if (Vector3.Dot(-dir, _normal) <= 0f) return (false, Vector3.Zero, dir, dist);
+            Vector3 tr = ShadowRay.TransmittanceToPoint(world, hitPoint, surfaceNormal, sphPoint, _normal, time);
+            if (MathUtils.NearZero(tr)) return (true, Vector3.Zero, dir, dist);
+            return (false, Color * (Intensity / (pdfOmega * ShadowSamples)) * tr, dir, dist);
         }
-        else
-        {
-            var (ru, rv) = MathUtils.Random2D();
-            samplePoint = Corner + ru * U + rv * V;
-        }
+
+        Vector3 samplePoint = Corner + ru * U + rv * V;
 
         Vector3 toLight = samplePoint - hitPoint;
         float distSq = toLight.LengthSquared();
@@ -147,10 +150,10 @@ public class AreaLight : ILight
             return (true, Vector3.Zero, dirToLight, distance);
 
         // Soft-radius clamp: floors distSq at SoftRadius² so the cosLight/d²
-        // term cannot diverge when a stratified sample falls nearly tangent to
-        // the receiver (common in dense volumetric media near the emitter).
-        // Geometric distance is returned unchanged — only the attenuation
-        // denominator is clamped. Same pattern as PointLight.SoftRadius.
+        // term cannot diverge when a sample falls nearly tangent to the
+        // receiver (dense volumetric media near the emitter). Only area
+        // sampling has that singularity; the spherical sampler above is
+        // bounded by construction.
         float attenuationDistSq = distSq;
         if (SoftRadius > 0f) attenuationDistSq = MathF.Max(attenuationDistSq, SoftRadius * SoftRadius);
 
@@ -172,6 +175,12 @@ public class AreaLight : ILight
     /// </summary>
     public float PdfSolidAngle(Vector3 hitPoint, Vector3 wi)
     {
+        // One-sided, like the samples: behind the plane nothing is sampled.
+        if (Vector3.Dot(hitPoint - Corner, _normal) <= 0f)
+            return 0f;
+        if (_rectangular)
+            return SphericalRectangle.Pdf(hitPoint, Corner, U, V, wi);
+
         // Ray-plane intersection: rect plane has point Corner and normal _normal.
         float denom = Vector3.Dot(_normal, wi);
         if (MathF.Abs(denom) < 1e-7f)
