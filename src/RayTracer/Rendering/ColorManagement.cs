@@ -481,7 +481,7 @@ public static class WhiteBalance
     }
 
     /// <summary>Planckian locus, cubic spline of Kang et al. (2002), 1667-25000 K.</summary>
-    private static (double x, double y) Planckian(double t)
+    internal static (double x, double y) Planckian(double t)
     {
         double t2 = t * t, t3 = t2 * t;
         double x = t <= 4000.0

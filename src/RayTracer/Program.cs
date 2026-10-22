@@ -602,6 +602,8 @@ class Program
             if (motionBlur.Active)
                 Console.WriteLine($"  Motion blur: shutter [{motionBlur.ShutterOpen:0.##}, {motionBlur.ShutterClose:0.##}]");
             float? whiteBalanceKelvin = whiteBalanceArg ?? camera.WhiteBalanceKelvin;
+            // The camera's physical exposure (ISO, shutter, f-number) adds to --exposure.
+            if (camera.PhysicalExposureEv is float physicalEv) exposureEv += physicalEv;
             Console.WriteLine($"  View:        {view.ToString().ToLowerInvariant()}{(look != ViewLook.None ? $" ({look.ToString().ToLowerInvariant()})" : "")}, filter {pixelFilterKind.ToString().ToLowerInvariant()}" +
                               (whiteBalanceKelvin is float k ? $", white balance {k:0} K" : ""));
 

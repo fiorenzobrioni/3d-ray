@@ -15,7 +15,7 @@ namespace RayTracer.Tests.Validation;
 /// </summary>
 public class LightPowerTests
 {
-    private static float MeasuredFlux(ILight light, Vector3 centre, float radius = 25f, int points = 40000)
+    internal static float MeasuredFlux(ILight light, Vector3 centre, float radius = 25f, int points = 40000)
     {
         var empty = new HittableList();
         var rng = new Random(3);

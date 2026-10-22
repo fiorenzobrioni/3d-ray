@@ -446,6 +446,21 @@ public class CameraData
     [YamlMember(Alias = "aperture_ratio")]
     public float ApertureRatio { get; set; } = 1f;
 
+    /// <summary>ISO sensitivity of the physical exposure (with <c>shutter_speed</c>
+    /// and <c>f_stop</c>): scene radiance in nits maps to the display as on a
+    /// camera. See <see cref="Ev100"/>.</summary>
+    [YamlMember(Alias = "iso")]
+    public float? Iso { get; set; }
+
+    /// <summary>Exposure time in seconds (0.008 = 1/125 s).</summary>
+    [YamlMember(Alias = "shutter_speed")]
+    public float? ShutterSpeed { get; set; }
+
+    /// <summary>Exposure value at ISO 100, instead of ISO, shutter and
+    /// f-number (15 for a sunny day, 7 for a lit interior).</summary>
+    [YamlMember(Alias = "ev100")]
+    public float? Ev100 { get; set; }
+
     /// <summary>White balance in kelvin: a light of this colour temperature
     /// renders neutral (lower cools the image, higher warms it). Display only:
     /// EXR output stays scene-linear. Unset = no white balance.</summary>
@@ -554,6 +569,15 @@ public class MaterialData
 
     [YamlMember(Alias = "intensity")]
     public float Intensity { get; set; } = 1f;
+
+    /// <summary><c>emissive</c>: luminance in nits (cd/m²) instead of the
+    /// unitless <c>intensity</c>; the colour then only tints (PIANO-REVIEW.md §3.14).</summary>
+    [YamlMember(Alias = "luminance")]
+    public float? Luminance { get; set; }
+
+    /// <summary><c>emissive</c>: colour temperature in kelvin (black body), multiplying <c>color</c>.</summary>
+    [YamlMember(Alias = "temperature")]
+    public float? Temperature { get; set; }
 
     [YamlMember(Alias = "texture")]
     public TextureData? Texture { get; set; }
@@ -1878,6 +1902,51 @@ public class LightData
     /// </summary>
     [YamlMember(Alias = "visible_to_camera")]
     public bool VisibleToCamera { get; set; } = true;
+
+    // ── Photometric units (PIANO-REVIEW.md §3.14) ───────────────────────────
+    // Any one of these replaces the unitless `intensity`; the colour then
+    // only tints (it is divided by its luminance). See Lights.LightUnits.
+
+    /// <summary>Emitted flux, in <see cref="PowerUnit"/> (watts by default):
+    /// point, spot (as the point light of that flux), area, sphere.</summary>
+    [YamlMember(Alias = "power")]
+    public float? Power { get; set; }
+
+    /// <summary><c>watt</c> (radiant, 683 lm/W) or <c>lumen</c>.</summary>
+    [YamlMember(Alias = "power_unit")]
+    public string? PowerUnit { get; set; }
+
+    /// <summary>Luminous intensity in candela: point, spot.</summary>
+    [YamlMember(Alias = "candela")]
+    public float? Candela { get; set; }
+
+    /// <summary>Luminance of the surface in nits (cd/m²): area, sphere.</summary>
+    [YamlMember(Alias = "luminance")]
+    public float? Luminance { get; set; }
+
+    /// <summary>Illuminance on a surface facing it, in lux: directional / sun.</summary>
+    [YamlMember(Alias = "illuminance")]
+    public float? Illuminance { get; set; }
+
+    /// <summary>Colour temperature in kelvin (black body), multiplying <c>color</c>.</summary>
+    [YamlMember(Alias = "temperature")]
+    public float? Temperature { get; set; }
+
+    /// <summary>Area and sphere lights: <c>intensity</c> is the total power
+    /// rather than the radiance, so resizing the light keeps its output.</summary>
+    [YamlMember(Alias = "normalize")]
+    public bool Normalize { get; set; }
+
+    /// <summary>Point and spot lights: an IES (LM-63) photometric file, relative
+    /// to the scene. The light emits its candela distribution (nadir down, or
+    /// along a spot's direction or a point light's <c>direction</c>);
+    /// <c>power</c> or <c>candela</c> rescale it to that flux or peak.</summary>
+    [YamlMember(Alias = "ies")]
+    public string? Ies { get; set; }
+
+    /// <summary>Scales the light by 2^exposure (stops).</summary>
+    [YamlMember(Alias = "exposure")]
+    public float Exposure { get; set; }
 }
 
 /// <summary>

@@ -42,8 +42,9 @@ public class SpotLight : ILight
 
     public SpotLight(Vector3 position, Vector3 direction, Vector3 color,
                      float intensity = 1f, float innerAngleDeg = 15f, float outerAngleDeg = 30f,
-                     float softRadius = 0f, int shadowSamples = 1)
+                     float softRadius = 0f, int shadowSamples = 1, IesProfile? ies = null)
     {
+        Ies = ies;
         Position = position;
         Direction = Vector3.Normalize(direction);
         Color = color;
@@ -69,8 +70,16 @@ public class SpotLight : ILight
     // (the smoothstep ramps roughly linearly in cos θ over the ring, squared, so
     // its mean-squared contribution is ~1/3). This is an approximation but
     // matches the actual IlluminateAndTest() integral to within a small constant.
+    /// <summary>
+    /// Optional luminaire distribution (IES), its nadir along <see cref="Direction"/>:
+    /// the profile's candela times <see cref="Intensity"/>, inside the cone.
+    /// </summary>
+    public IesProfile? Ies { get; }
+
     public float ApproximatePower(AABB sceneBounds)
     {
+        // With a profile, its flux (the cone only trims it: an upper bound).
+        if (Ies != null) return Ies.Flux * MathUtils.Luminance(Color) * Intensity;
         float coreSolidAngle = 2f * MathF.PI * (1f - CosInnerAngle);
         float falloffSolidAngle = 2f * MathF.PI * (CosInnerAngle - CosOuterAngle) / 3f;
         float omegaEff = coreSolidAngle + falloffSolidAngle;
@@ -144,6 +153,8 @@ public class SpotLight : ILight
             (cosAngle - CosOuterAngle) / (CosInnerAngle - CosOuterAngle),
             0f, 1f);
         spotAttenuation *= spotAttenuation;
+
+        if (Ies != null) distanceAttenuation *= Ies.Candela(-dirToLight, Direction, _tangentU);
 
         return (false, Color * distanceAttenuation * spotAttenuation * trans, dirToLight, distance);
     }

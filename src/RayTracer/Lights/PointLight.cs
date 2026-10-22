@@ -22,18 +22,34 @@ public class PointLight : ILight
     /// <inheritdoc/>
     public int ShadowSamples => 1;
 
-    public PointLight(Vector3 position, Vector3 color, float intensity = 1f, float softRadius = 0f)
+    /// <summary>
+    /// Optional luminaire distribution (IES): the intensity toward a direction
+    /// is <see cref="Intensity"/> times the profile's candela there, the
+    /// profile's nadir along <see cref="IesAxis"/>.
+    /// </summary>
+    public IesProfile? Ies { get; }
+    public Vector3 IesAxis { get; } = -Vector3.UnitY;
+    private readonly Vector3 _iesReference;
+
+    public PointLight(Vector3 position, Vector3 color, float intensity = 1f, float softRadius = 0f,
+                      IesProfile? ies = null, Vector3? iesAxis = null)
     {
         Position = position;
         Color = color;
         Intensity = intensity;
         SoftRadius = MathF.Max(0f, softRadius);
+        Ies = ies;
+        if (iesAxis is Vector3 a && a.LengthSquared() > 0f) IesAxis = Vector3.Normalize(a);
+        MathUtils.OrthonormalBasis(IesAxis, out _iesReference, out _);
     }
+
+    /// <summary>The profile's factor toward <paramref name="dirFromLight"/> (1 without a profile).</summary>
+    private float Profile(Vector3 dirFromLight) => Ies?.Candela(dirFromLight, IesAxis, _iesReference) ?? 1f;
 
     // Isotropic point emitter: Φ = 4π · I · Luminance(Color).
     // Integrating radiant intensity I (W/sr) over the full sphere.
     public float ApproximatePower(AABB sceneBounds) =>
-        4f * MathF.PI * MathUtils.Luminance(Color) * Intensity;
+        (Ies?.Flux ?? 4f * MathF.PI) * MathUtils.Luminance(Color) * Intensity;
 
     /// <summary>
     /// Inlined illumination + shadow test using normal-based shadow origin.
@@ -63,7 +79,7 @@ public class PointLight : ILight
         // returned unchanged — only the attenuation denominator is clamped.
         float d2 = distance * distance;
         if (SoftRadius > 0f) d2 = MathF.Max(d2, SoftRadius * SoftRadius);
-        float attenuation = Intensity / d2;
+        float attenuation = Intensity * Profile(-dirToLight) / d2;
         return (false, Color * attenuation * trans, dirToLight, distance);
     }
 }

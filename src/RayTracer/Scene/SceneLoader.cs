@@ -459,7 +459,7 @@ public class SceneLoader
         {
             foreach (var l in data.Lights)
             {
-                var light = CreateLight(l, shadowSamplesOverride, objects, sky);
+                var light = CreateLight(l, shadowSamplesOverride, objects, sky, sceneDir);
                 if (light != null) lights.Add(light);
             }
         }
@@ -523,6 +523,23 @@ public class SceneLoader
                 camera.WhiteBalanceKelvin = wb;
             else
                 Warn($"Camera 'white_balance' must be within {WhiteBalance.MinKelvin}-{WhiteBalance.MaxKelvin} K (got {wb}); ignored.");
+        }
+
+        // Physical exposure (§3.34): EV100 directly, or from ISO, shutter and
+        // f-number, mapping scene radiance in nits to the display.
+        float? ev100 = camData.Ev100;
+        if (ev100 == null && (camData.Iso != null || camData.ShutterSpeed != null))
+        {
+            if (camData.Iso is float iso && camData.ShutterSpeed is float shutter && camData.FStop is float fStop
+                && iso > 0f && shutter > 0f && fStop > 0f)
+                ev100 = LightUnits.Ev100(fStop, shutter, iso);
+            else
+                Warn("Camera physical exposure needs 'iso', 'shutter_speed' and 'f_stop' (or 'ev100'); ignored.");
+        }
+        if (ev100 is float ev)
+        {
+            camera.PhysicalExposureEv = LightUnits.ExposureEvFromEv100(ev);
+            Info($"Exposure:    EV100 {ev:0.##} (scene in nits)");
         }
 
         var motionBlur = ResolveMotionBlurSettings(camData.Shutter, sceneHasMotion);
@@ -1290,8 +1307,7 @@ public class SceneLoader
                                 m.Color != null || m.Texture != null ? albedo : new SolidColor(Vector3.One),
                                 m.Roughness ?? 0f),
             // White unless a colour is written: 'intensity' is the radiance.
-            "emissive"   => new Emissive(m.Color != null || m.Texture != null ? albedo : new SolidColor(Vector3.One),
-                                         m.Intensity),
+            "emissive"   => CreateEmissive(m, albedo),
             "disney" or "disney_bsdf" or "pbr"
                          => CreateDisney(m, albedo, sceneDir),
             "openpbr"    => CreateOpenPbr(m, sceneDir),
@@ -3725,27 +3741,41 @@ public class SceneLoader
     }
 
     private static ILight? CreateLight(LightData l, int? shadowSamplesOverride,
-                                        List<IHittable> objects, SkySettings sky)
+                                        List<IHittable> objects, SkySettings sky, string sceneDir = ".")
     {
         var color = ToVector3(l.Color) ?? Vector3.One;
 
         string? lightType = l.Type?.ToLowerInvariant();
+        switch (lightType)
+        {
+            case "point":
+            {
+                var ies = LoadIes(l, sceneDir);
+                var (c, i) = LightEmission(l, color, EmissionKind.Intensity, 0f, ies);
+                return new PointLight(ToVector3(l.Position) ?? new Vector3(0, 10, 0), c, i, l.SoftRadius,
+                                      ies, ToVector3(l.Direction));
+            }
+            case "directional" or "sun":
+            {
+                var (c, e) = LightEmission(l, color, EmissionKind.Irradiance, 0f);
+                return new DirectionalLight(ToVector3(l.Direction) ?? new Vector3(-1, -1, -1),
+                    c, e, l.AngularRadius,
+                    shadowSamplesOverride ?? 0);   // 0 → auto (1 if delta, 16 if disc)
+            }
+            case "spot" or "spotlight":
+            {
+                var ies = LoadIes(l, sceneDir);
+                var (c, i) = LightEmission(l, color, EmissionKind.Intensity, 0f, ies);
+                return new SpotLight(
+                    ToVector3(l.Position)  ?? new Vector3(0, 10, 0),
+                    ToVector3(l.Direction) ?? new Vector3(0, -1, 0),
+                    c, i, l.InnerAngle, l.OuterAngle, l.SoftRadius,
+                    shadowSamplesOverride ?? l.ShadowSamples, ies);
+            }
+        }
+
         return lightType switch
         {
-            "point" => new PointLight(
-                ToVector3(l.Position) ?? new Vector3(0, 10, 0),
-                color, l.Intensity, l.SoftRadius),
-
-            "directional" or "sun" => new DirectionalLight(
-                ToVector3(l.Direction) ?? new Vector3(-1, -1, -1),
-                color, l.Intensity, l.AngularRadius,
-                shadowSamplesOverride ?? 0),   // 0 → auto (1 if delta, 16 if disc)
-
-            "spot" or "spotlight" => new SpotLight(
-                ToVector3(l.Position)  ?? new Vector3(0, 10, 0),
-                ToVector3(l.Direction) ?? new Vector3(0, -1, 0),
-                color, l.Intensity, l.InnerAngle, l.OuterAngle, l.SoftRadius,
-                shadowSamplesOverride ?? l.ShadowSamples),
 
             // ── Portal light ─────────────────────────────────────────────────
             // Window/skylight onto the environment. Restricts NEE to directions
@@ -3783,6 +3813,133 @@ public class SceneLoader
 
             _ => null
         };
+    }
+
+    /// <summary>The quantity a light type's amount is: what <c>intensity</c> means for it.</summary>
+    private enum EmissionKind
+    {
+        /// <summary>Radiant intensity (per steradian): point, spot. Photometric: candela.</summary>
+        Intensity,
+        /// <summary>Radiance of the emitting surface: area, sphere. Photometric: nits.</summary>
+        Radiance,
+        /// <summary>Irradiance on a surface facing it: directional. Photometric: lux.</summary>
+        Irradiance,
+    }
+
+    /// <summary>
+    /// The colour and amount of a light (PIANO-REVIEW.md §3.14): the unitless
+    /// <c>intensity</c> as before, or a photometric quantity (<c>power</c>,
+    /// <c>candela</c>, <c>luminance</c>, <c>illuminance</c>) in nits-based
+    /// scene units, the colour then reduced to a tint of luminance 1.
+    /// <c>temperature</c> multiplies the colour by a black body, <c>normalize</c>
+    /// spreads <c>intensity</c> over the emitting area, <c>exposure</c> scales
+    /// by 2^stops. <paramref name="area"/> is the emitting area (radiance kinds).
+    /// </summary>
+    /// <summary>Loads a point or spot light's IES file (relative to the scene); null on none or failure.</summary>
+    private static IesProfile? LoadIes(LightData l, string sceneDir)
+    {
+        if (string.IsNullOrWhiteSpace(l.Ies)) return null;
+        string path = Path.IsPathRooted(l.Ies) ? l.Ies : Path.Combine(sceneDir, l.Ies);
+        try
+        {
+            var ies = IesProfile.Load(path);
+            if (ies.TiltIgnored) Warn($"IES '{l.Ies}': TILT data ignored (the lamp is taken as mounted).");
+            if (ies.Flux <= 0f) { Warn($"IES '{l.Ies}': the distribution emits nothing; ignored."); return null; }
+            return ies;
+        }
+        catch (Exception ex)
+        {
+            Warn($"IES '{l.Ies}' could not be read ({ex.Message}); the light is isotropic.");
+            return null;
+        }
+    }
+
+    private static (Vector3 Color, float Amount) LightEmission(LightData l, Vector3 color, EmissionKind kind, float area,
+                                                                IesProfile? ies = null)
+    {
+        string name = l.Type ?? "light";
+        float? lumens = null;
+        if (l.Power is float p)
+        {
+            string unit = (l.PowerUnit ?? "watt").Trim().ToLowerInvariant();
+            if (unit is "lumen" or "lumens" or "lm") lumens = p;
+            else
+            {
+                if (unit is not ("watt" or "watts" or "w"))
+                    Warn($"Light '{name}': unknown power_unit '{l.PowerUnit}' (watt, lumen); using watts.");
+                lumens = p * LightUnits.LumensPerWatt;
+            }
+        }
+
+        // An IES profile is photometric on its own (absolute candela): the
+        // light's amount scales it, to a flux or a peak when given.
+        if (ies != null)
+        {
+            float scale = l.Candela is float peak ? peak / ies.MaxCandela
+                        : lumens is float flux ? flux / ies.Flux
+                        : l.Intensity;
+            if (l.Exposure != 0f) scale *= MathF.Pow(2f, l.Exposure);
+            return (LightUnits.UnitTint(color, l.Temperature), scale);
+        }
+
+        float? photometric = kind switch
+        {
+            // A spot's power is that of the point light it would be: the cone
+            // cuts the light, it does not concentrate it.
+            EmissionKind.Intensity => l.Candela ?? (lumens / (4f * MathF.PI)),
+            EmissionKind.Radiance  => l.Luminance ?? (lumens is float lm && area > 0f ? lm / (MathF.PI * area) : (float?)null),
+            _                      => l.Illuminance,
+        };
+
+        string?[] candidates = kind switch
+        {
+            EmissionKind.Intensity  => new[] { l.Luminance != null ? "luminance" : null, l.Illuminance != null ? "illuminance" : null },
+            EmissionKind.Radiance   => new[] { l.Candela != null ? "candela" : null, l.Illuminance != null ? "illuminance" : null },
+            _                       => new[] { l.Candela != null ? "candela" : null, l.Luminance != null ? "luminance" : null, l.Power != null ? "power" : null },
+        };
+        var unused = candidates.Where(k => k != null).ToArray();
+        if (unused.Length > 0)
+            Warn($"Light '{name}': {string.Join(", ", unused)} does not apply to this light type; ignored.");
+
+        float amount;
+        if (photometric is float q)
+        {
+            color = LightUnits.UnitTint(color, l.Temperature);
+            amount = q;
+        }
+        else
+        {
+            if (l.Temperature is float k) color *= LightUnits.Blackbody(k);
+            amount = l.Intensity;
+            if (l.Normalize)
+            {
+                if (kind == EmissionKind.Radiance && area > 0f) amount /= area;
+                else Warn($"Light '{name}': normalize applies to area and sphere lights only; ignored.");
+            }
+        }
+        if (l.Exposure != 0f) amount *= MathF.Pow(2f, l.Exposure);
+        return (color, amount);
+    }
+
+    /// <summary>
+    /// <c>emissive</c>: white unless a colour is written; <c>intensity</c> is the
+    /// radiance, or <c>luminance</c> in nits with the colour as a tint of
+    /// luminance 1 (a texture keeps its values); <c>temperature</c> multiplies
+    /// by a black body.
+    /// </summary>
+    private static Emissive CreateEmissive(MaterialData m, ITexture albedo)
+    {
+        bool textured = m.Texture != null;
+        Vector3 color = ToVector3(m.Color) ?? Vector3.One;
+        if (m.Luminance is float nits)
+        {
+            if (textured)
+                return new Emissive(m.Temperature is float k ? new DerivedTexture(albedo, c => c * LightUnits.Blackbody(k)) : albedo, nits);
+            return new Emissive(LightUnits.UnitTint(color, m.Temperature), nits);
+        }
+        if (textured)
+            return new Emissive(m.Temperature is float k ? new DerivedTexture(albedo, c => c * LightUnits.Blackbody(k)) : albedo, m.Intensity);
+        return new Emissive(m.Temperature is float t ? color * LightUnits.Blackbody(t) : color, m.Intensity);
     }
 
     private static PortalLight? CreatePortalLight(LightData l, int? shadowSamplesOverride,
@@ -3827,6 +3984,8 @@ public class SceneLoader
 
         // CLI override takes precedence over per-light YAML value
         int effectiveShadowSamples = shadowSamplesOverride ?? l.ShadowSamples;
+        (color, float radiance) = LightEmission(l, color, EmissionKind.Radiance,
+                                                Vector3.Cross(u.Value, v.Value).Length());
 
         // Visible emissive proxy — Quad with the light's emission as Lambertian
         // radiance. The proxy's radiance equals the light's `intensity * color`
@@ -3837,7 +3996,7 @@ public class SceneLoader
         // Wrap in BackFaceCulledHittable so the camera and specular rays see
         // through the dark (back) side of the panel — same pattern Arnold and
         // Cycles use for analytic single-sided quad lights.
-        var proxyMat = new Emissive(color, l.Intensity) { IsLightProxy = true };
+        var proxyMat = new Emissive(color, radiance) { IsLightProxy = true };
         IHittable proxy = new BackFaceCulledHittable(
             new Quad(corner.Value, u.Value, v.Value, proxyMat));
         // visible_to_camera: false → wrap so primary rays skip past the proxy
@@ -3849,7 +4008,7 @@ public class SceneLoader
         objects.Add(proxy);
 
         return new AreaLight(corner.Value, u.Value, v.Value, color,
-                             l.Intensity, effectiveShadowSamples, l.SoftRadius,
+                             radiance, effectiveShadowSamples, l.SoftRadius,
                              proxyMat);
     }
 
@@ -3873,6 +4032,8 @@ public class SceneLoader
 
         // CLI override takes precedence over per-light YAML value
         int effectiveShadowSamples = shadowSamplesOverride ?? l.ShadowSamples;
+        (color, float radiance) = LightEmission(l, color, EmissionKind.Radiance,
+                                                4f * MathF.PI * l.Radius * l.Radius);
 
         // Visible emissive proxy — Sphere with the light's emission as
         // Lambertian radiance. The existing solid-angle estimator
@@ -3882,7 +4043,7 @@ public class SceneLoader
         // from a uniform sphere of that radiance. Setting the proxy's
         // emission to `color × intensity` therefore gives BSDF-sampled hits
         // the same energy as NEE — required for MIS to be unbiased.
-        var proxyMat = new Emissive(color, l.Intensity) { IsLightProxy = true };
+        var proxyMat = new Emissive(color, radiance) { IsLightProxy = true };
         IHittable proxy = new Sphere(position.Value, l.Radius, proxyMat);
         // visible_to_camera: false → wrap so primary rays skip past the proxy
         // (mirror reflections, refractions and NEE continue to see it; see
@@ -3893,7 +4054,7 @@ public class SceneLoader
         objects.Add(proxy);
 
         return new SphereLight(position.Value, l.Radius, color,
-                               l.Intensity, effectiveShadowSamples,
+                               radiance, effectiveShadowSamples,
                                proxyMat);
     }
 

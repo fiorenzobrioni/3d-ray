@@ -77,6 +77,13 @@ public class Camera
     /// read by the display transform, not by the ray generation.</summary>
     public float? WhiteBalanceKelvin { get; set; }
 
+    /// <summary>
+    /// Exposure, in stops, of the physical camera settings (ISO, shutter,
+    /// f-number or EV100; <see cref="Lights.LightUnits.ExposureEvFromEv100"/>):
+    /// added to the <c>--exposure</c> of the render. Null when the camera sets none.
+    /// </summary>
+    public float? PhysicalExposureEv { get; set; }
+
     /// <summary>True when this camera carries motion keys (camera motion blur).</summary>
     public bool HasMotion => _motion != null;
 
