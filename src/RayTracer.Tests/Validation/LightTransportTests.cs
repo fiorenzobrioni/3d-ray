@@ -19,10 +19,17 @@ namespace RayTracer.Tests.Validation;
 /// material's own BSDF. A diffuse and a glossy floor: MIS weights that do
 /// not add up to one show most on the glossy one.
 /// </summary>
+[Collection("SamplerExclusive")]
 public class LightTransportTests
 {
     private readonly ITestOutputHelper _out;
-    public LightTransportTests(ITestOutputHelper output) => _out = output;
+    public LightTransportTests(ITestOutputHelper output)
+    {
+        _out = output;
+        // The tolerances assume the stratified sampler; other classes leave
+        // the process-global kind at Prng.
+        Core.Sampling.Sampler.SetKind(Core.Sampling.SamplerKind.Sobol);
+    }
 
     private const int W = 4, H = 4;
     private static readonly Vector3 Cam = new(0f, 3f, 1.2f);

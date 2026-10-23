@@ -10,10 +10,17 @@ using Xunit.Abstractions;
 namespace RayTracer.Tests.Validation;
 
 /// <summary>Light BVH (Conty Estevez and Kulla 2018): a proper distribution, sampled as reported.</summary>
+[Collection("SamplerExclusive")]
 public class LightBvhTests
 {
     private readonly ITestOutputHelper _out;
-    public LightBvhTests(ITestOutputHelper o) => _out = o;
+    public LightBvhTests(ITestOutputHelper o)
+    {
+        _out = o;
+        // The noise comparison assumes the stratified sampler; other classes
+        // leave the process-global kind at Prng.
+        Core.Sampling.Sampler.SetKind(Core.Sampling.SamplerKind.Sobol);
+    }
 
     private static List<ILight> ManyLights(int n, int seed)
     {

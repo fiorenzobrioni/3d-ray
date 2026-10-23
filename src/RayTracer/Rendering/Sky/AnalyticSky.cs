@@ -81,7 +81,7 @@ public abstract class AnalyticSky : ISkyModel
         // Upper hemisphere, midpoint rule in (θ, φ): the illuminance on the
         // ground and the mean luminance. Smooth bodies, so 48 × 96 is plenty.
         const int nTheta = 48, nPhi = 96;
-        double irradiance = 0, luminance = 0;
+        double luminance = 0;
         Vector3 e = Vector3.Zero;
         for (int i = 0; i < nTheta; i++)
         {

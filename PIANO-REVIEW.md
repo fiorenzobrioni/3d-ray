@@ -6,6 +6,15 @@ sbagliato e cosa conviene rifare da zero per arrivare a un motore di livello "pr
 
 Documento interno (come `PLANNING.md` e `devlog/`): può citare renderer esterni.
 
+> **Principio guida (proprietario, 2026-10-23): qualità premium del motore, nessun vincolo di
+> compatibilità.** La review corregge e aggiorna l'app nel modo migliore possibile, senza
+> preoccuparsi delle scene esistenti né di altri usi del formato o dell'API. Le scene del repo
+> sono test serviti a sviluppare il motore prima della review: non sono punti fermi e non
+> devono influire su come si fa la review. È il contrario: dopo la review le scene si correggono
+> dove usano chiavi, materiali, proprietà, oggetti o altro che la review ha cambiato; se non
+> vanno più bene si riscrivono, oppure si parcheggiano come obsolete (`scenes/obsolete/`) per
+> essere riprogettate o eliminate. Vedi §2.0.
+
 > Stato del codice al momento della stesura (2026-10-20): circa 50.000 righe in `src/RayTracer`,
 > build Release pulita, **590 test xUnit tutti verdi**. Warning NuGet: `SixLabors.ImageSharp 3.1.12`
 > ha vulnerabilità note (moderate e high) e va aggiornato.
@@ -58,6 +67,35 @@ numerica:
 ---
 
 ## 2. Metodologia (vale per ogni modulo)
+
+### 2.0 Nessun vincolo di compatibilità
+
+Per ogni scelta vale la soluzione migliore per il motore. "Le scene esistenti cambierebbero
+aspetto", "una chiave andrebbe rinominata", "un default cambierebbe" non sono argomenti per
+tenere una soluzione peggiore: un default si cambia, una chiave si rinomina o si toglie, un
+comportamento sbagliato non si conserva dietro un'opzione. Le scene si adeguano dopo, nella
+revisione finale delle scene (fine della review): corrette, riscritte, oppure spostate in
+`scenes/obsolete/` per essere riprogettate o eliminate.
+
+Restano le regole del proprietario sulle scene create dalla review (`scenes/review/`,
+`validation/scenes/`, showcase nuovi): non si cancellano, perché documentano una verifica.
+
+**Scelte delle fasi già chiuse prese anche per compatibilità, da riconsiderare** (Fase 10, quando
+si decide il formato, o prima se una fase tocca il codice):
+
+- [ ] `intensity` senza unità accanto alle unità fotometriche (Fase 6): valutare se le unità
+      fisiche diventano la forma principale, con la scena in nit e l'esposizione EV100 di default.
+- [ ] `units: relative` di default dei cieli fisici e la scala relativa di Nishita (20) (Fase 6):
+      valutare `photometric` come default, coerente con le luci fisiche.
+- [ ] `noise_basis: classic` e il riscalamento a 0.67 del Perlin migliorato per tenere tarati
+      range e color ramp delle scene vecchie (Fase 4).
+- [ ] Il costruttore del `Renderer` con filtro box e view `legacy` come default per chi usa la
+      libreria e per i test esistenti (Fase 3); la view `legacy` stessa.
+- [ ] Il grigio 0.5 di default per i materiali senza `color` diversi da vetro ed emissivo (Fase 5).
+- [ ] Il tipo `disney` tradotto su OpenPBR invece di essere sostituito (Fase 5): tenerlo come
+      alias comodo o toglierlo a favore di `openpbr`.
+- [ ] Chiavi e alias storici del loader (`rotation` del cielo, `size` del sole, alias dei tipi di
+      luce, `hosek_wilkie` / `physical`): un nome per concetto.
 
 ### 2.1 Classificazione dei risultati
 
@@ -675,13 +713,16 @@ modello diverso da Preetham). Restano per altre fasi: NaN e firefly nei mezzi co
 
 ### Fase 10 - Formato scene YAML
 
-**Risposta breve: sì, va modificato, ma per evoluzione (v2 con tool di migrazione), non da zero.**
-YAML come formato di authoring è una buona scelta; i problemi sono di semantica, non di sintassi.
+**Risposta breve: sì, va modificato.** YAML come formato di authoring è una buona scelta; i
+problemi sono di semantica, non di sintassi. Nessun vincolo di compatibilità (§2.0): il formato
+nuovo è quello giusto, non quello che le scene vecchie possono già leggere; un tool di migrazione
+serve solo se fa risparmiare lavoro nella revisione delle scene, non come requisito.
 
 Cosa manca rispetto a un formato premium:
 
-1. **Versione** del formato: `format_version: 2`, con migrazione automatica dalla v1
-   (generalizzare `MigrateFakeSss` in un tool `SceneMigrate`).
+1. **Versione** del formato: `format_version: 2`. Migrazione dalla v1 (generalizzare
+   `MigrateFakeSss` in un tool `SceneMigrate`) solo se conviene per la revisione delle scene.
+0. **Decisioni rimandate per compatibilità** nelle fasi chiuse: la lista in §2.0, da chiudere qui.
 2. **Unità**: `units: { length: meters }` a livello scena; luci in unità fotometriche; camera
    in millimetri.
 3. **Colore**: `color_space` per texture e, opzionalmente, per colori (`[r,g,b]` sRGB o lineare
@@ -764,5 +805,11 @@ Basato sulla sezione 3, aggiornato con le misure delle Fasi 0, 1 e 3: da conferm
 4. Fase 7 (integratore), con il nuovo loop iterativo costruito sui materiali già verificati.
 5. Fasi 2, 4, 8, 9 in parallelo dove serve.
 6. Fase 10 (formato v2) quando materiali, luci e camera nuovi sono stabili, così il formato
-   descrive il motore definitivo e la migrazione si fa una volta sola.
+   descrive il motore definitivo e le scene si adeguano una volta sola.
 7. Fase 11.
+8. **Revisione delle scene** (§2.0), alla fine: ogni scena del repo (`scenes/`, `showcases/`,
+   `presets/`, i tutorial) si confronta con il motore definitivo. Si corregge dove usa chiavi,
+   materiali, proprietà o oggetti cambiati; si riscrive se non regge più; altrimenti si sposta in
+   `scenes/obsolete/` per essere riprogettata o eliminata. Si guarda anche il risultato
+   (illuminazione, materiali, esposizione), con il proprietario. Le scene di `scenes/review/` e
+   `validation/scenes/` si aggiornano ma restano.
