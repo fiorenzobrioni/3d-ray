@@ -218,7 +218,7 @@ public sealed class MixMaterial : IMaterial
         // probability so f / pdf = F / c_selected stays the unbiased estimator.
         if (s.IsDelta)
             return new BsdfSample(s.Wo, s.F, s.Pdf * cSelected, isDelta: true,
-                                  s.NextSegmentAbsorption, s.Transition);
+                                  s.NextSegmentAbsorption, s.Transition, s.CausticCaster, s.Lobe, s.Eta);
 
         // Continuous lobe: re-evaluate the full mixture BRDF and pdf at the
         // sampled direction so the reported (F, Pdf) describe the mixture, not
@@ -231,7 +231,7 @@ public sealed class MixMaterial : IMaterial
             return null;
 
         return new BsdfSample(s.Wo, fMix, pdfMix, isDelta: false,
-                              s.NextSegmentAbsorption, s.Transition);
+                              s.NextSegmentAbsorption, s.Transition, s.CausticCaster, s.Lobe, s.Eta);
     }
 
     // ═════════════════════════════════════════════════════════════════════════

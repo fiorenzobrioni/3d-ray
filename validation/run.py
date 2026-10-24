@@ -6,8 +6,8 @@ and every run in its `validation:` block it renders:
 
   mitsuba.pfm            Mitsuba 3 'path' integrator, the reference (cached)
   3dray-reference.*.pfm  3D-Ray with --reference (the unbiased estimator)
-  3dray-default.*.pfm    3D-Ray as users run it (clamps, transparent shadows,
-                         adaptive RR) but without the denoiser
+  3dray-default.*.pfm    3D-Ray with its default settings (and whatever the
+                         scene's extra_modes add) but without the denoiser
 
 and compares each 3D-Ray image with the reference (or with the scene's
 `analytic_mean` when it has one): mean ratio, relMSE, SMAPE, share of bad

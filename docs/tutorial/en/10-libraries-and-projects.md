@@ -432,7 +432,7 @@ The complete set of command-line parameters:
 | `-w` | `--width`          | `960` (draft-small)           | Image width in pixels                                    |
 | `-H` | `--height`         | `540` (draft-small)           | Image height in pixels                                   |
 | `-s` | `--samples`        | `16` (draft-small)            | Samples per pixel (Sobol: exact count; PRNG: rounded up to nearest perfect square) |
-| `-d` | `--depth`          | `4` (draft-small; `8` in quality presets — raise to 16+ for stacked glass) | Maximum ray bounces |
+| `-d` | `--depth`          | `8` (draft-small; `12` standard, `16` final) | Maximum path vertices, split by kind of bounce (`--depth-diffuse`, `--depth-glossy`, `--depth-transmission`, `--depth-volume`) |
 | `-S` | `--shadow-samples` | *(per light)*                 | Override shadow samples for all area/sphere lights (perfect squares) |
 | `-C` | `--clamp`          | off                           | Opt-in firefly clamp: max per-sample radiance before tone mapping (biased; try `10`) |
 | `-c` | `--camera`         | `0`                           | Select camera by name or zero-based index                |
@@ -443,7 +443,7 @@ The complete set of command-line parameters:
 |      | `--transparent-shadows` | `off`                    | `on`: glass lets shadow rays through, tinted (no shadow or caustic; artistic approximation) |
 |      | `--texture-filtering` | `auto`                     | Analytic anti-aliasing of procedural / image textures via ray differentials: `auto` / `on` (filtering on) or `off` (point-sampled, for benchmarks) |
 |      | `--list-cameras`   |                               | List available cameras and exit                          |
-| `-v` | `--verbose`        |                               | Detailed scene-load and Russian-Roulette tuning output    |
+| `-v` | `--verbose`        |                               | Detailed scene-load output                                |
 | `-h` | `--help`           |                               | Show help                                                |
 
 ### Output Format
@@ -552,7 +552,7 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 ```
 
 For the full explanation of each parameter, Russian Roulette behavior, the
-glass-stacked exception that forces `-d 16+`, and the `-C`/`--clamp` firefly
+per-kind bounce limits (stacked glass needs a higher `--depth-transmission`), and the `-C`/`--clamp` firefly
 knob, see **[Rendering Profiles Reference](../../reference/rendering-profiles.md)**.
 
 ---

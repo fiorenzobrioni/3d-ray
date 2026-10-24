@@ -442,10 +442,10 @@ Keep these tips in mind:
    analytic and look decent at 64 SPP. `procedural` and `grid` use delta
    tracking → need 256+ SPP for clean results, 1024+ for publication.
 
-2. **Don't overdo depth.** The volumetric path is already handled
-   correctly at `-d 6-8`. Russian Roulette terminates long paths
-   automatically, so values above `-d 10` rarely improve quality and
-   always cost time.
+2. **Don't overdo depth.** Scattering events in a medium have their own
+   limit (`--depth-volume`: 3 in `draft`, 4 in `standard`, 8 in `final`).
+   Russian Roulette terminates long paths automatically; raise the limit
+   only for dense, bright media whose multiple scattering you can see.
 
 3. **Firefly clamp with dense fog.** Media with high `sigma_s` + `-d 8+`
    occasionally produce rare bright spikes. Lower `-C` to `25` or `15`
@@ -488,15 +488,11 @@ Keep these tips in mind:
    look noisy, lower `g` to 0.7-0.85 or switch to `double_hg` with more
    balanced weights.
 
-10. **`lights: []` + global medium → tendency to come out black.** With
-   no explicit lights, the flux-based classifier flags the scene as
-   indirect-dominant and switches Russian Roulette to its conservative
-   tuning (≥ 8 bounces, 0.5 minimum survival). When fog attenuates every
-   segment, the light from a gradient sky or HDRI alone struggles to
-   reach the sensor and the render comes out very dark. Fix: add at
-   least one explicit `directional` or `sphere` light that declares the
-   sun as a separate `ILight` (HDRI/gradient stays as fill); the
-   classifier flips to "direct-dominant" and god-rays become visible.
+10. **`lights: []` + global medium → dim, noisy fog.** With no explicit
+   lights, only the sky lights the fog, and in a medium that attenuates
+   every segment its diffuse light gives no shafts. Add at least one
+   explicit `directional` or `sphere` light for the sun (the HDRI or
+   gradient stays as fill): god-rays need a light the medium can see.
    Seen in practice in `scenes/foggy-hdri.yaml`.
 
 ---

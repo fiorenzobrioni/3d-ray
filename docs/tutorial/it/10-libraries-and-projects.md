@@ -435,7 +435,7 @@ L'insieme completo dei parametri della riga di comando:
 | `-w` | `--width`           | `960` (draft-small)           | Larghezza dell'immagine in pixel                             |
 | `-H` | `--height`          | `540` (draft-small)           | Altezza dell'immagine in pixel                               |
 | `-s` | `--samples`         | `16` (draft-small)            | Campioni per pixel (Sobol: conteggio esatto; PRNG: arrotondato al quadrato perfetto superiore) |
-| `-d` | `--depth`           | `4` (draft-small; `8` nei preset di qualità — alza a 16+ per vetri impilati) | Numero massimo di rimbalzi dei raggi |
+| `-d` | `--depth`           | `8` (draft-small; `12` standard, `16` final) | Numero massimo di vertici del percorso, diviso per tipo di rimbalzo (`--depth-diffuse`, `--depth-glossy`, `--depth-transmission`, `--depth-volume`) |
 | `-S` | `--shadow-samples`  | *(per luce)*                  | Sovrascrive i campioni d'ombra per tutte le luci area/sphere (quadrati perfetti) |
 | `-C` | `--clamp`           | spento                        | Firefly clamp opzionale: radianza massima per-campione prima del tone mapping (introduce bias; prova `10`) |
 | `-c` | `--camera`          | `0`                           | Seleziona la fotocamera per nome o indice base zero          |
@@ -446,7 +446,7 @@ L'insieme completo dei parametri della riga di comando:
 |      | `--transparent-shadows` | `off`                     | `on`: il vetro lascia passare i raggi d'ombra, tinti (niente ombra né caustica; approssimazione artistica) |
 |      | `--texture-filtering` | `auto`                      | Anti-aliasing analitico delle texture procedurali / image via ray differentials: `auto` / `on` (filtering attivo) o `off` (point-sampled, per benchmark) |
 |      | `--list-cameras`    |                               | Elenca le fotocamere disponibili ed esce                     |
-| `-v` | `--verbose`         |                               | Output dettagliato di scene-load e tuning Russian Roulette   |
+| `-v` | `--verbose`         |                               | Output dettagliato di scene-load                             |
 | `-h` | `--help`            |                               | Mostra l'aiuto                                               |
 
 ### Formato di output
@@ -555,7 +555,7 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 ```
 
 Per la spiegazione completa di ciascun parametro, il comportamento della
-Russian Roulette, l'eccezione dei vetri impilati che impone `-d 16+` e la
+Russian Roulette, i limiti di rimbalzo per tipo (i vetri impilati chiedono un `--depth-transmission` più alto) e la
 manopola `-C`/`--clamp` del firefly clamp, consulta
 **[Profili di Rendering](../../reference/profili-di-rendering.md)**.
 

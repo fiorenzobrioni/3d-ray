@@ -148,7 +148,8 @@ def _bsdf_one_sided(m, used):
         # Mitsuba conductor) or the F82 model from color (exact twin only for
         # white, where F = 1). Mitsuba has no multiple-scattering lobe, so a
         # rough metal must set multiple_scattering: false to be compared.
-        fuzz = float(m.get("fuzz", 0.0))
+        # `roughness` is the loader's alias of `fuzz` for a metal.
+        fuzz = float(m.get("fuzz", m.get("roughness", 0.0)))
         if fuzz > 0 and m.get("multiple_scattering", True):
             raise UnsupportedFeature("rough Metal with multiple scattering (Mitsuba has none)")
         presets = {"gold": "Au", "silver": "Ag", "copper": "Cu", "aluminium": "Al", "chromium": "Cr",
@@ -166,7 +167,7 @@ def _bsdf_one_sided(m, used):
         if fuzz <= 0:
             return {"type": "conductor", **fres}
         return {"type": "roughconductor", **fres, "distribution": "ggx",
-                "alpha": max(fuzz * fuzz, 0.001), "sample_visible": True}
+                "alpha": max(fuzz * fuzz, 1e-4), "sample_visible": True}   # the engine's floor
     if t in ("disney", "disney_bsdf", "pbr"):
         used.add("disney")
         for key in ("subsurface", "diff_trans", "thin_film_thickness", "transmission_color",

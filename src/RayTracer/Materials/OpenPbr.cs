@@ -798,7 +798,7 @@ public sealed class OpenPbr : IMaterial
 
         // Cut-out: the ray continues as if the surface were not there.
         if (h.Opacity < 1f && MathUtils.RandomFloat() >= h.Opacity)
-            return new BsdfSample(-V, Vector3.One, 1f, isDelta: true);
+            return new BsdfSample(-V, Vector3.One, 1f, isDelta: true, lobe: BsdfLobe.Transparent);
 
         Layer w = Weights(in h, V);
         if (w.MuV <= 0f) return null;
@@ -810,6 +810,7 @@ public sealed class OpenPbr : IMaterial
         Vector3 N = h.N;
         Vector3 L;
         bool refraction = false;
+        BsdfLobe lobe = BsdfLobe.Glossy;
 
         // Each lobe keeps only directions inside its own support: the pdf
         // the mixture reports there is then exactly the density of the draw.
@@ -857,6 +858,7 @@ public sealed class OpenPbr : IMaterial
         }
         else if ((u -= pr.Iface) < 0f)
         {
+            lobe = BsdfLobe.Transmission;   // set back to glossy on reflection below
             if (h.BaseDelta) return SampleSmoothInterface(in h, in w, V, in rec, pr.Iface / total);
             var (u1, u2) = MathUtils.Random2D();
             Vector3 Hl = Microfacet.SampleGgxVndfAniso(Local(V, h.T, h.B, N), h.Ax, h.Ay, u1, u2);
@@ -868,6 +870,7 @@ public sealed class OpenPbr : IMaterial
             {
                 L = MathUtils.Reflect(-V, hw);
                 if (Vector3.Dot(N, L) <= 0f) return null;
+                lobe = BsdfLobe.Glossy;
             }
             else
             {
@@ -887,11 +890,13 @@ public sealed class OpenPbr : IMaterial
         }
         else if ((u -= pr.Diff) < 0f)
         {
+            lobe = BsdfLobe.Diffuse;
             L = Vector3.Normalize(N + MathUtils.RandomUnitVector());
             if (Vector3.Dot(N, L) <= 0f) return null;
         }
         else
         {
+            lobe = BsdfLobe.Diffuse;        // diffuse transmission (translucency)
             L = Vector3.Normalize(-N + MathUtils.RandomUnitVector());
             if (Vector3.Dot(N, L) >= 0f) return null;
         }
@@ -899,10 +904,11 @@ public sealed class OpenPbr : IMaterial
         L = Vector3.Normalize(L);
         Vector3 f = EvalAll(in h, in w, in pr, V, L, out float pdf);
         if (pdf <= 0f || !float.IsFinite(pdf)) return null;
-        if (!refraction) return new BsdfSample(L, f, pdf, isDelta: false);
+        if (!refraction) return new BsdfSample(L, f, pdf, isDelta: false, lobe: lobe);
         return new BsdfSample(L, f, pdf, isDelta: false,
                               nextSegmentAbsorption: NextAbsorption(in h, rec.FrontFace),
-                              transition: rec.FrontFace ? MediumTransition.Enter : MediumTransition.Exit);
+                              transition: rec.FrontFace ? MediumTransition.Enter : MediumTransition.Exit,
+                              lobe: BsdfLobe.Transmission, eta: 1f / h.Ri);
     }
 
     /// <summary>Smooth dielectric interface: Fresnel picks reflection or
@@ -923,12 +929,13 @@ public sealed class OpenPbr : IMaterial
         Vector3 bm = BaseMultiplier(in h, in w, muV, true) * d * h.Trans * h.TransTint * (Vector3.One - fres)
                    / (pLobe * (1f - pRefl));
         if (h.Thin)
-            return new BsdfSample(-V, bm, 1f, isDelta: true);
+            return new BsdfSample(-V, bm, 1f, isDelta: true, lobe: BsdfLobe.Transmission);
         Vector3 L = MathUtils.Refract(-V, N, h.Ri);
         if (MathUtils.NearZero(L)) return null;
         return new BsdfSample(Vector3.Normalize(L), bm * (h.Ri * h.Ri), 1f, isDelta: true,
                               nextSegmentAbsorption: NextAbsorption(in h, rec.FrontFace),
-                              transition: rec.FrontFace ? MediumTransition.Enter : MediumTransition.Exit);
+                              transition: rec.FrontFace ? MediumTransition.Enter : MediumTransition.Exit,
+                              lobe: BsdfLobe.Transmission, eta: 1f / h.Ri);
     }
 
     /// <summary>Beer-Lambert coefficient for the segment after a refraction:

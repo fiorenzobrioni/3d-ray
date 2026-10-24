@@ -118,7 +118,7 @@ public class RayDifferentialTests
 
         // The Transform.Hit transforms differentials into object space by
         // Matrix4x4.Invert(scale·I) = (1/scale)·I, so auxiliary directions
-        // shrink by 1/scale. The footprint (computed inside Renderer.TraceRay
+        // shrink by 1/scale. The footprint (computed inside the path loop
         // — re-run here directly via FootprintMath to keep the test pure)
         // therefore has magnitude proportional to 1/scale.
         var localOrigin = Vector3.Transform(origin, Matrix4x4.CreateScale(1f / scale));

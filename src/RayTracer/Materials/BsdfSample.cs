@@ -18,6 +18,22 @@ public enum MediumTransition
 }
 
 /// <summary>
+/// Kind of scattering a BSDF sample performed, for the per-kind path depths
+/// and the per-kind visibility flags (PIANO-REVIEW.md Phase 7).
+/// </summary>
+public enum BsdfLobe : byte
+{
+    /// <summary>Diffuse reflection or diffuse transmission (translucency).</summary>
+    Diffuse,
+    /// <summary>Specular or glossy reflection: mirror, microfacet, coat, sheen/fuzz.</summary>
+    Glossy,
+    /// <summary>Refraction or straight transmission through the surface.</summary>
+    Transmission,
+    /// <summary>A cut-out (opacity): the ray goes on as if the surface were not there.</summary>
+    Transparent,
+}
+
+/// <summary>
 /// The result of a BSDF direction-sample — a sampled outgoing direction
 /// together with the BRDF value and the solid-angle PDF at that direction.
 ///
@@ -49,6 +65,11 @@ public enum MediumTransition
 ///   - Transition describes the medium-stack effect of this sample (None /
 ///     Enter / Exit). The renderer reads <see cref="Core.HitRecord.MediumIface"/>
 ///     at the same hit to know *which* medium to push or pop.
+///   - Lobe is the kind of scattering (diffuse, glossy, transmission,
+///     transparent cut-out).
+///   - Eta is η_t/η_i of a refraction, whose weight F carries the radiance
+///     factor (η_i/η_t)²; 1 for every other sample. Russian roulette undoes
+///     that factor so a path inside glass is not judged dimmer than it is.
 ///   - CausticCaster marks a delta lobe the caustic photon pre-pass may follow
 ///     as a specular bounce (L S+ D). True for genuine specular interfaces —
 ///     refraction/transmission (glass) and mirror-like metallic reflection — and
@@ -68,12 +89,18 @@ public readonly struct BsdfSample
     public readonly Vector3? NextSegmentAbsorption;
     public readonly MediumTransition Transition;
     public readonly bool     CausticCaster;
+    public readonly BsdfLobe Lobe;
+    public readonly float    Eta;
 
     public BsdfSample(Vector3 wo, Vector3 f, float pdf, bool isDelta = false,
                       Vector3? nextSegmentAbsorption = null,
                       MediumTransition transition = MediumTransition.None,
-                      bool causticCaster = true)
+                      bool causticCaster = true,
+                      BsdfLobe lobe = BsdfLobe.Glossy,
+                      float eta = 1f)
     {
+        Lobe = lobe;
+        Eta = eta;
         Wo = wo;
         F = f;
         Pdf = pdf;

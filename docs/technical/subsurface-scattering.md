@@ -39,7 +39,7 @@ The phase function is HG with `g` from the medium (default 0). The HG-sample den
 
 Light enters through the material's own dielectric interface: the smooth (delta) or rough (Walter 2007, non-delta) refraction lobe of `Dielectric` or `OpenPbr`. The refraction sample carries `MediumTransition.Enter`, and its weight (Fresnel transmission, tint, the `(η_i/η_t)²` radiance factor, and for a rough interface `F × |cos| / pdf`) is already in the throughput passed to `RandomWalkSubsurface`. The walk itself never sees the surface again until it escapes.
 
-When a free flight reaches the boundary, the walk pops the medium (and the IOR pushed with it) and hands the ray, unchanged in direction, back to `TraceRay` from the exit point. No second Fresnel evaluation is applied at the exit: the entry-side transmission is the only Fresnel coupling, which is exactly energy-preserving with matched IORs (the white-furnace configuration). The walk's own boundary is likewise a null interface for the shadow rays of its in-walk NEE (`ShadowRay.PassThroughEntity`), consistent with the way the walk exits.
+When a free flight reaches the boundary, the walk pops the medium (and the IOR pushed with it) and hands the ray, unchanged in direction, back to the path loop (`TracePath`) from the exit point, with the walk's throughput folded into the path's. No second Fresnel evaluation is applied at the exit: the entry-side transmission is the only Fresnel coupling, which is exactly energy-preserving with matched IORs (the white-furnace configuration). The walk's own boundary is likewise a null interface for the shadow rays of its in-walk NEE (`ShadowRay.PassThroughEntity`), consistent with the way the walk exits.
 
 ## Russian Roulette + max-bounces cap
 

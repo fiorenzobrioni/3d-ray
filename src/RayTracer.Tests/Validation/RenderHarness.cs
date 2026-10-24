@@ -19,13 +19,14 @@ internal static class RenderHarness
         IHittable world, List<ILight> lights, SkySettings sky, Camera.Camera camera,
         int width, int height, int spp, int depth,
         bool reference = true, int seed = 0, float? clamp = null, PixelFilter? filter = null,
-        LightSamplingStrategy lightSampling = LightSamplingStrategy.All)
+        LightSamplingStrategy lightSampling = LightSamplingStrategy.All,
+        PathDepths? depths = null)
     {
         var renderer = new Renderer(
             world, camera, lights, sky, spp, depth,
             maxSampleRadiance: clamp,
             lightSamplingStrategy: lightSampling,
-            referenceMode: reference, seed: seed, pixelFilter: filter);
+            referenceMode: reference, seed: seed, pixelFilter: filter, depths: depths);
         var result = renderer.Render(width, height, new RenderCaptureOptions { CaptureBeautyHalves = true });
         var beauty = result.Buffers!.Beauty;
         var img = new Vector3[height, width];

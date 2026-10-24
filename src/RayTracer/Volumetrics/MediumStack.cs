@@ -6,7 +6,7 @@ namespace RayTracer.Volumetrics;
 /// <summary>
 /// Fixed-capacity, zero-alloc stack of participating media tracked through
 /// the path tracer. The renderer pushes <see cref="MediumInterface.Interior"/>
-/// on refractive entry and pops on exit (see Renderer.ShadeSampleBounce).
+/// on refractive entry and pops on exit (see Renderer.SurfaceVertex).
 /// The top of the stack — combined with the optional global medium — is the
 /// volume the ray is currently traversing.
 ///

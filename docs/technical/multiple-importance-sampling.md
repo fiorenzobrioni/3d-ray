@@ -3,7 +3,7 @@
 > **Vedi anche:** [Path Tracing e Illuminazione](./path-tracing-and-lighting.md) §2.2 per il
 > contesto generale, [Shading Model](./shading-model.md) per i lobi BSDF
 > coinvolti, [Pipeline di Rendering](./rendering-pipeline.md) per il flusso di
-> dati attorno a `TraceRay`.
+> dati attorno a `TracePath`.
 
 Questo documento descrive come 3D-Ray combina le diverse strategie di campionamento dell'illuminazione (light sampling / BSDF sampling / phase sampling) sotto l'estimatore Multiple Importance Sampling di Veach (1997). Copre il contratto fra le interfacce `IMaterial`, `ILight`, `IPhaseFunction` e il `Renderer`, le heuristiche disponibili (`balance`, `power`) e i casi limite: lobi delta, mixture stocastica, in-scattering volumetrico.
 

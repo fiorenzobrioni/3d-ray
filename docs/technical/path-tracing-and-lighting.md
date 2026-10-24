@@ -138,13 +138,19 @@ La normale in world space si ottiene separatamente normalizzando $M^{-T} \cdot \
 
 Per gestire raggi che rimbalzano potenzialmente all'infinito e mantenere l'efficienza, il motore utilizza una tecnica di terminazione stocastica non polarizzata (unbiased) chiamata **Russian Roulette**.
 
-### 3.1 Adattività alla Scena
-3D-Ray implementa una variante **adattiva** della Russian Roulette:
-- Analizza la potenza totale delle luci durante la costruzione del renderer.
-- **Scene a illuminazione diretta (Normal)**: RR più aggressiva dopo 4 rimbalzi, poiché la maggior parte dell'energia proviene dai primi bounce.
-- **Scene a illuminazione indiretta (Low-light)**: RR conservativa (almeno 8 rimbalzi), per dare al raggio più possibilità di trovare una sorgente di luce emissiva o uscire verso il cielo.
+### 3.1 Roulette sul throughput
 
-La probabilità di sopravvivenza del raggio è il canale massimo della throughput accumulata lungo il path, limitata fra un minimo che dipende dalla scena e 0.95: raggi "deboli" che trasportano poca energia vengono eliminati prima, concentrando il calcolo sui percorsi più luminosi.
+Il path è un loop iterativo con un throughput esplicito β (il prodotto dei pesi BSDF/pdf, delle trasmittanze dei mezzi e dell'assorbimento di Beer-Lambert lungo il percorso; `Rendering/PathIntegrator.cs`). Dal secondo rimbalzo in poi, dopo ogni campionamento, il path sopravvive con probabilità
+
+$$q = \min\left(1,\; \max_c \left(\beta_c \cdot \eta_\text{scale}\right)\right)$$
+
+e, se sopravvive, β viene diviso per q. Non ci sono soglie minime, tetti o classificazioni della scena: la roulette è non distorta per costruzione e scambia solo varianza con velocità.
+
+$\eta_\text{scale}$ è il prodotto di $\eta^2$ (con $\eta = \eta_t/\eta_i$) su ogni rifrazione: la radianza trasportata attraverso un'interfaccia è scalata di $(\eta_i/\eta_t)^2$, e senza questa correzione un raggio dentro il vetro avrebbe un β artificialmente basso e verrebbe ucciso per un effetto che si annulla all'uscita.
+
+### 3.2 Profondità per tipo di rimbalzo
+
+La profondità totale (`-d`) conta i vertici del path; sotto di essa il path conta i rimbalzi secondo il lobo che il materiale ha campionato (`BsdfSample.Lobe`): diffuse, glossy, transmission, più gli scattering nei volumi. Ogni tipo ha il suo limite (`--depth-diffuse`, `--depth-glossy`, `--depth-transmission`, `--depth-volume`): il vetro richiede molte rifrazioni, l'interriflessione diffusa poche. I cut-out (opacità geometrica 0) attraversati hanno un limite proprio (`--depth-transparent`, default 16) e non contano nel totale: non sono rimbalzi. Il lobo determina anche la categoria del raggio successivo per i flag di visibilità (`visibility.diffuse`, `visibility.glossy`, `visibility.transmission`).
 
 ---
 
@@ -224,9 +230,9 @@ Il corpo del gradiente (zenith / horizon / ground) **non** è campionato diretta
 
 Quando il cielo è di tipo `flat` con luminanza > 0, viene campionato uniformemente sulla sfera unitaria: PDF costante `1/(4π)` per tutte le direzioni. Il caller (`EnvironmentLight.IlluminateAndTest`) scarta automaticamente le direzioni nell'emisfero inferiore della normale (rifiuto via `n·l ≤ 0`), quindi metà dei sample sono "sprecati" su superfici planari ma il bias resta zero. Questa strategia fornisce una piccola riduzione di varianza per ogni bounce diffuso, irrilevante per riflessioni speculari (dove il BSDF è già focalizzato).
 
-### 5.6 Stima Deterministica della Luminanza (per la Russian Roulette)
+### 5.7 Stima Deterministica della Luminanza
 
-Il costruttore del renderer, prima di avviare `Parallel.For`, effettua un'analisi della scena per decidere i parametri della Russian Roulette (scene in luce diretta vs. indiretta). Questa analisi chiama `EnvironmentLight.ApproximatePower(sceneBounds)`, che deve essere **completamente deterministica** — senza chiamate a `RandomFloat()`.
+La scelta delle luci proporzionale alla potenza (`LightDistribution`, `LightBvh`) e la distribuzione dei fotoni delle caustiche chiamano `EnvironmentLight.ApproximatePower(sceneBounds)` nel costruttore, prima di avviare `Parallel.For`: il valore deve essere **completamente deterministico**, senza chiamate a `RandomFloat()`.
 
 Per l'HDRI, la luminanza stimata viene calcolata iterando una sola volta il buffer di pixel e calcolando la media pesata:
 

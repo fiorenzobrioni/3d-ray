@@ -198,6 +198,11 @@ sky:
   sun:
     visible_to_camera: false    # Disco solare invisibile alla camera (continua a illuminare)
 ```
+La categoria di un rimbalzo è il lobo che il materiale ha campionato (un
+riflesso di metallo ruvido o di coat è `glossy`, una rifrazione
+`transmission`, uno scattering in un volume o nel subsurface `diffuse`); un
+raggio che attraversa un cut-out conserva la sua categoria, quindi un raggio
+di camera attraverso una foglia resta un raggio di camera.
 
 #### **Background plate** (solo camera):
 ```yaml

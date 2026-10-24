@@ -19,10 +19,10 @@ namespace RayTracer.Tests;
 /// <para>The tests exercise the full Renderer dispatch path so they catch
 /// regressions in any of the pieces that compose to produce SSS output:
 /// the entry refraction lobe in <see cref="OpenPbr"/>, the stack push in
-/// <see cref="Renderer.ShadeSampleBounce"/>, the <see cref="HitRecord.EntityRoot"/>
+/// the path loop's surface vertex, the <see cref="HitRecord.EntityRoot"/>
 /// stamping in <see cref="MediumBoundHittable"/>, the hero-wavelength MIS
 /// estimator in <see cref="Renderer.RandomWalkSubsurface"/>, and the exit
-/// path back into <see cref="Renderer.TraceRay"/>.</para>
+/// path back to the loop.</para>
 ///
 /// <para>Sampler is forced to PRNG so the expected values are deterministic
 /// across runs and not dependent on Sobol prefix layout.</para>

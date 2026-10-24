@@ -10,7 +10,7 @@ Roadmap, lavori in corso, TODO, bug noti e idee. Per lo storico dei cicli di svi
 
 ### Fase 0 - Fondamenta ✅
 
-Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, primitive base + trasformazioni, materiali Lambertian/Metal/Dielectric, luci Point/Directional/Spot/Area + NEE, Russian Roulette adattiva, stratified sampling, ACES + gamma + firefly guard, YAML loader, output PNG/JPEG/BMP, CI smoke test.
+Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, primitive base + trasformazioni, materiali Lambertian/Metal/Dielectric, luci Point/Directional/Spot/Area + NEE, Russian Roulette (standard dalla review Fase 7), stratified sampling, ACES + gamma + firefly guard, YAML loader, output PNG/JPEG/BMP, CI smoke test.
 
 ### Fase 1 - Visivo
 
@@ -46,6 +46,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 | 16 | Denoiser (NFOR: NL-means + regressione first-order guidata da albedo/normal/depth, dual-buffer cross-filtering, selezione MSE con safety net; `--denoiser nlm\|nfor`, default nei preset draft/standard/pre-final) | ✅ |
 | 17 | HDR Output (PFM/EXR pre-tone-mapping) | ✅ PFM (`--aov`) + EXR (`-o *.exr` multilayer scene-linear, `--aov-format pfm\|exr`; writer `ExrImage` zero-dipendenze, half/float + ZIP) |
 | +  | Sobol + Owen Scrambling sampler (`--sampler sobol`, default attivo) | ✅ |
+| +  | Integratore iterativo (`Rendering/PathIntegrator.cs`, review Fase 7): throughput esplicito, Russian Roulette standard su β × η², profondità per tipo di lobo (`--depth-diffuse/-glossy/-transmission/-volume/-transparent`) | ✅ |
 
 ### Fase 4 - Cinematografici 🔧
 
@@ -65,7 +66,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 | # | Feature | Stato |
 |---|---------|-------|
-| 23 | Path Guiding - PPG-style (SD-tree spaziale + quadtree direzionale per foglia, MIS tra guide PDF e BSDF PDF, `--path-guiding on\|off`, `--guiding-budget N` spp di training; dopo #13) | ⬜ |
+| 23 | Path Guiding - PPG-style (SD-tree spaziale + quadtree direzionale per foglia, MIS tra guide PDF e BSDF PDF, `--path-guiding on\|off`, `--guiding-budget N` spp di training; dopo #13; il loop iterativo che lo rende possibile è fatto, review Fase 7; con MNEE/SMS per le caustiche da luci piccole: `PIANO-REVIEW.md` Fase 7b) | ⬜ |
 | 24 | Spectral Rendering (lunghezze d'onda → dispersione prismatica) | ⬜ |
 | 25 | Surface Displacement Stack (bump map, mesh subdivision Loop/Catmull-Clark, scalar/vector displacement, autobump) | ✅ |
 | 26 | GPU Acceleration (CUDA/Vulkan, progetto separato) | ⬜ |
@@ -106,7 +107,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 - [ ] Review completa dei tutorial (`tutorial/`): correttezza vs codice, omissioni, grammatica, esempi, indici.
 - [ ] Spezzare `SceneLoader.cs`.
 - [ ] **Texture, rimandati dalla Fase 4 della review**: clamp delle ottave sul footprint per `marble` e `wood` (oggi campionate in un punto); compressioni EXR PIZ, DWAA/DWAB, B44, PXR24 e file a tile (oggi errore esplicito); UDIM e cache di texture a tile per scene grandi; l'autobump di una mesh dentro un transform scalato usa l'altezza del displacement in unità oggetto mentre il bump è in unità di scena (e la texture 3D del displacement è letta nello spazio oggetto non scalato); sui gradini piatti del lathe V va dal raggio interno all'esterno qualunque sia il verso del profilo; `UvTransformedHittable` ruota T e B come +U e +V (corretto ora che tutte le primitive li allineano, da ricontrollare se cambia una convenzione).
-- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅, Fase 1 (fondamenta matematiche e sampler) ✅, Fase 3 (camera, film e colore) ✅, Fase 4 (texture e dati) ✅, Fase 5 (materiali e BSDF) ✅, Fase 6 (luci e cielo) ✅.
+- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅, Fase 1 (fondamenta matematiche e sampler) ✅, Fase 3 (camera, film e colore) ✅, Fase 4 (texture e dati) ✅, Fase 5 (materiali e BSDF) ✅, Fase 6 (luci e cielo) ✅, Fase 7 (integratore) ✅.
 - [ ] **Luci e cielo, rimandati dalla Fase 6 della review**: scattering multiplo per il cielo di Nishita (Hillaire 2020, tabella di multi-scattering): oggi il suo cielo è circa metà di uno misurato rispetto al sole, e per questo la sua `turbidity` mappa su poca polvere invece che sulla torbidità di Linke; un falloff fisico del cono degli spot (oggi smoothstep artistica, la distribuzione fisica la dà l'IES); dati TILT dei file IES; la costante dell'atmosfera di `NishitaAtmosphereMedium` duplicata da `Rendering/Sky/Atmosphere.cs` (unificare con la Fase 8); modello Prague 2021 se servisse un cielo diurno sopra Hosek-Wilkie (crepuscolo, cieli torbidi).
 - [ ] **Scene da rivedere alla fine della review** (decisione del proprietario; nessun vincolo di compatibilità, `PIANO-REVIEW.md` §2.0: le scene si correggono, si riscrivono o si spostano in `scenes/obsolete/`): le otto scene con un cielo fisico ora hanno il sole alla luminosità vera rispetto al cielo (`3d-ray-logo`, `extrusion`, `ground-alpine-lake`, `ground-feature-overview`, `sky-aerial`, `sky-nishita`, `sky-portal`, `sky-preetham`; prima/dopo in `scenes/review/images/sky-before-after.jpg`), e quelle con `hosek_wilkie` un modello diverso da Preetham; valutare il passaggio a unità fotometriche con `ev100` dove la scena descrive una situazione reale.
 
@@ -158,6 +159,11 @@ Fase 6 della review (luci e cielo), corretti 2026-10-22:
 - [x] **MIS delle luci**: probabilità di scelta assente dal lato BSDF (luce diretta al 76-89% con `power`/`uniform`), portali sommati all'environment (+7-19%), dischi irraggiungibili pesati, emissivi riconosciuti dal materiale invece che dalla superficie (§3.49-3.51, §3.53). **Stratificazione** con celle vuote (§3.52), potenza della sphere light senza raggio (§3.54).
 - [x] **Mip pre-filtrato dell'HDRI sotto MIS**: +26% su un pavimento diffuso (§3.56).
 - [x] **Sole dei cieli fisici circa 15 000 volte troppo debole** rispetto al suo cielo, oscuramento al bordo senza effetto (§3.57); `hosek_wilkie` alias di Preetham (§3.58).
+
+Fase 7 della review (integratore), corretti 2026-10-24:
+
+- [x] **Categoria dei raggi** per i flag di visibilità sbagliata: uscite del SSS e scattering nei mezzi come "camera", glossy come "diffuse", cielo negli specchi come "camera" (§3.61).
+- [x] **Russian Roulette** con soglie da una classificazione euristica della scena e soglia dei path morti (§3.8): ora standard, non distorta, senza euristiche.
 
 Emersi nella Fase 6, per la Fase 8 (volumi):
 

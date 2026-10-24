@@ -27,13 +27,13 @@ Questo documento descrive il flusso architetturale completo del motore 3D-Ray, d
        │  (world, camera, lights, sky, globalMedium)
        ▼
 ┌─────────────┐
-│  Renderer   │  Costruttore: scene analysis + RR + photon map caustiche (se --caustics on)
+│  Renderer   │  Costruttore: luci, MIS, profondità per tipo + photon map caustiche (se --caustics on)
 │ constructor │  Render():    loop parallelo sui pixel
 └──────┬──────┘
        │  Per ogni pixel: N campioni stratificati (Sobol o griglia √N×√N)
        ▼
 ┌─────────────┐
-│  TraceRay   │  Ricorsione: hit → normal map → emission → NEE (+ gather caustiche) → Sample → RR
+│  TracePath  │  Loop: hit → normal map → emission → NEE (+ gather caustiche) → Sample → RR
 └──────┬──────┘
        │  Radiance HDR lineare
        ▼
@@ -144,30 +144,20 @@ Se non ci sono luci e il YAML non ha una sezione `lights:` esplicita, viene aggi
 
 Il costruttore riceve gli output del loader e prepara lo stato per il rendering multi-thread.
 
-### 2.1 Scene Analysis (Classificazione dell'Illuminazione)
+### 2.1 Potenza approssimata delle luci
 
-Lo scopo è decidere se la scena è "indirect-dominant" (illuminata prevalentemente da superfici emissive e cielo in scene chiuse) o "normal" (illuminata da luci esplicite). Questo determina l'aggressività della Russian Roulette.
-
-La metrica è l'**irradianza media** (Rec.709 luminance) proiettata sulla sfera che racchiude la scena:
-
-```csharp
-AABB sceneBounds = ClampInfiniteExtents(world.BoundingBox(), ±1e3);
-float totalFlux = lights.Sum(l => l.ApproximatePower(sceneBounds));
-float sceneRadius = 0.5f · |sceneBounds.Max − sceneBounds.Min|;
-float meanIrradiance = totalFlux / (4π · sceneRadius²);
-bool isIndirectDominant = meanIrradiance < IndirectDominantThreshold; // 0.5
-```
+Il costruttore non classifica la scena: la Russian Roulette è quella standard sul throughput (§4.7) e non dipende dall'illuminazione. La potenza delle luci serve però alla scelta delle luci proporzionale alla potenza (`--light-sampling power`, il light BVH sopra 16 luci) e alla distribuzione dei fotoni delle caustiche.
 
 **⚠️ CONTRATTO CRITICO — `ILight.ApproximatePower(sceneBounds)`:**
 
-Il metodo restituisce il flusso radiante approssimato della luce (Φ in unità di luminanza Rec.709). È usato **esclusivamente dal costruttore del Renderer** per la scene classification; il rendering vero e proprio usa `IlluminateAndTest()` / `IlluminateAndTestStratified()`.
+Il metodo restituisce il flusso radiante approssimato della luce (Φ in unità di luminanza Rec.709). È usato **solo in costruzione** (`LightDistribution`, `LightBvh`, `CausticPhotonTracer`); il rendering vero e proprio usa `IlluminateAndTest()` / `IlluminateAndTestStratified()`.
 
 Tre invarianti obbligatori:
 
 | Invariante | Motivo |
 |------------|--------|
-| **Deterministico** — niente `RandomFloat()` | Il costruttore gira single-thread prima del `Parallel.For`. Un risultato non-deterministico renderebbe la classificazione RR instabile tra run. |
-| **Receiver-independent** — nessuna dipendenza da un punto di shading | Il flusso è una proprietà intrinseca della luce, non dell'osservatore. Evaluare a un punto arbitrario (come faceva il vecchio `Illuminate(Vector3.Zero)`) rende la classificazione dipendente dalla posizione del mondo. |
+| **Deterministico**: niente `RandomFloat()` | Il costruttore gira single-thread prima del `Parallel.For`. Un risultato non-deterministico renderebbe la scelta delle luci instabile tra run. |
+| **Receiver-independent**: nessuna dipendenza da un punto di shading | Il flusso è una proprietà intrinseca della luce, non dell'osservatore. Evaluare a un punto arbitrario (come faceva il vecchio `Illuminate(Vector3.Zero)`) rende la potenza dipendente dalla posizione del mondo. |
 | **Finito** — lights con apertura infinita usano `sceneBounds` | `DirectionalLight` e `EnvironmentLight` non hanno flusso finito senza un riferimento geometrico. Usare la sezione trasversale della scena (π·R²) bounds il flusso in modo fisicamente coerente. |
 
 Formula per tipo di luce (tutti i risultati sono moltiplicati per `Luminance(Color)`):
@@ -184,22 +174,9 @@ Formula per tipo di luce (tutti i risultati sono moltiplicati per `Luminance(Col
 
 > **Nota per futuri sviluppatori:** quando si aggiunge un nuovo tipo di luce, il suo `ApproximatePower` deve rispettare questi tre invarianti. Usare `PointLight` (caso finito) o `DirectionalLight` (caso infinito con `sceneBounds`) come modelli di riferimento.
 
-### 2.2 Configurazione Russian Roulette
+### 2.2 Profondità per tipo di rimbalzo
 
-In base alla classificazione:
-
-| Tipo scena | `_rrMinBounces` | `_rrMinSurvival` | Max boost |
-|------------|:-:|:-:|:-:|
-| Normal (luci esplicite forti) | 4 | 0.15 | 6.7× |
-| Indirect-dominant (emissive/sky) | 8 | 0.50 | 2.0× |
-
-La soglia è `IndirectDominantThreshold = 0.5` sull'irradianza media (Rec.709 luminance per unità di area della sfera di scena).
-
-**Invarianza di scala**. La normalizzazione per `4π·R²` rende la metrica indipendente dalle unità world-space della scena: raddoppiare tutte le coordinate lascia la classificazione invariata (PointLight: 4π·I / (4π·(2R)²) vs 4π·I / (4π·R²) → scala come 1/R², ma lo stesso fa la distanza tipica delle luci, quindi l'"illuminamento per bounce" è lo stesso).
-
-**Clamp delle estensioni infinite**. `InfinitePlane` riporta un AABB fittizio a ±1e6 per compatibilità con il BVH. Senza clamp, il raggio di scena divergerebbe e `EnvironmentLight`/`DirectionalLight` (che scalano con π·R²) produrrebbero un meanIrradiance fisso e arbitrario. Il clamp a ±1e3 restituisce un raggio realistico per tutte le scene pratiche.
-
-> **Perché la distinzione?** In scene a luce diretta, la NEE cattura la maggior parte dell'energia — i bounce indiretti sono una piccola correzione e possono essere terminati aggressivamente. In scene emissive-only chiuse (Cornell), TUTTA l'energia arriva dai bounce indiretti; terminare i path troppo presto produce macchie scure.
+Il costruttore riceve la profondità totale (`maxDepth`, i vertici del path) e i limiti per tipo (`PathDepths`: diffuse, glossy, transmission, volume, cut-out). Senza limiti espliciti tutti i tipi valgono il totale e i cut-out 16 (`PathDepths.Uniform`). La CLI li riempie dal preset di qualità, o dal `-d` esplicito per tutti i tipi, e dai flag `--depth-*` (vedi [Profili di Rendering §4](../reference/profili-di-rendering.md)).
 
 ### 2.3 Registrazione degli Emitter (per il peso MIS dell'emissione)
 
@@ -263,7 +240,7 @@ La griglia esterna serve al sampler `prng`, dove il numero di campioni effettivi
 
 1. **Coordinate UV** nel viewport: `u = (i + filter.SamplePosition(jitterU)) / width`, `v = (height - j - 1 + filter.SamplePosition(jitterV)) / height`. Il filtro di ricostruzione (`--filter`, `Rendering/PixelFilter.cs`) è applicato per *filter importance sampling*: il campione viene spostato rispetto al centro del pixel con densità proporzionale al filtro (Gaussiano σ = 0.5 px per default, Blackman-Harris, oppure box, per cui la posizione è il jitter stesso) e conta con peso 1 solo per il suo pixel. Niente splatting sui vicini: il rumore dei pixel resta indipendente, come assumono il denoiser e la stima della varianza a doppio buffer.
 2. **Generazione del raggio** tramite `Camera.GetRay(u, v)`
-3. **Tracing** con `TraceRay(ray, maxDepth, prevBsdfPdf: 0, prevIsDelta: true, ...)`, con pile di mezzi e IOR vuote
+3. **Tracing** con `TracePath(ray)`: un `PathState` nuovo con β = 1, pile di mezzi e IOR vuote, categoria Camera
 4. **Firefly clamp** sul campione singolo
 5. **Accumulo** nel colore cumulativo
 
@@ -287,29 +264,35 @@ Con `aperture = 0` il disco degenera in un punto (pinhole) e tutti gli oggetti s
 
 ---
 
-## Fase 4 — TraceRay (Il Cuore del Path Tracer)
+## Fase 4 - TracePath (Il Cuore del Path Tracer)
 
-**File:** `Renderer.cs`, **Metodi:** `TraceRay(Ray ray, int depth, float prevBsdfPdf, bool prevIsDelta, ref MediumStack mediums, ref IorStack iors, Vector3 currentAbsorption, Vector3 pathThroughput, RayCategory incomingCategory, int causticState)`, `ShadeSurface`, `ShadeSampleBounce`
+**File:** `Rendering/PathIntegrator.cs`, **Metodi:** `TracePath(Ray)`, `FindVisibleHit`, `MediumVertex`, `SurfaceVertex`, `SurviveRoulette`
 
-Questa è la funzione ricorsiva che risolve l'equazione del rendering. Ogni invocazione rappresenta un **bounce** (rimbalzo) del raggio nella scena.
+Il path è un **loop iterativo** con un throughput esplicito: lo stato del cammino (`PathState`) porta il raggio corrente, il throughput β, la pdf e il flag delta del rimbalzo precedente (per il MIS), la categoria del raggio (per i flag di visibilità), le pile dei mezzi e degli IOR, i contatori dei rimbalzi per tipo e la radianza accumulata. Ogni iterazione è un **vertice**: ogni contributo (emissione, NEE, cielo) viene sommato come β × contributo, e il campionamento del rimbalzo moltiplica β per il peso del campione. Niente ricorsione: la profondità non pesa sullo stack e lo stato del cammino è tutto in un posto, pronto per estensioni come il path guiding.
 
-### 4.1 Condizione di Uscita
+### 4.1 Condizioni di Uscita
 
 ```csharp
-if (depth <= 0) return Vector3.Zero;
+while (path.Bounces < _maxDepth)
+{
+    Sampler.BeginVertex();          // un blocco di dimensioni del sampler per vertice
+    ...
+}
 ```
 
-Se il raggio ha esaurito i bounce, restituisce nero (energia zero). Il parametro `maxDepth` di default è 8 (CLI `-d`); in pratica la Russian Roulette termina la maggior parte dei path prima di questo limite. Per scene con vetri impilati alzalo a 16+ (vedi [Profili di Rendering](../reference/profili-di-rendering.md)).
+Il cammino termina quando raggiunge la profondità totale (`-d`, vertici), quando un limite per tipo è superato (§4.7), quando la Russian Roulette lo chiude, quando sfugge al cielo, quando il materiale assorbe (`Sample` nullo) o quando β non è più finito (contato e scartato). Un vertice di profondità 1 è la superficie vista dalla camera, illuminata direttamente.
 
 ### 4.2 Hit Test
 
 ```csharp
-hit = _world.Hit(currentRay, MathUtils.RayEpsilon, MathUtils.Infinity, ref rec);
+bool hit = FindVisibleHit(ref path, out HitRecord rec);   // salta le superfici nascoste a questa categoria
 ...
-Vector3 result = !hit
-    ? SampleSky(currentRay, prevBsdfPdf, prevIsDelta, causticState)
-    : ShadeSurface(currentRay, ref rec, depth, prevBsdfPdf, prevIsDelta, ...);
+if (!hit) { path.Add(path.Beta * SampleSky(ray, path.PrevPdf, path.PrevIsDelta, path.CausticState, path.Category)); break; }
+path.Beta *= BeerLambert(path.SigmaA, rec.T);
+if (!SurfaceVertex(ref path, ref rec)) break;
 ```
+
+Se c'è un mezzo attivo (la cima della pila o il mezzo globale), prima della superficie il mezzo campiona una distanza di interazione: β viene moltiplicato per il suo peso, e se l'evento cade prima della superficie il vertice è un vertice di volume (`MediumVertex`: NEE con la phase function, poi un rimbalzo campionato dalla phase function). L'assorbimento di Beer-Lambert dell'interno di un vetro colorato entra in β lungo il segmento.
 
 `tMin` non è una costante fissa: `MathUtils.RayEpsilon` è proporzionale al raggio della scena, e l'origine dei raggi secondari è spostata con `MathUtils.OffsetOrigin`, di una distanza relativa alla coordinata più grande del punto (circa 256 ulp). Così l'immagine non cambia se la scena viene scalata (10 µm o 1 km) o spostata lontano dall'origine.
 
@@ -336,7 +319,7 @@ Se il materiale ha una normal map, la normale del `HitRecord` viene perturbata *
 
 ```csharp
 Vector3 raw = material.Emit(u, v, localPoint, objectSeed, frontFace);
-emitted = WeightEmission(raw, material, ray, prevBsdfPdf, prevIsDelta);
+path.Add(path.Beta * WeightEmission(raw, material, ray, rec.T, path.PrevPdf, path.PrevIsDelta));
 ```
 
 Il peso dipende dallo stato del bounce precedente:
@@ -392,24 +375,22 @@ Il dispatch per tipo di luce è una sola chiamata virtuale: ogni luce decide da 
 ### 4.6 Sample (Illuminazione Indiretta)
 
 ```csharp
-BsdfSample? mis = material.Sample(viewDir, rec);
-if (mis.HasValue)
-    return ShadeSampleBounce(material, in rec, mis.Value, depth, emitted, directLight,
-                             currentAbsorption, pathThroughput, ref mediums, ref iors, causticState);
-return emitted + directLight;   // null: il cammino è assorbito qui
+BsdfSample? sample = material.Sample(viewDir, rec);
+if (sample is not BsdfSample s) return false;   // null: il cammino è assorbito qui
 ```
 
-Ogni materiale campiona con `Sample` (Lambertian, Metal, Dielectric, OpenPbr, MixMaterial); `Emissive` usa il default dell'interfaccia, che ritorna null. Non c'è un percorso di fallback: un `Sample` nullo termina il cammino. Il `BsdfSample` riporta direzione `Wo`, valore `F` (senza coseno), `Pdf` in angolo solido, flag `IsDelta`, la transizione di mezzo (`Transition`) e un'eventuale `NextSegmentAbsorption` (Beer-Lambert del segmento successivo).
+Ogni materiale campiona con `Sample` (Lambertian, Metal, Dielectric, OpenPbr, MixMaterial); `Emissive` usa il default dell'interfaccia, che ritorna null. Non c'è un percorso di fallback: un `Sample` nullo termina il cammino. Il `BsdfSample` riporta direzione `Wo`, valore `F` (senza coseno), `Pdf` in angolo solido, flag `IsDelta`, il **lobo** campionato (`Lobe`: diffuse, glossy, transmission, transparent), il rapporto degli indici `Eta` su una rifrazione, la transizione di mezzo (`Transition`) e un'eventuale `NextSegmentAbsorption` (Beer-Lambert del segmento successivo).
 
-In `ShadeSampleBounce` il peso del rimbalzo è:
+Il peso del rimbalzo è:
 
 ```csharp
 attenuation = s.IsDelta
     ? s.F                                                          // lobo delta: F porta già tutto il peso
     : s.F * (absNdotWo * LightSideTerminator(in rec, s.Wo) / s.Pdf);  // non-delta, absNdotWo = |N.Wo|
+path.Beta *= attenuation;
 ```
 
-Il fattore di shadow terminator è lo stesso della NEE (§4.5), perché appartiene all'integrando. Il ramo successivo riceve `prevBsdfPdf = s.Pdf` e `prevIsDelta = false` per un lobo non-delta, `prevBsdfPdf = 0` e `prevIsDelta = true` per un lobo delta: così `WeightEmission` e `SampleSky` scelgono fra peso MIS e peso pieno (§4.4). Su una transizione `Enter`/`Exit` il renderer copia e aggiorna la pila dei mezzi e quella degli IOR; un `Enter` in un mezzo omogeneo che diffonde passa al random walk del subsurface (vedi [MediumInterface](./medium-interface.md)).
+Il fattore di shadow terminator è lo stesso della NEE (§4.5), perché appartiene all'integrando. Il vertice successivo riceve `PrevPdf = s.Pdf` e `PrevIsDelta = false` per un lobo non-delta, `PrevPdf = 0` e `PrevIsDelta = true` per un lobo delta: così `WeightEmission` e `SampleSky` scelgono fra peso MIS e peso pieno (§4.4). Il lobo decide la categoria del raggio successivo (diffuse, glossy, transmission) per i flag di visibilità. Su una transizione `Enter`/`Exit` il path aggiorna la pila dei mezzi e quella degli IOR; un `Enter` in un mezzo omogeneo che diffonde passa al random walk del subsurface, che restituisce la radianza raccolta dentro e, se il cammino esce, il raggio d'uscita e il suo peso: il loop prosegue da lì (vedi [MediumInterface](./medium-interface.md)).
 
 - **Lambertian** → campionamento cosine-weighted nell'emisfero
 - **Metal** → GGX con campionamento delle normali visibili più il lobo di scattering multiplo; `fuzz = 0` è uno specchio delta
@@ -417,53 +398,50 @@ Il fattore di shadow terminator è lo stesso della NEE (§4.5), perché appartie
 - **OpenPbr** (anche il tipo `disney`) → scelta stocastica di un lobo (fuzz, coat, metallo, interfaccia dielettrica, diffuso, subsurface sottile), poi `F` e `Pdf` dell'intera miscela nella direzione scelta; i lobi lisci sono delta
 - **MixMaterial** → sceglie un figlio con probabilità pari al peso della miscela (vedi [MIS §5.3](./multiple-importance-sampling.md))
 
-### 4.7 Russian Roulette
+### 4.7 Limiti per tipo e Russian Roulette
 
 ```csharp
-Vector3 nextThroughput = pathThroughput * attenuation;
-int bouncesUsed = _maxDepth - depth;
-if (bouncesUsed >= _rrMinBounces)
+if (!CountBounce(ref path, s.Lobe)) return false;          // limite del tipo (e totale, tranne i cut-out)
+if (s.Lobe == BsdfLobe.Transmission) path.EtaScale *= s.Eta * s.Eta;
+if (!SurviveRoulette(ref path)) return false;
+
+static bool SurviveRoulette(ref PathState path)
 {
-    float survivalProb = Max(nextThroughput.X, nextThroughput.Y, nextThroughput.Z);
-    survivalProb = Clamp(survivalProb, _rrMinSurvival, 0.95f);
-
-    if (RandomFloat() > survivalProb)
-        return emitted + directLight;  // Path terminato
-
-    attenuation    /= survivalProb;    // Compensazione energetica
-    nextThroughput /= survivalProb;
+    if (path.Bounces < 2) return true;
+    Vector3 rr = path.Beta * path.EtaScale;
+    float q = Max(rr.X, rr.Y, rr.Z);
+    if (q >= 1f) return true;
+    if (!(q > 0f) || RandomFloat() >= q) return false;    // path terminato
+    path.Beta /= q;                                       // compensazione energetica
+    return true;
 }
 ```
 
-Dopo `_rrMinBounces` bounce, ogni path viene terminato con probabilità `1 - survivalProb`. I path sopravvissuti vengono "potenziati" dividendo per `survivalProb`, mantenendo lo stimatore Monte Carlo **unbiased** (non introduce bias sistematico).
+Ogni rimbalzo conta nel limite del suo tipo (`--depth-diffuse`, `--depth-glossy`, `--depth-transmission`, `--depth-volume`) e nel totale; un cut-out attraversato conta solo nel suo limite (`--depth-transparent`).
 
-La probabilità di sopravvivenza è il canale massimo della throughput accumulata lungo il path (PBRT §13.7.1): path che trasportano poca energia vengono eliminati più frequentemente. Il floor `_rrMinSurvival` impedisce boost eccessivi (max 6.7× in scene normali, 2× in scene indirette).
+Dal secondo rimbalzo, la probabilità di sopravvivenza è il canale massimo del throughput (PBRT-v4 §13.1.5), moltiplicato per `EtaScale`, il prodotto di $\eta^2$ sulle rifrazioni: la compressione di radianza $(\eta_i/\eta_t)^2$ di un'interfaccia non deve far morire un raggio dentro il vetro. I path sopravvissuti vengono divisi per q, così lo stimatore resta **unbiased**. Non ci sono floor, tetti o classificazioni della scena.
 
-**Vedi:** [Path Tracing e Illuminazione §3](./path-tracing-and-lighting.md) per l'analisi di adattività.
+**Vedi:** [Path Tracing e Illuminazione §3](./path-tracing-and-lighting.md).
 
-### 4.8 Composizione Finale del Bounce
+### 4.8 Composizione della Radianza
 
 ```
-radiance = emitted + directLight + attenuation × indirect
+L = Σ_vertici β_k × (emitted_k + directLight_k)  +  β_fine × cielo
 ```
 
 Dove:
 - `emitted` = auto-illuminazione della superficie, già pesata da `WeightEmission` (zero per materiali non emissivi)
-- `directLight` = contributo NEE, già completo: la BSDF è dentro l'integrando (`Evaluate × |N.L| × terminator × visibilità`), quindi non viene moltiplicato per `attenuation`
-- `attenuation` = peso del campione BSDF (§4.6), eventualmente diviso per la probabilità di sopravvivenza della RR
-- `indirect` = radiance ricorsiva dal bounce successivo (ripulita da NaN/Inf; alla superficie primaria passa per il clamp indiretto opzionale)
+- `directLight` = contributo NEE, già completo: la BSDF è dentro l'integrando (`Evaluate × |N.L| × terminator × visibilità`)
+- `β_k` = throughput fino al vertice k: prodotto dei pesi dei campioni BSDF e phase, dei pesi dei mezzi, di Beer-Lambert e delle divisioni della RR
 
-Se `Sample` ritorna null (es. `Emissive`, che assorbe tutto) o la RR termina il path:
-```
-radiance = emitted + directLight
-```
+Ogni contributo è ripulito da NaN/Inf prima di essere sommato. Con `-C` il clamp indiretto opzionale si applica una volta, alla somma dei contributi oltre il primo rimbalzo.
 
 ### 4.9 Sky Fallback
 
 Se il raggio non colpisce nulla:
 
 ```csharp
-return SampleSky(currentRay, prevBsdfPdf, prevIsDelta, causticState);
+path.Add(path.Beta * SampleSky(ray, path.PrevPdf, path.PrevIsDelta, path.CausticState, path.Category));
 ```
 
 `SampleSky` legge il cielo con `SkySettings.Sample(...)`: raggi di camera e bounce delta vedono anche il sole analitico, i bounce non-delta solo il corpo del cielo (il sole arriva dalla NEE); sulle HDRI un bounce glossy legge un livello di mip scelto dalla sua pdf. Se il cielo è campionato dalla NEE (`EnvironmentLight`) e il bounce non è delta, la radianza riceve il peso MIS `MisWeight(prevBsdfPdf, pEnv)`; altrimenti passa a peso pieno. Il cielo per tipo:
@@ -534,19 +512,19 @@ Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math
 | `Renderer()` costruttore | Renderer.cs | Program.Main | 1× per run | N/A (single-thread) |
 | `Renderer.Render()` | Renderer.cs | Program.Main | 1× per run | Sì (Parallel.For) |
 | `Camera.GetRay()` | Camera.cs | Render loop | W×H×N volte | Sì (readonly + thread-local PRNG) |
-| `TraceRay()` | Renderer.cs | Render loop | W×H×N×bounces | Sì (readonly state) |
-| `ComputeDirectLighting()` | Renderer.cs | ShadeSurface (via DirectLightingAt) | Per ogni hit con `NeedsDirectLighting` | Sì |
-| `ILight.ApproximatePower()` | Lights/*.cs | Costruttore Renderer | 1× per luce | **Solo single-thread** |
+| `TracePath()` | PathIntegrator.cs | Render loop | W×H×N | Sì (stato del path sullo stack) |
+| `ComputeDirectLighting()` | Renderer.cs | SurfaceVertex (via DirectLightingAt) | Per ogni hit con `NeedsDirectLighting` | Sì |
+| `ILight.ApproximatePower()` | Lights/*.cs | Costruttore (LightDistribution, LightBvh, fotoni) | 1× per luce | **Solo single-thread** |
 | `ILight.IlluminateAndTestStratified()` | Lights/*.cs | ComputeDirectLighting (via SampleLight) | Per ogni hit × luce × sample | Sì |
-| `IMaterial.Sample()` | Materials/*.cs | ShadeSurface | Per ogni hit | Sì (sampler per thread) |
+| `IMaterial.Sample()` | Materials/*.cs | SurfaceVertex | Per ogni hit | Sì (sampler per thread) |
 | `IMaterial.Evaluate()` / `Pdf()` | Materials/*.cs | ComputeDirectLighting (via DirectIntegrand), Sample | Per ogni hit × luce non-ombrata | Sì (pure function) |
-| `IMaterial.Emit()` | Materials/*.cs | ShadeSurface | Per ogni hit | Sì (pure function) |
+| `IMaterial.Emit()` | Materials/*.cs | SurfaceVertex | Per ogni hit | Sì (pure function) |
 | `SkySettings.Sample()` | SkySettings.cs | SampleSky | Per ogni ray-miss | Sì (readonly) |
 
 ### Contratti chiave
 
 **`ApproximatePower()` vs `IlluminateAndTest()`:**
-- `ApproximatePower(sceneBounds)` è **solo per scene classification** (costruttore Renderer). Restituisce il flusso radiante totale della luce (Rec.709 luminance), deterministico, receiver-independent, finito (usa `sceneBounds` per directional/environment).
+- `ApproximatePower(sceneBounds)` è **solo per la costruzione** (scelta delle luci per potenza, light BVH, fotoni). Restituisce il flusso radiante totale della luce (Rec.709 luminance), deterministico, receiver-independent, finito (usa `sceneBounds` per directional/environment).
 - `IlluminateAndTest()` / `IlluminateAndTestStratified()` sono per il **rendering**. Usano PRNG, dividono per ShadowSamples, testano le ombre.
 - I due metodi non condividono il path di esecuzione. Modificare uno non influisce sull'altro.
 
@@ -556,7 +534,7 @@ Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math
 - È un'unica descrizione del materiale: NEE e rimbalzo BSDF stimano lo stesso integrando, e il MIS li combina con `Pdf`.
 
 **`prevBsdfPdf` / `prevIsDelta`:**
-- Propagati bounce-per-bounce via i parametri di `TraceRay`.
+- Portati da vertice a vertice in `PathState.PrevPdf` / `PathState.PrevIsDelta`.
 - Camera ray → `prevIsDelta = true`, emissione sempre mostrata.
 - Bounce delta (specchio, vetro liscio, lobi lisci di OpenPbr) → `prevIsDelta = true`, emissione mostrata.
 - Sample non-delta → `prevIsDelta = false`, `prevBsdfPdf = pdf dal BsdfSample`, emissione dei `Emissive` registrati e cielo campionato dalla NEE pesati con l'euristica MIS al prossimo hit; gli altri emettitori passano integri.
@@ -564,41 +542,30 @@ Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math
 
 ---
 
-## Appendice B — Diagramma di Flusso di TraceRay
+## Appendice B - Diagramma di Flusso di TracePath
 
 ```
-TraceRay(ray, depth, prevBsdfPdf, prevIsDelta, mediums, iors, ...)
+TracePath(ray)                       β = 1, pile vuote, categoria Camera
 │
-├── depth ≤ 0 o throughput trascurabile? ── → return Zero
-│
-├── world.Hit(ray)? (salta le superfici nascoste a questa categoria di raggio)
-│   ├── NO ──────────────────────────────── → return SampleSky(ray, prevBsdfPdf, prevIsDelta)
-│   └── YES → ShadeSurface
-│       │
-│       ├── Apply normal map / bump / autobump (se presenti)
-│       │
-│       ├── Compute emitted (WeightEmission):
-│       │   ├── prevIsDelta? → emitted = raw (full weight)
-│       │   ├── material is registered Emissive? → w_bsdf = prevBsdfPdf/(prevBsdfPdf+p_light)
-│       │   └── unregistered emitter → emitted = raw (full weight)
-│       │
-│       ├── Compute directLight:
-│       │   ├── material.NeedsDirectLighting? → ComputeDirectLighting(...):
-│       │   │       Σ wNee × lightColor × Evaluate × |N.L| × terminator × Tr
-│       │   └── altrimenti (Emissive) → Vector3.Zero
-│       │
-│       └── material.Sample(V, rec)?
-│           ├── NO (null) → return emitted + directLight
-│           └── YES (BsdfSample { Wo, F, Pdf, IsDelta, Transition, NextSegmentAbsorption })
-│               └── ShadeSampleBounce:
-│                   ├── attenuation = IsDelta ? F : F × |N.Wo| × terminator / Pdf
-│                   ├── Russian Roulette sulla throughput:
-│                   │   ├── bouncesUsed < minBounces? → skip RR
-│                   │   ├── random > survivalProb? → return emitted + directLight
-│                   │   └── survived → attenuation /= survivalProb
-│                   ├── Transition Enter/Exit? → aggiorna pile mezzi/IOR
-│                   │   (Enter in mezzo che diffonde → RandomWalkSubsurface)
-│                   └── indirect = TraceRay(scattered, depth-1,
-│                                           prevBsdfPdf = IsDelta ? 0 : Pdf, prevIsDelta = IsDelta)
-│                       return emitted + directLight + attenuation × indirect
+└── loop finché Bounces < maxDepth:
+    ├── BeginVertex; β non finito o nullo? → fine
+    ├── FindVisibleHit (salta le superfici nascoste a questa categoria di raggio)
+    ├── mezzo attivo? → Sample distanza: β ×= peso del mezzo
+    │   └── evento prima della superficie → MediumVertex:
+    │       ├── L += β × NEE(phase)
+    │       ├── limite volume / totale, Russian Roulette
+    │       └── β ×= phase/pdf, nuovo raggio, categoria Diffuse → continue
+    ├── miss → L += β × SampleSky(MIS) → fine
+    ├── β ×= Beer-Lambert del segmento
+    └── SurfaceVertex:
+        ├── normal map / bump / autobump
+        ├── L += β × WeightEmission(raw)        (MIS se il rimbalzo precedente non è delta)
+        ├── L += β × NEE (+ gather caustiche)   Σ wNee × lightColor × Evaluate × |N.L| × terminator × Tr
+        ├── material.Sample(V, rec)? null → fine
+        ├── β ×= IsDelta ? F : F × |N.Wo| × terminator / Pdf
+        ├── CountBounce(Lobe): limite del tipo e totale (cut-out: solo il loro)
+        ├── EtaScale ×= Eta² sulle rifrazioni; Russian Roulette su β × EtaScale
+        ├── PrevPdf, PrevIsDelta, categoria dal lobo
+        └── Transition Enter/Exit → pile mezzi/IOR
+            (Enter in mezzo che diffonde → RandomWalkSubsurface → raggio d'uscita)
 ```

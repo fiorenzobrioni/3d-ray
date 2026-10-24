@@ -9,7 +9,7 @@ namespace RayTracer.Rendering;
 /// <summary>
 /// Random-walk subsurface scattering integrator — partial of <see cref="Renderer"/>.
 ///
-/// <para>Activated by <see cref="Renderer.ShadeSampleBounce"/> when an entry
+/// <para>Activated by the path loop's surface vertex when an entry
 /// refraction event lands on an entity bound to a <see cref="HomogeneousMedium"/>
 /// with non-zero scattering coefficient. Replaces the regular volumetric path
 /// for the duration of the interior traversal with a hero-wavelength
@@ -32,9 +32,9 @@ namespace RayTracer.Rendering;
 /// surfaces happen to coincide with the bound entity's hull.</para>
 ///
 /// <para><b>Exit handling.</b> When the free-flight sample crosses the
-/// boundary, the medium is popped from the stack and the integrator hands
-/// control back to the standard surface path via <see cref="Renderer.TraceRay"/>
-/// from the exit point. No second Fresnel evaluation is applied at the exit
+/// boundary, the medium is popped from the stack and the walk returns the
+/// exit ray and the throughput it accumulated: the path loop
+/// (<see cref="Renderer.TracePath"/>) continues from the exit point. No second Fresnel evaluation is applied at the exit
 /// surface — the entry-side transmission factor (already in the caller's
 /// throughput) is the only Fresnel coupling, matching the Cycles default. For
 /// matched IORs (η = 1, the white-furnace configuration) the entry attenuation
@@ -70,7 +70,7 @@ public partial class Renderer
 
     /// <summary>
     /// True when the medium is a participating scatterer (at least one channel
-    /// of σ_s is positive). The SSS dispatch in <see cref="ShadeSampleBounce"/>
+    /// of σ_s is positive). The SSS dispatch in <see cref="SurfaceVertex"/>
     /// keys on this — pure-absorption media are routed through the existing
     /// Beer-Lambert path, which is cheaper and identical in outcome since the
     /// random walk degenerates to a single straight transmission when σ_s = 0.
@@ -83,42 +83,35 @@ public partial class Renderer
     }
 
     /// <summary>
+    /// What a random walk returns to the path loop: the in-scattered light it
+    /// gathered (relative to the throughput at the entry point) and, when the
+    /// light left the entity, the exit ray with the walk's own throughput and
+    /// whether it scattered (for the MIS of what the exit ray reaches).
+    /// </summary>
+    private readonly record struct WalkResult(Vector3 Radiance, bool Escaped, Ray EscapeRay,
+                                              Vector3 Throughput, bool Scattered, float LastPhasePdf);
+
+    /// <summary>
     /// Walks the interior of the bound entity from the entry refraction point
-    /// to the exit, integrating in-scattering NEE at every event and handing
-    /// the escape ray back to <see cref="TraceRay"/>. Returns the radiance
-    /// arriving at the entry point from inside (the integrand the caller
-    /// multiplies by the entry-surface attenuation, exactly like the
-    /// <c>indirect</c> term from a regular <see cref="TraceRay"/> recursion).
-    ///
-    /// <para>Convention: the caller pushes the medium onto <paramref name="mediums"/>
-    /// before calling. This routine pops on every return path (escape, RR
-    /// kill, max-bounces) so the caller's stack copy reflects "back outside"
-    /// at the return — defensive consistency, the caller is the local copy
-    /// owner and discards it anyway.</para>
+    /// to the exit, integrating in-scattering NEE at every event. The caller
+    /// has pushed the medium and its IOR; the walk pops them when the light
+    /// escapes (and the medium on every other return: the path ends there).
     /// </summary>
     /// <param name="entryRay">Ray starting at the entry refraction point,
     ///   pointing into the medium interior.</param>
-    /// <param name="medium">The homogeneous medium currently on top of
+    /// <param name="medium">The homogeneous medium on top of
     ///   <paramref name="mediums"/>.</param>
     /// <param name="entityRoot">Restricted hittable representing the bound
     ///   entity's geometry (from <see cref="HitRecord.EntityRoot"/>).</param>
-    /// <param name="mediums">Medium stack with <paramref name="medium"/> on
-    ///   top. Popped before any return.</param>
-    /// <param name="depth">Remaining surface-bounce budget passed to
-    ///   <see cref="TraceRay"/> at escape. Independent of the walk's volume-
-    ///   bounce budget (<see cref="RandomWalkConfig.MaxVolumeBounces"/>).</param>
-    /// <param name="pathThroughput">Cumulative β arriving at the entry point.
-    ///   Threaded into the escape recursion's RR / dead-path detection so the
-    ///   outer world sees the full path importance. The walk does NOT
-    ///   multiply its return value by this — the caller already accounts
-    ///   for the entry attenuation via the <c>attenuation * indirect</c> term.</param>
-    private Vector3 RandomWalkSubsurface(
+    /// <param name="pathThroughput">Throughput at the entry point, for the
+    ///   walk's Russian roulette only: the returned radiance and throughput
+    ///   are relative to it.</param>
+    private WalkResult RandomWalkSubsurface(
         Ray entryRay,
         HomogeneousMedium medium,
         IHittable entityRoot,
         ref MediumStack mediums,
         ref IorStack iors,
-        int depth,
         Vector3 pathThroughput)
     {
         Vector3 sigmaA = medium.SigmaA;
@@ -126,10 +119,8 @@ public partial class Renderer
         Vector3 sigmaT = medium.SigmaT;
         IPhaseFunction phase = medium.Phase;
 
-        // Volume-internal throughput. Starts at 1 — the caller will multiply
-        // the walk's return by the entry-surface attenuation, mirroring the
-        // <c>attenuation * indirect</c> contract of every other TraceRay
-        // recursion.
+        // Throughput inside the walk, relative to the entry point: the path
+        // loop multiplies what the walk returns by its own throughput.
         Vector3 relBeta = Vector3.One;
         Vector3 L = Vector3.Zero;
         Ray ray = entryRay;
@@ -137,9 +128,9 @@ public partial class Renderer
         // standard volumetric path). Until the first scatter the walk is a pure
         // specular continuation of the entry refraction, so an escape must be
         // treated as a delta bounce. After the first phase scatter the escape
-        // ray carries that scatter's (non-delta) direction, and its pdf must be
-        // forwarded so TraceRay can MIS-weight any emitter / sky it hits against
-        // the NEE already performed at the scatter vertex.
+        // ray carries that scatter's (non-delta) direction, and its pdf goes
+        // back to the path loop so whatever the exit ray reaches is
+        // MIS-weighted against the NEE already done at the scatter vertex.
         bool scattered = false;
         float lastPhasePdf = 0f;
 
@@ -191,37 +182,22 @@ public partial class Renderer
                 if (pdf <= 1e-30f)
                 {
                     mediums.Pop();
-                    return L;
+                    return new WalkResult(L, false, default, Vector3.Zero, scattered, lastPhasePdf);
                 }
                 relBeta *= tr / pdf;
 
-                // Hand back to TraceRay from the exit point. ray.Direction is
-                // outward (parallel to the boundary normal at exit), so
-                // offsetting the origin along it nudges the new ray past the
-                // boundary in a single ε step.
+                // The path continues from the exit point. ray.Direction is
+                // outward, so offsetting along it puts the origin past the
+                // boundary in one step.
                 Vector3 exitPoint = ray.Origin + ray.Direction * tBoundary;
                 Ray escapeRay = new(MathUtils.OffsetOrigin(exitPoint, ray.Direction),
                                     ray.Direction, ray.Time);
 
-                // Pop BEFORE the outer recursion so TraceRay sees the medium
-                // we just left as inactive (back to the outer stack / global).
-                // The dielectric IOR pushed alongside it on entry is popped in
-                // lock-step so relative-IOR tracking stays balanced on escape.
+                // Back outside: pop the medium and, in lock-step, the IOR
+                // pushed with it on entry.
                 mediums.Pop();
                 iors.Pop();
-
-                // MIS hand-off: a post-scatter escape is the BSDF-sampling half
-                // of the NEE already done at the last scatter vertex — forward
-                // the phase pdf and mark it non-delta so emitter / sky hits are
-                // MIS-weighted (no double counting). A b==0 escape never did
-                // NEE and is a specular continuation → delta.
-                Vector3 outer = TraceRay(escapeRay, depth,
-                                         prevBsdfPdf: scattered ? lastPhasePdf : 0f,
-                                         prevIsDelta: !scattered,
-                                         ref mediums, ref iors,
-                                         pathThroughput: pathThroughput * relBeta);
-                L += relBeta * outer;
-                return L;
+                return new WalkResult(L, true, escapeRay, relBeta, scattered, lastPhasePdf);
             }
 
             // ── Volume scattering event at p = ray(tDist) ──────────────────
@@ -234,7 +210,7 @@ public partial class Renderer
             if (pdfScatter <= 1e-30f)
             {
                 mediums.Pop();
-                return L;
+                return new WalkResult(L, false, default, Vector3.Zero, scattered, lastPhasePdf);
             }
             relBeta *= sigmaS * trS / pdfScatter;
 
@@ -284,7 +260,7 @@ public partial class Renderer
                 if (MathUtils.RandomFloat() > qRr)
                 {
                     mediums.Pop();
-                    return L;
+                    return new WalkResult(L, false, default, Vector3.Zero, scattered, lastPhasePdf);
                 }
                 relBeta /= qRr;
             }
@@ -295,7 +271,7 @@ public partial class Renderer
         // small (~ qRr_min^budget) and bounded against fireflies on dense /
         // dark albedo media.
         mediums.Pop();
-        return L;
+        return new WalkResult(L, false, default, Vector3.Zero, scattered, lastPhasePdf);
     }
 
     /// <summary>

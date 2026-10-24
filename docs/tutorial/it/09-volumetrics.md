@@ -339,7 +339,7 @@ Il rendering volumetrico è più impegnativo del rendering solo superficiale. Ti
 
 1. **Aumentare i campioni (samples).** Il mezzo aggiunge un'altra fonte di rumore (eventi di scattering casuali lungo ogni raggio). `homogeneous` e `height_fog` sono analitici e già a 64 SPP danno risultati decenti. `procedural` e `grid` usano delta tracking → servono 256+ SPP per risultati puliti, 1024+ per publication-ready.
 
-2. **Non esagerare con la profondità (depth).** Il path volumetrico è già gestito correttamente a `-d 6-8`. Russian Roulette termina automaticamente i path lunghi, quindi valori sopra `-d 10` raramente migliorano la qualità e costano sempre tempo.
+2. **Non esagerare con la profondità (depth).** Gli eventi di scattering in un mezzo hanno un limite proprio (`--depth-volume`: 3 in `draft`, 4 in `standard`, 8 in `final`). La Russian Roulette termina automaticamente i path lunghi; alza il limite solo per mezzi densi e luminosi di cui vedi lo scattering multiplo.
 
 3. **Firefly clamp con nebbia densa.** Mezzi con `sigma_s` alto + `-d 8+` talvolta producono spike luminosi rari. Abbassa `-C` a `25` o `15` senza timore: perdi poco dinamica, guadagni pulizia.
 
@@ -355,7 +355,7 @@ Il rendering volumetrico è più impegnativo del rendering solo superficiale. Ti
 
 9. **Phase function con `g` → 1** (es. HG con `g = 0.95`) rende god-ray più stretti e drammatici ma **aumenta la varianza**: se vedi coni rumorosi, abbassa `g` a 0.7-0.85 oppure passa a `double_hg` con pesi più equilibrati.
 
-10. **`lights: []` + global medium → tendenza al nero.** Senza luci esplicite il classifier basato sul flusso considera la scena indirect-dominant e attiva la Russian Roulette conservativa (≥ 8 bounces, sopravvivenza minima 0.5). Con la nebbia che attenua ogni segmento, la luce dal solo gradient sky / HDRI fatica a raggiungere il sensore: il render esce molto scuro. Soluzione: aggiungi almeno una `directional` o `sphere` esplicita che dichiari il sole come ILight separato (l'HDRI/gradient resta come fill); il classifier passa a "direct-dominant" e i fasci di luce nella nebbia diventano visibili. Visto in pratica nella scena `scenes/foggy-hdri.yaml`.
+10. **`lights: []` + global medium → nebbia fioca e rumorosa.** Senza luci esplicite la nebbia è illuminata solo dal cielo, e in un mezzo che attenua ogni segmento la sua luce diffusa non crea fasci. Aggiungi almeno una `directional` o `sphere` esplicita per il sole (l'HDRI/gradient resta come fill): i fasci di luce nella nebbia richiedono una luce che il mezzo possa vedere. Visto in pratica nella scena `scenes/foggy-hdri.yaml`.
 
 ---
 

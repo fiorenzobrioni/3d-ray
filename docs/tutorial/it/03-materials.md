@@ -123,10 +123,10 @@ Con `roughness` maggiore di zero la superficie diventa satinata: la luce che la 
 
 ### Importante: Il vetro richiede più profondità dei raggi (Ray Depth)
 
-Ogni superficie di vetro che un raggio entra ed esce costa due rimbalzi (bounces). Il preset di default `draft-small` usa `-d 4`; i preset di qualità (`-q standard` e superiori) usano `-d 8`, sufficiente per la maggior parte delle scene grazie alla Russian Roulette. Se ci sono oggetti di vetro nidificati (ad esempio un bicchiere d'acqua, bottiglie dietro bottiglie), alza la profondità dei raggi ad almeno 16:
+Ogni superficie di vetro che un raggio entra ed esce costa due rimbalzi di trasmissione. Il motore li conta a parte rispetto a quelli diffusi: il preset di default `draft-small` ne ammette 8, `-q standard` 12, `-q final` 16, sufficienti per la maggior parte delle scene. Se ci sono oggetti di vetro nidificati (ad esempio un bicchiere d'acqua, bottiglie dietro bottiglie), alza il limite delle trasmissioni:
 
 ```
-RayTracer -i my-scene.yaml -s 64 -d 16
+RayTracer -i my-scene.yaml -s 64 --depth-transmission 24
 ```
 
 Consulta [Profili di Rendering](../../reference/profili-di-rendering.md) per la spiegazione completa di quando alzare `-d`.

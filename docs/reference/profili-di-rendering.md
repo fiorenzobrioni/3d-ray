@@ -41,22 +41,33 @@ preset 4K showcase** (`draft → standard → pre-final → final → ultra`):
 
 | `-q` | Risoluzione | `-s` | `-d` | `-S` | Denoiser | Uso tipico |
 |---|---|---|---|---|---|---|
-| `draft-tiny`   | 480×270   | 16   | 4 | 1 | nfor fast | Sanity check istantaneo / errori macroscopici |
-| `draft-small`  | 960×540   | 16   | 4 | 1 | nfor fast | Composizione e camere super-veloce |
-| `draft`        | 1920×1080 | 16   | 4 | 1 | nfor fast | Stessa velocità, framing Full HD |
-| `standard-tiny`  | 480×270   | 512 | 8 | 1 | nfor high | Check rapido, qualità scena classica |
-| `standard-small` | 960×540   | 512 | 8 | 1 | nfor high | Iterazione materiali e luci, thumbnail |
-| `standard`       | 1920×1080 | 512 | 8 | 1 | nfor high | **Render di qualità quotidiano** (review, CI, scene classiche) |
-| `pre-final-tiny`  | 480×270   | 256 | 8 | 1 | nfor high | Spot check con feature complete |
-| `pre-final-small` | 960×540   | 256 | 8 | 1 | nfor high | Iterazione della resa final a ¼ di risoluzione |
-| `pre-final`       | 1920×1080 | 256 | 8 | 1 | nfor high | **Anteprima fedele di `final`**, ~4-6× più veloce |
-| `final-tiny`   | 480×270   | 1024 | 8 | 4 | - | Spot check rapido a qualità piena |
-| `final-small`  | 960×540   | 1024 | 8 | 4 | - | Thumbnail showcase / contact-sheet |
-| `final`        | 1920×1080 | 1024 | 8 | 4 | - | Portfolio, copertina README |
-| `ultra`        | 3840×2160 | 512  | 8 | 4 | - | Showcase 4K |
+| `draft-tiny`   | 480×270   | 16   | 8 | 1 | nfor fast | Sanity check istantaneo / errori macroscopici |
+| `draft-small`  | 960×540   | 16   | 8 | 1 | nfor fast | Composizione e camere super-veloce |
+| `draft`        | 1920×1080 | 16   | 8 | 1 | nfor fast | Stessa velocità, framing Full HD |
+| `standard-tiny`  | 480×270   | 512 | 12 | 1 | nfor high | Check rapido, qualità scena classica |
+| `standard-small` | 960×540   | 512 | 12 | 1 | nfor high | Iterazione materiali e luci, thumbnail |
+| `standard`       | 1920×1080 | 512 | 12 | 1 | nfor high | **Render di qualità quotidiano** (review, CI, scene classiche) |
+| `pre-final-tiny`  | 480×270   | 256 | 16 | 1 | nfor high | Spot check con feature complete |
+| `pre-final-small` | 960×540   | 256 | 16 | 1 | nfor high | Iterazione della resa final a ¼ di risoluzione |
+| `pre-final`       | 1920×1080 | 256 | 16 | 1 | nfor high | **Anteprima fedele di `final`**, ~4-6× più veloce |
+| `final-tiny`   | 480×270   | 1024 | 16 | 4 | - | Spot check rapido a qualità piena |
+| `final-small`  | 960×540   | 1024 | 16 | 4 | - | Thumbnail showcase / contact-sheet |
+| `final`        | 1920×1080 | 1024 | 16 | 4 | - | Portfolio, copertina README |
+| `ultra`        | 3840×2160 | 512  | 32 | 4 | - | Showcase 4K |
+
+`-d` è il numero totale di vertici del percorso; ogni preset lo divide anche
+per tipo di rimbalzo (vedi sezione 4), perché il vetro richiede molte
+rifrazioni e l'interriflessione diffusa poche:
+
+| Tier | `-d` totale | diffuse | glossy | transmission | volume | cut-out |
+|---|---|---|---|---|---|---|
+| `draft*` | 8 | 3 | 4 | 8 | 3 | 16 |
+| `standard*` | 12 | 4 | 6 | 12 | 4 | 16 |
+| `pre-final*`, `final*` | 16 | 8 | 8 | 16 | 8 | 16 |
+| `ultra` | 32 | 16 | 16 | 32 | 16 | 32 |
 
 Feature per tier: `standard` spegne caustiche fotoniche e SSS volumetrico e
-usa NEE power-weighted con clamp indiretto rilassato (0.5); `pre-final`,
+rilassa il fattore del clamp indiretto a 0.5 (agisce solo con `-C`); `pre-final`,
 `final` e `ultra` girano con la **feature-set completa** (caustiche on - 2M
 fotoni per pre-final, 2–4M per final/ultra - SSS high, NEE su tutte le luci,
 senza clamp). `ultra` resta a 512 spp di proposito: a 4K la densità di
@@ -73,8 +84,9 @@ asse (960×540 = ¼ dei pixel di 1920×1080), quindi costano circa ¼ del
 preset full-HD corrispondente restando leggibili a schermo.
 
 **Qualunque flag esplicito vince.** Il preset compila solo i valori
-che non hai passato manualmente: `-q final -d 16` lancia il preset
-final ma porta la depth a 16 (utile per scene con vetri impilati);
+che non hai passato manualmente: `-q final -d 32` lancia il preset
+final ma porta a 32 la profondità di ogni tipo di rimbalzo (utile per
+una pila profonda di vetri);
 `-q standard -w 640 -H 360` rimpicciolisce il preset standard senza
 toccarne il sampling.
 
@@ -106,20 +118,19 @@ cristallo una davanti all'altra), marmo procedurale con parametri ordinari -
 eliminando la costosa macchineria di illuminazione globale che queste scene
 non usano. Rispetto a `final`: disattiva le **caustiche** a photon mapping,
 disattiva il **SSS** volumetrico (`--sss-mode off`), gira a **512 spp** con
-**un solo shadow sample** (512 spp fanno già anti-aliasing), passa a NEE
-**power-weighted single-light** (`--light-sampling power`, che scala meglio
-del default globale `all`), rilassa il clamp indiretto a `0.5` e lascia al
+**un solo shadow sample** (512 spp fanno già anti-aliasing), riduce i
+budget dei rimbalzi (4 diffuse, 6 glossy, 12 transmission) e lascia al
 **denoiser NFOR** la grana residua. Su una scena senza caustiche/SSS è
 nettamente più veloce di `final` a parità di resa. Come sempre i flag
 espliciti vincono - es. `-q standard --caustics on` riattiva le caustiche,
 `-q standard -s 768` alza i campioni se i bordi del vetro restano rumorosi.
 Evitalo per scene che dipendono davvero da caustiche focalizzate,
 traslucenza/SSS profondo o vetri impilati/annidati - lì usa
-`pre-final`/`final` (e un `-d` più alto).
+`pre-final`/`final`.
 
 **`pre-final` - anteprima fedele di `final`.** Stessa feature-set di `final`
-(caustiche on, SSS high, depth 8, NEE su tutte le luci, clamp indiretto di
-default) con i budget di campionamento tagliati dove il denoiser compensa
+(caustiche on, SSS high, gli stessi budget di rimbalzi, lo stesso
+campionamento delle luci) con i budget di campionamento tagliati dove il denoiser compensa
 meglio: **¼ dei campioni per pixel** (256) e **un solo shadow sample** - il
 rumore delle penombre è esattamente ciò che il filtro guidato dalle feature
 rimuove più pulito. Il risultato anticipa illuminazione, caustiche e
@@ -146,7 +157,7 @@ RayTracer -i my-scene -q final
 RayTracer -i my-scene -q ultra
 
 # Preset final + override custom (depth alzata per vetri impilati)
-RayTracer -i my-scene -q final -d 16
+RayTracer -i my-scene -q final -d 32
 
 # Denoiser del preset disattivato (output grezzo a 512 spp)
 RayTracer -i my-scene -q standard --denoiser none
@@ -164,7 +175,7 @@ RayTracer -i my-scene -q standard --denoiser none
 
 > **Senza `-q` si usa `draft-small`.** Quando la riga di comando omette
 > `--quality`, il renderer applica il preset `draft-small` (960×540, 16 spp,
-> depth 4, un solo shadow sample, denoiser NFOR-fast): un check di composizione
+> depth 8, un solo shadow sample, denoiser NFOR-fast): un check di composizione
 > rapido e già denoised è un default di primo lancio migliore di una passata
 > lenta e rumorosa. Ogni parametro di qualità qui sotto vince comunque sul
 > preset se passato esplicitamente. I valori in tabella sono i default
@@ -173,7 +184,8 @@ RayTracer -i my-scene -q standard --denoiser none
 | Parametro | Default | Origine |
 |---|---|---|
 | `-s` / `--samples` | `16` (griglia 4×4) | preset `draft-small` |
-| `-d` / `--depth` | `4` | preset `draft-small` |
+| `-d` / `--depth` | `8` (diffuse 3, glossy 4, transmission 8, volume 3) | preset `draft-small` |
+| `--depth-transparent` | `16` (cut-out attraversati, fuori dal totale) | `PathDepths.DefaultTransparent` |
 | `-S` / `--shadow-samples` | `1` (`draft-small`; senza preset → valore YAML per-luce, default 4) | `Program.cs` |
 | `--denoiser` | `nfor` fast (`draft-small`) | preset `draft-small` |
 | `-C` / `--clamp` | spento (nessun firefly clamp) | opzionale, valore di partenza suggerito `10` (`Renderer.SuggestedMaxSampleRadiance`) |
@@ -205,15 +217,41 @@ Il motore esegue **stratified sampling** su una griglia √N × √N per pixel. 
 
 ### 4. **COMPRENDERE `-d` (PROFONDITÀ MASSIMA DEI RIMBALZI)**
 
-`-d` limita il numero di rimbalzi indiretti che un raggio può effettuare. Nel path tracing i primi 4–6 rimbalzi indiretti contribuiscono per circa il 99% all'illuminazione realistica nella maggior parte delle scene.
+`-d` limita il numero di **vertici** di un percorso: a profondità 1 un
+raggio di camera vede ciò che colpisce, illuminato direttamente (emissione e
+next-event estimation); ogni unità in più è un rimbalzo in più. Sotto il
+totale, cinque limiti contano i rimbalzi secondo il tipo di lobo campionato
+dal materiale:
 
-**Perché 8 è il soffitto standard di qualità (non 50):** il renderer usa **Russian Roulette adattiva** (`Renderer.cs`). Per scene con illuminazione normale RR si attiva al 4° rimbalzo terminando stocasticamente i path a basso contributo; per scene indirect-dominant (solo emissive, luci deboli) si attiva all'8° con una soglia di sopravvivenza più alta. Alzare `-d` oltre questo punto raramente cambia l'immagine ma costa sempre tempo. (Il preset di default `draft-small` usa `-d 4` come compromesso di velocità; i preset di qualità usano `-d 8`.)
+| Flag | Conta | Perché ha un limite suo |
+|---|---|---|
+| `--depth-diffuse` | rimbalzi diffusi (Lambertian, base diffusa, traslucenza) | l'interriflessione diffusa perde quasi tutta l'energia in tre o quattro rimbalzi |
+| `--depth-glossy` | riflessioni glossy e speculari | un corridoio di specchi ne chiede più di una stanza opaca |
+| `--depth-transmission` | rifrazioni e trasmissioni dritte attraverso il vetro | ogni interfaccia ne costa una: un bicchiere d'acqua sono quattro, una fila di bottiglie una dozzina |
+| `--depth-volume` | scattering dentro un mezzo (nebbia, fumo, il mezzo dentro un vetro) | un mezzo denso può diffondere centinaia di volte |
+| `--depth-transparent` | cut-out attraversati (opacità geometrica 0: foglie, recinzioni) | **fuori** dal totale: un cut-out non è un rimbalzo, attraversarlo non costa nulla |
 
-**Quando alzare `-d` sopra 8:**
-- **Dielettrici impilati** - liquidi nei bicchieri, file di bottiglie di vino, sfere di vetro annidate. Ogni interfaccia di entrata/uscita consuma un rimbalzo, quindi 10 interfacce di vetro richiedono `-d 16–20` o il vetro più interno diventa inaspettatamente nero.
-- **Mezzi partecipanti densi con geometria complessa** dietro al volume.
+Un percorso si ferma al primo limite che raggiunge. I preset usano la
+divisione della sezione 1a; un **`-d` esplicito porta ogni tipo a quel
+valore** (`-d 24` vuol dire "24 di qualunque cosa") e ogni flag
+`--depth-*` sovrascrive comunque il proprio tipo, entro il totale.
 
-Per tutto il resto (oggetti opachi, singole lastre di vetro, metalli, interni normali) **`-d 4–8` è abbondante**.
+La **Russian roulette** chiude la maggior parte dei percorsi molto prima di
+questi limiti: dal secondo rimbalzo in poi un percorso sopravvive con
+probabilità pari al canale più alto del suo throughput (corretto di `η²`
+attraverso le rifrazioni, così un raggio dentro il vetro non è penalizzato
+dalla compressione di radianza dell'interfaccia) e, se sopravvive, viene
+ripesato per 1/q. È non distorta, scambia solo varianza con velocità e non
+richiede conoscenza della scena. Alzare i limiti quindi costa raramente
+molto: i percorsi luminosi proseguono, quelli fiochi si fermano.
+
+**Quando alzarli:**
+- **Dielettrici impilati** - liquidi nei bicchieri, file di bottiglie di
+  vino, sfere di vetro annidate: alza `--depth-transmission` (o `-d`)
+  finché il vetro più interno non smette di scurirsi.
+- **Mezzi partecipanti densi**: alza `--depth-volume`.
+- **Corridoi di specchi**: alza `--depth-glossy`.
+- **Fogliame fatto di molte card con cut-out**: alza `--depth-transparent`.
 
 ---
 
@@ -359,9 +397,9 @@ veloce in iterazione quando non vuoi committare una modifica alla luce.
 
 - **Inizia ogni scena in Preview.** Itera composizione e materiali con `-s 64 -d 4 -S 1` finché l'immagine non si legge correttamente. Solo allora promuovi a Standard o Final.
 - **Spendi il budget su `-s` prima di `-S` o `-d`.** I campioni pixel attaccano ogni fonte di rumore contemporaneamente (GI, ombre, speculare); gli altri due agiscono su problemi specifici.
-- **`-d 4` è il sweet spot per Preview** perché la Russian Roulette in scene normali si attiva esattamente al 4° rimbalzo - oltre, ti affidi comunque a RR.
+- **Preferisci la divisione dei preset a un `-d` nudo.** Un `-d` esplicito porta ogni tipo di rimbalzo allo stesso limite; per dare più spazio al vetro alza solo `--depth-transmission`.
 - **Non combinare `-s` alto con `-S` alto senza motivo.** `-s 1024 -S 16` è quasi sempre uno scambio cattivo. `-s 1024 -S 4` di solito eguaglia visivamente a ¼ del costo.
-- **Le scene cariche di vetro sono l'unico motivo legittimo per superare `-d 8`.** Alza `-d` a `16` o `20` solo quando vedi interni inaspettatamente neri nei dielettrici impilati.
+- **Le scene cariche di vetro sono il motivo tipico per alzare un limite.** Alza `--depth-transmission` a `24` o `32` solo quando vedi interni inaspettatamente neri nei dielettrici impilati.
 - **Riproducibilità in CI.** I valori `-s`/`-d`/`-S` nei `.github/workflows/*.yml` dovrebbero essere un profilo nominato specifico (tipicamente Preview o uno Standard ridotto) - non valori ad-hoc.
 
 ---

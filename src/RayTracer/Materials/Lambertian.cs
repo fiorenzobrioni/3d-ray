@@ -63,6 +63,6 @@ public sealed class Lambertian : IMaterial
         Vector3 albedo = Albedo.Value(in rec);
         Vector3 f = albedo * (1f / MathF.PI);
         float pdf = NdotWo * (1f / MathF.PI);
-        return new BsdfSample(wo, f, pdf, isDelta: false);
+        return new BsdfSample(wo, f, pdf, isDelta: false, lobe: BsdfLobe.Diffuse);
     }
 }

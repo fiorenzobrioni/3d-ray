@@ -42,7 +42,7 @@ For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.
 - 🔬 **Focused Caustics** - concentrated light spots that glass, water, crystals and mirrors project onto a surface: lens halos, bright reflections, coloured shadows under tinted glass. Work with any specular geometry and all light types (including the sun), with no additional scene configuration.
 - 🧮 **Stratified Sampling** - reduces noise for a given total sample count.
 - 🔢 **Sobol Sampling** - distributes samples more uniformly than pure random, so the image cleans up faster for a given samples-per-pixel budget.
-- 🎲 **Adaptive Russian Roulette** - terminates low-contribution rays early, concentrating computation where it matters most.
+- 🎲 **Russian Roulette and per-kind bounce limits** - terminates low-contribution rays early without bias, and counts diffuse, glossy, transmission and volume bounces separately: glass gets the many refractions it needs, diffuse interreflection only the few that matter.
 - 🎞️ **Colour Management** - selectable view transforms: **AgX** (default: bright saturated light rolls off to white as on film, without hue shifts), **ACES 1.x** (the reference RRT + ODT for sRGB displays), **standard** (sRGB curve, no tone mapping). Optional AgX looks, white balance by colour temperature, dithered 8-bit or 16-bit PNG output, and a Gaussian pixel reconstruction filter for clean anti-aliasing.
 - 🧹 **Feature-Guided Denoiser** - cleans up residual image grain using colour, normal and depth information from the scene. Preserves sharp edges and detail in already-clean areas, applying filtering only where noise is most visible.
 - 📤 **HDR & AOV Output (PFM/EXR)** - with `-o scene.exr` the main image is saved as a high-dynamic-range OpenEXR before tone mapping: no blown highlights, with exposure and colour grading adjustable in post without re-rendering. Auxiliary buffers requested with `--aov albedo,normal,depth,beauty,variance` land as layers in the same multilayer file, or as separate PFM/EXR files (`--aov-format`).
@@ -224,7 +224,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -q ultra -o renders/render-4k.png
 ```
 
-Classic render with explicit parameters - the old way still works and every explicit flag always overrides the preset (e.g. `-q final -d 16` for scenes with stacked glass):
+Classic render with explicit parameters - the old way still works and every explicit flag always overrides the preset (e.g. `-q final -d 32` for a deep stack of glass):
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -s 1024 -d 8 -S 4 -o renders/render-final.png -w 1920 -H 1080
 ```
@@ -404,11 +404,16 @@ dotnet run --project src/Tools/ImageCompare/ImageCompare.csproj -- \
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | - (**required**) | Path to the scene YAML file. The `.yaml` (or `.yml`) extension is **optional**: if the path does not exist as-is, the loader tries adding it automatically (e.g. `-i scenes/chess` ⇒ `scenes/chess.yaml`). |
 | `--output` | `-o` | `renders/render-<scene>.png` | Output file. If omitted, derived from the scene name. The extension selects the format: `.png`/`.jpg`/`.bmp` = tone-mapped display image; `.exr` = **scene-linear pre-tone-mapping** radiance (multilayer OpenEXR, RGB half + optional AOV layers, ZIP compression) for compositing and colour grading in post. |
-| `--quality` | `-q` | `draft-small` | Quality preset that fills `-w -H -s -d -S` in one shot (and, for `standard`, also forces caustics/SSS off, power NEE and the indirect clamp). **When omitted the renderer uses `draft-small`** (960×540, 16 spp, depth 4, NFOR denoiser): a fast, denoised composition check is a better first-run default than a slow, un-denoised pass. Ladder: `draft` → `standard` → `pre-final` → `final` → `ultra`. The first four levels have `-tiny` (480×270) and `-small` (960×540) variants; `ultra` is fixed at 3840×2160. `draft*`/`standard*`/`pre-final*` presets also enable the denoiser (`--denoiser nfor`); `final`/`ultra` do not. **Any explicit flag overrides the preset** (e.g. `-q final -d 16` for scenes with stacked glass). `standard` = final-class quality for classic scenes (Lambertian/Disney, non-nested glass, procedural marble) without the expensive GI extras; `pre-final` = faithful preview of `final` (feature complete, 256 spp + denoiser, ~4-6× faster) - see [Rendering Profiles](./docs/reference/rendering-profiles.md). |
+| `--quality` | `-q` | `draft-small` | Quality preset that fills `-w -H -s -d -S` in one shot (plus the per-kind bounce limits and, for `standard`, caustics/SSS off and the indirect clamp factor). **When omitted the renderer uses `draft-small`** (960×540, 16 spp, depth 8, NFOR denoiser): a fast, denoised composition check is a better first-run default than a slow, un-denoised pass. Ladder: `draft` → `standard` → `pre-final` → `final` → `ultra`. The first four levels have `-tiny` (480×270) and `-small` (960×540) variants; `ultra` is fixed at 3840×2160. `draft*`/`standard*`/`pre-final*` presets also enable the denoiser (`--denoiser nfor`); `final`/`ultra` do not. **Any explicit flag overrides the preset** (e.g. `-q final -d 16` for scenes with stacked glass). `standard` = final-class quality for classic scenes (Lambertian/Disney, non-nested glass, procedural marble) without the expensive GI extras; `pre-final` = faithful preview of `final` (feature complete, 256 spp + denoiser, ~4-6× faster) - see [Rendering Profiles](./docs/reference/rendering-profiles.md). |
 | `--width` | `-w` | `960` (from `draft-small`) | Width in pixels. |
 | `--height` | `-H` | `540` (from `draft-small`) | Height in pixels. |
 | `--samples` | `-s` | `16` (from `draft-small`) | Samples per pixel. With the Sobol sampler (default) the exact count is used; with `--sampler prng` it is rounded up to the nearest perfect square (`√N × √N`). |
-| `--depth` | `-d` | `4` (from `draft-small`) | Maximum recursive bounces per ray. Raise to `8` (or `16+` for stacked dielectrics: nested glass, liquids in glasses). |
+| `--depth` | `-d` | `8` (from `draft-small`; `12` standard, `16` final, `32` ultra) | Maximum path vertices (1 = direct light only). The presets also split it by kind of bounce (below); an explicit `-d` lifts every kind to the same value. |
+| `--depth-diffuse` | - | `3` (draft), `4` (standard), `8` (final), `16` (ultra) | Maximum diffuse bounces. |
+| `--depth-glossy` | - | `4`, `6`, `8`, `16` | Maximum glossy and mirror reflections. |
+| `--depth-transmission` | - | `8`, `12`, `16`, `32` | Maximum refractions and transmissions: raise it for stacked dielectrics (nested glass, liquids in glasses). |
+| `--depth-volume` | - | `3`, `4`, `8`, `16` | Maximum scattering events inside a medium. |
+| `--depth-transparent` | - | `16` (`32` ultra) | Maximum cut-outs crossed (geometry opacity 0: leaves, fences). Outside the total: a cut-out is not a bounce. |
 | `--shadow-samples` | `-S` | *(from YAML)* | Global shadow sample override for all area lights. Use perfect squares (`1, 4, 9, 16`). |
 | `--clamp` | `-C` | off | Opt-in firefly clamp: maximum per-sample radiance before tone mapping. Off by default because it is biased: the ceiling is an absolute radiance, so it also removes legitimate light from bright sources. Add it (start from `10`, lower for glass/fog) only when isolated fireflies survive more samples or the denoiser. |
 | `--indirect-clamp-factor` | - | `0.25` | Clamp factor for indirect bounces (depth ≥ 1), active only with `-C`: indirect clamp = `-C` × factor (`2.5` with `-C 10`); `1.0` = no extra suppression. Applied once, camera-relative. |
@@ -434,10 +439,10 @@ dotnet run --project src/Tools/ImageCompare/ImageCompare.csproj -- \
 | `--sss-mode` | - | `auto` | Random walk subsurface scattering dispatch: `auto` (default) - media bound to entities with `σ_s > 0` activate the walk; `off` - pushed media are downgraded to absorption-only (Beer-Lambert legacy), useful for fast previews and A/B comparison. |
 | `--sss-quality` | - | from `-q` | Random-walk preset: `preview` (16 vol-bounces, no NEE in-walk), `normal` (64, NEE on), `high` (256, NEE on). If omitted, inherited from the `-q` preset (`draft*` → preview, `pre-final*`/`final*`/`ultra` → high; on `standard*` SSS is disabled). |
 | `--max-volume-bounces` | - | from `--sss-quality` | Hard cap on random-walk bounces inside an entity. Overrides the preset value, useful for stress tests on dense media (`--max-volume-bounces 16`) or for extra quality (`--max-volume-bounces 512`). |
-| `--reference` | - | - | **Reference (unbiased) estimator**, for validating the engine: disables the firefly clamps (`-C`, `--indirect-clamp-factor`), the straight-through transparent shadows of glass, the dead-path cutoff, the denoiser and the photon caustics, and uses fixed Russian Roulette thresholds. Slower to converge but free of bias: compare it with a reference image through `--aov beauty` and `ImageCompare`. |
+| `--reference` | - | - | **Reference (unbiased) estimator**, for validating the engine: disables the firefly clamps (`-C`, `--indirect-clamp-factor`), the straight-through transparent shadows of glass, the prefiltered HDRI for BSDF rays, the denoiser and the photon caustics, and gives every kind of bounce the same depth. Slower to converge but free of bias: compare it with a reference image through `--aov beauty` and `ImageCompare`. |
 | `--seed` | - | `0` | Extra seed for the sample sequences. `0` = the standard sequences (bit-identical output); any other value renders a statistically independent image of the same scene (used to average independent renders). |
 | `--list-cameras` | - | - | List available cameras in the scene and exit. |
-| `--verbose` | `-v` | - | Show detailed information during scene loading and analysis (imports, templates, medium σ, Russian Roulette tuning). Useful for scene debugging and development. |
+| `--verbose` | `-v` | - | Show detailed information during scene loading and analysis (imports, templates, medium σ, light setup). Useful for scene debugging and development. |
 | `--help` | `-h` | - | Show the help message and exit. |
 
 > **Note:** `-H` is uppercase because `-h` is reserved for `--help`. Uppercase flags are used for "advanced overrides": `-S` (`--shadow-samples`) and `-C` (`--clamp`); lowercase `-s` for `--samples`, lowercase `-c` for `--camera`.
@@ -541,7 +546,7 @@ Complete technical reference for every YAML key the engine accepts: world, camer
 
 For those who want to dig into the mathematical details and implementation choices:
 
-- [**Rendering Pipeline**](./docs/technical/rendering-pipeline.md) - Full flow from YAML to pixel: initialisation, scene analysis, TraceRay and post-processing.
+- [**Rendering Pipeline**](./docs/technical/rendering-pipeline.md) - Full flow from YAML to pixel: initialisation, the path loop and post-processing.
 - [**Shading Model and Materials**](./docs/technical/shading-model.md) - Disney BSDF, Fresnel (Schlick) and Normal Mapping (TBN).
 - [**Path Tracing and Lighting**](./docs/technical/path-tracing-and-lighting.md) - NEE, Russian Roulette, HDRI and Sphere Light sampling.
 - [**Multiple Importance Sampling (MIS)**](./docs/technical/multiple-importance-sampling.md) - Veach estimator, balance/power heuristics, `Sample`/`Pdf`/`Evaluate` contracts and edge cases (delta lobes, MixMaterial, phase functions in volumes).

@@ -106,13 +106,15 @@ path.
   benefit from higher depth because the light must bounce many times to
   illuminate the room.
 
-The `draft-small` default preset uses depth **4**, which is enough for
-opaque and lightly refractive scenes. Quality presets (`-q standard` and
-above) raise it to **8**, which is the standard ceiling for the vast
-majority of scenes thanks to Russian Roulette (section 1.5). Raise it to
-16–20 only when rendering stacked glass (liquids in glasses, nested
-dielectrics). See [Rendering Profiles](../../reference/rendering-profiles.md)
-for the full guide.
+The engine counts each kind of bounce separately, because they need very
+different budgets: diffuse light fades in three or four bounces, while a
+ray through a glass of water crosses four interfaces. The `draft-small`
+default preset allows 8 vertices in total, of which at most 3 diffuse, 4
+glossy, 8 transmission and 3 in a volume; the quality presets raise these
+limits (16 in total for `final`). Raise `--depth-transmission` only when
+rendering stacked glass (liquids in glasses, nested dielectrics). See
+[Rendering Profiles](../../reference/rendering-profiles.md) for the full
+guide.
 
 ---
 
@@ -121,9 +123,10 @@ for the full guide.
 Not all paths are equally useful. A ray that has bounced many times and
 carries very little energy is unlikely to contribute meaningfully to the
 final pixel color. Rather than always tracing to the maximum depth, the
-engine uses **Russian Roulette**: at each bounce beyond a minimum number,
-there is a probability that the path will be terminated early. The
-surviving paths are weighted up to compensate, so the result is unbiased.
+engine uses **Russian Roulette**: from the second bounce on, a path survives
+with a probability equal to the share of energy it still carries, so a dim
+path is likely to stop and a bright one to go on. The surviving paths are
+weighted up to compensate, so the result is unbiased.
 
 This is entirely automatic -- you do not need to configure it. It simply
 means the engine spends its effort where it matters most.
@@ -172,9 +175,9 @@ The CLI flags that control these settings are:
 | `-w` | `--width`         | 1200    | Image width in pixels                 |
 | `-H` | `--height`        | 800     | Image height in pixels                |
 | `-s` | `--samples`       | 16      | Samples per pixel                     |
-| `-d` | `--depth`         | 8       | Maximum ray bounces                   |
+| `-d` | `--depth`         | 8       | Maximum path vertices (split by kind of bounce) |
 | `-S` | `--shadow-samples`| *(per light)* | Override shadow sample count for all area/sphere lights |
-| `-C` | `--clamp`         | 10      | Firefly clamp (per-sample radiance)   |
+| `-C` | `--clamp`         | off     | Firefly clamp (per-sample radiance)   |
 
 You will learn the full CLI in Chapter 10. For now, just remember the
 preview/draft/final pattern -- it will save you hours.

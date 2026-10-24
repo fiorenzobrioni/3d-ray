@@ -42,22 +42,33 @@ preset. The ladder is **4 quality tiers × 3 resolutions + 1 4K showcase**
 
 | `-q` value | Resolution | `-s` | `-d` | `-S` | Denoiser | Typical use |
 |---|---|---|---|---|---|---|
-| `draft-tiny`   | 480×270   | 16   | 4 | 1 | nfor fast | Instant sanity check / gross errors |
-| `draft-small`  | 960×540   | 16   | 4 | 1 | nfor fast | Super-fast composition / camera placement |
-| `draft`        | 1920×1080 | 16   | 4 | 1 | nfor fast | Same speed, Full HD framing |
-| `standard-tiny`  | 480×270   | 512 | 8 | 1 | nfor high | Quick check, classic-scene quality |
-| `standard-small` | 960×540   | 512 | 8 | 1 | nfor high | Material/lighting iteration, thumbnails |
-| `standard`       | 1920×1080 | 512 | 8 | 1 | nfor high | **Day-to-day quality render** (review, CI, classic scenes) |
-| `pre-final-tiny`  | 480×270   | 256 | 8 | 1 | nfor high | Full-feature spot check |
-| `pre-final-small` | 960×540   | 256 | 8 | 1 | nfor high | Final-look iteration at ¼ resolution |
-| `pre-final`       | 1920×1080 | 256 | 8 | 1 | nfor high | **Faithful preview of `final`**, ~4-6× faster |
-| `final-tiny`   | 480×270   | 1024 | 8 | 4 | - | Quick full-quality spot check |
-| `final-small`  | 960×540   | 1024 | 8 | 4 | - | Showcase thumbnail / contact-sheet |
-| `final`        | 1920×1080 | 1024 | 8 | 4 | - | Portfolio, README cover |
-| `ultra`        | 3840×2160 | 512  | 8 | 4 | - | 4K showcase |
+| `draft-tiny`   | 480×270   | 16   | 8 | 1 | nfor fast | Instant sanity check / gross errors |
+| `draft-small`  | 960×540   | 16   | 8 | 1 | nfor fast | Super-fast composition / camera placement |
+| `draft`        | 1920×1080 | 16   | 8 | 1 | nfor fast | Same speed, Full HD framing |
+| `standard-tiny`  | 480×270   | 512 | 12 | 1 | nfor high | Quick check, classic-scene quality |
+| `standard-small` | 960×540   | 512 | 12 | 1 | nfor high | Material/lighting iteration, thumbnails |
+| `standard`       | 1920×1080 | 512 | 12 | 1 | nfor high | **Day-to-day quality render** (review, CI, classic scenes) |
+| `pre-final-tiny`  | 480×270   | 256 | 16 | 1 | nfor high | Full-feature spot check |
+| `pre-final-small` | 960×540   | 256 | 16 | 1 | nfor high | Final-look iteration at ¼ resolution |
+| `pre-final`       | 1920×1080 | 256 | 16 | 1 | nfor high | **Faithful preview of `final`**, ~4-6× faster |
+| `final-tiny`   | 480×270   | 1024 | 16 | 4 | - | Quick full-quality spot check |
+| `final-small`  | 960×540   | 1024 | 16 | 4 | - | Showcase thumbnail / contact-sheet |
+| `final`        | 1920×1080 | 1024 | 16 | 4 | - | Portfolio, README cover |
+| `ultra`        | 3840×2160 | 512  | 32 | 4 | - | 4K showcase |
+
+`-d` is the total number of path vertices; each preset also splits it by
+kind of bounce (see section 4), because glass needs many refractions and
+diffuse interreflection few:
+
+| Tier | total `-d` | diffuse | glossy | transmission | volume | cut-outs |
+|---|---|---|---|---|---|---|
+| `draft*` | 8 | 3 | 4 | 8 | 3 | 16 |
+| `standard*` | 12 | 4 | 6 | 12 | 4 | 16 |
+| `pre-final*`, `final*` | 16 | 8 | 8 | 16 | 8 | 16 |
+| `ultra` | 32 | 16 | 16 | 32 | 16 | 32 |
 
 Feature switches per tier: `standard` turns photon caustics and volumetric
-SSS **off** and uses power-weighted NEE with a relaxed indirect clamp (0.5);
+SSS **off** and relaxes the indirect clamp factor to 0.5 (it only acts with `-C`);
 `pre-final`, `final` and `ultra` run the **full feature set** (caustics on -
 2M photons for pre-final, 2–4M for final/ultra - SSS high, all-lights NEE,
 no clamp). `ultra` stays at 512 spp on purpose: at 4K the pixel density
@@ -74,8 +85,8 @@ The `*-small` variants are **exactly half resolution** on each axis
 matching full-HD preset and stay perfectly readable on screen.
 
 **Any explicit flag still wins.** The preset only fills the values you
-didn't pass: `-q final -d 16` runs the final preset but bumps depth to
-16 (e.g. for a stacked-glass scene); `-q standard -w 640 -H 360` shrinks
+didn't pass: `-q final -d 32` runs the final preset but raises the depth
+to 32 for every kind of bounce (e.g. for a deep stack of glass); `-q standard -w 640 -H 360` shrinks
 the standard preset without touching its sampling settings.
 
 **Denoiser.** The `draft*`, `standard*` and `pre-final*` presets enable the
@@ -105,20 +116,19 @@ another), procedural marble with ordinary parameters - while stripping the
 expensive global-illumination machinery that such scenes don't need.
 Relative to `final` it: turns photon **caustics off**, turns volumetric
 **SSS off** (`--sss-mode off`), runs **512 spp** with a **single shadow
-sample** (512 spp already anti-aliases), switches NEE to **power-weighted
-single-light** picking (`--light-sampling power`, which scales better than
-the global `all` default), relaxes the indirect clamp to `0.5`, and lets
-the **NFOR denoiser** absorb the residual grain. On a scene with no
+sample** (512 spp already anti-aliases), trims the bounce budgets (4
+diffuse, 6 glossy, 12 transmission), and lets the **NFOR denoiser** absorb
+the residual grain. On a scene with no
 caustics/SSS this is dramatically faster than `final` for visually
 equivalent output. As always, explicit flags win - e.g. `-q standard
 --caustics on` re-enables caustics, `-q standard -s 768` raises the sample
 count if glass edges still look grainy. Avoid it for scenes that genuinely
 rely on focused caustics, deep translucency/SSS, or stacked/nested glass -
-use `pre-final`/`final` (and a higher `-d`) there.
+use `pre-final`/`final` there.
 
 **`pre-final` - a faithful preview of `final`.** Same feature set as
-`final` (caustics on, SSS high, depth 8, all-lights NEE, default indirect
-clamp) with the sampling budgets cut where the denoiser compensates best:
+`final` (caustics on, SSS high, the same bounce budgets, the same light
+sampling) with the sampling budgets cut where the denoiser compensates best:
 **¼ of the pixel samples** (256) and a **single shadow sample** - penumbra
 noise is exactly what feature-guided filtering removes cleanest. The result
 previews the final lighting, caustics and translucency at roughly **4-6×
@@ -144,8 +154,8 @@ RayTracer -i my-scene -q final
 # 4K showcase
 RayTracer -i my-scene -q ultra
 
-# Final preset + custom override (depth bumped for stacked glass)
-RayTracer -i my-scene -q final -d 16
+# Final preset + custom override (depth raised for a deep stack of glass)
+RayTracer -i my-scene -q final -d 32
 
 # Preset denoiser switched off (raw 512 spp output)
 RayTracer -i my-scene -q standard --denoiser none
@@ -161,7 +171,7 @@ RayTracer -i my-scene -q standard --denoiser none
 ### 2. **DEFAULTS**
 
 > **No `-q` means `draft-small`.** When the command line omits `--quality`, the
-> renderer applies the `draft-small` preset (960×540, 16 spp, depth 4, single
+> renderer applies the `draft-small` preset (960×540, 16 spp, depth 8, single
 > shadow sample, NFOR-fast denoiser) - a quick, denoised composition check is a
 > better first-run default than a slow, un-denoised pass. Every quality knob
 > below still overrides the preset when passed explicitly. The values in the
@@ -170,7 +180,8 @@ RayTracer -i my-scene -q standard --denoiser none
 | Parameter | Default | Source |
 |---|---|---|
 | `-s` / `--samples` | `16` (4×4 grid) | `draft-small` preset |
-| `-d` / `--depth` | `4` | `draft-small` preset |
+| `-d` / `--depth` | `8` (diffuse 3, glossy 4, transmission 8, volume 3) | `draft-small` preset |
+| `--depth-transparent` | `16` (cut-outs crossed, outside the total) | `PathDepths.DefaultTransparent` |
 | `-S` / `--shadow-samples` | `1` (`draft-small`; without a preset → per-light YAML, default 4) | `Program.cs` |
 | `--denoiser` | `nfor` fast (`draft-small`) | `draft-small` preset |
 | `-C` / `--clamp` | off (no firefly clamp) | opt-in, suggested start `10` (`Renderer.SuggestedMaxSampleRadiance`) |
@@ -202,15 +213,39 @@ The engine performs **stratified sampling** on a √N × √N grid per pixel. Pa
 
 ### 4. **UNDERSTANDING `-d` (MAX BOUNCE DEPTH)**
 
-`-d` caps the number of indirect bounces a ray may perform. In path tracing, the first 4–6 indirect bounces contribute about 99% of realistic illumination for the majority of scenes.
+`-d` caps the number of **vertices** of a path: at depth 1 a camera ray
+sees what it hits, lit directly (emission and next-event estimation); every
+further unit is one more bounce. Under it, five limits count the bounces by
+the kind of lobe the material sampled:
 
-**Why 8 is the standard quality ceiling (not 50):** the renderer uses **adaptive Russian Roulette** (`Renderer.cs`). For normally-lit scenes RR kicks in at bounce 4 and stochastically kills low-contribution paths; for indirect-dominant scenes (emissive-only, dim lights) it activates at bounce 8 with a higher survival floor. Raising `-d` past that point rarely changes the image but always costs time. (The `draft-small` default preset uses `-d 4` as a speed compromise; quality presets use `-d 8`.)
+| Flag | Counts | Why it has its own limit |
+|---|---|---|
+| `--depth-diffuse` | diffuse bounces (Lambertian, the diffuse base, translucency) | diffuse interreflection loses most of its energy in three or four bounces |
+| `--depth-glossy` | glossy and mirror reflections | a corridor of mirrors needs more than a matte room |
+| `--depth-transmission` | refractions and straight transmission through glass | every interface costs one: a glass of water is four, a row of bottles a dozen |
+| `--depth-volume` | scatters inside a medium (fog, smoke, the medium inside glass) | a dense medium can scatter hundreds of times |
+| `--depth-transparent` | cut-outs crossed (geometry opacity 0: leaves, fences) | **outside** the total: a cut-out is not a bounce, crossing it costs nothing |
 
-**When to raise `-d` above 8:**
-- **Stacked dielectrics** - liquids inside glasses, rows of wine bottles, glass spheres nested inside each other. Every enter/exit interface consumes a bounce, so 10 glass interfaces need `-d 16–20` or the inner glass goes unexpectedly black.
-- **Thick participating media with complex geometry** behind the volume.
+A path stops at whichever limit it reaches first. The presets set the split
+shown in section 1a; an **explicit `-d` lifts every kind to that value**
+(`-d 24` means "24 of anything"), and any `--depth-*` flag still overrides
+its own kind, capped by the total.
 
-For everything else (solid objects, single glass panes, metals, normal interiors) **`-d 4–8` is plenty**.
+**Russian roulette** ends most paths long before these limits: from the
+second bounce on, a path survives with probability equal to its largest
+throughput channel (corrected by `η²` across refractions, so a ray inside
+glass is not penalised for the radiance compression of the interface) and
+is reweighted by 1/q when it does. It is unbiased, it only trades variance
+for speed, and it needs no knowledge of the scene. Raising the limits
+therefore rarely costs much: the bright paths go on, the dim ones stop.
+
+**When to raise them:**
+- **Stacked dielectrics** - liquids inside glasses, rows of wine bottles,
+  glass spheres nested inside each other: raise `--depth-transmission` (or
+  `-d`) until the inner glass stops going dark.
+- **Thick participating media**: raise `--depth-volume`.
+- **Mirror corridors**: raise `--depth-glossy`.
+- **Foliage made of many cut-out cards**: raise `--depth-transparent`.
 
 ---
 
@@ -354,9 +389,9 @@ artist-time iteration knob when you don't want to commit a light tweak.
 
 - **Start every scene in Preview.** Iterate composition and materials with `-s 64 -d 4 -S 1` until the image reads correctly. Only then promote to Standard or Final.
 - **Spend budget on `-s` before `-S` or `-d`.** Pixel samples attack every noise source simultaneously (GI, shadows, specular); the other two target specific problems.
-- **`-d 4` is the sweet spot for Preview** because Russian Roulette in normal scenes activates at exactly 4 bounces - beyond that you're relying on RR anyway.
+- **Prefer the presets' depth split to a bare `-d`.** An explicit `-d` lifts every kind of bounce to the same limit; to give glass more room, raise `--depth-transmission` alone.
 - **Do not combine high `-s` with high `-S` without reason.** `-s 1024 -S 16` is almost never a good trade. `-s 1024 -S 4` usually matches it visually at ¼ the cost.
-- **Glass-heavy scenes are the only legitimate reason to go past `-d 8`.** Scale `-d` to `16` or `20` only when you see unexpectedly black interiors in stacked dielectrics.
+- **Glass-heavy scenes are the usual reason to raise a limit.** Raise `--depth-transmission` to `24` or `32` only when you see unexpectedly black interiors in stacked dielectrics.
 - **Reproducibility in CI.** The `-s`/`-d`/`-S` values in `.github/workflows/*.yml` should be a specific named profile (typically Preview or a trimmed Standard) - not ad-hoc values.
 
 ---

@@ -31,9 +31,10 @@ Each scene is rendered twice by 3D-Ray:
 
 - **reference**: `--reference`, the unbiased estimator. It must match Mitsuba;
   any gap is an engine bug.
-- **default**: the engine as users run it (clamps, transparent shadows,
-  adaptive RR), denoiser off. The gap to the reference mode is the price of the
-  default biases.
+- **default**: the engine with its default settings, denoiser off. Since the
+  review switched the clamps and the transparent shadows off by default, the
+  only departure left is the prefiltered HDRI for BSDF rays when no light
+  samples the sky; the gap to the reference mode is its price.
 
 ## Metrics
 

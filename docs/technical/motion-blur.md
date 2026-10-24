@@ -43,7 +43,7 @@ See `Renderer.cs`, both the Sobol and the stratified sample loops.
 **Path time propagation.** A path samples the scene at a single instant: the
 primary ray's time is inherited unchanged by every secondary ray — shadow/NEE
 rays, BSDF bounces, medium phase scatters, the SSS random walk. The renderer owns
-this propagation. It stamps `HitRecord.Time` once at the top of `TraceRay`, and
+this propagation. It stamps `HitRecord.Time` once per path vertex (`PathIntegrator.FindVisibleHit`), and
 all ray-construction sites downstream pass it on. Materials build their scattered
 rays *without* a time; the renderer re-stamps them via `Ray.WithTime` at the
 single consumption point (the legacy `Scatter` path), so the twelve material call

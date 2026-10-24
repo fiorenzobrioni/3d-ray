@@ -192,7 +192,10 @@ sky:
 Each `false` disables the sky's contribution for that ray category. Common setups:
 `camera: false` hides the HDRI from the rendered background while still lighting
 the scene; `glossy: false` removes the HDRI from reflective materials (useful for
-clay-render previews).
+clay-render previews). A bounce's category is the lobe the material sampled
+(a rough metal or coat reflection is `glossy`, a refraction `transmission`, a
+volume or subsurface scatter `diffuse`); a ray that passes through a cut-out
+keeps its category, so a camera ray through a leaf is still a camera ray.
 
 #### **Background plate** (camera-visible only):
 ```yaml

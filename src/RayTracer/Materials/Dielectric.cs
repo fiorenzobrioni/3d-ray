@@ -184,7 +184,9 @@ public sealed class Dielectric : IMaterial
         MediumTransition transition = refracted
             ? (rec.FrontFace ? MediumTransition.Enter : MediumTransition.Exit)
             : MediumTransition.None;
-        return new BsdfSample(L, Evaluate(V, L, in rec), pdf, isDelta: false, transition: transition);
+        return new BsdfSample(L, Evaluate(V, L, in rec), pdf, isDelta: false, transition: transition,
+                              lobe: refracted ? BsdfLobe.Transmission : BsdfLobe.Glossy,
+                              eta: refracted ? 1f / ri : 1f);
     }
 
     /// <summary>
@@ -209,7 +211,8 @@ public sealed class Dielectric : IMaterial
             return new BsdfSample(MathUtils.Reflect(-V, N), tint, 1f, isDelta: true);
 
         var transition = rec.FrontFace ? MediumTransition.Enter : MediumTransition.Exit;
-        return new BsdfSample(Vector3.Normalize(L), tint * (ri * ri), 1f, isDelta: true, transition: transition);
+        return new BsdfSample(Vector3.Normalize(L), tint * (ri * ri), 1f, isDelta: true, transition: transition,
+                              lobe: BsdfLobe.Transmission, eta: 1f / ri);
     }
 
     private static Vector3 Local(Vector3 v, Vector3 t, Vector3 b, Vector3 n) =>

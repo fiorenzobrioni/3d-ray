@@ -36,7 +36,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 4 | Texture e dati | ✅ Chiusa (2026-10-21), esito in §4 Fase 4 |
 | 5 | Materiali e BSDF | ✅ Chiusa (2026-10-21), esito in §4 Fase 5 |
 | 6 | Luci, cielo | ✅ Chiusa (2026-10-22), esito in §4 Fase 6 |
-| 7 | Integratore | ⬜ |
+| 7 | Integratore | ✅ Chiusa (2026-10-24), esito in §4 Fase 7 |
 | 8 | Volumi e SSS | ⬜ |
 | 9 | Post-processing e denoiser | ⬜ |
 | 10 | Formato scene v2 | ⬜ |
@@ -153,7 +153,7 @@ fase indicata.
 | 3.5 | ✅ **corretto** (2026-10-21, Fase 3), era **[NON-STANDARD]** | `Rendering/ColorManagement.cs` | Display transform = fit di Narkowicz dell'ACES applicato **per canale** su Rec.709 + gamma 2.2 pura: hue shift e saturazione "Notorious 6" sulle alte luci, nessuna gestione del colore. Ora `--view agx` (default), `aces` (ACES 1.x RRT + ODT vero, entro 7e-4 da OpenColorIO), `standard` (curva sRGB a tratti); la curva vecchia resta come `legacy`. Bilanciamento del bianco, dithering, PNG 16 bit. |
 | 3.6 | ✅ **corretto** (2026-10-21, Fase 5) | `Materials/Dielectric.cs`, `DisneyBsdf.cs:642-648, 773-778` | La trasmissione **rough** era esclusa da `Evaluate`/`Pdf` (solo varianza, niente NEE attraverso il vetro satinato). Il `dielectric` classico ora ha `roughness` con il modello completo di Walter et al. 2007 (BTDF, pdf dalle normali visibili, reciprocità generalizzata, MIS). Il vetro rough del Disney resta da fare con la decisione OpenPBR. **Esito**: il vetro ruvido del `disney` è ora la trasmissione di Walter di OpenPBR (stesso BSDF del `dielectric`, test di riduzione esatta `FullTransmission_IsTheRoughDielectric`). |
 | 3.7 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** grave | `Materials/Metal.cs` | Il lobo lambertiano di riempimento esisteva solo nella NEE (+37% rispetto a Mitsuba). Metal riscritto: GGX con Smith correlato in altezza e campionamento VNDF, Fresnel da IOR complesso misurato (`preset`, `eta`/`k`, 15 metalli con gli stessi n, k di Mitsuba) o modello F82 (`color` + `edge_color`), scattering multiplo di Kulla-Conty con tabella E(μ, α) integrata offline (`validation/gen_microfacet_albedo.py`). Misure: `metal-rough` da 1.378 a **1.0032**, `metal-presets` (oro, rame, alluminio) **1.0001**, metallo bianco nel furnace = 1 a ogni rugosità. Il +0.3% residuo è la scelta del G correlato in altezza: Mitsuba usa il G separabile (verificato valutando il suo `roughconductor`), e con il G separabile il risultato è 1.0000. |
-| 3.8 | **[BIAS]** di default, misurato | `Rendering/Renderer.cs:208, 221, 376-378` + materiali | Attivi di default: clamp per-sample 10, clamp indiretto 0.25 (= 2.5), ombre trasparenti "dritte" del vetro, Russian Roulette con soglie da una classificazione euristica della scena, `DeadPathThroughputEpsilon`. Tutti spenti da `--reference` (Fase 0). Il peso misurato dei primi due è in 3.20 e 3.21. Fase 7. |
+| 3.8 | ✅ **corretto** (2026-10-20 i clamp e le ombre trasparenti, 2026-10-24 la roulette, Fase 7), era **[BIAS]** di default, misurato | `Rendering/Renderer.cs:208, 221, 376-378` + materiali | Attivi di default: clamp per-sample 10, clamp indiretto 0.25 (= 2.5), ombre trasparenti "dritte" del vetro, Russian Roulette con soglie da una classificazione euristica della scena, `DeadPathThroughputEpsilon`. Tutti spenti da `--reference` (Fase 0). Il peso misurato dei primi due è in 3.20 e 3.21. Fase 7. Fase 7: roulette standard su β × η², tolti il classificatore e `DeadPathThroughputEpsilon`. |
 | 3.9 | ✅ **corretto** (2026-10-20, Fase 1), era **[BIAS]** | `Textures/EnvironmentMap.cs` (`SampleDirection`) | L'importance sampling dell'HDRI restituiva sempre il **centro** del texel scelto: le direzioni NEE erano un insieme discreto (ombre a gradini e bias con HDRI piccole o sole concentrato). Ora la posizione dentro il texel è continua (lo scarto di ciascun numero casuale dentro il proprio intervallo della CDF) e la pdf usa il θ della direzione effettiva, come `PdfDirection`. Chi-quadro su una mappa 16x8 con un texel brillante: prima 1.3e6 su 799 gradi di libertà, ora passa. Test `EnvironmentMap_SamplesItsPdf_ContinuouslyInsideTexels`. |
 | 3.10 | ✅ **corretto** (2026-10-20, Fase 1), era **[NON-STANDARD]**, misurato peggio del caso | `Core/Sampling/OwenSobol.cs` + `Sampler.cs` | Solo le dimensioni 0-1 erano vero Sobol; dalla 2 in su van der Corput con hash, e due dimensioni consecutive (la coppia di una decisione 2D) **non** erano stratificate insieme: pendenza dell'errore da -0.32 a -0.56 contro -0.50 dei numeri indipendenti, cioè peggio del PRNG. Le dimensioni erano assegnate con un contatore globale per campione, quindi path con rami diversi le disallineavano. Ora: Sobol "padded" (PBRT-v4), ogni coppia di dimensioni è la coppia 0-1 di Sobol con un rimescolamento Owen dell'indice proprio della coppia; blocco fisso per la camera (8 dimensioni) e per ogni vertice del path (64, `Sampler.BeginVertex`); `MathUtils.Random2D` / `Sampler.Sample2D` per ogni decisione 2D. Pendenze ora -1.38 (liscio) e -0.75 (bordo) su ogni coppia. Test `SamplerQualityTests`. |
 | 3.11 | ✅ **corretto** (2026-10-21, Fase 5), era **[NON-STANDARD]** | `Rendering/Renderer.cs:1897` + `Core/MathUtils.cs:44` | Il fattore "shadow terminator" è applicato anche alla direzione di vista, oltre a quella della luce: non corrisponde a nessun modello pubblicato (Chiang 2019 / Estevez 2019 agiscono sul lato luce). Va verificato con il furnace test. **Esito**: il fattore lato vista è tolto (compensava la retro-riflessione del vecchio Disney, che non c'è più). Il fattore lato luce (Chiang 2019) era applicato solo alla NEE: il campionamento BSDF stimava un integrando diverso e il MIS mescolava due funzioni. Ora entra nel peso di entrambe le strategie (`ShadeSampleBounce`). Nessun effetto dove la normale non è perturbata. |
@@ -161,7 +161,7 @@ fase indicata.
 | 3.13 | ✅ **verificato, nessun bug** | `DisneyBsdf` + `Renderer` | `Sample()` restituisce per i lobi non-delta `Evaluate`/`Pdf` della miscela, quindi peso e MIS sono coerenti: il chi-quadro e il cross-check dell'albedo passano su tutti i lobi rough (Fase 0). |
 | 3.14 | ✅ **corretto** (2026-10-22, Fase 6), era **[NON-STANDARD]** | tutte le luci + `Emissive` | `intensity` senza unità: impossibile illuminare "come nella realtà" (sole 100.000 lux, lampadina 800 lm) e scambiare scene con altri motori. Nessuna temperatura colore, nessun IES. **Esito**: `power` (W a 683 lm/W o lm), `candela`, `luminance` (nit), `illuminance` (lux), `temperature` (corpo nero), `normalize`, `exposure` su ogni luce; `luminance` e `temperature` sull'`emissive`; profili IES LM-63 tipo C su point e spot. Scena in nit, colore ridotto a tinta. Verificato contro un calcolo a mano entro lo 0.1% (`scenes/review/light-units.yaml`) e dai test `PhysicalUnitsTests`, `IesProfileTests`. Cieli fisici in nit con `units: photometric`. |
 | 3.15 | **[DEBITO]** | `scenes/cornell-box.yaml` e altre | Commenti obsoleti: dicono che l'emissivo "non usa NEE", mentre oggi entra nel pool NEE come `GeometryLight`. |
-| 3.16 | **[DEBITO]** | `Rendering/Renderer.cs` (2314 righe), `Scene/SceneLoader.cs` (4368), `Materials/DisneyBsdf.cs` (2006) | `TraceRay` è ricorsivo, con molti casi speciali: ostacola path guiding, light path expressions, BDPT e il debug. |
+| 3.16 | ✅ **corretto** il loop (2026-10-24, Fase 7), resta **[DEBITO]** la dimensione dei file | `Rendering/Renderer.cs` (2314 righe), `Scene/SceneLoader.cs` (4368), `Materials/DisneyBsdf.cs` (2006) | `TraceRay` è ricorsivo, con molti casi speciali: ostacola path guiding, light path expressions, BDPT e il debug. Fase 7: `TracePath` iterativo in `Rendering/PathIntegrator.cs`; le dimensioni dei file sono della Fase 11. |
 | 3.17 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** | `Materials/DisneyBsdf.cs` (sheen, clearcoat, trasmissione) | **Guadagno di energia** nel white furnace (albedo > 1 con materiale bianco): sheen fino a 1.38, clearcoat liscio 1.39 a incidenza radente, vetro liscio 1.015-1.13, vetro rough 1.03-1.12; diffuso Disney r=1 1.026 a incidenza radente (retro-riflessione di Burley, [NON-STANDARD]). Render: sfera di vetro Disney in furnace +3.1% (deve valere 1), sfera sheen +34% e clearcoat +5% rispetto al principled di Mitsuba. Gli strati vanno sommati con albedo-scaling che conserva l'energia (OpenPBR). Test `KnownBug_Disney_WhiteFurnaceAlbedoDoesNotExceedOne`. Fase 5. **Esito**: con la traduzione su OpenPBR gli strati si compongono con l'albedo-scaling: test `Disney_WhiteFurnaceAlbedoDoesNotExceedOne` riattivato (sheen, coat liscio, vetro liscio e ruvido, diffuso r 1), fornace della sfera di vetro Disney 1.00 (`Furnace_GlassSphereFromOutside_StaysLossless`). Il diffuso è Lambert: la retro-riflessione di Burley creava energia a incidenza radente. |
 | 3.18 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** piccolo | `Materials/DisneyBsdf.cs:783-870` | La `Pdf` riporta la densità VNDF anche sotto l'orizzonte (convenzione legittima, il campione viene scartato), ma lì il lobo `diff_trans` ha supporto: per le direzioni posteriori la pdf dichiarata supera quella reale e il peso sottostima l'energia di circa l'1%. Test `KnownBug_Disney_DiffTransSampleWeightIntegratesTheBsdf`. Fase 5. **Esito**: `diff_trans` è il subsurface thin-walled di OpenPBR, ogni lobo scarta le direzioni fuori dal suo supporto. Test `Disney_DiffTransSampleWeightIntegratesTheBsdf` riattivato. |
 | 3.19 | ✅ **corretto** (2026-10-20), era **[BUG]** grave | `Geometry/ShadowRay.cs` (`TransmittanceToPoint`), `Lights/AreaLight.cs`, `SphereLight.cs`, `GeometryLight.cs`, `Geometry/Sphere.cs` | Il raggio d'ombra partiva da `OffsetOrigin` (punto + 1e-4 lungo la normale) ma con la direzione calcolata dal punto non spostato: colpiva il **proxy emissivo della luce stessa**, e oltre ~52° dalla normale di una luce d'area non arrivava luce diretta (-12% nella scena `lights`, ellisse netta sul pavimento; taglio anche su emissivi e luci sferiche). Corretto con il "spawn ray to" di PBRT: entrambi gli estremi spostati lungo la propria normale, il raggio corre esattamente fra i due. Due cause di precisione emerse nel farlo, corrette insieme: campionamento conico delle sfere (luce sferica ed emissivi sferici) rifatto con la costruzione geometrica di PBRT-v4 e la forma per angoli piccoli (prima l'1-2% dei campioni mancava le sfere piccole o lontane, e sotto 1e-4 sr la pdf valeva 0 e spegneva la NEE delle sfere emissive); `Sphere.Hit` con discriminante robusto `r² - |l|²` e radici stabili (errore su t fino a 1.8e-2 a 200 unità, ora pochi ulp). Misura: `lights` da 0.975 a **1.0000**. Test `LightSelfShadowTests`, `SphereIntersectionPrecisionTests`. |
@@ -206,6 +206,7 @@ fase indicata.
 | 3.58 | ✅ **fatto** (2026-10-22, Fase 6), era **[NON-STANDARD]** | `Rendering/Sky/HosekWilkieSky.cs` | `hosek_wilkie` era un alias di Preetham (il README prometteva Hosek-Wilkie). Ora il modello RGB vero dalle tabelle degli autori (`validation/gen_hosek_wilkie_data.py`), verificato su 24 punti contro il loro codice C compilato (scarto sotto 1e-4). |
 | 3.59 | **[BUG]**, da Fase 8 | `Volumetrics/` (height fog, atmosfera di Nishita) | NaN/Inf azzerati nei render con un mezzo: `showcases/ground-alpine-lake.yaml` 31 627 a draft-tiny (1.5% dei campioni, già al primo vertice, spariscono togliendo l'`height_fog`), `showcases/sky-aerial.yaml` 688. Presenti anche prima della Fase 6. Fase 8. |
 | 3.60 | **[BUG]**, da Fase 8 | `Volumetrics/NishitaAtmosphereMedium.cs` | In `showcases/sky-aerial.yaml` una banda di firefly nel cielo verso il sole, con netta separazione a un cerchio massimo, già a profondità 1 e con entrambi i sampler: la NEE del mezzo verso il sole. Invisibile prima della Fase 6 (sole 15 000 volte più debole). Sospetti: il rapporto cromatico `exp(τ̄ - τc)` senza limite e il tetto di 256 passi del delta tracking. Fase 8. |
+| 3.61 | ✅ **corretto** (2026-10-24, Fase 7), era **[BUG]** | `Rendering/Renderer.cs` (`ClassifyScatteredRay`, `SampleSky`, SSS e mezzi) | Categoria del raggio per i flag di visibilità sbagliata in cinque casi: i raggi usciti dal SSS e quelli diffusi da un mezzo restavano "camera" e saltavano le superfici `visible_to_camera: false` (marmo SSS senza la luce dei pannelli nascosti, -0.36%); un rimbalzo glossy non delta era "diffuse"; il cielo visto in uno specchio era letto come "camera" (lo sfondo riservato alla camera e i suoi flag comparivano nei riflessi); un raggio che attraversa un cut-out diventava "transmission" (dietro una foglia la camera vedeva ciò che le è nascosto). Ora la categoria viene dal lobo campionato (`BsdfLobe`) e un cut-out la lascia com'è. |
 
 ---
 
@@ -672,22 +673,110 @@ modello diverso da Preetham). Restano per altre fasi: NaN e firefly nei mezzi co
 3.60, Fase 8), scattering multiplo per Nishita (PLANNING), le cuciture del denoiser sui bordi HDR
 (3.33, Fase 9).
 
-### Fase 7 - Integratore (`Rendering/Renderer.cs`)
+### Fase 7 - Integratore (`Rendering/PathIntegrator.cs`, `Rendering/Renderer.cs`)
 
-- [ ] Riscrivere `TraceRay` come **loop iterativo** con throughput esplicito (prerequisito per
-      path guiding, LPE/AOV per lobo, debug, profondità per tipo di lobo).
-- [ ] MIS: pesi corretti per luce scelta (`p_pick x p_light`), emissione colpita via BSDF, lobi
-      delta, coerenza delle pdf (3.13). Test Veach (scena dei 4 piani lucidi e 4 luci).
-- [ ] Russian Roulette standard sul throughput (con correzione `η²` dopo le rifrazioni), niente
-      classificazione euristica della scena.
-- [ ] Profondità separate per tipo (diffuse, glossy, transmission, volume) come i motori di
-      produzione: il vetro richiede molti rimbalzi, il diffuso pochi.
+- [x] Riscrivere `TraceRay` come **loop iterativo** con throughput esplicito (prerequisito per
+      path guiding, LPE/AOV per lobo, debug, profondità per tipo di lobo). `TracePath` in
+      `Rendering/PathIntegrator.cs`, identico al bit alla ricorsione dove nulla doveva cambiare.
+- [x] MIS: pesi corretti per luce scelta (`p_pick x p_light`), emissione colpita via BSDF, lobi
+      delta, coerenza delle pdf (3.13). Test Veach (scena dei 4 piani lucidi e 4 luci):
+      `validation/scenes/veach-mis.yaml`, uguale a Mitsuba con `balance` e con `power`.
+- [x] Russian Roulette standard sul throughput (con correzione `η²` dopo le rifrazioni), niente
+      classificazione euristica della scena (3.8).
+- [x] Profondità separate per tipo (diffuse, glossy, transmission, volume) come i motori di
+      produzione: il vetro richiede molti rimbalzi, il diffuso pochi. Più i cut-out, fuori dal
+      totale.
 - [x] Clamp: spento di default, `-C` opzionale (3.8, 3.20; 2026-10-20).
-- [ ] Caustiche: la photon map è biased per natura. Valutare **MNEE** (manifold next-event
+- [x] Caustiche: la photon map è biased per natura. Valutare **MNEE** (manifold next-event
       estimation, per le caustiche attraverso vetro/acqua) e/o **path guiding** (roadmap #23)
-      come strada premium non biased.
-- [ ] Unbiasedness: confronto con il `path` integrator di Mitsuba a parità di profondità su
+      come strada premium non biased. Valutazione nell'esito: path guiding prima, MNEE dopo,
+      ciascuno come lavoro a sé (§4 Fase 7b).
+- [x] Unbiasedness: confronto con il `path` integrator di Mitsuba a parità di profondità su
       tutte le scene canoniche.
+
+#### Esito Fase 7 (2026-10-24)
+
+Suite: 1072 test verdi, 0 skip (1065 alla Fase 6).
+
+**Loop iterativo** (3.16). `Rendering/PathIntegrator.cs` sostituisce `TraceRay`, `ShadeSurface` e
+`ShadeSampleBounce`: un `PathState` porta raggio, throughput β, pdf e flag delta del rimbalzo
+precedente, categoria del raggio, pile di mezzi e IOR, contatori per tipo e radianza; ogni
+contributo è β × X. Il random walk del SSS restituisce radianza, raggio d'uscita e peso, e il loop
+prosegue da lì. Confronto con la ricorsione (stesso sampler, 256 campioni, 15 scene): identico al
+bit (relMSE < 1e-15) su Cornell, vetri, luci, unità, caustiche, acqua, nebbia locale, SSS annidato,
+`-C`; diverso solo dove la ricorsione sbagliava:
+- i raggi usciti dal SSS e quelli diffusi da un mezzo erano etichettati "camera" e saltavano le
+  superfici `visible_to_camera: false`: nel marmo SSS mancava la luce dei pannelli emissivi
+  nascosti alla camera (+0.36% in media, +0.03 per pixel dove la vede) (3.61);
+- il β della roulette non conteneva l'assorbimento di Beer-Lambert: decisioni di roulette
+  diverse nelle scene con mezzi, stessa media (nebbia omogenea +0.46% contro ±0.34% di rumore
+  fra due seed).
+Altri errori di categoria corretti col loop (3.61): un rimbalzo glossy era etichettato diffuse
+(i flag `visibility.glossy` non agivano), un riflesso speculare del cielo leggeva la categoria
+camera (lo sfondo riservato alla camera compariva negli specchi), un raggio passato da un cut-out
+diventava "transmission". Un cut-out non è un rimbalzo: non cambia la categoria, non conta nel
+totale e non rilancia la roulette.
+
+**Russian roulette standard** (3.8). Dal secondo rimbalzo, sopravvivenza q = max(β × η²), divisione
+per q, nessun minimo, tetto o classificazione: tolti il classificatore "indirect-dominant" (soglia
+sull'irradianza media della scena, due tarature 4/0.15 e 8/0.5) e la soglia dei path morti
+(`DeadPathThroughputEpsilon`), che erano bias o euristiche dipendenti dalla scena. Il riferimento
+usa la stessa roulette.
+
+**Profondità per tipo.** Ogni campione BSDF riporta il suo lobo (`BsdfLobe`: diffuse, glossy,
+transmission, transparent) e il rapporto degli indici; il path conta i rimbalzi per tipo
+(`--depth-diffuse`, `--depth-glossy`, `--depth-transmission`, `--depth-volume`) sotto il totale
+(`-d`, i vertici), e i cut-out a parte (`--depth-transparent`, 16), fuori dal totale. Preset:
+draft 8 (3/4/8/3), standard 12 (4/6/12/4), pre-final e final 16 (8/8/16/8), ultra 32 (16/16/32/16);
+un `-d` esplicito porta ogni tipo a quel valore, il riferimento usa profondità uniformi.
+`standard` non forza più `--light-sampling power`. Test analitico: interno di una sfera
+lambertiana con una luce al centro, L = aE/π × (1-a^d)/(1-a) a profondità 1, 3 e 200 entro l'1.5%,
+limite diffuso, limite dei cut-out (`IntegratorTests`). Scena `scenes/review/path-depths.yaml`:
+nocciolo di vetro annidato e pila di cut-out, prima (profondità 4 per tutto: nocciolo nero) e dopo
+in `images/path-depths.jpg`.
+
+**MIS di Veach** (`validation/scenes/veach-mis.yaml`, 4 lastre d'argento da α 0.0004 a 0.14 sotto
+4 luci sferiche di uguale potenza, raggi 0.05-1): rapporto con Mitsuba 0.9991 (`balance`) e 0.9993
+(`power`), relMSE 3.7e-4. Il convertitore ignorava l'alias `roughness` del metallo (rendeva le
+lastre specchi) e aveva un minimo di α diverso dal motore: corretti.
+
+**Validazione Mitsuba**: invariata su tutte le scene canoniche (cornell d32 0.9998, d2 0.9981,
+lights 0.9997, glass-shadow 0.9994, metal-presets 0.9998, metal-rough 1.0032, glass-rough 1.0016,
+null-shell 1.0001, fornace 1.0000; disney-spheres 0.9771, differenza di modello nota).
+
+**Caustiche: valutazione di path guiding e MNEE.** La photon map resta lo stimatore delle
+caustiche: distorta (stima di densità) ma consistente con più fotoni. Le due strade non distorte:
+- *Path guiding* (Müller 2017 "Practical Path Guiding", SD-tree spazio-direzionale; varianti di
+  Rath 2020 e Ruppert 2020): impara la radianza incidente nelle passate precedenti e la mescola al
+  campionamento della BSDF con MIS a un campione. Generale: aiuta interni illuminati da una
+  finestra, luce che arriva da una sola apertura, caustiche viste da superfici diffuse quando la
+  luce è un emettitore esteso. Non può nulla su catene con soli lobi delta verso una luce
+  puntiforme (probabilità zero per qualunque path tracer). Richiede il loop iterativo (fatto),
+  passate progressive di addestramento, un albero aggiornato in modo concorrente; una libreria
+  esistente (Open PGL, Apache-2.0) è C++ nativo: meglio un'implementazione C#.
+- *MNEE* (Hanika 2015) e la sua versione non distorta *SMS* (Zeltner 2020): risolve con Newton la
+  catena speculare fra il punto diffuso e la luce. Copre proprio il caso che il guiding non può
+  (luce piccola attraverso vetro o acqua lisci), ma richiede le derivate della normale di ogni
+  primitiva, è limitato a catene corte di interfacce lisce e non gestisce normal map e vetri
+  ruvidi.
+Decisione: path guiding come primo lavoro (generale, sfrutta il loop), MNEE/SMS dopo per le
+caustiche da luci piccole attraverso dielettrici lisci, photon map tenuta come opzione rapida.
+Sono lavori a sé, nella Fase 7b qui sotto, da fare dopo le Fasi 8 e 9 (volumi e denoiser
+cambiano ciò che il guiding deve imparare) o prima, su richiesta del proprietario.
+
+**Verdetto**: l'integratore è un loop non distorto e verificato (analitico, Mitsuba, Veach), con
+profondità per tipo come i motori di produzione e senza euristiche dipendenti dalla scena.
+Cambiano i preset (più profondità totale, meno rimbalzi diffusi nel draft) e l'aspetto delle
+scene con vetri annidati o cut-out impilati (prima scure per mancanza di profondità). Restano:
+path guiding e MNEE (Fase 7b), NaN e firefly nei mezzi (3.59, 3.60, Fase 8).
+
+### Fase 7b - Path guiding e caustiche non distorte (rinviata)
+
+- [ ] Path guiding spazio-direzionale (SD-tree, Müller 2017, con le migliorie di Rath 2020 per
+      il MIS fra BSDF e guida): passate progressive di addestramento, superfici e volumi.
+- [ ] MNEE / SMS (Hanika 2015, Zeltner 2020) per le caustiche da luci piccole attraverso
+      dielettrici lisci: derivate della normale per primitiva, catene di una o due interfacce.
+- [ ] Confronto con la photon map e con il riferimento su `glass-caustics`, acqua, finestra.
 
 ### Fase 8 - Volumi e SSS (`Volumetrics/`, `Rendering/RandomWalkSss.cs`)
 
@@ -762,7 +851,7 @@ Da creare in `scenes/validation/` (YAML) e `scenes/validation/mitsuba/` (XML):
 1. White furnace: sfera in ambiente uniforme, una per materiale.
 2. Sfera Lambert sotto luce puntiforme e su piano (soluzione analitica).
 3. Cornell box originale (con dati spettrali misurati, confronto Mitsuba).
-4. Scena MIS di Veach (4 lastre a rugosità crescente x 4 luci di dimensione crescente).
+4. Scena MIS di Veach (4 lastre a rugosità crescente x 4 luci di dimensione crescente): `validation/scenes/veach-mis.yaml` (Fase 7).
 5. Sfere di conduttori (oro, rame, alluminio, cromo) a rugosità 0 / 0.2 / 0.5 sotto HDRI.
 6. Vetro: sfera piena, lastra spessa, vetro satinato, bicchiere con liquido (IOR annidati).
 7. Coat + sheen + thin film su sfere (materiale-test tipo "shader ball").
@@ -792,7 +881,7 @@ Basato sulla sezione 3, aggiornato con le misure delle Fasi 0, 1 e 3: da conferm
 | Materiali | **rifare attorno a OpenPBR** | Fase 0: Metal con NEE incoerente (+37%), strati Disney che creano energia (sheen, coat, vetro), lobi delta sottostimati; doppia API. Si riusano Microfacet, VNDF, Fresnel, LUT (campionamento e reciprocità verificati) |
 | Luci | correggere + unità fisiche | Fase 0: luce puntiforme esatta; il bug dei raggi d'ombra (3.19) è corretto e ora tutte le luci analitiche coincidono con Mitsuba; unità assenti |
 | Cielo | **rifare** | Preetham sbagliato, sole empirico |
-| Integratore | **rifare il loop** | Fase 0: la matematica è corretta (Cornell = Mitsuba entro 0.1%, convergenza 1/N); i bias di default (clamp, ombre trasparenti) sono corretti; resta la struttura ricorsiva. Si riusano NEE, MIS, mezzi |
+| Integratore | **rifatto** (Fase 7) | loop iterativo con throughput esplicito, roulette standard, profondità per tipo; uguale a Mitsuba su tutte le scene canoniche e su Veach. Restano path guiding e MNEE (Fase 7b) |
 | Volumi e SSS | verificare | da confrontare con Mitsuba prima di giudicare |
 | Denoiser | tenere + OIDN | NFOR va bene come opzione |
 | Formato scene | evolvere a v2 | semantica (unità, colore, render) più che sintassi |

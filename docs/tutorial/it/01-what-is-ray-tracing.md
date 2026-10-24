@@ -102,12 +102,14 @@ per percorso.
   Box) traggono vantaggio da una profondità maggiore perché la luce deve rimbalzare
   molte volte per illuminare la stanza.
 
-Il preset di default `draft-small` usa profondità **4**, sufficiente per
-scene opache o con leggera rifrazione. I preset di qualità (`-q standard`
-e superiori) la alzano a **8**, che è il soffitto standard per la stragrande
-maggioranza delle scene grazie alla Russian Roulette (sezione 1.5).
-Alzala a 16–20 solo quando renderizzi vetri impilati (liquidi nei bicchieri,
-dielettrici annidati). Consulta [Profili di Rendering](../../reference/profili-di-rendering.md)
+Il motore conta separatamente ogni tipo di rimbalzo, perché richiedono budget
+molto diversi: la luce diffusa si spegne in tre o quattro rimbalzi, mentre un
+raggio che attraversa un bicchiere d'acqua incontra quattro interfacce. Il
+preset di default `draft-small` ammette 8 vertici in totale, di cui al più 3
+diffusi, 4 glossy, 8 di trasmissione e 3 in un volume; i preset di qualità
+alzano questi limiti (16 in totale per `final`). Alza `--depth-transmission`
+solo quando renderizzi vetri impilati (liquidi nei bicchieri, dielettrici
+annidati). Consulta [Profili di Rendering](../../reference/profili-di-rendering.md)
 per la guida completa.
 
 ---
@@ -117,8 +119,9 @@ per la guida completa.
 Non tutti i percorsi sono ugualmente utili. Un raggio che ha rimbalzato molte volte
 e trasporta pochissima energia difficilmente contribuirà in modo significativo al
 colore finale del pixel. Invece di tracciare sempre fino alla profondità massima, il
-motore usa la **Russian Roulette**: ad ogni rimbalzo oltre un numero minimo, c'è
-una probabilità che il percorso venga terminato anticipatamente. I percorsi sopravvissuti
+motore usa la **Russian Roulette**: dal secondo rimbalzo in poi un percorso
+sopravvive con probabilità pari alla quota di energia che ancora trasporta, così un
+percorso fioco tende a fermarsi e uno luminoso a proseguire. I percorsi sopravvissuti
 vengono pesati al rialzo per compensare, così il risultato rimane non polarizzato.
 
 Questo è completamente automatico -- non è necessario configurarlo. Significa
@@ -167,9 +170,9 @@ I flag CLI che controllano queste impostazioni sono:
 | `-w` | `--width`          | 1200        | Larghezza immagine in pixel                 |
 | `-H` | `--height`         | 800         | Altezza immagine in pixel                   |
 | `-s` | `--samples`        | 16          | Campioni per pixel                          |
-| `-d` | `--depth`          | 8           | Rimbalzi massimi del raggio                 |
+| `-d` | `--depth`          | 8           | Vertici massimi del percorso (divisi per tipo di rimbalzo) |
 | `-S` | `--shadow-samples` | *(per luce)*| Sovrascrive il conteggio dei campioni d'ombra per tutte le luci area/sphere |
-| `-C` | `--clamp`          | 10          | Firefly clamp (radianza per-campione)       |
+| `-C` | `--clamp`          | spento      | Firefly clamp (radianza per-campione)       |
 
 Il riferimento CLI completo è nel Capitolo 10. Per ora è sufficiente ricordare il
 pattern anteprima/bozza/finale -- farà risparmiare ore di lavoro.

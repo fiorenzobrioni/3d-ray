@@ -20,7 +20,7 @@ active medium at any point:        Top ?? _globalMedium
 
 This is non-negotiable for correctness on nested transmissive bodies. Single-current-medium designs break the instant you have a glass ampoule containing marble: when the ray exits marble back into glass-interior-vacuum, the single-current logic loses track of "we're still inside glass" and either applies the wrong absorption or re-pushes the wrong medium. The 8-slot inline array handles the realistic deepest stack (ice in water in tank, ≈ 4 deep) with headroom; overflow drops the **oldest** entry (`Push` returns `false`; the renderer does not report it).
 
-The stack is copy-on-write at every transmission event. `ShadeSampleBounce` copies the caller's stack (a plain struct copy) only when the sample carries an `Enter`/`Exit` transition, pushes or pops on the copy, and hands the copy by `ref` to the recursive `TraceRay` or to the random walk, so the parent frame's view is intact when the recursion returns. Samples with no transition recurse on the caller's stack directly, without copying.
+The stack lives in the path's state (`PathState.Mediums`, with the IOR stack beside it) and is updated in place by the path loop: an `Enter` transition pushes, an `Exit` pops, a sample with no transition leaves it untouched. The random walk receives it by `ref` and pops what it pushed when the walk leaves the entity.
 
 ## Refraction transitions
 
@@ -39,16 +39,17 @@ After the BSDF samples a refraction event, the renderer applies the same predica
 ```
 if (sssMode == Auto
     && s.Transition == Enter
-    && nextMediums.Top is HomogeneousMedium hm
+    && path.Mediums.Top is HomogeneousMedium hm
     && IsScatteringMedium(hm)
     && rec.EntityRoot is IHittable entityRoot)
 {
-    indirect = RandomWalkSubsurface(scattered, hm, entityRoot, ...);
+    var walk = RandomWalkSubsurface(next, hm, entityRoot, ref path.Mediums, ref path.Iors, path.Beta);
+    path.Add(path.Beta * walk.Radiance);       // light gathered inside
+    if (!walk.Escaped) return false;          // absorbed, or out of budget
+    path.Beta *= walk.Throughput;              // the loop goes on from the exit
+    path.Ray = walk.EscapeRay;
 }
-else
-{
-    indirect = TraceRay(scattered, ...);   // legacy Beer-Lambert volumetric path
-}
+// otherwise the loop follows the refracted ray (Beer-Lambert volumetric path)
 ```
 
 The walk uses `entityRoot.Hit(...)` for boundary detection — never `_world.Hit`. This is the "restricted BVH query" that prevents the random walk from leaking into adjacent geometry: the walk is constrained to the same BVH it entered, intersected against the *same* sub-tree. Cost: `O(log primitives_in_entity)` per intersection.

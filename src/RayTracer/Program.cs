@@ -66,6 +66,16 @@ class Program
         bool hParsed = int.TryParse(GetArg(args, "--height",  "-H"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var height);
         bool sParsed = int.TryParse(GetArg(args, "--samples", "-s"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var samples);
         bool dParsed = int.TryParse(GetArg(args, "--depth",   "-d"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var depth);
+        // Per-kind bounce limits (PIANO-REVIEW.md Phase 7). Unset = the preset's,
+        // or the total when -d is explicit or in reference mode.
+        int? DepthArg(string name) =>
+            int.TryParse(GetArg(args, name, null), System.Globalization.NumberStyles.Integer,
+                         System.Globalization.CultureInfo.InvariantCulture, out var v) && v >= 0 ? v : null;
+        int? depthDiffuse = DepthArg("--depth-diffuse");
+        int? depthGlossy = DepthArg("--depth-glossy");
+        int? depthTransmission = DepthArg("--depth-transmission");
+        int? depthVolume = DepthArg("--depth-volume");
+        int? depthTransparent = DepthArg("--depth-transparent");
 
         // Shadow samples CLI override (null = use per-light YAML values)
         int? shadowSamplesOverride = null;
@@ -359,7 +369,8 @@ class Program
         // ── Reference mode ───────────────────────────────────────────────────
         // `--reference` renders with the pure, unbiased estimator used to
         // validate the engine (PIANO-REVIEW.md, Phase 0): no clamps, no
-        // dead-path cutoff, no straight-through transparent shadows, fixed RR.
+        // straight-through transparent shadows, one depth for every kind of
+        // bounce.
         // The denoiser and photon caustics are biased by construction, so they
         // are refused rather than silently mixed into a reference image.
         bool referenceMode = HasFlag(args, "--reference", null);
@@ -517,7 +528,8 @@ class Program
         if (!wParsed || width  <= 0) width   = quality?.Width   ?? 1200;
         if (!hParsed || height <= 0) height  = quality?.Height  ?? 800;
         if (!sParsed || samples <= 0) samples = quality?.Samples ?? 16;
-        if (!dParsed || depth  <= 0) depth   = quality?.Depth   ?? 8;
+        bool depthExplicit = dParsed && depth > 0;
+        if (!depthExplicit) depth = quality?.Depth ?? 8;
         if (!shadowSamplesOverride.HasValue && quality != null)
             shadowSamplesOverride = quality.ShadowSamples;
 
@@ -531,11 +543,23 @@ class Program
             Console.WriteLine($"  Quality:     {quality.Name}{(qualityIsDefault ? " (default)" : "")}");
         Console.WriteLine($"  Resolution:  {width} \u00d7 {height}");
         Console.WriteLine($"  Samples/px:  {samples}");
-        Console.WriteLine($"  Max depth:   {depth}");
+        // Per-kind limits: the preset's split, unless the total was given (or
+        // the render is a reference): then no kind is cut below the total.
+        PathDepths baseDepths = !depthExplicit && !referenceMode && quality?.Depths is PathDepths qd
+            ? qd
+            : PathDepths.Uniform(depth);
+        var depths = new PathDepths(
+            Math.Min(depthDiffuse ?? baseDepths.Diffuse, depth),
+            Math.Min(depthGlossy ?? baseDepths.Glossy, depth),
+            Math.Min(depthTransmission ?? baseDepths.Transmission, depth),
+            Math.Min(depthVolume ?? baseDepths.Volume, depth),
+            depthTransparent ?? baseDepths.Transparent);
+        Console.WriteLine($"  Max depth:   {depth} (diffuse {depths.Diffuse}, glossy {depths.Glossy}, " +
+                          $"transmission {depths.Transmission}, volume {depths.Volume}, cut-outs {depths.Transparent})");
         if (shadowSamplesOverride.HasValue)
             Console.WriteLine($"  Shadow smp:  {shadowSamplesOverride.Value} (override)");
         if (referenceMode)
-            Console.WriteLine("  Reference:   on (no clamps, no transparent shadows, fixed RR, no denoiser/caustics)");
+            Console.WriteLine("  Reference:   on (no clamps, no transparent shadows, uniform depths, no denoiser/caustics)");
         if (seed != 0)
             Console.WriteLine($"  Seed:        {seed}");
         if (transparentShadows)
@@ -622,7 +646,8 @@ class Program
                 transparentShadows: transparentShadows,
                 pixelFilter: PixelFilter.Create(pixelFilterKind),
                 displayTransform: new DisplayTransform(view, look,
-                    whiteBalanceKelvin is float wbk ? WhiteBalance.Matrix(wbk) : null));
+                    whiteBalanceKelvin is float wbk ? WhiteBalance.Matrix(wbk) : null),
+                depths: depths);
             Console.WriteLine();
 
             var captureOptions = denoiserKind != DenoiserKind.None || aovs.Count > 0
@@ -709,13 +734,19 @@ class Program
         Console.WriteLine("                                          final-tiny, final-small, final,");
         Console.WriteLine("                                          ultra (4K).");
         Console.WriteLine("                                standard = final-class quality for classic scenes");
-        Console.WriteLine("                                (no caustics/SSS, 512 spp, power NEE, denoiser).");
+        Console.WriteLine("                                (no caustics/SSS, 512 spp, denoiser).");
         Console.WriteLine("                                pre-final = faithful preview of final (full feature");
         Console.WriteLine("                                set, 256 spp + denoiser, ~4-6x faster than final).");
         Console.WriteLine("  -w, --width <px>             Image width  (default: 960 via draft-small preset)");
         Console.WriteLine("  -H, --height <px>            Image height (default: 540 via draft-small preset)");
         Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16 via draft-small preset)");
-        Console.WriteLine("  -d, --depth <n>              Max ray depth (default: 4 via draft-small; use 8 for quality, 16+ for stacked glass)");
+        Console.WriteLine("  -d, --depth <n>              Max path vertices (default: 8 via draft-small; 12 standard, 16 final, 32 ultra).");
+        Console.WriteLine("                                Explicit -d lifts the per-kind limits below to the same value");
+        Console.WriteLine("      --depth-diffuse <n>      Max diffuse bounces (presets: 3 draft, 4 standard, 8 final, 16 ultra)");
+        Console.WriteLine("      --depth-glossy <n>       Max glossy/specular reflections (4, 6, 8, 16)");
+        Console.WriteLine("      --depth-transmission <n> Max refractions/transmissions (8, 12, 16, 32)");
+        Console.WriteLine("      --depth-volume <n>       Max scatters in a medium (3, 4, 8, 16)");
+        Console.WriteLine("      --depth-transparent <n>  Max cut-outs crossed, outside the total (16; 32 ultra)");
         Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override (default 4; perfect squares work best)");
         Console.WriteLine("  -C, --clamp <n>              Firefly clamp: max per-sample radiance (default: off).");
         Console.WriteLine("                                Biased: cuts every sample brighter than n (try 10)");
@@ -753,7 +784,7 @@ class Program
         Console.WriteLine("      --bit-depth <8|16>       Bits per channel of a .png output (default: 8)");
         Console.WriteLine("      --dither <on|off>        Dither 8-bit output against banding (default: on)");
         Console.WriteLine("      --reference              Unbiased reference estimator for validation: no clamps,");
-        Console.WriteLine("                                no transparent shadows, fixed RR, no denoiser/caustics");
+        Console.WriteLine("                                no transparent shadows, uniform depths, no denoiser/caustics");
         Console.WriteLine("      --seed <n>               Independent sample sequence (default 0 = standard sequence)");
         Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
         Console.WriteLine("  -v, --verbose                Show detailed loading and scene analysis info");
@@ -975,6 +1006,8 @@ class Program
         public int Height { get; }
         public int Samples { get; }
         public int Depth { get; }
+        /// <summary>The tier's split of <see cref="Depth"/> by kind of bounce.</summary>
+        public PathDepths? Depths { get; }
         public int ShadowSamples { get; }
         /// <summary>SSS random-walk preset matched to this quality tier.
         /// draft → preview (cheap), pre-final/final/ultra → high (standard
@@ -994,9 +1027,8 @@ class Program
         /// <c>--sss-mode</c> flag still wins.</summary>
         public SssMode? SssModeOverride { get; }
         /// <summary>When non-null, the tier's default <c>--light-sampling</c>
-        /// strategy (FINAL-FAST uses <see cref="LightSamplingStrategy.Power"/>,
-        /// which scales better than the global <c>all</c> default). An explicit
-        /// <c>--light-sampling</c> flag still wins.</summary>
+        /// strategy (none sets one today: <c>auto</c> fits every tier). An
+        /// explicit <c>--light-sampling</c> flag still wins.</summary>
         public LightSamplingStrategy? LightSampling { get; }
         /// <summary>When non-null, the tier's default <c>--indirect-clamp-factor</c>.
         /// An explicit flag still wins.</summary>
@@ -1018,9 +1050,11 @@ class Program
                               LightSamplingStrategy? lightSampling = null,
                               float? indirectClampFactor = null,
                               DenoiserKind denoiser = DenoiserKind.None,
-                              DenoiseQuality denoiseQuality = DenoiseQuality.High)
+                              DenoiseQuality denoiseQuality = DenoiseQuality.High,
+                              PathDepths? depths = null)
         {
             Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
+            Depths = depths;
             WalkConfig = walk; SssQualityName = walkName;
             Caustics = caustics; CausticPhotons = causticPhotons;
             SssModeOverride = sssModeOverride;
@@ -1030,51 +1064,58 @@ class Program
             DenoiseQuality = denoiseQuality;
         }
 
-        public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 4, 1, RandomWalkConfig.Preview, "preview",
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast);
-        public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 4, 1, RandomWalkConfig.Preview, "preview",
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast);
-        public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 4, 1, RandomWalkConfig.Preview, "preview",
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast);
+        // Bounce budgets by kind (total, then diffuse, glossy, transmission,
+        // volume, cut-outs): glass needs many transmission bounces, diffuse
+        // interreflection few. Russian roulette ends most paths far earlier.
+        private static readonly PathDepths DraftDepths    = new(3, 4, 8, 3, 16);
+        private static readonly PathDepths StandardDepths = new(4, 6, 12, 4, 16);
+        private static readonly PathDepths FinalDepths    = new(8, 8, 16, 8, 16);
+        private static readonly PathDepths UltraDepths    = new(16, 16, 32, 16, 32);
+
+        public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 8, 1, RandomWalkConfig.Preview, "preview",
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
+        public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 8, 1, RandomWalkConfig.Preview, "preview",
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
+        public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 8, 1, RandomWalkConfig.Preview, "preview",
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
 
         // STANDARD: the day-to-day quality render. Final-class image quality
         // on a *classic* scene — Lambertian/Disney, non-nested glass,
         // procedural marble — with the expensive global-illumination extras
         // stripped:
         // photon caustics OFF, volumetric SSS OFF, single shadow sample
-        // (512 spp already anti-aliases), power-weighted single-light NEE,
-        // relaxed indirect clamp, and the NFOR denoiser absorbing the faint
-        // residual grain 512 spp can leave.
-        public static readonly QualityPreset StandardTiny  = new("standard-tiny",  480, 270,  512, 8, 1, RandomWalkConfig.High, "high",
-            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
-        public static readonly QualityPreset StandardSmall = new("standard-small", 960, 540,  512, 8, 1, RandomWalkConfig.High, "high",
-            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
-        public static readonly QualityPreset Standard      = new("standard",      1920, 1080, 512, 8, 1, RandomWalkConfig.High, "high",
-            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
+        // (512 spp already anti-aliases), relaxed indirect clamp, and the
+        // NFOR denoiser absorbing the faint residual grain 512 spp can leave.
+        public static readonly QualityPreset StandardTiny  = new("standard-tiny",  480, 270,  512, 12, 1, RandomWalkConfig.High, "high",
+            caustics: false, sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
+        public static readonly QualityPreset StandardSmall = new("standard-small", 960, 540,  512, 12, 1, RandomWalkConfig.High, "high",
+            caustics: false, sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
+        public static readonly QualityPreset Standard      = new("standard",      1920, 1080, 512, 12, 1, RandomWalkConfig.High, "high",
+            caustics: false, sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
 
         // PRE-FINAL: a faithful preview of `final` — the FULL final feature
-        // set (caustics on, SSS high, depth 8, all-lights NEE, default
+        // set (caustics on, SSS high, final bounce budgets, default
         // indirect clamp) with the sampling budgets cut where the denoiser
         // compensates best: ¼ of the pixel samples and a single shadow
         // sample (penumbra noise is exactly what feature-guided filtering
         // removes cleanest). Roughly 4-6× faster than `final`.
-        public static readonly QualityPreset PreFinalTiny  = new("pre-final-tiny",  480, 270,  256, 8, 1, RandomWalkConfig.High, "high",
+        public static readonly QualityPreset PreFinalTiny  = new("pre-final-tiny",  480, 270,  256, 16, 1, RandomWalkConfig.High, "high",
             caustics: true, causticPhotons: 2_000_000,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
-        public static readonly QualityPreset PreFinalSmall = new("pre-final-small", 960, 540,  256, 8, 1, RandomWalkConfig.High, "high",
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
+        public static readonly QualityPreset PreFinalSmall = new("pre-final-small", 960, 540,  256, 16, 1, RandomWalkConfig.High, "high",
             caustics: true, causticPhotons: 2_000_000,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
-        public static readonly QualityPreset PreFinal      = new("pre-final",      1920, 1080, 256, 8, 1, RandomWalkConfig.High, "high",
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
+        public static readonly QualityPreset PreFinal      = new("pre-final",      1920, 1080, 256, 16, 1, RandomWalkConfig.High, "high",
             caustics: true, causticPhotons: 2_000_000,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
 
-        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 2_000_000);
-        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 2_000_000);
-        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 3_000_000);
-        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 4_000_000);
+        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 16, 4, RandomWalkConfig.High, "high", caustics: true, causticPhotons: 2_000_000, depths: FinalDepths);
+        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 16, 4, RandomWalkConfig.High, "high", caustics: true, causticPhotons: 2_000_000, depths: FinalDepths);
+        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 16, 4, RandomWalkConfig.High, "high", caustics: true, causticPhotons: 3_000_000, depths: FinalDepths);
+        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 32, 4, RandomWalkConfig.High, "high", caustics: true, causticPhotons: 4_000_000, depths: UltraDepths);
 
         public const string NamesCsv =
             "draft-tiny, draft-small, draft, standard-tiny, standard-small, standard, " +

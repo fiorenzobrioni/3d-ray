@@ -138,14 +138,15 @@ lose their outline.
 
 ### Important: Glass Needs More Ray Depth
 
-Every glass surface a ray enters and exits costs two bounces. The
-`draft-small` default preset uses `-d 4`; quality presets (`-q standard`
-and above) use `-d 8`, which is enough for most scenes thanks to Russian
-Roulette. If you have nested glass objects (e.g. a glass of water, bottles
-behind bottles), raise the ray depth to at least 16:
+Every glass surface a ray enters and exits costs two transmission
+bounces. The engine counts them apart from the diffuse ones: the
+`draft-small` default preset allows 8 transmissions, `-q standard` 12,
+`-q final` 16, which is enough for most scenes. If you have nested glass
+objects (e.g. a glass of water, bottles behind bottles), raise the
+transmission limit:
 
 ```
-RayTracer -i my-scene.yaml -s 64 -d 16
+RayTracer -i my-scene.yaml -s 64 --depth-transmission 24
 ```
 
 See [Rendering Profiles](../../reference/rendering-profiles.md) for the full

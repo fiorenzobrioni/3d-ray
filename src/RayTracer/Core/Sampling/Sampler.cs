@@ -102,7 +102,7 @@ public static class Sampler
 
     /// <summary>
     /// Opens the dimension block of the next path vertex. Called once per
-    /// <c>TraceRay</c>; no-op without an active Sobol context.
+    /// vertex of the path loop; no-op without an active Sobol context.
     /// </summary>
     public static void BeginVertex()
     {

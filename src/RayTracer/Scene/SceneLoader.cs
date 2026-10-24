@@ -4020,7 +4020,7 @@ public class SceneLoader
             new Quad(corner.Value, u.Value, v.Value, proxyMat));
         // visible_to_camera: false → wrap so primary rays skip past the proxy
         // (mirror reflections, refractions and NEE continue to see it; see
-        // Renderer.TraceRay for the skip-loop). Default true is a no-op so
+        // Renderer.FindVisibleHit for the skip-loop). Default true is a no-op so
         // existing scenes produce bit-identical BVH content.
         if (!l.VisibleToCamera)
             proxy = new CameraInvisibleHittable(proxy);
@@ -4066,7 +4066,7 @@ public class SceneLoader
         IHittable proxy = new Sphere(position.Value, l.Radius, proxyMat);
         // visible_to_camera: false → wrap so primary rays skip past the proxy
         // (mirror reflections, refractions and NEE continue to see it; see
-        // Renderer.TraceRay for the skip-loop). Default true is a no-op so
+        // Renderer.FindVisibleHit for the skip-loop). Default true is a no-op so
         // existing scenes produce bit-identical BVH content.
         if (!l.VisibleToCamera)
             proxy = new CameraInvisibleHittable(proxy);
