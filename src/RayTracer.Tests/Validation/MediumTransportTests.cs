@@ -282,7 +282,7 @@ public class MediumTransportTests
 
     public static TheoryData<string> FurnaceMedia() => new() { "grid-tricubic", "procedural", "height_fog", "homogeneous-walk" };
 
-    private static IMedium FurnaceMedium(string name) => name switch
+    internal static IMedium FurnaceMedium(string name) => name switch
     {
         // Albedo 1 in every channel, chromatic extinction.
         "grid-tricubic" => new GridMedium(Vector3.Zero, new Vector3(2f, 1f, 0.5f), new Vector3(-1f), new Vector3(1f), 6, 6, 6,

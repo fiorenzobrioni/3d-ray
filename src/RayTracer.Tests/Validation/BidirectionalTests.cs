@@ -5,6 +5,7 @@ using RayTracer.Geometry;
 using RayTracer.Lights;
 using RayTracer.Materials;
 using RayTracer.Rendering;
+using RayTracer.Volumetrics;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -110,5 +111,74 @@ public class BidirectionalTests
         Assert.InRange(bdpt / expected, 0.99, 1.01);
         // Path tracing misses the mirrored light: a check that the test needs light tracing.
         Assert.True(path < 0.8 * expected);
+    }
+
+    // ── Participating media ─────────────────────────────────────────────────
+
+    public static TheoryData<string> FurnaceMedia() => MediumTransportTests.FurnaceMedia();
+
+    [Theory]
+    [MemberData(nameof(FurnaceMedia))]
+    public void WhiteFurnace_ScatteringOnlyMedium_ReturnsTheFurnace(string name)
+    {
+        // The furnace of MediumTransportTests with the sky as a light: light
+        // subpaths start from it, scatter in the medium, and connect to the
+        // camera's vertices in it. Every pixel must still read exactly 1.
+        Sampler.SetKind(SamplerKind.Sobol);
+        var world = new HittableList(new IHittable[]
+        {
+            new MediumBoundHittable(new Sphere(Vector3.Zero, 1f, new Dielectric(1f)),
+                                    new MediumInterface(MediumTransportTests.FurnaceMedium(name), null)),
+        });
+        var sky = new SkySettings(Vector3.One);
+        var cam = RenderHarness.LookAt(new Vector3(0f, 0f, 3.2f), Vector3.Zero, 40f, 12, 12);
+        var img = RenderHarness.RenderLinear(world, new List<ILight> { new EnvironmentLight(sky) }, sky, cam, 12, 12, 256, 256,
+                                             integrator: IntegratorKind.Bdpt);
+        Vector3 mean = RenderHarness.Mean(img);
+        _out.WriteLine($"{name}: {mean}");
+        foreach (float c in new[] { mean.X, mean.Y, mean.Z })
+            Assert.InRange(c, 0.99f, 1.01f);
+    }
+
+    [Fact]
+    public void SingleScattering_InFog_MatchesQuadrature()
+    {
+        // A point light in a coloured fog, depth 1: light sampled from the
+        // medium vertices and traced from the light into the camera.
+        Sampler.SetKind(SamplerKind.Sobol);
+        var sigA = new Vector3(0.05f, 0.1f, 0.2f);
+        var sigS = new Vector3(0.3f, 0.25f, 0.2f);
+        var phase = new HenyeyGreensteinPhase(0.3f);
+        var lightPos = new Vector3(0.3f, 0.2f, -2f);
+        var world = new HittableList(new IHittable[] { new Sphere(new Vector3(0f, 0f, 50f), 0.1f, new Lambertian(new Vector3(0.5f))) });
+        var lights = new List<ILight> { new PointLight(lightPos, Vector3.One, 1f) };
+        const int W = 6, H = 6;
+        var cam = RenderHarness.LookAt(Vector3.Zero, -Vector3.UnitZ, 0.05f, W, H);
+
+        var dir = -Vector3.UnitZ;
+        var st = sigA + sigS;
+        Vector3 expected = Vector3.Zero;
+        const int N = 400_000;
+        for (int i = 0; i < N; i++)
+        {
+            double sv = (i + 0.5) / N, t = sv / (1 - sv), jac = 1 / ((1 - sv) * (1 - sv));
+            Vector3 p = dir * (float)t;
+            Vector3 toL = lightPos - p;
+            float d = toL.Length();
+            Vector3 tr = MediumMath.Exp(-st * (float)t) * MediumMath.Exp(-st * d);
+            expected += sigS * tr * (phase.Evaluate(dir, toL / d) / (d * d) * (float)(jac / N));
+        }
+
+        var r = new Renderer(world, cam, lights, new SkySettings(Vector3.Zero), 256, 1,
+                             globalMedium: new HomogeneousMedium(sigA, sigS, phase), referenceMode: true)
+        { Integrator = IntegratorKind.Bdpt };
+        var buf = r.Render(W, H, new RenderCaptureOptions { CaptureBeautyHalves = true }).Buffers!.Beauty;
+        Vector3 sum = Vector3.Zero;
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+                sum += buf.GetRgb(x, y);
+        Vector3 mean = sum / (W * H);
+        _out.WriteLine($"expected {expected}; bdpt {mean}");
+        Assert.True((mean - expected).Length() < 0.03f * expected.Length(), $"{mean} vs {expected}");
     }
 }

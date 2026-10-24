@@ -56,12 +56,12 @@ public partial class Renderer
     /// <summary>A stored vertex of a light subpath.</summary>
     private struct BidiVertex
     {
-        public HitRecord Rec;          // as hit, oriented toward Fix
+        public HitRecord Rec;          // as hit (a medium vertex: its point and time)
+        public IPhaseFunction? Phase;  // set at a medium vertex
         public Vector3 Fix;            // unit, toward the previous vertex
         public Vector3 Throughput;
         public float DVcm, DVc, DVm;
         public int PathLength;         // edges from the light
-        public bool Connectible;       // a non-delta BSDF: connections and merges allowed
     }
 
     private struct SubPath
@@ -75,10 +75,6 @@ public partial class Renderer
         public MediumStack Mediums;
         public Vector3 SigmaA;         // absorption of the dielectric interior the ray is in
         public Vector3 StartThroughput; // light paths: the roulette is relative to it
-        // A light subpath's origin, until its first vertex sets dVCM.
-        public ILight? Light;
-        public LightEmission Emission;
-        public float EmissionPdfW;
     }
 
     // ── Per-render state ────────────────────────────────────────────────────
@@ -178,7 +174,7 @@ public partial class Renderer
                     for (int v = 0; v < stored; v++)
                     {
                         positions[v] = vertices[v].Rec.Point;
-                        include[v] = vertices[v].Connectible;
+                        include[v] = vertices[v].Phase == null;   // merged at surfaces only
                     }
                     grid.Build(positions.AsSpan(0, stored), include.AsSpan(0, stored), radius);
                 }
@@ -337,57 +333,143 @@ public partial class Renderer
     /// <summary>Area density from a solid-angle one: p_ω |cos| / d².</summary>
     private static float PdfWtoA(float pdfW, float dist, float cosThere) => pdfW * MathF.Abs(cosThere) / (dist * dist);
 
+    // ── Vertices of either kind ─────────────────────────────────────────────
+
+    /// <summary>What a subpath met next.</summary>
+    private enum VertexKind : byte { None, Surface, Medium }
+
+    /// <summary>The cosine at a vertex toward <paramref name="d"/>: 1 in a medium.</summary>
+    private static float CosAt(in HitRecord rec, IPhaseFunction? phase, Vector3 d)
+        => phase != null ? 1f : MathF.Abs(Vector3.Dot(rec.Normal, d));
+
+    /// <summary>The side a ray toward <paramref name="d"/> leaves from (none in a medium).</summary>
+    private static Vector3 SideToward(in HitRecord rec, IPhaseFunction? phase, Vector3 d)
+        => phase != null ? Vector3.Zero : Vector3.Dot(rec.Normal, d) >= 0f ? rec.Normal : -rec.Normal;
+
+    /// <summary>
+    /// f(V, L) at a surface (<see cref="BidiBsdf"/>) or a medium vertex (the
+    /// phase function, whose σ_s the free flight already weighed), with the
+    /// densities of sampling L from V and V from L.
+    /// </summary>
+    private static Vector3 VertexF(in HitRecord rec, IPhaseFunction? phase, Vector3 V, Vector3 L,
+                                   out float pdfVtoL, out float pdfLtoV)
+    {
+        if (phase == null) return BidiBsdf(in rec, V, L, out pdfVtoL, out pdfLtoV);
+        // Phase functions take the propagation direction: light runs from L to V.
+        pdfVtoL = phase.Pdf(-V, L);
+        pdfLtoV = phase.Pdf(-L, V);
+        return new Vector3(phase.Evaluate(-V, L));
+    }
+
+    /// <summary>Merging happens only at surfaces (no photon beams).</summary>
+    private float VmWeightAt(IPhaseFunction? phase) => phase == null ? _misVmWeight : 0f;
+
+    /// <summary>
+    /// The shadow-ray context of a vertex: the media its subpath is in and,
+    /// at a surface that can be crossed, its own boundary, as next-event
+    /// estimation sets it in the path tracer.
+    /// </summary>
+    private void BeginVertexShadows(in SubPath sp, in HitRecord rec, IPhaseFunction? phase, Vector3 fix)
+    {
+        ShadowRay.BeginMedia(in sp.Mediums, _globalMedium);
+        if (phase != null) return;
+        IMaterial m = rec.Material!;
+        bool transmits = m.HasTransmission(in rec);
+        ShadowRay.ReceiverTransmits = transmits;
+        if (transmits && m.TryGetDielectricIor(in rec, out _) || rec.MediumIface.Interior != null)
+            ShadowRay.SetReceiver(SideToward(in rec, null, fix), rec.FrontFace, rec.MediumIface.Interior, rec.EntityRoot);
+    }
+
+    private static void EndVertexShadows()
+    {
+        ShadowRay.ReceiverTransmits = false;
+        ShadowRay.EndMedia();
+    }
+
+    /// <summary>
+    /// A refraction into an entity the path tracer walks as subsurface
+    /// scattering (<see cref="RandomWalkSubsurface"/>): bidirectional subpaths
+    /// hand it the same walk, so both integrators render the same material.
+    /// </summary>
+    private bool EntersSubsurface(in SubPath sp, in HitRecord rec)
+        => _sssMode == SssMode.Auto && sp.Mediums.Top is HomogeneousMedium interior
+           && IsScatteringMedium(interior) && rec.EntityRoot != null;
+
+    private void Enter(ref SubPath sp, in HitRecord rec, IMaterial material)
+    {
+        sp.Mediums.Push(ResolvePushedMedium(rec.MediumIface.Interior), rec.EntityRoot);
+        sp.Iors.Push(material.TryGetDielectricIor(in rec, out float pushIor) ? pushIor : sp.Iors.Top);
+    }
+
     // ── Hits ────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// The next vertex along the subpath's ray: maps applied, the relative
-    /// index set, and null interfaces crossed (their transmission folded into
-    /// the throughput, their media and indices switched). False when the ray
-    /// leaves the scene or a null crossing absorbs it.
+    /// The next vertex along the subpath's ray: a scattering event in the
+    /// medium the ray is in, or a surface (maps applied, relative index set).
+    /// Null interfaces are crossed on the way (their transmission folded into
+    /// the throughput, their media and indices switched). None when the ray
+    /// leaves the scene, the throughput then holding what reaches the sky, or
+    /// when nothing gets through.
     /// </summary>
-    private bool NextVertex(ref SubPath sp, bool lightPath, out HitRecord rec)
+    private VertexKind NextVertex(ref SubPath sp, out HitRecord rec, out IPhaseFunction? phase)
     {
         rec = new HitRecord();
+        phase = null;
         for (int crossings = 0; crossings < 64; crossings++)
         {
             rec = new HitRecord();
-            if (!_world.Hit(sp.Ray, MathUtils.RayEpsilon, MathUtils.Infinity, ref rec))
+            bool hit = _world.Hit(sp.Ray, MathUtils.RayEpsilon, MathUtils.Infinity, ref rec);
+            IMedium? medium = sp.Mediums.Top ?? _globalMedium;
+            if (medium != null)
+            {
+                MediumEvent ev = medium.Sample(sp.Ray, hit ? rec.T : 1e30f, sp.Throughput);
+                sp.Throughput *= ev.Weight;
+                if (ev.Scattered)
+                {
+                    sp.Throughput *= BeerLambert(sp.SigmaA, ev.T);
+                    sp.Distance += ev.T;
+                    rec = new HitRecord { Point = sp.Ray.At(ev.T), T = ev.T, Time = sp.Ray.Time };
+                    phase = ev.Phase;
+                    return MathUtils.Luminance(sp.Throughput) > 0f ? VertexKind.Medium : VertexKind.None;
+                }
+                if (!(MathUtils.Luminance(sp.Throughput) > 0f)) return VertexKind.None;
+            }
+            if (!hit)
             {
                 // Out of an absorbing interior nothing reaches the sky.
                 if (HasAbsorption(sp.SigmaA)) sp.Throughput = Vector3.Zero;
-                return false;
+                return VertexKind.None;
             }
             rec.Time = sp.Ray.Time;
             sp.Distance += rec.T;
             sp.Throughput *= BeerLambert(sp.SigmaA, rec.T);
             IMaterial? material = rec.Material;
-            if (material == null) return true;
+            if (material == null) break;
             if (material.TryGetDielectricIor(in rec, out float ior) && ior > 0f)
                 rec.RelativeEta = rec.FrontFace ? sp.Iors.Top / ior : ior / sp.Iors.Enclosing;
             if (!material.TransmitsStraight(in rec)) break;
 
             // A surface that may pass light straight on: sample it; a straight
             // pass is a null crossing, anything else is a vertex sampled anew.
+            // (Behind an index-matched boundary a subsurface medium is an
+            // ordinary medium: the walk would be the same estimator.)
             Vector3 V = -sp.Ray.Direction;
             BsdfSample? s = material.Sample(V, in rec);
             if (s is not { } bs || !bs.IsDelta || Vector3.Dot(bs.Wo, sp.Ray.Direction) < 0.99999f) break;
             sp.Throughput *= bs.F;      // a delta lobe's F is its whole weight
             sp.SigmaA = bs.NextSegmentAbsorption ?? sp.SigmaA;
             if (bs.Transition == MediumTransition.Enter)
-            {
-                sp.Mediums.Push(rec.MediumIface.Interior, rec.EntityRoot);
-                sp.Iors.Push(material.TryGetDielectricIor(in rec, out float pushIor) ? pushIor : sp.Iors.Top);
-            }
+                Enter(ref sp, in rec, material);
             else if (bs.Transition == MediumTransition.Exit)
             {
                 sp.Mediums.Pop();
                 sp.Iors.Pop();
             }
             sp.Ray = new Ray(MathUtils.OffsetOrigin(rec.Point, -rec.Normal), sp.Ray.Direction, sp.Ray.Time);
-            if (!(MathUtils.Luminance(sp.Throughput) > 0f)) return false;
+            if (!(MathUtils.Luminance(sp.Throughput) > 0f)) return VertexKind.None;
         }
         rec = PrepareVertexRecord(rec);
-        return true;
+        return VertexKind.Surface;
     }
 
     private static HitRecord PrepareVertexRecord(HitRecord rec)
@@ -404,50 +486,65 @@ public partial class Renderer
     /// Samples the scattering at a vertex and advances the subpath, updating
     /// the MIS quantities (the paper's SampleScattering). Light subpaths
     /// carry the adjoint: f(out, in) with the incoming direction as the light.
+    /// <paramref name="transition"/> is the medium change of a refraction.
     /// </summary>
-    private bool ScatterBidi(ref SubPath sp, in HitRecord rec, Vector3 fix, bool lightPath)
+    private bool ScatterBidi(ref SubPath sp, in HitRecord rec, IPhaseFunction? phase, Vector3 fix, bool lightPath,
+                             out MediumTransition transition)
     {
-        IMaterial material = rec.Material!;
-        BsdfSample? sampled = material.Sample(fix, in rec);
-        if (sampled is not { } s) return false;
-        Vector3 gen = s.Wo;
-        if (!lightPath && _captureAovs && t_aovProbe is { Pending: true } aov)
+        transition = MediumTransition.None;
+        Vector3 gen, weight;
+        float dirPdf, revPdf, cosOut;
+        bool delta = false;
+        if (phase != null)
         {
-            if (s.IsDelta) aov.AlbedoWeight *= Clamp01(s.F);
-            else aov.Commit();
-        }
-        float cosOut = MathF.Abs(Vector3.Dot(rec.Normal, gen));
-        if (!(cosOut > 0f)) return false;
-
-        Vector3 weight;
-        float dirPdf = s.Pdf, revPdf;
-        if (s.IsDelta)
-        {
-            weight = s.F;
-            if (lightPath && s.Lobe == BsdfLobe.Transmission) weight *= s.Eta * s.Eta;   // no (η_i/η_t)² for importance
-            revPdf = dirPdf;
+            (gen, dirPdf) = phase.Sample(-fix);
+            if (!(dirPdf > 1e-20f)) return false;
+            revPdf = phase.Pdf(-gen, fix);
+            weight = new Vector3(phase.Evaluate(-fix, gen) / dirPdf);
+            cosOut = 1f;
         }
         else
         {
-            if (!(dirPdf > 0f)) return false;
-            if (lightPath)
+            IMaterial material = rec.Material!;
+            BsdfSample? sampled = material.Sample(fix, in rec);
+            if (sampled is not { } s) return false;
+            gen = s.Wo;
+            if (!lightPath && _captureAovs && t_aovProbe is { Pending: true } aov)
             {
-                // f(V = gen, L = fix): the direction the light came from is L.
-                Vector3 f = BidiBsdf(in rec, gen, fix, out _, out _);
-                weight = f * (cosOut / dirPdf);
-                HitRecord rg = Oriented(rec, gen);
-                revPdf = material.Pdf(gen, fix, in rg);
+                if (s.IsDelta) aov.AlbedoWeight *= Clamp01(s.F);
+                else aov.Commit();
+            }
+            cosOut = MathF.Abs(Vector3.Dot(rec.Normal, gen));
+            if (!(cosOut > 0f)) return false;
+            delta = s.IsDelta;
+            dirPdf = s.Pdf;
+            if (delta)
+            {
+                weight = s.F;
+                if (lightPath && s.Lobe == BsdfLobe.Transmission) weight *= s.Eta * s.Eta;   // no (η_i/η_t)² for importance
+                revPdf = dirPdf;
             }
             else
             {
-                weight = s.F * (cosOut * LightSideTerminator(in rec, gen) / dirPdf);
+                if (!(dirPdf > 0f)) return false;
+                weight = lightPath
+                    ? BidiBsdf(in rec, gen, fix, out _, out _) * (cosOut / dirPdf)   // f(V = gen, L = fix)
+                    : s.F * (cosOut * LightSideTerminator(in rec, gen) / dirPdf);
                 HitRecord rg = Oriented(rec, gen);
                 revPdf = material.Pdf(gen, fix, in rg);
+            }
+            sp.SigmaA = s.NextSegmentAbsorption ?? sp.SigmaA;
+            transition = s.Transition;
+            if (transition == MediumTransition.Enter) Enter(ref sp, in rec, material);
+            else if (transition == MediumTransition.Exit)
+            {
+                sp.Mediums.Pop();
+                sp.Iors.Pop();
             }
         }
         if (!(MathUtils.Luminance(weight) > 0f)) return false;
 
-        if (s.IsDelta)
+        if (delta)
         {
             sp.DVcm = 0f;
             sp.DVc *= cosOut;
@@ -455,23 +552,13 @@ public partial class Renderer
         }
         else
         {
-            sp.DVc = cosOut / dirPdf * (sp.DVc * revPdf + sp.DVcm + _misVmWeight);
-            sp.DVm = cosOut / dirPdf * (sp.DVm * revPdf + sp.DVcm * _misVcWeight + 1f);
+            // The merging terms count a merge at this vertex: none in a medium.
+            float vmOne = phase == null ? 1f : 0f;
+            sp.DVc = cosOut / dirPdf * (sp.DVc * revPdf + sp.DVcm + VmWeightAt(phase));
+            sp.DVm = cosOut / dirPdf * (sp.DVm * revPdf + sp.DVcm * _misVcWeight + vmOne);
             sp.DVcm = 1f / dirPdf;
         }
         sp.Throughput *= weight;
-        sp.SigmaA = s.NextSegmentAbsorption ?? sp.SigmaA;
-
-        if (s.Transition == MediumTransition.Enter)
-        {
-            sp.Mediums.Push(rec.MediumIface.Interior, rec.EntityRoot);
-            sp.Iors.Push(material.TryGetDielectricIor(in rec, out float pushIor) ? pushIor : sp.Iors.Top);
-        }
-        else if (s.Transition == MediumTransition.Exit)
-        {
-            sp.Mediums.Pop();
-            sp.Iors.Pop();
-        }
 
         // Russian roulette, outside the MIS densities.
         if (sp.PathLength >= 5)
@@ -485,14 +572,15 @@ public partial class Renderer
             }
         }
 
-        Vector3 offsetDir = Vector3.Dot(gen, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
-        sp.Ray = new Ray(MathUtils.OffsetOrigin(rec.Point, offsetDir), gen, sp.Ray.Time);
+        Vector3 origin = phase != null ? rec.Point
+                       : MathUtils.OffsetOrigin(rec.Point, Vector3.Dot(gen, rec.Normal) >= 0f ? rec.Normal : -rec.Normal);
+        sp.Ray = new Ray(origin, gen, sp.Ray.Time);
         sp.Distance = 0f;
         return true;
     }
 
-    private static bool Connectible(in HitRecord rec)
-        => rec.Material is { } m && !m.IsDeltaScatter && m.NeedsDirectLighting;
+    private static bool Connectible(in HitRecord rec, IPhaseFunction? phase)
+        => phase != null || rec.Material is { } m && !m.IsDeltaScatter && m.NeedsDirectLighting;
 
     // ── Light subpaths ──────────────────────────────────────────────────────
 
@@ -514,29 +602,25 @@ public partial class Renderer
 
         var sp = new SubPath
         {
-            Ray = new Ray(e.Position, e.Direction, time),
+            Ray = new Ray(e.Infinite ? e.Position : MathUtils.OffsetOrigin(e.Position, e.Normal), e.Direction, time),
             Throughput = e.Radiance * (e.Cos / emissionPdfW),
             PathLength = 1,
             Iors = new IorStack(),
             Mediums = new MediumStack(),
-            Light = light,
-            Emission = e,
-            EmissionPdfW = emissionPdfW,
         };
         sp.StartThroughput = sp.Throughput;
         bool deltaLight = e.DeltaPosition || e.DeltaDirection;
         sp.DVc = deltaLight ? 0f : (e.Infinite ? 1f : e.Cos) / emissionPdfW;
         sp.DVm = sp.DVc * _misVcWeight;
-        if (!e.Infinite)
-            sp.Ray = new Ray(MathUtils.OffsetOrigin(e.Position, e.Normal), e.Direction, time);
 
         while (true)
         {
             Sampler.BeginVertex();
-            if (!NextVertex(ref sp, lightPath: true, out HitRecord rec)) break;
-            if (rec.Material == null) break;
+            VertexKind kind = NextVertex(ref sp, out HitRecord rec, out IPhaseFunction? phase);
+            if (kind == VertexKind.None) break;
+            if (phase == null && rec.Material == null) break;
             Vector3 fix = -sp.Ray.Direction;
-            float cosFix = MathF.Abs(Vector3.Dot(rec.Normal, fix));
+            float cosFix = CosAt(in rec, phase, fix);
             if (!(cosFix > 0f)) break;
 
             if (sp.PathLength == 1)
@@ -550,23 +634,23 @@ public partial class Renderer
             {
                 sp.DVcm *= sp.Distance * sp.Distance / cosFix;
             }
-            if (sp.PathLength == 1) { /* dVCM set above with d² cancelled */ }
             sp.DVc /= cosFix;
             sp.DVm /= cosFix;
 
-            bool connectible = Connectible(in rec);
-            if (connectible)
+            if (Connectible(in rec, phase))
             {
                 store.Add(new BidiVertex
                 {
-                    Rec = rec, Fix = fix, Throughput = sp.Throughput, DVcm = sp.DVcm, DVc = sp.DVc, DVm = sp.DVm,
-                    PathLength = sp.PathLength, Connectible = true,
+                    Rec = rec, Phase = phase, Fix = fix, Throughput = sp.Throughput,
+                    DVcm = sp.DVcm, DVc = sp.DVc, DVm = sp.DVm, PathLength = sp.PathLength,
                 });
-                if (sp.PathLength + 1 <= _maxPathLength) ConnectToCamera(in sp, in rec, fix, splat);
+                if (sp.PathLength + 1 <= _maxPathLength) ConnectToCamera(in sp, in rec, phase, fix, splat);
             }
 
             if (sp.PathLength + 2 > _maxPathLength) break;
-            if (!ScatterBidi(ref sp, in rec, fix, lightPath: true)) break;
+            if (!ScatterBidi(ref sp, in rec, phase, fix, lightPath: true, out var transition)) break;
+            // Subsurface entities are walked by the camera subpaths only.
+            if (transition == MediumTransition.Enter && EntersSubsurface(in sp, in rec)) break;
             sp.PathLength++;
         }
     }
@@ -587,25 +671,34 @@ public partial class Renderer
     }
 
     /// <summary>Light tracing: a light vertex seen by the camera, splatted through the pixel filter.</summary>
-    private void ConnectToCamera(in SubPath sp, in HitRecord rec, Vector3 fix, float[] splat)
+    private void ConnectToCamera(in SubPath sp, in HitRecord rec, IPhaseFunction? phase, Vector3 fix, float[] splat)
     {
         if (!_camera.ConnectToFilm(rec.Point, sp.Ray.Time, out var c)) return;
         float px = c.S * _imageWidth, py = (1f - c.T) * _imageHeight;
         float fr = _pixelFilter.Radius;
         if (px < -fr || py < -fr || px > _imageWidth + fr || py > _imageHeight + fr) return;
         Vector3 toCam = -c.Direction;
-        Vector3 f = BidiBsdf(in rec, toCam, fix, out float pdfToCamToFix, out _);
-        // pdfToCamToFix: the density of the light-side reverse sample (fix from toCam).
+        // pdfRev: the density of the light-side reverse sample (fix from toCam).
+        Vector3 f = VertexF(in rec, phase, toCam, fix, out float pdfRev, out _);
         if (!(MathUtils.Luminance(f) > 0f)) return;
-        float cosToCam = MathF.Abs(Vector3.Dot(rec.Normal, toCam));
+        float cosToCam = CosAt(in rec, phase, toCam);
         float cameraPdfW = _camera.FilmDirectionPdf(c.CosAxis, sp.Ray.Time) * (_imageWidth * (float)_imageHeight);
         float cameraPdfA = cameraPdfW * cosToCam / (c.Distance * c.Distance);
-        float wLight = cameraPdfA / _lightTracePaths * (_misVmWeight + sp.DVcm + sp.DVc * pdfToCamToFix);
+        float wLight = cameraPdfA / _lightTracePaths * (VmWeightAt(phase) + sp.DVcm + sp.DVc * pdfRev);
         float weight = 1f / (wLight + 1f);
         Vector3 contrib = weight * sp.Throughput * f * (cameraPdfA / _lightTracePaths);
         if (!(MathUtils.Luminance(contrib) > 0f)) return;
-        Vector3 tr = ShadowRay.TransmittanceToPoint(_world, rec.Point, Vector3.Dot(rec.Normal, toCam) >= 0f ? rec.Normal : -rec.Normal,
-                                                    c.LensPoint, Vector3.Zero, sp.Ray.Time);
+        Vector3 tr;
+        BeginVertexShadows(in sp, in rec, phase, fix);
+        try
+        {
+            tr = ShadowRay.TransmittanceToPoint(_world, rec.Point, SideToward(in rec, phase, toCam),
+                                               c.LensPoint, Vector3.Zero, sp.Ray.Time);
+        }
+        finally
+        {
+            EndVertexShadows();
+        }
         if (MathUtils.NearZero(tr)) return;
         SplatFiltered(splat, px, py, SanitizeRadiance(contrib * tr));
     }
@@ -694,13 +787,16 @@ public partial class Renderer
         };
         Vector3 color = Vector3.Zero;
         Vector3 prevPoint = primary.Origin;
+        bool afterWalk = false;
 
         while (true)
         {
             Sampler.BeginVertex();
-            if (!NextVertex(ref sp, lightPath: false, out HitRecord rec))
+            VertexKind kind = NextVertex(ref sp, out HitRecord rec, out IPhaseFunction? phase);
+            if (kind == VertexKind.None)
             {
-                color += sp.Throughput * EscapeRadiance(in sp, prevPoint);
+                if (MathUtils.Luminance(sp.Throughput) > 0f)
+                    color += sp.Throughput * EscapeRadiance(in sp, prevPoint);
                 break;
             }
             if (_captureAovs && t_aovProbe is { Pending: true } probe)
@@ -710,45 +806,85 @@ public partial class Renderer
                     probe.Depth = sp.Distance;
                     probe.HaveDepth = true;
                 }
-                probe.TentNormal = rec.Normal;
-                probe.TentAlbedo = rec.Material != null ? Clamp01(rec.Material.AovAlbedo(in rec)) : Vector3.One;
+                if (phase != null) probe.CommitAs(Vector3.One, Vector3.Zero);   // volumes: featureless guides
+                else
+                {
+                    probe.TentNormal = rec.Normal;
+                    probe.TentAlbedo = rec.Material != null ? Clamp01(rec.Material.AovAlbedo(in rec)) : Vector3.One;
+                }
             }
-            if (rec.Material == null) break;
+            if (phase == null && rec.Material == null) break;
             Vector3 fix = -sp.Ray.Direction;
-            float cosFix = MathF.Abs(Vector3.Dot(rec.Normal, fix));
+            float cosFix = CosAt(in rec, phase, fix);
             if (!(cosFix > 0f)) break;
             sp.DVcm *= sp.Distance * sp.Distance / cosFix;
             sp.DVc /= cosFix;
             sp.DVm /= cosFix;
 
             // ── Emission (s = 0) ──────────────────────────────────────────
-            Vector3 le = rec.Material.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
-            if (le != Vector3.Zero)
-                color += sp.Throughput * le * EmitterHitWeight(in sp, in rec, prevPoint, cosFix);
+            if (phase == null)
+            {
+                Vector3 le = rec.Material!.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
+                if (le != Vector3.Zero)
+                    color += sp.Throughput * le * EmitterHitWeight(in sp, in rec, prevPoint, cosFix);
+            }
+            // Past a subsurface walk only its own light sample pairs with
+            // the emission above: no other strategy crosses the entity.
+            if (afterWalk)
+            {
+                sp.DVcm = 0f;
+                afterWalk = false;
+            }
 
             if (sp.PathLength >= _maxPathLength) break;
-            if (Connectible(in rec))
+            if (Connectible(in rec, phase))
             {
-                // ── Light sample (s = 1) ──────────────────────────────────
-                if (sp.PathLength + 1 <= _maxPathLength)
-                    color += sp.Throughput * LightSample(in sp, in rec, fix);
-
-                // ── Connections to the light subpath (s > 1) ──────────────
-                for (int k = 0; k < lightPath.Count; k++)
+                BeginVertexShadows(in sp, in rec, phase, fix);
+                try
                 {
-                    ref BidiVertex lv = ref lightVertices[lightPath.Start + k];
-                    int length = lv.PathLength + 1 + sp.PathLength;
-                    if (length > _maxPathLength) break;
-                    color += sp.Throughput * lv.Throughput * ConnectVertices(in lv, in sp, in rec, fix);
+                    // ── Light sample (s = 1) ──────────────────────────────
+                    if (sp.PathLength + 1 <= _maxPathLength)
+                        color += sp.Throughput * LightSample(in sp, in rec, phase, fix);
+
+                    // ── Connections to the light subpath (s > 1) ──────────
+                    for (int k = 0; k < lightPath.Count; k++)
+                    {
+                        ref BidiVertex lv = ref lightVertices[lightPath.Start + k];
+                        if (lv.PathLength + 1 + sp.PathLength > _maxPathLength) break;
+                        color += sp.Throughput * lv.Throughput * ConnectVertices(in lv, in sp, in rec, phase, fix);
+                    }
+                }
+                finally
+                {
+                    EndVertexShadows();
                 }
 
                 // ── Merging ───────────────────────────────────────────────
-                if (_useVm)
+                if (_useVm && phase == null)
                     color += sp.Throughput * MergeAt(in sp, in rec, fix, lightVertices, grid);
             }
 
             prevPoint = rec.Point;
-            if (!ScatterBidi(ref sp, in rec, fix, lightPath: false)) break;
+            Vector3 beta = sp.Throughput;
+            if (!ScatterBidi(ref sp, in rec, phase, fix, lightPath: false, out var transition)) break;
+            if (transition == MediumTransition.Enter && EntersSubsurface(in sp, in rec)
+                && sp.Mediums.Top is HomogeneousMedium interior)
+            {
+                // The path tracer's walk, its light samples included; what
+                // leaves the entity goes on as a camera subpath whose only
+                // MIS partner is the walk's last light sample.
+                var walk = RandomWalkSubsurface(sp.Ray, interior, rec.EntityRoot!, ref sp.Mediums, ref sp.Iors, sp.Throughput);
+                color += sp.Throughput * walk.Radiance;
+                if (!walk.Escaped) break;
+                sp.Throughput *= walk.Throughput;
+                sp.Ray = walk.EscapeRay;
+                sp.Distance = 0f;
+                sp.DVcm = walk.Scattered && walk.LastPhasePdf > 0f ? 1f / walk.LastPhasePdf : 0f;
+                sp.DVc = 0f;
+                sp.DVm = 0f;
+                prevPoint = walk.EscapeRay.Origin;
+                afterWalk = true;
+            }
             sp.PathLength++;
         }
         return color;
@@ -797,34 +933,30 @@ public partial class Renderer
         return result;
     }
 
-    /// <summary>Next-event estimation at a camera vertex (s = 1), MIS-weighted against every other strategy.</summary>
-    private Vector3 LightSample(in SubPath sp, in HitRecord rec, Vector3 fix)
+    /// <summary>
+    /// Next-event estimation at a camera vertex (s = 1), MIS-weighted against
+    /// every other strategy. The caller has opened the vertex's shadow context.
+    /// </summary>
+    private Vector3 LightSample(in SubPath sp, in HitRecord rec, IPhaseFunction? phase, Vector3 fix)
     {
         Vector3 result = Vector3.Zero;
         if (_lights.Count == 0) return result;
-        Vector3 side = Vector3.Dot(rec.Normal, fix) >= 0f ? rec.Normal : -rec.Normal;
-        ShadowRay.ReceiverTransmits = rec.Material!.HasTransmission(in rec);
-        try
+        Vector3 side = SideToward(in rec, phase, fix);
+        if (_mis.PicksOneLight)
         {
-            if (_mis.PicksOneLight)
-            {
-                var (idx, pick) = _mis.Choose(rec.Point, MathUtils.RandomFloat());
-                if (idx >= 0 && pick > 0f) result += LightSampleOne(_lights[idx], pick, in sp, in rec, fix, side);
-            }
-            else
-            {
-                foreach (ILight light in _lights)
-                    if (light is not PortalLight) result += LightSampleOne(light, 1f, in sp, in rec, fix, side);
-            }
+            var (idx, pick) = _mis.Choose(rec.Point, MathUtils.RandomFloat());
+            if (idx >= 0 && pick > 0f) result += LightSampleOne(_lights[idx], pick, in sp, in rec, phase, fix, side);
         }
-        finally
+        else
         {
-            ShadowRay.ReceiverTransmits = false;
+            foreach (ILight light in _lights)
+                if (light is not PortalLight) result += LightSampleOne(light, 1f, in sp, in rec, phase, fix, side);
         }
         return result;
     }
 
-    private Vector3 LightSampleOne(ILight light, float pick, in SubPath sp, in HitRecord rec, Vector3 fix, Vector3 side)
+    private Vector3 LightSampleOne(ILight light, float pick, in SubPath sp, in HitRecord rec, IPhaseFunction? phase,
+                                   Vector3 fix, Vector3 side)
     {
         Vector3 result = Vector3.Zero;
         if (light is PortalLight) return result;
@@ -833,9 +965,9 @@ public partial class Renderer
         {
             var (inShadow, color, dirToLight, dist) = SampleLight(light, rec.Point, side, s, sp.Ray.Time);
             if (inShadow || color == Vector3.Zero) continue;
-            Vector3 f = BidiBsdf(in rec, fix, dirToLight, out float bsdfDirPdfW, out float bsdfRevPdfW);
+            Vector3 f = VertexF(in rec, phase, fix, dirToLight, out float bsdfDirPdfW, out float bsdfRevPdfW);
             if (!(MathUtils.Luminance(f) > 0f)) continue;
-            float cosToLight = MathF.Abs(Vector3.Dot(rec.Normal, dirToLight));
+            float cosToLight = CosAt(in rec, phase, dirToLight);
             bool infinite = float.IsInfinity(dist) || dist >= MathUtils.Infinity * 0.5f;
             bool deltaPos = light is PointLight or SpotLight;
             bool deltaDir = light is DirectionalLight { IsDelta: true };
@@ -847,7 +979,7 @@ public partial class Renderer
             float emissionOverCos = pickE * light.EmissionPdfOverCos(_emissionCtx, lightPoint, -dirToLight);
             float wLight = _mis.PairsWithBsdf(light) ? bsdfDirPdfW / directPdfW : 0f;
             float wCamera = emissionOverCos * cosToLight / directPdfW
-                          * (_misVmWeight + sp.DVcm + sp.DVc * bsdfRevPdfW);
+                          * (VmWeightAt(phase) + sp.DVcm + sp.DVc * bsdfRevPdfW);
             float weight = 1f / (wLight + 1f + wCamera);
             // The light's sample already holds L G / pdf (and 1 / samples).
             result += weight * color * f * (cosToLight / pick);
@@ -855,33 +987,32 @@ public partial class Renderer
         return result;
     }
 
-    /// <summary>A camera vertex joined to a light-subpath vertex.</summary>
-    private Vector3 ConnectVertices(in BidiVertex lv, in SubPath sp, in HitRecord rec, Vector3 fix)
+    /// <summary>A camera vertex joined to a light-subpath vertex (inside the vertex's shadow context).</summary>
+    private Vector3 ConnectVertices(in BidiVertex lv, in SubPath sp, in HitRecord rec, IPhaseFunction? phase, Vector3 fix)
     {
         Vector3 d = lv.Rec.Point - rec.Point;
         float dist2 = d.LengthSquared();
         if (!(dist2 > 0f)) return Vector3.Zero;
         float dist = MathF.Sqrt(dist2);
         Vector3 dir = d / dist;
-        Vector3 fCam = BidiBsdf(in rec, fix, dir, out float camDirPdfW, out float camRevPdfW);
+        Vector3 fCam = VertexF(in rec, phase, fix, dir, out float camDirPdfW, out float camRevPdfW);
         if (!(MathUtils.Luminance(fCam) > 0f)) return Vector3.Zero;
         // At the light vertex the viewer is the camera side (V = −dir), the light its incoming direction.
-        Vector3 fLight = BidiBsdf(in lv.Rec, -dir, lv.Fix, out float lightRevPdfW, out float lightDirPdfW);
+        Vector3 fLight = VertexF(in lv.Rec, lv.Phase, -dir, lv.Fix, out float lightRevPdfW, out float lightDirPdfW);
         if (!(MathUtils.Luminance(fLight) > 0f)) return Vector3.Zero;
-        float cosCam = MathF.Abs(Vector3.Dot(rec.Normal, dir));
-        float cosLight = MathF.Abs(Vector3.Dot(lv.Rec.Normal, dir));
+        float cosCam = CosAt(in rec, phase, dir);
+        float cosLight = CosAt(in lv.Rec, lv.Phase, dir);
         float g = cosCam * cosLight / dist2;
         if (!(g > 0f)) return Vector3.Zero;
         float camDirPdfA = PdfWtoA(camDirPdfW, dist, cosLight);
         float lightDirPdfA = PdfWtoA(lightDirPdfW, dist, cosCam);
-        float wLight = camDirPdfA * (_misVmWeight + lv.DVcm + lv.DVc * lightRevPdfW);
-        float wCamera = lightDirPdfA * (_misVmWeight + sp.DVcm + sp.DVc * camRevPdfW);
+        float wLight = camDirPdfA * (VmWeightAt(lv.Phase) + lv.DVcm + lv.DVc * lightRevPdfW);
+        float wCamera = lightDirPdfA * (VmWeightAt(phase) + sp.DVcm + sp.DVc * camRevPdfW);
         float weight = 1f / (wLight + 1f + wCamera);
         Vector3 contrib = weight * g * fCam * fLight;
         if (!(MathUtils.Luminance(contrib) > 0f)) return Vector3.Zero;
-        Vector3 camSide = Vector3.Dot(rec.Normal, dir) >= 0f ? rec.Normal : -rec.Normal;
-        Vector3 lightSide = Vector3.Dot(lv.Rec.Normal, -dir) >= 0f ? lv.Rec.Normal : -lv.Rec.Normal;
-        Vector3 tr = ShadowRay.TransmittanceToPoint(_world, rec.Point, camSide, lv.Rec.Point, lightSide, sp.Ray.Time);
+        Vector3 tr = ShadowRay.TransmittanceToPoint(_world, rec.Point, SideToward(in rec, phase, dir),
+                                                   lv.Rec.Point, SideToward(in lv.Rec, lv.Phase, -dir), sp.Ray.Time);
         return MathUtils.NearZero(tr) ? Vector3.Zero : contrib * tr;
     }
 
