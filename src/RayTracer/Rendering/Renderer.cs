@@ -91,35 +91,17 @@ public partial class Renderer
     /// <summary>Above this many lights, <see cref="LightSamplingStrategy.Auto"/> uses the light BVH.</summary>
     public const int AutoBvhLightCount = 16;
 
-    // ── Caustics (photon mapping) ────────────────────────────────────────────
-    // Built once in the constructor from a photon-emission pre-pass when
-    // --caustics is on. Null (and _causticsActive false) otherwise, so every
-    // non-caustic scene pays exactly zero overhead and is bit-identical to off.
-    private readonly PhotonMap? _photonMap;
-    private readonly bool  _causticsActive;
-    private readonly float _causticGatherRadius;   // gather radius cap (grid cell = half of this)
-    private const    int   CausticGatherK = 40;     // k nearest photons per density estimate
-    // Cone-filter constant k_f (PBRT §16.2): photons are weighted 1 at the gather
-    // point and fall to 0 at the kernel edge, so a lone photon reads as a soft
-    // glow instead of a hard-edged flat disc. CausticConeNorm = 1 − 2/(3·k_f) is
-    // the matching density normalisation that keeps the estimate energy-consistent
-    // with the flat kernel in the dense (focused-caustic) limit.
-    private const    float CausticConeK    = 1f;
-    private const    float CausticConeNorm = 1f - 2f / (3f * CausticConeK);  // = 1/3
-
-    // Caustic-chain state threaded through the eye path so the photon gather and
-    // the BSDF-sampled emission are counted exactly once. None: no non-delta
-    // bounce yet (camera / pure-specular-from-camera). Diffuse: last bounce was
-    // non-delta. Suppress: a specular chain followed a diffuse vertex — that
-    // L S+ D transport is owned by the photon gather, so its mirror BSDF path
-    // (D S+ L emission) is suppressed here.
-    private const int CausticNone = 0, CausticDiffuse = 1, CausticSuppress = 2;
+    // Specular-chain state threaded through the eye path so a transparent
+    // shadow and the BSDF-sampled emission are counted exactly once. None: no
+    // non-delta bounce yet (camera / pure-specular-from-camera). Diffuse: last
+    // bounce was non-delta. Chain: a specular chain followed a diffuse vertex.
+    private const int ChainNone = 0, ChainDiffuse = 1, ChainSpecular = 2;
     // Bit on top of the state: every event of the specular chain since the
     // last diffuse vertex was a transmission a shadow ray also crosses (straight
     // transmission always, any transmission with transparent shadows). Such a
     // chain ending on a light is exactly what the light sample already
     // delivered through the same surfaces, so its emission is dropped.
-    private const int CausticStateMask = 3, ChainShadowPassable = 4;
+    private const int ChainStateMask = 3, ChainShadowPassable = 4;
 
     // ── Transparent shadows (opt-in, PIANO-REVIEW.md §3.21) ─────────────────
     // Off: surfaces are opaque to NEE shadow rays, except straight transmission
@@ -155,7 +137,7 @@ public partial class Renderer
     // prefiltered HDRI for BSDF rays). Russian roulette stays on: it is
     // unbiased, it only trades variance for speed. The CLI gives a reference
     // render one depth for every kind of bounce and refuses the denoiser and
-    // photon caustics.
+    // vertex merging.
     private readonly bool _referenceMode;
 
     // Extra seed mixed into every pixel's sample sequence. 0 keeps the
@@ -200,7 +182,7 @@ public partial class Renderer
 
     // Clamp used on the world AABB when no finite geometry exists. InfinitePlane
     // reports a ±1e6 AABB (its "fake finite box" for BVH compatibility); the
-    // scene radius (ray offsets, caustic gather radius, light power of the
+    // scene radius (ray offsets, merging radius, light power of the
     // directional and environment lights) would follow it. ±1e3 keeps a
     // realistic finite extent.
     private const float SceneBoundsClamp = 1.0e3f;
@@ -275,8 +257,6 @@ public partial class Renderer
         TextureFilteringMode textureFiltering = TextureFilteringMode.Auto,
         float exposureEv = DefaultExposureEv,
         SssMode sssMode = SssMode.Auto,
-        bool enableCaustics = false,
-        int causticPhotons = 0,
         MotionBlurSettings motionBlur = default,
         bool referenceMode = false,
         int seed = 0,
@@ -326,41 +306,12 @@ public partial class Renderer
         };
 
         // The finite part of the scene (an infinite plane's sentinel box left
-        // out): its radius scales the ray offsets and the caustic gather.
+        // out): its radius scales the ray offsets and the merging radius.
         AABB sceneBounds = ComputeFiniteSceneBounds(world);
         _finiteSceneBounds = sceneBounds;
         Vector3 extent = sceneBounds.Max - sceneBounds.Min;
         float sceneRadius = MathF.Max(0.5f * extent.Length(), 1e-3f);
         _sceneScale = sceneRadius;
-
-        // ── Caustics: emit photons and build the caustic map ─────────────────
-        // The gather radius and grid cell scale with the scene so the estimate
-        // is resolution-independent. Build returns null when no caustic photon
-        // is deposited (no specular caster in the scene) — then the gather is a
-        // no-op and the render is identical to --caustics off.
-        if (enableCaustics && causticPhotons > 0 && lights.Count > 0)
-        {
-            // The cap (~6% of the scene radius) bounds the search; the
-            // *effective* kernel radius is adaptive (the k-th nearest photon),
-            // so the focal spot stays sharp and bright. The grid cell is half
-            // the cap: the shell search probes more (cheap, mostly-empty)
-            // buckets in sparse regions, but inside a dense focal cluster the
-            // nearest-first traversal + cell pruning touch ~an order of
-            // magnitude fewer photons than radius-sized cells would.
-            _causticGatherRadius = MathF.Max(sceneRadius * 0.06f, 1e-4f);
-            // With motion blur active the photon map is a static snapshot at
-            // the shutter midpoint (see CausticPhotonTracer.Build docs).
-            float photonTime = _motionActive ? motionBlur.MidTime : 0f;
-            if (_motionActive)
-                Console.WriteLine("  Caustics:    photons traced at shutter midpoint (motion blur active)");
-            _photonMap = CausticPhotonTracer.Build(world, lights, sceneBounds, causticPhotons,
-                                                   _causticGatherRadius * 0.5f, photonTime);
-            _causticsActive = _photonMap != null;
-            if (_causticsActive)
-                Console.WriteLine($"  Caustics:    photon map ({_photonMap!.Count:N0} caustic photons)");
-            else
-                Console.WriteLine("  Caustics:    on (no caustic photons deposited — no specular casters)");
-        }
 
         _envLight = lights.OfType<EnvironmentLight>().FirstOrDefault();
 
@@ -535,12 +486,9 @@ public partial class Renderer
         Parallel.For(0, totalTiles, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, tile =>
         {
             // Per-worker switches, set before any ray and every tile so they
-            // never leak across renders: with photon caustics active, smooth
-            // specular transmission is opaque to NEE shadow rays (the photon
-            // map owns that refracted light); otherwise shadow rays are opaque
-            // to glass unless transparent shadows were asked for, so light
-            // through glass arrives only along BSDF-sampled paths, the unbiased
-            // estimator (rough glass stays a transparent shadow under caustics).
+            // never leak across renders: shadow rays are opaque to glass unless
+            // transparent shadows were asked for, so light through glass
+            // arrives only along BSDF-sampled paths, the unbiased estimator.
             PrepareWorker(tile, useSobol);
 
             int tileX = tile % tilesX;
@@ -966,20 +914,20 @@ public partial class Renderer
     }
 
     /// <summary>
-    /// Advances the caustic-chain state across a bounce. A non-delta bounce
-    /// (re)starts a diffuse vertex; a delta bounce promotes a diffuse vertex
-    /// into the suppress state (specular chain after a diffuse hit) and keeps a
-    /// pure-from-camera specular chain in <see cref="CausticNone"/> so a mirror's
-    /// view of a light is never suppressed.
+    /// Advances the specular-chain state across a bounce. A non-delta bounce
+    /// (re)starts a diffuse vertex; a delta bounce turns a diffuse vertex into
+    /// a chain (specular after a diffuse hit) and keeps a pure-from-camera
+    /// specular chain in <see cref="ChainNone"/> so a mirror's view of a light
+    /// is never suppressed.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int NextCausticState(int state, bool isDelta, bool shadowPassable)
+    private static int NextChainState(int state, bool isDelta, bool shadowPassable)
     {
-        if (!isDelta) return CausticDiffuse;
-        int s = state & CausticStateMask;
-        if (s == CausticNone) return CausticNone;
-        bool chainPassable = shadowPassable && (s == CausticDiffuse || (state & ChainShadowPassable) != 0);
-        return CausticSuppress | (chainPassable ? ChainShadowPassable : 0);
+        if (!isDelta) return ChainDiffuse;
+        int s = state & ChainStateMask;
+        if (s == ChainNone) return ChainNone;
+        bool chainPassable = shadowPassable && (s == ChainDiffuse || (state & ChainShadowPassable) != 0);
+        return ChainSpecular | (chainPassable ? ChainShadowPassable : 0);
     }
 
     /// <summary>
@@ -990,22 +938,18 @@ public partial class Renderer
     private bool ShadowPassable(IMaterial material, in HitRecord rec, Vector3 wo)
     {
         if (Vector3.Dot(wo, rec.Normal) >= 0f) return false;   // reflection
-        if (_causticsActive) return false;                      // photon rule owns chains
         return _transparentShadows || material.TransmitsStraight(rec);
     }
 
     /// <summary>
     /// Emission reached through a specular chain after a diffuse vertex is
-    /// already counted by another estimator: by the photon gather (photon
-    /// caustics, every chain) or by the transparent shadow ray (transparent
-    /// shadows, chains that went through a surface).
+    /// already counted by the light sample when every surface of the chain
+    /// passes shadow rays (straight transmission, or any transmission with
+    /// transparent shadows).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool SuppressChainEmission(int state)
-    {
-        if ((state & CausticStateMask) != CausticSuppress) return false;
-        return _causticsActive || (state & ChainShadowPassable) != 0;
-    }
+    private static bool SuppressChainEmission(int state)
+        => (state & ChainStateMask) == ChainSpecular && (state & ChainShadowPassable) != 0;
 
     /// <summary>
     /// True when the light sample just taken reached the shading point through
@@ -1014,94 +958,6 @@ public partial class Renderer
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool LightSampleOwnsTransport() => ShadowRay.LastCrossedTransparent;
-
-    /// <summary>
-    /// Density estimate of the focused-caustic radiance reflected toward
-    /// <paramref name="viewDir"/> at a diffuse/glossy receiver: gathers the
-    /// k nearest caustic photons and sums <c>f_r(ω_p, ω_o)·Φ_p</c> over the disc
-    /// of the adaptive kernel radius (Jensen's estimator,
-    /// <c>L = Σ f_r·Φ / (π r²)</c>). Returns zero when caustics are inactive or
-    /// no photon lies within the radius cap. Allocation-free (the bounded
-    /// max-heap lives in stack spans).
-    /// </summary>
-    private Vector3 GatherCaustics(in HitRecord rec, Vector3 viewDir, IMaterial material)
-    {
-        PhotonMap? map = _photonMap;
-        if (map == null) return Vector3.Zero;
-
-        // Adaptive-radius gather: expanding-shell search over the cell
-        // neighbourhood (nearest cells first, whole cells pruned once the heap
-        // is full) using the distance to the k-th nearest photon as the kernel
-        // radius, so the focal spot — where photons cluster tightly — gets a
-        // small radius and a bright, sharp caustic, while sparse regions stay
-        // dim. Fast in empty regions (empty buckets) and returns zero where
-        // there is nothing to gather.
-        Span<int>   idx  = stackalloc int[CausticGatherK];
-        Span<float> heap = stackalloc float[CausticGatherK];
-        int count = map.GatherCaustic(rec.Point, CausticGatherK, _causticGatherRadius,
-                                      idx, heap, out float radius);
-        if (count == 0) return Vector3.Zero;
-
-        // Under-occupied gather: fewer than k photons exist in the whole search
-        // sphere, so the region is sparse. Keep the searched cap as the kernel
-        // radius (PBRT's convention — shrinking it around the few stray photons
-        // would inflate the density into a bright dot) AND fade the estimate by
-        // the gather occupancy below. Together with the cone filter this stops an
-        // isolated reflective photon from stamping a flat full-radius disc on the
-        // floor — the "ring of discs" artefact under glossy near-specular casters
-        // (e.g. clearcoat spheres) whose weak caustics deposit only a few photons.
-        bool underOccupied = count < CausticGatherK;
-        if (underOccupied) radius = _causticGatherRadius;
-        if (radius <= 0f) return Vector3.Zero;
-
-        // Cone-filter density estimate: weight each photon by its distance to the
-        // gather point (1 at the centre, → 0 at the kernel edge) so the caustic
-        // has a smooth radial falloff instead of a hard disc edge. The cone
-        // normalisation keeps the energy identical to the flat kernel where
-        // photons fill the disc, so focused caustics keep their brightness.
-        float invR = 1f / radius;
-        ReadOnlySpan<Photon> photons = map.Photons;
-        Vector3 sum = Vector3.Zero;
-        for (int i = 0; i < count; i++)
-        {
-            ref readonly Photon p = ref photons[idx[i]];
-            // Light-leak guard: ignore photons arriving from behind the surface.
-            if (Vector3.Dot(p.IncidentDir, rec.Normal) <= 0f) continue;
-            float w = 1f - Vector3.Distance(p.Position, rec.Point) * invR / CausticConeK;
-            if (w <= 0f) continue;
-            // BRDF without cosine — the photon flux already carries the incident
-            // geometry through the surface photon density.
-            sum += material.Evaluate(viewDir, p.IncidentDir, rec) * (p.Power * w);
-        }
-
-        Vector3 estimate = sum * (1f / (CausticConeNorm * MathF.PI * radius * radius));
-
-        // Occupancy confidence: a focused caustic fills the gather (count == k)
-        // and passes through untouched; a sparse region (count ≪ k) is faded out
-        // smoothly so weak stray reflective photons stop painting visible discs
-        // while genuine, dense caustics keep their full strength.
-        if (underOccupied)
-            estimate *= CausticOccupancyWeight(count, CausticGatherK);
-        return estimate;
-    }
-
-    /// <summary>
-    /// Confidence weight for an under-occupied caustic gather. A full gather
-    /// (<paramref name="count"/> ≥ <paramref name="k"/>, i.e. a dense focused
-    /// caustic) returns 1 and is left untouched; a sparse gather (count ≪ k, a
-    /// region holding only a few weak stray reflective photons) is faded out by a
-    /// smoothstep on the occupancy ratio, so a near-isolated photon no longer
-    /// stamps a flat full-radius disc on the receiver — the "ring of discs"
-    /// artefact under glossy near-specular casters. Monotonic non-decreasing in
-    /// <paramref name="count"/>.
-    /// </summary>
-    internal static float CausticOccupancyWeight(int count, int k)
-    {
-        if (count >= k) return 1f;
-        if (count <= 0) return 0f;
-        float t = (float)count / k;
-        return t * t * (3f - 2f * t);   // smoothstep(0,1,t)
-    }
 
     /// <summary>
     /// MIS weight of a light sample whose own density is <paramref name="own"/>,
@@ -1173,12 +1029,12 @@ public partial class Renderer
     /// solid-angle-to-texel-count of a uniform cone with the BSDF's effective
     /// width. Sharp specular (delta) bounces use LOD 0.</para>
     /// </summary>
-    private Vector3 SampleSky(Ray ray, float prevBsdfPdf, bool prevIsDelta, int causticState, RayCategory category)
+    private Vector3 SampleSky(Ray ray, float prevBsdfPdf, bool prevIsDelta, int chainState, RayCategory category)
     {
         // A sky NEE-sampled through the same transparent surfaces already
         // delivered this transport (see SuppressChainEmission).
         bool skyIsNeeSampled = _envLight != null && _envLight.Sky.CanSampleDirectly;
-        if (skyIsNeeSampled && !_causticsActive && SuppressChainEmission(causticState))
+        if (skyIsNeeSampled && SuppressChainEmission(chainState))
             return Vector3.Zero;
 
         // Camera rays + delta-mirror bounces see the full sky (sun included).

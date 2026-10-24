@@ -67,11 +67,11 @@ diffuse interreflection few:
 | `pre-final*`, `final*` | 16 | 8 | 8 | 16 | 8 | 16 |
 | `ultra` | 32 | 16 | 16 | 32 | 16 | 32 |
 
-Feature switches per tier: `standard` turns photon caustics and volumetric
-SSS **off** and relaxes the indirect clamp factor to 0.5 (it only acts with `-C`);
-`pre-final`, `final` and `ultra` run the **full feature set** (caustics on -
-2M photons for pre-final, 2–4M for final/ultra - SSS on, all-lights NEE,
-no clamp). `ultra` stays at 512 spp on purpose: at 4K the pixel density
+Feature switches per tier: `standard` turns volumetric SSS **off** and
+relaxes the indirect clamp factor to 0.5 (it only acts with `-C`);
+`pre-final`, `final` and `ultra` run the **full feature set** (SSS on,
+all-lights NEE, no clamp). Every preset renders with path tracing: the
+bidirectional integrators are chosen by hand, scene by scene (section 4c). `ultra` stays at 512 spp on purpose: at 4K the pixel density
 hides per-pixel noise that would be visible at 1080p, and 1024 spp would
 double an already long render.
 
@@ -101,37 +101,34 @@ reference renders keep every unfiltered detail); add an explicit
 the preset default off. See [Denoising](../technical/denoising.md) for the
 algorithm and trade-offs.
 
-**Caustics.** The `pre-final`, `final` and `ultra` presets also enable
-photon-mapped caustics (`--caustics on`) by default; `draft` and `standard`
-leave them off. The photon budget for the pre-pass is controlled by
-`--caustic-photons <N>` (2M on pre-final, ~2–4M on final/ultra): more
-photons give sharper, less noisy caustics at the cost of a slower pre-pass.
-An explicit `--caustics off` (or `--caustics on` on a lower preset)
-overrides the preset default. See [Path Tracing and Lighting §2.5](../technical/path-tracing-and-lighting.md).
+**Caustics.** Path tracing renders caustics as they are, unbiased but noisy
+where only a lucky bounce finds the light. A scene whose look depends on
+them renders with `--integrator bdpt` (caustics seen directly or in a
+mirror) or `--integrator vcm` (also seen through glass or water) on top of
+any preset: see section 4c.
 
 **`standard` - the day-to-day quality render.** The `standard` tier targets
 final-class image quality on a *classic* scene - Lambertian/Disney
 surfaces, non-nested glass (at most a couple of crystal spheres one behind
 another), procedural marble with ordinary parameters - while stripping the
 expensive global-illumination machinery that such scenes don't need.
-Relative to `final` it: turns photon **caustics off**, turns volumetric
-**SSS off** (`--sss-mode off`), runs **512 spp** with a **single shadow
+Relative to `final` it: turns volumetric **SSS off** (`--sss-mode off`), runs **512 spp** with a **single shadow
 sample** (512 spp already anti-aliases), trims the bounce budgets (4
 diffuse, 6 glossy, 12 transmission), and lets the **NFOR denoiser** absorb
 the residual grain. On a scene with no
-caustics/SSS this is dramatically faster than `final` for visually
+SSS this is dramatically faster than `final` for visually
 equivalent output. As always, explicit flags win - e.g. `-q standard
---caustics on` re-enables caustics, `-q standard -s 768` raises the sample
+--sss-mode auto` re-enables SSS, `-q standard -s 768` raises the sample
 count if glass edges still look grainy. Avoid it for scenes that genuinely
-rely on focused caustics, deep translucency/SSS, or stacked/nested glass -
-use `pre-final`/`final` there.
+rely on deep translucency/SSS or stacked/nested glass - use
+`pre-final`/`final` there.
 
 **`pre-final` - a faithful preview of `final`.** Same feature set as
-`final` (caustics on, SSS on, the same bounce budgets, the same light
+`final` (SSS on, the same bounce budgets, the same light
 sampling) with the sampling budgets cut where the denoiser compensates best:
 **¼ of the pixel samples** (256) and a **single shadow sample** - penumbra
 noise is exactly what feature-guided filtering removes cleanest. The result
-previews the final lighting, caustics and translucency at roughly **4-6×
+previews the final lighting and translucency at roughly **4-6×
 the speed**; use it to iterate on a scene destined for `final`, then run
 `final` unfiltered for the deliverable.
 
@@ -187,6 +184,7 @@ RayTracer -i my-scene -q standard --denoiser none
 | `-C` / `--clamp` | off (no firefly clamp) | opt-in, suggested start `10` (`Renderer.SuggestedMaxSampleRadiance`) |
 | `--indirect-clamp-factor` | `0.25` (only with `-C`: indirect clamp = `-C` × factor) | `Renderer.DefaultIndirectClampFactor` |
 | `--transparent-shadows` | `off` (glass casts its physical shadow and caustic) | `Program.cs` |
+| `--integrator` | `path` (path tracing; `bdpt`, `vcm` on request) | `IntegratorKind.Path` |
 | `--exposure` | `0` EV (identity) | `Renderer.DefaultExposureEv` |
 | `--light-sampling` | `auto` (`all` up to 16 lights, `bvh` above) | `LightSamplingStrategy.Auto` |
 | `--texture-filtering` | `auto` (filtering on) | `Renderer.TextureFilteringMode.Auto` |
@@ -283,6 +281,56 @@ default; try it on hard interiors at high sample counts.
 
 ---
 
+### 4c. **BIDIRECTIONAL INTEGRATORS (`--integrator bdpt|vcm`)**
+
+Path tracing builds every path from the camera and finds the light by
+sampling it (next-event estimation) or by hitting it. Some light it finds
+only by chance: a small light seen through glass, the caustic a glass ball
+focuses on the floor, the bright net on the floor of a pool. Two other
+integrators build paths from both ends:
+
+- **`bdpt`, bidirectional path tracing.** Each sample traces a subpath from
+  the camera and one from a light, then joins every vertex of one to every
+  vertex of the other, connects light vertices straight to the camera
+  (light tracing) and hits the lights from the camera side. Every way of
+  building the same path is weighed by multiple importance sampling, so
+  each kind of light is carried by the strategy that finds it best.
+  Unbiased, allowed with `--reference`; surfaces and participating media
+  (scattering vertices in fog and smoke, subsurface entities through the
+  path tracer's random walk). Caustics seen directly or in a mirror
+  converge, at about 2-3× the cost of a path-tracing sample, often less noise
+  for the same time on interiors lit through glass.
+- **`vcm`, vertex connection and merging.** `bdpt` plus the merging of the
+  light vertices near each camera vertex (progressive photon mapping) in
+  the same multiple importance sampling. It renders the light no connection
+  can join: a caustic **seen through** glass or water (light → water → floor
+  → water → camera). The merging radius starts at `--vcm-radius` × the scene
+  radius (default 0.003) and shrinks with the iterations as i^-1/8, so the
+  bias of the merging vanishes as `-s` grows: VCM is consistent, not
+  unbiased, and is refused with `--reference`. Merging happens on surfaces
+  (not in media).
+
+`-s` is the number of iterations: one camera subpath per pixel and one light
+subpath per pixel each. `-d` limits the path length as in path tracing (the
+per-kind limits do not apply). Not with `--guiding`; the denoiser, AOVs and
+EXR output work as usual.
+
+Measured on `scenes/review/vcm-pool.yaml` (480 × 270, same time, about 40 s):
+path tracing and `bdpt` show the floor of the pool as scattered fireflies,
+`vcm` shows the caustic net (`scenes/review/images/vcm-pool.jpg`). On the
+validation scenes `bdpt` and `vcm` agree with the reference renderer as
+path tracing does (mean ratios within 0.3%, as path tracing's, fog and smoke
+included).
+
+```bash
+# Caustics seen through water: the floor of a pool
+RayTracer -i scenes/review/vcm-pool.yaml -q standard-small --integrator vcm -s 256
+# Caustics seen directly, unbiased
+RayTracer -i my-scene -q final --integrator bdpt
+```
+
+---
+
 ### 5. **UNDERSTANDING `-S` (SHADOW SAMPLES)**
 
 `-S` forces a global override of the shadow-ray count used by every area-based light (`AreaLight`, `SphereLight`, `GeometryLight`). Each light builds a √N × √N stratified grid across its surface and shoots one shadow ray per cell.
@@ -336,7 +384,7 @@ This multiplies the primary `-C` threshold for all indirect contributions, so it
 --transparent-shadows on
 ```
 
-**Default: off.** Glass then behaves physically: it casts its shadow, and the light it refracts reaches the floor along the paths that really cross it, which is the caustic (sharp but noisy at low sample counts; `--caustics on` focuses it with photons). Index-matched surfaces (`refraction_index: 1`, the transparent shell that bounds a fog or water volume) and smooth `thin_walled` sheets always let shadow rays through: their transmission does not bend light, so this is exact.
+**Default: off.** Glass then behaves physically: it casts its shadow, and the light it refracts reaches the floor along the paths that really cross it, which is the caustic (sharp but noisy at low sample counts with path tracing; `--integrator bdpt` or `vcm` resolve it, section 4c). Index-matched surfaces (`refraction_index: 1`, the transparent shell that bounds a fog or water volume) and smooth `thin_walled` sheets always let shadow rays through: their transmission does not bend light, so this is exact.
 
 `on` is an artistic approximation: shadow rays go straight through glass, tinted by its Fresnel transmittance, so clear glass casts a soft, tinted half-shadow instead of a shadow and a caustic. The refracted light paths from diffuse surfaces through the glass to the lights are dropped so the same light is not counted twice. Use it for quick, noise-free previews of scenes with a lot of glass; leave it off for final images.
 

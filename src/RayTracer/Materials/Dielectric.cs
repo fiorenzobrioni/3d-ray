@@ -52,7 +52,7 @@ public sealed class Dielectric : IMaterial
     // Transparent shadow rays: report (1 - Fresnel) · albedo as the per-hit
     // straight-through transmission. The shadow ray is not refracted — Snell-
     // bent light contributes to focused lighting only through the sampled
-    // bounce (and would need photon mapping to NEE-sample directly). Each
+    // bounce (BDPT/VCM connect and merge around it). Each
     // dielectric interface attenuates by 1−F; a glass sphere crosses two
     // interfaces, so the receiver still sees the proper Fresnel-squared
     // shadowing at grazing angles.
@@ -72,10 +72,6 @@ public sealed class Dielectric : IMaterial
     // IOR 1: no Fresnel reflection, no bending, only the tint (and no
     // microfacet scattering, whatever the roughness: the interface is invisible).
     public bool TransmitsStraight(in HitRecord rec) => MathF.Abs(RefractionIndex - 1f) < 1e-4f;
-
-    // Smooth dielectric = a pair of delta lobes, so its transmission is exactly
-    // the smooth-specular transport the caustic photon map reconstructs.
-    public bool IsSpecularTransmissive(in HitRecord rec) => IsSmooth;
 
     // A solid dielectric enters/exits a nested-IOR medium on refraction, so it
     // participates in the renderer's IorStack (relative-IOR tracking).

@@ -39,7 +39,7 @@ Tutti i lobi lucidi usano lo stesso modello:
 
 Ogni tabella ha un test che la confronta con l'integrale diretto del BRDF (`OpenPbrLobeTests`).
 
-**Soglia delta.** Sotto rugosità 0.0317 ($\alpha \le 10^{-3}$, un lobo più stretto di 0.06°) un lobo speculare è trattato come specchio perfetto: è campionato come delta, le caustiche a fotoni lo seguono e nessun raggio d'ombra incontra un lobo quasi singolare.
+**Soglia delta.** Sotto rugosità 0.0317 ($\alpha \le 10^{-3}$, un lobo più stretto di 0.06°) un lobo speculare è trattato come specchio perfetto: è campionato come delta e nessun raggio d'ombra o connessione bidirezionale incontra un lobo quasi singolare.
 
 ---
 
@@ -57,7 +57,7 @@ Validato contro un renderer di riferimento indipendente (`validation/`): `metal-
 
 - **Liscio**: Fresnel esatto non polarizzato, riflessione o rifrazione scelte con probabilità $F$, ciascuna un lobo delta. Riflessione totale interna senza consumare numeri casuali.
 - **Ruvido** (Walter et al. 2007): riflessione GGX e trasmissione con il semivettore $h \propto v + \eta\,l$, pdf dalle normali visibili con lo jacobiano della rifrazione. Rispetta la reciprocità generalizzata $f(v \to l)/n_v^2 = f(l \to v)/n_l^2$.
-- **Radianza alla rifrazione**: la radianza attraversando l'interfaccia scala di $(\eta_i/\eta_t)^2$ (si conserva $L/n^2$). Il photon tracer, che trasporta potenza, toglie il fattore.
+- **Radianza alla rifrazione**: la radianza attraversando l'interfaccia scala di $(\eta_i/\eta_t)^2$ (si conserva $L/n^2$). I sottocammini di luce del BDPT/VCM, che trasportano importanza (la BSDF aggiunta), tolgono il fattore.
 - **Dielettrici annidati**: l'indice relativo viene dalla pila degli IOR del raggio (`IorStack`), quindi vino in un bicchiere rifrange contro il vetro, non contro l'aria.
 - **NEE attraverso la superficie**: una superficie che trasmette in modo non delta (vetro satinato, diffusione thin-walled) riceve luce anche da dietro (`IMaterial.HasTransmission`).
 
@@ -146,7 +146,7 @@ Il renderer consuma i materiali attraverso `IMaterial` (`src/RayTracer/Materials
 - `Evaluate(V, L, rec)`: la BSDF senza il coseno. È l'unica descrizione del materiale: la NEE pesa un campione di luce con `Evaluate` per il coseno $|\cos\theta_L|$, il rimbalzo indiretto campiona con `Sample`, il MIS combina le due strategie con `Pdf`. Le due stime riguardano quindi per costruzione la stessa funzione.
 - `Pdf(V, L, rec)`: densità in angolo solido del campionatore, senza i lobi delta.
 - `Sample(V, rec)`: direzione, valore, pdf, flag delta, transizione di mezzo; null significa luce assorbita.
-- Query di trasmissione: `HasTransmission` (NEE da dietro), `TransmitsStraight` (attraversamento esatto per i raggi d'ombra), `ShadowTransmittance` e `ShadowAbsorption` (ombre trasparenti), `IsSpecularTransmissive` (caustiche a fotoni), `TryGetDielectricIor` (pila degli IOR).
+- Query di trasmissione: `HasTransmission` (NEE da dietro), `TransmitsStraight` (attraversamento esatto per i raggi d'ombra), `ShadowTransmittance` e `ShadowAbsorption` (ombre trasparenti), `TryGetDielectricIor` (pila degli IOR).
 - `Emit(...)`, `AovAlbedo(...)`, `NormalMap`, `BumpMap`, `Displacement`.
 - `NeedsDirectLighting` (falso per `Emissive`) e `IsDeltaScatter` (vero quando ogni lobo è delta).
 

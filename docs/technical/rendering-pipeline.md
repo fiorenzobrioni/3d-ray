@@ -27,13 +27,13 @@ Questo documento descrive il flusso architetturale completo del motore 3D-Ray, d
        │  (world, camera, lights, sky, globalMedium)
        ▼
 ┌─────────────┐
-│  Renderer   │  Costruttore: luci, MIS, profondità per tipo + photon map caustiche (se --caustics on)
-│ constructor │  Render():    loop parallelo sui pixel
+│  Renderer   │  Costruttore: luci, MIS, profondità per tipo
+│ constructor │  Render():    loop parallelo sui pixel (o BDPT/VCM, --integrator)
 └──────┬──────┘
        │  Per ogni pixel: N campioni stratificati (Sobol o griglia √N×√N)
        ▼
 ┌─────────────┐
-│  TracePath  │  Loop: hit → normal map → emission → NEE (+ gather caustiche) → Sample → RR
+│  TracePath  │  Loop: hit → normal map → emission → NEE → Sample → RR
 └──────┬──────┘
        │  Radiance HDR lineare
        ▼
@@ -150,7 +150,7 @@ Il costruttore non classifica la scena: la Russian Roulette è quella standard s
 
 **⚠️ CONTRATTO CRITICO — `ILight.ApproximatePower(sceneBounds)`:**
 
-Il metodo restituisce il flusso radiante approssimato della luce (Φ in unità di luminanza Rec.709). È usato **solo in costruzione** (`LightDistribution`, `LightBvh`, `CausticPhotonTracer`); il rendering vero e proprio usa `IlluminateAndTest()` / `IlluminateAndTestStratified()`.
+Il metodo restituisce il flusso radiante approssimato della luce (Φ in unità di luminanza Rec.709). È usato **solo in costruzione** (`LightDistribution`, `LightBvh`, la scelta della luce da cui parte un sottocammino del BDPT/VCM); il rendering vero e proprio usa `IlluminateAndTest()` / `IlluminateAndTestStratified()`.
 
 Tre invarianti obbligatori:
 
@@ -193,9 +193,9 @@ Il dizionario dice a `WeightEmission` quali materiali emissivi la NEE può raggi
 
 **Vedi:** [Path Tracing e Illuminazione §2.2](./path-tracing-and-lighting.md) per la trattazione completa del double-counting.
 
-### 2.4 Photon Map delle Caustiche (solo con `--caustics on`)
+### 2.4 Integratore (`--integrator`)
 
-Quando le caustiche sono attive, il costruttore lancia un **pre-pass di photon mapping** (`CausticPhotonTracer.Build`): emette fotoni da tutte le luci, li traccia attraverso le interfacce speculari (vetro/acqua/metallo/specchio) e deposita su una `PhotonMap` (spatial hash grid) quelli che atterrano su una superficie diffusa dopo ≥1 rimbalzo speculare (cammini `L S+ D`). Costruita una volta sola; con `--caustics off` o senza superfici speculari il passo è saltato e l'output è bit-identico a prima. **Vedi** [Path Tracing e Illuminazione §2.5](./path-tracing-and-lighting.md).
+`Renderer.Integrator` sceglie l'algoritmo di trasporto: `Path` (default) è il loop di questo documento; `Bdpt` e `Vcm` passano `Render()` a `RenderBidirectional` (`Rendering/Bidirectional/`), che traccia per iterazione un sottocammino di luce e uno di camera per pixel, li collega, li fonde (VCM) e accumula il light tracing in un film a parte. Stesso film, stessi buffer (metà A/B, AOV) e stessa trasformazione di visualizzazione. **Vedi** [Bidirectional Path Tracing and VCM](./bidirectional.md).
 
 ---
 
@@ -367,8 +367,6 @@ Il dispatch per tipo di luce è una sola chiamata virtuale: ogni luce decide da 
 **Contratto dell'integrando:** `Evaluate` restituisce la BSDF completa (colori, Fresnel, tutti i lobi non-delta) **senza** il coseno; `DirectIntegrand` moltiplica per $|N \cdot L|$ (il valore assoluto serve alla luce che arriva da dietro una superficie trasmissiva). È la stessa funzione che il rimbalzo indiretto campiona con `Sample`, quindi le due strategie del MIS stimano lo stesso integrando. I lobi delta hanno `Evaluate = 0` e non ricevono nulla dalla NEE. Una superficie senza materiale vale Lambert bianco.
 
 **Shadow terminator:** `LightSideTerminator` applica il fattore di Chiang et al. (2019) sul lato della superficie dove si trova la luce (per una luce dietro una superficie trasmissiva l'orizzonte è quello posteriore), confrontando la normale perturbata con `rec.ShadingNg`. Vale 1 dove la normale non è perturbata. Lo stesso fattore entra nel peso del rimbalzo BSDF (§4.6); non c'è un fattore sul lato della vista.
-
-**Gather delle caustiche (con `--caustics on`).** Su una superficie diffusa il contributo della photon map (§2.4) viene stimato con una density estimate ai k-nearest e **sommato** alla luce diretta. Per non contare due volte la luce trasmessa, quando le caustiche sono attive le interfacce **trasmissive lisce** (vetro/acqua) diventano **opache** agli shadow ray NEE: la luce rifratta (e tinta dall'assorbimento del vetro) è fornita solo dalla photon map, così il vetro proietta un'ombra rifrattiva corretta e colorata invece di un riempimento dritto. Vetro rough/frosted e percorso `--caustics off` restano invariati.
 
 **Vedi:** [Path Tracing e Illuminazione §2](./path-tracing-and-lighting.md) per la trattazione completa della NEE.
 
@@ -563,7 +561,7 @@ TracePath(ray)                       β = 1, pile vuote, categoria Camera
     └── SurfaceVertex:
         ├── normal map / bump / autobump
         ├── L += β × WeightEmission(raw)        (MIS se il rimbalzo precedente non è delta)
-        ├── L += β × NEE (+ gather caustiche)   Σ wNee × lightColor × Evaluate × |N.L| × terminator × Tr
+        ├── L += β × NEE                        Σ wNee × lightColor × Evaluate × |N.L| × terminator × Tr
         ├── material.Sample(V, rec)? null → fine
         ├── β ×= IsDelta ? F : F × |N.Wo| × terminator / Pdf
         ├── CountBounce(Lobe): limite del tipo e totale (cut-out: solo il loro)

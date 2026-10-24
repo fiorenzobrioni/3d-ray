@@ -181,4 +181,32 @@ public class BidirectionalTests
         _out.WriteLine($"expected {expected}; bdpt {mean}");
         Assert.True((mean - expected).Length() < 0.03f * expected.Length(), $"{mean} vs {expected}");
     }
+
+    // ── Vertex merging ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Vcm_SeesTheCausticThroughTheGlass_AsPathTracingDoes()
+    {
+        // The floor under a glass ball, seen through the ball, lit through
+        // it by a small panel: light → glass → floor → glass → camera has
+        // no two vertices a connection can join, so only merging (or the
+        // camera ray hitting the panel) carries it. VCM is consistent: its
+        // mean agrees with path tracing's (which can still reach a panel
+        // this size), and with fewer samples.
+        Sampler.SetKind(SamplerKind.Sobol);
+        var floor = new Quad(new Vector3(-5, 0, 5), new Vector3(10, 0, 0), new Vector3(0, 0, -10), new Lambertian(new Vector3(0.7f)));
+        var ball = new Sphere(new Vector3(0f, 0.6f, 0f), 0.5f, new Dielectric(1.5f));
+        var em = new Emissive(Vector3.One, 40f);
+        var panel = new Quad(new Vector3(-0.2f, 3f, -0.2f), new Vector3(0.4f, 0, 0), new Vector3(0, 0, 0.4f), em);   // facing down
+        var world = new HittableList(new List<IHittable> { floor, ball, panel });
+        var lights = new List<ILight> { new GeometryLight(panel, em) };
+        const int w = 12, h = 12;
+        var cam = RenderHarness.LookAt(new Vector3(0f, 1.4f, 1.6f), new Vector3(0f, 0.55f, 0f), 18f, w, h);
+        var black = new SkySettings(Vector3.Zero);
+        Vector3 vcm = RenderHarness.Mean(RenderHarness.RenderLinear(world, lights, black, cam, w, h, 256, 8,
+                                                                    integrator: IntegratorKind.Vcm));
+        Vector3 path = RenderHarness.Mean(RenderHarness.RenderLinear(world, lights, black, cam, w, h, 4096, 8));
+        _out.WriteLine($"vcm {vcm}, path {path}, ratio {vcm.Y / path.Y:F4}");
+        Assert.InRange(vcm.Y / path.Y, 0.97, 1.03);
+    }
 }

@@ -2150,10 +2150,10 @@ in a keyframe inherit the **base** pose (not the previous keyframe).
 See `docs/technical/motion-blur.md` for the algorithm, and the
 `motion-blur-showcase.yaml` / `motion-blur-billiard-showcase.yaml` scenes.
 
-> **Caustics need no per-entity keys.** Photon-mapped caustics are a global, fully
-> automatic feature: enable them with the `--caustics on` CLI flag (see
-> `docs/reference/rendering-profiles.md` and the rendering-pipeline docs) and the
-> photon pre-pass discovers every specular caster and diffuse receiver on its own.
+> **Caustics need no per-entity keys.** Every integrator renders the light that
+> glass, water and mirrors focus; the bidirectional ones (`--integrator bdpt`,
+> `--integrator vcm`) render it cleanly, VCM also when it is seen through glass
+> or water (see `docs/reference/rendering-profiles.md` §4c).
 
 #### **7.1 Sphere**
 ```yaml
@@ -2833,7 +2833,7 @@ the environment and portals share one weight group.
 ```
 - Quadratic falloff with distance
 - Simple but effective for interior lighting
-- `soft_radius` (default `0`): when set, the attenuation denominator is clamped to `max(d², r²)`. Removes the unbounded 1/d² spike that produces persistent fireflies in fog/medium scenes where scattering events can land arbitrarily close to the emitter. Recommended values approximate the physical bulb radius (e.g. `0.05`–`0.20`). At distances `d ≥ r` the lighting is unchanged. **Caustics:** with `--caustics on` this radius also gives the point light a finite emitter area for the photon pre-pass to launch caustic photons from; a larger radius spreads the caustic a little, a smaller one keeps it tighter (raise `--caustic-photons` to clean up the noise).
+- `soft_radius` (default `0`): when set, the attenuation denominator is clamped to `max(d², r²)`. Removes the unbounded 1/d² spike that produces persistent fireflies in fog/medium scenes where scattering events can land arbitrarily close to the emitter. Recommended values approximate the physical bulb radius (e.g. `0.05`–`0.20`). At distances `d ≥ r` the lighting is unchanged.
 #### **8.2 Directional Light (Sun)**
 ```yaml
 - type: "directional"  # alias: "sun"
@@ -2863,7 +2863,7 @@ the environment and portals share one weight group.
 - Quadratic falloff
 - Smooth falloff between inner/outer cones
 - Good for dramatic lighting, accent lights
-- `soft_radius` (default `0`): same role as on point lights - clamps the attenuation denominator to `max(d², r²)`. Strongly recommended for spotlights illuminating a participating medium (fog, mist, smoke), where the 1/d² spike at scattering events near the emitter is the dominant firefly source. Typical values: `0.10`–`0.30` for a streetlamp-sized bulb. **Caustics:** as for point lights, with `--caustics on` this radius gives the spot a finite emitter area for the photon pre-pass to launch caustic photons from; the spot's cone falloff is applied to the emitted photons. A smaller radius keeps the caustic tighter (raise `--caustic-photons` to clean up the noise).
+- `soft_radius` (default `0`): same role as on point lights - clamps the attenuation denominator to `max(d², r²)`. Strongly recommended for spotlights illuminating a participating medium (fog, mist, smoke), where the 1/d² spike at scattering events near the emitter is the dominant firefly source. Typical values: `0.10`–`0.30` for a streetlamp-sized bulb.
 - `shadow_samples` (default `1`): when > 1 AND `soft_radius > 0`, each shadow sample jitters the source within a disc of radius `soft_radius` perpendicular to `direction`, modelling the physical bulb extent. Produces soft penumbra in fog. If `soft_radius == 0`, extra samples are redundant (no position jitter) - keep at 1 for efficiency.
 #### **8.4 Area Light (Soft Shadows)**
 ```yaml

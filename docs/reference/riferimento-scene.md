@@ -2171,11 +2171,11 @@ precedente).
 Vedi `docs/technical/motion-blur.md` per l'algoritmo, e le scene
 `motion-blur-showcase.yaml` / `motion-blur-billiard-showcase.yaml`.
 
-> **Le caustiche non richiedono alcuna chiave per-entità.** Le caustiche via
-> photon mapping sono una feature globale e completamente automatica: si attivano
-> con il flag CLI `--caustics on` (vedi `docs/reference/rendering-profiles.md` e
-> i doc della pipeline di rendering) e il pre-pass di fotoni individua da solo
-> ogni caster speculare e ogni receiver diffuso.
+> **Le caustiche non richiedono alcuna chiave per-entità.** Ogni integratore
+> rende la luce che vetro, acqua e specchi concentrano; quelli bidirezionali
+> (`--integrator bdpt`, `--integrator vcm`) la rendono pulita, il VCM anche
+> quando si vede attraverso un vetro o l'acqua (vedi
+> `docs/reference/profili-di-rendering.md` §4c).
 
 #### **7.1 Sphere**
 ```yaml
@@ -2875,7 +2875,7 @@ gruppo di pesi.
   soft_radius: 0.0                         # Opzionale. >0 → niente fireflies da 1/d²
 ```
 - Decadimento quadratico con la distanza
-- `soft_radius` (default `0`): se impostato, il denominatore dell'attenuazione viene clampato a `max(d², r²)`. Elimina la singolarità 1/d² che genera fireflies persistenti nelle scene con nebbia/medium partecipanti, dove gli eventi di scattering possono cadere arbitrariamente vicini all'emettitore. Valori consigliati: simili al raggio fisico del bulbo (es. `0.05`–`0.20`). A distanze `d ≥ r` la luce è invariata. **Caustiche:** con `--caustics on` questo raggio dà alla point light un'area emittente finita da cui il pre-pass di fotoni può lanciare i fotoni di caustica (un punto vero non ha area emittente); un raggio più grande allarga un po' la caustica, uno più piccolo la mantiene più stretta (alza `--caustic-photons` per ripulire il rumore).
+- `soft_radius` (default `0`): se impostato, il denominatore dell'attenuazione viene clampato a `max(d², r²)`. Elimina la singolarità 1/d² che genera fireflies persistenti nelle scene con nebbia/medium partecipanti, dove gli eventi di scattering possono cadere arbitrariamente vicini all'emettitore. Valori consigliati: simili al raggio fisico del bulbo (es. `0.05`–`0.20`). A distanze `d ≥ r` la luce è invariata.
 
 #### **8.2 Directional Light (Sole)**
 ```yaml
@@ -2903,7 +2903,7 @@ gruppo di pesi.
   soft_radius: 0.0                        # Opzionale. >0 = "disco virtuale", niente fireflies 1/d²
   shadow_samples: 1                       # Default 1. >1 + soft_radius > 0 → sorgente jitterata
 ```
-- `soft_radius` (default `0`): stesso ruolo della point light - clampa il denominatore a `max(d², r²)`. Fortemente raccomandato per spot che illuminano un medium partecipante (nebbia, foschia, fumo): in questi casi il picco 1/d² agli eventi di scattering vicino all'emettitore è la principale sorgente di fireflies. Valori tipici: `0.10`–`0.30` per un bulbo da lampione. **Caustiche:** come per le point light, con `--caustics on` questo raggio dà allo spot un'area emittente finita da cui il pre-pass di fotoni lancia i fotoni di caustica; l'attenuazione di cono dello spot è applicata ai fotoni emessi. Un raggio più piccolo mantiene la caustica più stretta (alza `--caustic-photons` per ripulire il rumore).
+- `soft_radius` (default `0`): stesso ruolo della point light - clampa il denominatore a `max(d², r²)`. Fortemente raccomandato per spot che illuminano un medium partecipante (nebbia, foschia, fumo): in questi casi il picco 1/d² agli eventi di scattering vicino all'emettitore è la principale sorgente di fireflies. Valori tipici: `0.10`–`0.30` per un bulbo da lampione.
 - `shadow_samples` (default `1`): quando > 1 E `soft_radius > 0`, ogni raggio d'ombra jitterizza la posizione della sorgente su un disco di raggio `soft_radius` perpendicolare a `direction`, modellando l'estensione fisica del bulbo. Se `soft_radius == 0`, campioni aggiuntivi non hanno effetto (nessun jitter di posizione) - tenerlo a 1 per efficienza.
 
 #### **8.4 Area Light (Ombre Morbide)**

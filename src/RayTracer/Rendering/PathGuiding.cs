@@ -437,9 +437,8 @@ public partial class Renderer
     /// <summary>Per-worker switches of a render (set before any ray, every tile).</summary>
     private void PrepareWorker(int tile, bool useSobol)
     {
-        ShadowRay.BlockSpecularTransmission = _causticsActive;
         MathUtils.SceneScale = _sceneScale;
-        ShadowRay.BlockAllTransmission = _referenceMode || (!_transparentShadows && !_causticsActive);
+        ShadowRay.BlockAllTransmission = _referenceMode || !_transparentShadows;
         if (_seedMix != 0 && !useSobol)
             MathUtils.ReseedThread(unchecked((int)(_seedMix ^ (uint)tile * 2654435761u)));
     }

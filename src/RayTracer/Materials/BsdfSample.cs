@@ -70,15 +70,6 @@ public enum BsdfLobe : byte
 ///   - Eta is η_t/η_i of a refraction, whose weight F carries the radiance
 ///     factor (η_i/η_t)²; 1 for every other sample. Russian roulette undoes
 ///     that factor so a path inside glass is not judged dimmer than it is.
-///   - CausticCaster marks a delta lobe the caustic photon pre-pass may follow
-///     as a specular bounce (L S+ D). True for genuine specular interfaces —
-///     refraction/transmission (glass) and mirror-like metallic reflection — and
-///     false for a near-delta reflection off a non-mirror substrate (smooth
-///     dielectric specular or a clearcoat coat on a diffuse base). Those reflect
-///     only a weak Fresnel sliver that deposits too few, too-scattered photons
-///     to form a real caustic: following them produces the "ring of discs"
-///     artefact (e.g. glossy clearcoat billiard balls) instead. Ignored outside
-///     the photon pre-pass; only consulted for delta lobes.
 /// </summary>
 public readonly struct BsdfSample
 {
@@ -88,14 +79,12 @@ public readonly struct BsdfSample
     public readonly bool     IsDelta;
     public readonly Vector3? NextSegmentAbsorption;
     public readonly MediumTransition Transition;
-    public readonly bool     CausticCaster;
     public readonly BsdfLobe Lobe;
     public readonly float    Eta;
 
     public BsdfSample(Vector3 wo, Vector3 f, float pdf, bool isDelta = false,
                       Vector3? nextSegmentAbsorption = null,
                       MediumTransition transition = MediumTransition.None,
-                      bool causticCaster = true,
                       BsdfLobe lobe = BsdfLobe.Glossy,
                       float eta = 1f)
     {
@@ -107,6 +96,5 @@ public readonly struct BsdfSample
         IsDelta = isDelta;
         NextSegmentAbsorption = nextSegmentAbsorption;
         Transition = transition;
-        CausticCaster = causticCaster;
     }
 }

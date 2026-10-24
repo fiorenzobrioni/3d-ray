@@ -66,11 +66,11 @@ rifrazioni e l'interriflessione diffusa poche:
 | `pre-final*`, `final*` | 16 | 8 | 8 | 16 | 8 | 16 |
 | `ultra` | 32 | 16 | 16 | 32 | 16 | 32 |
 
-Feature per tier: `standard` spegne caustiche fotoniche e SSS volumetrico e
-rilassa il fattore del clamp indiretto a 0.5 (agisce solo con `-C`); `pre-final`,
-`final` e `ultra` girano con la **feature-set completa** (caustiche on - 2M
-fotoni per pre-final, 2–4M per final/ultra - SSS attivo, NEE su tutte le luci,
-senza clamp). `ultra` resta a 512 spp di proposito: a 4K la densità di
+Feature per tier: `standard` spegne il SSS volumetrico e rilassa il fattore
+del clamp indiretto a 0.5 (agisce solo con `-C`); `pre-final`, `final` e
+`ultra` girano con la **feature-set completa** (SSS attivo, NEE su tutte le
+luci, senza clamp). Ogni preset rende in path tracing: gli integratori
+bidirezionali si scelgono a mano, scena per scena (sezione 4c). `ultra` resta a 512 spp di proposito: a 4K la densità di
 pixel nasconde il rumore per-pixel che a 1080p sarebbe visibile, e 1024 spp
 raddoppierebbero un render già lungo.
 
@@ -102,38 +102,33 @@ filtrato); aggiungi un `--denoiser nfor` esplicito per filtrarli, o
 `--denoiser none` per spegnere il default del preset. Vedi
 [Denoising](../technical/denoising.it.md) per l'algoritmo e i trade-off.
 
-**Caustiche.** I preset `pre-final`, `final` e `ultra` abilitano anche le
-caustiche via photon mapping (`--caustics on`) di default; `draft` e
-`standard` le lasciano spente. Il budget di fotoni del pre-pass è controllato
-da `--caustic-photons <N>` (2M su pre-final, ~2–4M su final/ultra): più
-fotoni = caustiche più nitide e meno rumorose, al costo di un pre-pass più
-lento. Un `--caustics off`
-esplicito (o `--caustics on` su un preset più basso) ha la precedenza sul
-default del preset. Vedi [Path Tracing e Illuminazione §2.5](../technical/path-tracing-and-lighting.md).
+**Caustiche.** Il path tracing rende le caustiche come sono, prive di bias
+ma rumorose dove solo un rimbalzo fortunato trova la luce. Una scena il cui
+aspetto dipende da loro si rende con `--integrator bdpt` (caustiche viste
+direttamente o in uno specchio) o `--integrator vcm` (anche viste attraverso
+un vetro o l'acqua) sopra qualunque preset: vedi la sezione 4c.
 
 **`standard` - il render di qualità quotidiano.** Il tier `standard` punta
 a qualità d'immagine da final su una scena *classica* - superfici
 Lambertian/Disney, vetri non annidati (al massimo un paio di sfere di
 cristallo una davanti all'altra), marmo procedurale con parametri ordinari -
 eliminando la costosa macchineria di illuminazione globale che queste scene
-non usano. Rispetto a `final`: disattiva le **caustiche** a photon mapping,
-disattiva il **SSS** volumetrico (`--sss-mode off`), gira a **512 spp** con
+non usano. Rispetto a `final`: disattiva il **SSS** volumetrico (`--sss-mode off`), gira a **512 spp** con
 **un solo shadow sample** (512 spp fanno già anti-aliasing), riduce i
 budget dei rimbalzi (4 diffuse, 6 glossy, 12 transmission) e lascia al
-**denoiser NFOR** la grana residua. Su una scena senza caustiche/SSS è
+**denoiser NFOR** la grana residua. Su una scena senza SSS è
 nettamente più veloce di `final` a parità di resa. Come sempre i flag
-espliciti vincono - es. `-q standard --caustics on` riattiva le caustiche,
+espliciti vincono - es. `-q standard --sss-mode auto` riattiva il SSS,
 `-q standard -s 768` alza i campioni se i bordi del vetro restano rumorosi.
-Evitalo per scene che dipendono davvero da caustiche focalizzate,
-traslucenza/SSS profondo o vetri impilati/annidati - lì usa
-`pre-final`/`final`.
+Evitalo per scene che dipendono davvero da traslucenza/SSS profondo o
+vetri impilati/annidati - lì usa `pre-final`/`final`.
 
 **`pre-final` - anteprima fedele di `final`.** Stessa feature-set di `final`
-(caustiche on, SSS attivo, gli stessi budget di rimbalzi, lo stesso
+(SSS attivo, gli stessi budget di rimbalzi, lo stesso
 campionamento delle luci) con i budget di campionamento tagliati dove il denoiser compensa
 meglio: **¼ dei campioni per pixel** (256) e **un solo shadow sample** - il
 rumore delle penombre è esattamente ciò che il filtro guidato dalle feature
-rimuove più pulito. Il risultato anticipa illuminazione, caustiche e
+rimuove più pulito. Il risultato anticipa illuminazione e
 traslucenza del final a circa **4-6× la velocità**; usalo per iterare su una
 scena destinata a `final`, poi lancia `final` non filtrato per la consegna.
 
@@ -191,6 +186,7 @@ RayTracer -i my-scene -q standard --denoiser none
 | `-C` / `--clamp` | spento (nessun firefly clamp) | opzionale, valore di partenza suggerito `10` (`Renderer.SuggestedMaxSampleRadiance`) |
 | `--indirect-clamp-factor` | `0.25` (solo con `-C`: clamp indiretto = `-C` × fattore) | `Renderer.DefaultIndirectClampFactor` |
 | `--transparent-shadows` | `off` (il vetro proietta la sua ombra e caustica fisiche) | `Program.cs` |
+| `--integrator` | `path` (path tracing; `bdpt`, `vcm` su richiesta) | `IntegratorKind.Path` |
 | `--exposure` | `0` EV (identità) | `Renderer.DefaultExposureEv` |
 | `--light-sampling` | `auto` (`all` fino a 16 luci, `bvh` oltre) | `LightSamplingStrategy.Auto` |
 | `--texture-filtering` | `auto` (filtering attivo) | `Renderer.TextureFilteringMode.Auto` |
@@ -291,6 +287,57 @@ campioni.
 
 ---
 
+### 4c. **INTEGRATORI BIDIREZIONALI (`--integrator bdpt|vcm`)**
+
+Il path tracing costruisce ogni cammino dalla camera e trova la luce
+campionandola (next-event estimation) o colpendola. Certa luce la trova
+solo per caso: una luce piccola vista attraverso un vetro, la caustica che
+una sfera di vetro concentra sul pavimento, la rete luminosa sul fondo di una
+piscina. Due altri integratori costruiscono i cammini da entrambi i capi:
+
+- **`bdpt`, path tracing bidirezionale.** Ogni campione traccia un
+  sottocammino dalla camera e uno da una luce, poi unisce ogni vertice
+  dell'uno a ogni vertice dell'altro, collega i vertici di luce direttamente
+  alla camera (light tracing) e colpisce le luci dal lato della camera. Ogni
+  modo di costruire lo stesso cammino è pesato dal multiple importance
+  sampling, così ogni tipo di luce lo porta la strategia che lo trova meglio.
+  Privo di bias, ammesso con `--reference`; superfici e mezzi partecipanti
+  (vertici di scattering in nebbia e fumo, entità subsurface attraverso il
+  random walk del path tracer). Le caustiche viste direttamente o in uno
+  specchio convergono, a circa 2-3× il costo di un campione di path
+  tracing, spesso con meno rumore a parità di tempo negli interni
+  illuminati attraverso un vetro.
+- **`vcm`, vertex connection and merging.** `bdpt` più la fusione dei vertici
+  di luce vicini a ogni vertice di camera (photon mapping progressivo) nello
+  stesso multiple importance sampling. Rende la luce che nessuna connessione
+  può unire: una caustica **vista attraverso** un vetro o l'acqua (luce →
+  acqua → fondo → acqua → camera). Il raggio di merging parte da
+  `--vcm-radius` × il raggio della scena (default 0.003) e si riduce con le
+  iterazioni come i^-1/8, così il bias del merging si annulla al crescere di
+  `-s`: il VCM è consistente, non privo di bias, ed è rifiutato con
+  `--reference`. Il merging avviene sulle superfici (non nei mezzi).
+
+`-s` è il numero di iterazioni: un sottocammino di camera e uno di luce per
+pixel ciascuna. `-d` limita la lunghezza dei cammini come nel path tracing
+(i limiti per tipo non si applicano). Non con `--guiding`; denoiser, AOV e
+output EXR funzionano come sempre.
+
+Misurato su `scenes/review/vcm-pool.yaml` (480 × 270, stesso tempo, circa
+40 s): path tracing e `bdpt` mostrano il fondo della piscina come firefly
+sparsi, `vcm` mostra la rete di caustiche (`scenes/review/images/vcm-pool.jpg`).
+Sulle scene di validazione `bdpt` e `vcm` concordano con il renderer di
+riferimento come il path tracing (rapporti medi entro lo 0.3%, come i suoi, nebbia e
+fumo compresi).
+
+```bash
+# Caustiche viste attraverso l'acqua: il fondo di una piscina
+RayTracer -i scenes/review/vcm-pool.yaml -q standard-small --integrator vcm -s 256
+# Caustiche viste direttamente, senza bias
+RayTracer -i mia-scena -q final --integrator bdpt
+```
+
+---
+
 ### 5. **COMPRENDERE `-S` (CAMPIONI D'OMBRA)**
 
 `-S` forza un override globale del numero di raggi d'ombra usati da ogni luce ad area (`AreaLight`, `SphereLight`, `GeometryLight`). Ogni luce costruisce una griglia stratificata √N × √N sulla propria superficie e lancia un raggio d'ombra per cella.
@@ -344,7 +391,7 @@ Questo moltiplica la soglia `-C` per tutti i contributi indiretti, quindi agisce
 --transparent-shadows on
 ```
 
-**Default: off.** Il vetro si comporta in modo fisico: proietta la sua ombra, e la luce che rifrange arriva sul pavimento lungo i cammini che lo attraversano davvero, cioè la caustica (nitida ma rumorosa con pochi campioni; `--caustics on` la mette a fuoco con i fotoni). Le superfici con indice adattato (`refraction_index: 1`, il guscio trasparente che delimita un volume di nebbia o acqua) e i fogli `thin_walled` lisci lasciano sempre passare i raggi d'ombra: la loro trasmissione non devia la luce, quindi è esatto.
+**Default: off.** Il vetro si comporta in modo fisico: proietta la sua ombra, e la luce che rifrange arriva sul pavimento lungo i cammini che lo attraversano davvero, cioè la caustica (nitida ma rumorosa con pochi campioni in path tracing; `--integrator bdpt` o `vcm` la risolvono, sezione 4c). Le superfici con indice adattato (`refraction_index: 1`, il guscio trasparente che delimita un volume di nebbia o acqua) e i fogli `thin_walled` lisci lasciano sempre passare i raggi d'ombra: la loro trasmissione non devia la luce, quindi è esatto.
 
 `on` è un'approssimazione artistica: i raggi d'ombra attraversano il vetro in linea retta, tinti dalla sua trasmittanza di Fresnel, così il vetro chiaro proietta una mezz'ombra morbida e tinta invece di un'ombra e una caustica. I cammini di luce rifratta dalle superfici diffuse attraverso il vetro verso le luci vengono scartati, così la stessa luce non è contata due volte. Usalo per anteprime veloci e senza rumore di scene con molto vetro; lascialo spento per le immagini finali.
 

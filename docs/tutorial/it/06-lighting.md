@@ -637,32 +637,34 @@ un calice lascia sul tavolo, il bagliore colorato sotto una bottiglia tinta.
 Sono le **caustiche**, e poiché richiedono che la luce segua il cammino piegato
 (rifratto) o riflesso, i normali shadow ray non sanno produrle.
 
-3D-Ray le rende con un **pre-pass di fotoni**. Non devi marcare niente nella
-scena: qualsiasi superficie speculare (vetro, acqua, metallo, specchio)
-focalizza la luce in automatico, e qualsiasi superficie diffusa (un pavimento,
-una parete) la riceve. Tutte le luci guidano le caustiche, **sole**
-(`directional`) compreso. Basta attivarle:
+Non devi marcare niente nella scena: qualsiasi superficie speculare (vetro,
+acqua, metallo, specchio) focalizza la luce, e qualsiasi superficie diffusa (un
+pavimento, una parete) la riceve, da ogni tipo di luce, **sole**
+(`directional`) e cielo HDRI compresi. L'integratore di default, il path
+tracing, rende anche le caustiche, ma le trova solo quando un rimbalzo colpisce
+per caso la luce attraverso il vetro: escono granulose, tanto più quanto la
+luce è piccola. Due altri integratori tracciano la luce anche dalle sorgenti:
 
 ```bash
-# Le caustiche sono attive di default nei preset final/ultra:
-RayTracer -i mia-scena.yaml -q final
+# Path tracing bidirezionale: caustiche viste direttamente o in uno specchio
+RayTracer -i mia-scena.yaml -q final --integrator bdpt
 
-# Oppure attivale esplicitamente su qualsiasi preset:
-RayTracer -i mia-scena.yaml -q standard --caustics on
+# Vertex connection and merging: anche caustiche viste attraverso vetro o acqua
+# (il fondo di una piscina, un oggetto dentro un bicchiere)
+RayTracer -i mia-scena.yaml -q standard --integrator vcm
 ```
 
 Qualche nota pratica:
 
-- **`--caustic-photons <N>`** regola la qualità: più fotoni = caustiche più
-  nitide e meno rumorose (e pre-pass più lento). I preset scelgono un default
-  ragionevole.
-- **Il vetro tinto proietta una caustica colorata** — un vetro rosso getta una
-  pozza di luce rossa, perché i fotoni assorbono il colore del vetro che
-  attraversano.
+- **`-s`** è il numero di iterazioni: di più = caustiche più pulite. Il VCM
+  inoltre le rende più nitide man mano (`--vcm-radius` regola la sfocatura
+  iniziale).
+- **Il vetro tinto proietta una caustica colorata**: un vetro rosso getta una
+  pozza di luce rossa, perché la luce prende il colore del vetro che
+  attraversa.
 - Una luce piccola e intensa dà una caustica **netta**; una grande la rende
   **morbida**. Il sole dà caustiche nitide a raggi paralleli.
-- Le caustiche da vetro smerigliato/rough e da ambiente HDRI sono più morbide e
-  gestite dal path tracer ordinario in questa versione.
+- Il vetro smerigliato/rough dà caustiche più morbide, rese allo stesso modo.
 
 Configurazioni pronte di vetro, metallo e lenti sono in
 [`scenes/presets/caustics.md`](../../../scenes/presets/caustics.md).

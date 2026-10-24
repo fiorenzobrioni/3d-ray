@@ -21,8 +21,8 @@ namespace RayTracer.Geometry;
 /// surface contributes its <see cref="IMaterial.ShadowTransmittance"/>
 /// multiplicatively. This is the same approximation Arnold and Cycles use by
 /// default: glass casts a Fresnel-tinted soft shadow instead of a hard one,
-/// but focused refractive caustics are NOT reproduced (those need photon
-/// mapping — see DEVLOG roadmap).</para>
+/// but focused refractive caustics are NOT reproduced (the default, opaque
+/// glass, leaves them to the sampled paths: path tracing, or BDPT/VCM).</para>
 ///
 /// <para><b>Beer-Lambert.</b> When the walker enters a surface that exposes a
 /// non-zero <see cref="IMaterial.ShadowAbsorption"/> (Disney glass with
@@ -40,29 +40,11 @@ namespace RayTracer.Geometry;
 public static class ShadowRay
 {
     /// <summary>
-    /// Per-thread switch the renderer raises during the camera pass when photon
-    /// caustics are active. While set, a <b>smooth specular transmissive</b>
-    /// surface (<see cref="IMaterial.IsSpecularTransmissive"/>) is treated as
-    /// OPAQUE to NEE shadow rays: the refracted, focused, Beer-Lambert-tinted
-    /// light through clear glass is supplied by the photon map instead, so it is
-    /// not also delivered as a straight-through soft fill (which would double the
-    /// transmitted energy and wash out the coloured refractive shadow). Rough
-    /// transmission and the caustics-off path are unaffected. Thread-static so it
-    /// is correct under the parallel render and never leaks between renders.
-    /// </summary>
-    [ThreadStatic] private static bool _blockSpecularTransmission;
-    public static bool BlockSpecularTransmission
-    {
-        get => _blockSpecularTransmission;
-        set => _blockSpecularTransmission = value;
-    }
-
-    /// <summary>
     /// Per-thread switch raised by the renderer in reference mode: every surface
     /// with a material is opaque to NEE shadow rays, so no straight-through
     /// transmission approximation reaches the estimate. Light through glass is
-    /// then carried only by BSDF-sampled paths. Thread-static for the same
-    /// reason as <see cref="BlockSpecularTransmission"/>.
+    /// then carried only by BSDF-sampled paths. Thread-static so it is correct
+    /// under the parallel render and never leaks between renders.
     /// </summary>
     [ThreadStatic] private static bool _receiverTransmits;
     /// <summary>
@@ -308,14 +290,6 @@ public static class ShadowRay
             // Opaque mode still lets straight transmission through: crossing an
             // index-matched shell or a thin sheet is the exact transport.
             if (_blockAllTransmission && !rec.Material.TransmitsStraight(rec))
-                return Vector3.Zero;
-
-            // Photon caustics active: a smooth specular transmissive interface
-            // (clear glass/water) is opaque to NEE here — the refracted, tinted
-            // light it transmits is delivered by the photon map, so the glass
-            // casts a proper (coloured) refractive shadow instead of a fake
-            // straight-through fill. Rough/frosted transmission is untouched.
-            if (_blockSpecularTransmission && rec.Material.IsSpecularTransmissive(rec))
                 return Vector3.Zero;
 
             // Beer-Lambert over the segment we just traversed inside a medium.

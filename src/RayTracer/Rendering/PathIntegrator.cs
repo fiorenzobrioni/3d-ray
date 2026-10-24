@@ -48,7 +48,7 @@ public partial class Renderer
         public bool PrevIsDelta;        // camera ray or delta bounce: emission at full weight
         public Vector3 SigmaA;          // absorption of the dielectric interior the ray travels in
         public RayCategory Category;    // which kind of ray this is, for visibility flags
-        public int CausticState;        // see CausticNone / CausticDiffuse / CausticSuppress
+        public int ChainState;          // see ChainNone / ChainDiffuse / ChainSpecular
         public float EtaScale;          // product of η² over the refractions so far (for the roulette)
 
         // Bounces taken: in total (cut-outs aside) and of each kind.
@@ -95,7 +95,7 @@ public partial class Renderer
             PrevIsDelta = true,
             SigmaA = Vector3.Zero,
             Category = RayCategory.Camera,
-            CausticState = CausticNone,
+            ChainState = ChainNone,
             EtaScale = 1f,
             Mediums = new MediumStack(),
             Iors = new IorStack(),
@@ -186,7 +186,7 @@ public partial class Renderer
                 // A ray escaping from inside an absorbing interior never
                 // reaches the sky (exp(-σ_a ∞) = 0).
                 if (!HasAbsorption(path.SigmaA))
-                    path.Add(path.Beta * SampleSky(ray, path.PrevPdf, path.PrevIsDelta, path.CausticState, path.Category));
+                    path.Add(path.Beta * SampleSky(ray, path.PrevPdf, path.PrevIsDelta, path.ChainState, path.Category));
                 break;
             }
 
@@ -309,13 +309,13 @@ public partial class Renderer
         path.PrevPdf = phasePdf;
         path.PrevIsDelta = false;
         path.Category = RayCategory.Diffuse;   // a volume bounce scatters like a diffuse one
-        path.CausticState = NextCausticState(path.CausticState, isDelta: false, shadowPassable: false);
+        path.ChainState = NextChainState(path.ChainState, isDelta: false, shadowPassable: false);
         return true;
     }
 
     /// <summary>
     /// A surface hit: shading-normal perturbations, emission (MIS-weighted),
-    /// next-event estimation and the photon caustics, then the sampled
+    /// next-event estimation, then the sampled
     /// bounce (with its medium and IOR transitions and the random-walk
     /// subsurface hand-off). False when the path ends here.
     /// </summary>
@@ -372,8 +372,6 @@ public partial class Renderer
             t_guideBsdfFraction = guideA;
             Vector3 direct = DirectLightingAt(in rec, viewDir, material, in path.Mediums);
             t_guideMis = null;
-            if (_causticsActive && material != null && !material.IsDeltaScatter)
-                direct += GatherCaustics(in rec, viewDir, material);
             path.Add(path.Beta * direct);
         }
 
@@ -433,7 +431,7 @@ public partial class Renderer
         Vector3 offsetDir = Vector3.Dot(s.Wo, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
         var next = new Ray(MathUtils.OffsetOrigin(rec.Point, offsetDir), s.Wo, rec.Time);
 
-        int nextCaustic = NextCausticState(path.CausticState, s.IsDelta, ShadowPassable(material, in rec, s.Wo));
+        int nextChain = NextChainState(path.ChainState, s.IsDelta, ShadowPassable(material, in rec, s.Wo));
         path.Ray = next;
         path.PrevPdf = pdf;
         path.PrevIsDelta = s.IsDelta;
@@ -446,7 +444,7 @@ public partial class Renderer
             BsdfLobe.Transparent => path.Category,
             _                    => RayCategory.Transmission,
         };
-        path.CausticState = nextCaustic;
+        path.ChainState = nextChain;
 
         if (s.Transition == MediumTransition.None) return true;
 
@@ -493,12 +491,12 @@ public partial class Renderer
     /// <summary>
     /// The emission of the surface hit, MIS-weighted against the light
     /// samples of the previous vertex; dropped when another estimator
-    /// already carries it (photon caustics, transparent shadows).
+    /// already carries it (transparent shadows).
     /// </summary>
     private void AddEmission(ref PathState path, ref HitRecord rec)
     {
         IMaterial? material = rec.Material;
-        if (material == null || SuppressChainEmission(path.CausticState)) return;
+        if (material == null || SuppressChainEmission(path.ChainState)) return;
         Vector3 raw = material.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
         if (raw.X > 0f || raw.Y > 0f || raw.Z > 0f)
             path.Add(path.Beta * WeightEmission(raw, material, path.Ray, rec.T, path.PrevPdf, path.PrevIsDelta));

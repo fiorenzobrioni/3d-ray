@@ -738,29 +738,32 @@ the table, the coloured glow under a tinted bottle. These are **caustics**, and
 because they need light to follow the bent (refracted) or reflected path, plain
 shadow rays can't produce them.
 
-3D-Ray renders caustics with a **photon pre-pass**. You don't mark anything in
-the scene — any specular surface (glass, water, metal, mirror) automatically
-focuses light, and any diffuse surface (a floor, a wall) receives it. All light
-types drive caustics, including the **sun** (`directional`). Just turn them on:
+You don't mark anything in the scene: any specular surface (glass, water,
+metal, mirror) focuses light, and any diffuse surface (a floor, a wall)
+receives it, from every light type including the **sun** (`directional`) and
+an HDRI sky. The default integrator, path tracing, renders caustics too, but
+it finds them only when a bounce happens to hit the light through the glass:
+they come out grainy, the more so the smaller the light. Two other
+integrators trace light from the lights as well:
 
 ```bash
-# Caustics are on by default in the final/ultra presets:
-RayTracer -i my-scene.yaml -q final
+# Bidirectional path tracing: caustics seen directly or in a mirror
+RayTracer -i my-scene.yaml -q final --integrator bdpt
 
-# Or enable them explicitly on any preset:
-RayTracer -i my-scene.yaml -q standard --caustics on
+# Vertex connection and merging: also caustics seen through glass or water
+# (the floor of a pool, an object inside a glass)
+RayTracer -i my-scene.yaml -q standard --integrator vcm
 ```
 
 A few practical notes:
 
-- **`--caustic-photons <N>`** controls quality: more photons = sharper, less
-  noisy caustics (and a slower pre-pass). The presets pick a sensible default.
-- **Tinted glass casts a coloured caustic** — a red glass throws a red pool of
-  light, because the photons pick up the glass colour as they pass through.
+- **`-s`** is the number of iterations: more = cleaner caustics. VCM also
+  sharpens them as it goes (`--vcm-radius` sets the starting blur).
+- **Tinted glass casts a coloured caustic**: a red glass throws a red pool of
+  light, because the light picks up the glass colour as it passes through.
 - A small, bright light gives a **sharp** caustic; a large light gives a **soft**
   one. The sun gives crisp, parallel-ray caustics.
-- Frosted/rough glass and HDRI-environment caustics are softer and handled by
-  the regular path tracer in this version.
+- Frosted/rough glass gives softer caustics, handled the same way.
 
 Copy-paste-ready glass, metal and lens setups live in
 [`scenes/presets/caustics.md`](../../../scenes/presets/caustics.md).

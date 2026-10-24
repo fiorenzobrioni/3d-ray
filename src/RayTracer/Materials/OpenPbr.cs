@@ -68,8 +68,8 @@ public sealed class OpenPbr : IMaterial
         _mayTransmit = !p.TransmissionWeight.IsConstant || p.TransmissionWeight.ConstantValue > 0f
                     || !p.SubsurfaceWeight.IsConstant || p.SubsurfaceWeight.ConstantValue > 0f;
 
-        // Every lobe a delta (clear glass, a polished mirror): the renderer
-        // skips the caustic gather and keeps emission weight across the bounce.
+        // Every lobe a delta (clear glass, a polished mirror): no light sample
+        // or connection can reach it, and emission keeps its weight across the bounce.
         static bool Is(FloatTexture t, float v) => t.IsConstant && t.ConstantValue == v;
         static bool AtLeast(FloatTexture t, float v) => t.IsConstant && t.ConstantValue >= v;
         bool smoothBase = Is(p.SpecularRoughness, 0f) && (Is(p.CoatWeight, 0f) || Is(p.CoatRoughness, 0f));
@@ -144,8 +144,8 @@ public sealed class OpenPbr : IMaterial
     private static float Lerp(float a, float b, float t) => a + (b - a) * t;
 
     /// <summary>Below this roughness (α ≤ 1e-3, a lobe narrower than 0.06°) a
-    /// specular lobe is a perfect mirror: sampled as a delta, so the caustic
-    /// photons follow it and no near-singular lobe meets a shadow ray.</summary>
+    /// specular lobe is a perfect mirror: sampled as a delta, so no
+    /// near-singular lobe meets a shadow ray or a connection.</summary>
     private const float DeltaRoughness = 0.0317f;
 
     /// <summary>OpenPBR anisotropy: α_t = r² √(2 / (1 + (1 − a)²)), α_b = (1 − a) α_t.</summary>
@@ -841,7 +841,7 @@ public sealed class OpenPbr : IMaterial
                 Vector3 m = MathUtils.Reflect(-V, h.Nc);
                 float fc = MathUtils.FresnelDielectric(w.MuVc, 1f / h.CoatEta);
                 return new BsdfSample(m, new Vector3(w.GFuzz * h.Coat * fc * total / pr.Coat), 1f,
-                                      isDelta: true, causticCaster: false);
+                                      isDelta: true);
             }
             var (u1, u2) = MathUtils.Random2D();
             Vector3 Hl = Microfacet.SampleGgxVndfAniso(Local(V, h.Tc, h.Bc, h.Nc), h.CoatAx, h.CoatAy, u1, u2);
@@ -855,7 +855,7 @@ public sealed class OpenPbr : IMaterial
                 Vector3 m = MathUtils.Reflect(-V, N);
                 Vector3 wgt = BaseMultiplier(in h, in w, w.MuV, false) * h.Metal * MetalFresnel(in h, w.MuV)
                             * (total / pr.Metal);
-                return new BsdfSample(m, wgt, 1f, isDelta: true, causticCaster: h.Metal >= 0.5f);
+                return new BsdfSample(m, wgt, 1f, isDelta: true);
             }
             float q = Math.Clamp(w.EMetalV, 0.05f, 1f);
             if (MathUtils.RandomFloat() < q)
@@ -938,7 +938,7 @@ public sealed class OpenPbr : IMaterial
         {
             Vector3 m = MathUtils.Reflect(-V, N);
             Vector3 wgt = BaseMultiplier(in h, in w, muV, false) * d * h.SpecColor * fres / (pLobe * pRefl);
-            return new BsdfSample(m, wgt, 1f, isDelta: true, causticCaster: h.Inside);
+            return new BsdfSample(m, wgt, 1f, isDelta: true);
         }
         Vector3 bm = BaseMultiplier(in h, in w, muV, true) * d * h.Trans * h.TransTint * (Vector3.One - fres)
                    / (pLobe * (1f - pRefl));
@@ -975,13 +975,6 @@ public sealed class OpenPbr : IMaterial
         float n = MathF.Max(Parameters.SpecularIor.Value(in rec), 1e-3f);
         ior = ModulatedIor(n, MathF.Max(0f, Parameters.SpecularWeight.Value(in rec)));
         return true;
-    }
-
-    public bool IsSpecularTransmissive(in HitRecord rec)
-    {
-        if (Parameters.ThinWalled || !_mayTransmit) return false;
-        Hit h = GetHit(in rec);
-        return h.BaseDelta && h.Trans > 0f;
     }
 
     public bool TransmitsStraight(in HitRecord rec)

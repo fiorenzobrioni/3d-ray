@@ -234,7 +234,6 @@ public partial class Renderer
         // Glass is opaque to connections: light through it travels only along
         // sampled subpaths (straight transmission excepted, exactly).
         ShadowRay.BlockAllTransmission = true;
-        ShadowRay.BlockSpecularTransmission = false;
         if (_seedMix != 0 && !useSobol)
             MathUtils.ReseedThread(unchecked((int)(_seedMix ^ (uint)Environment.CurrentManagedThreadId * 2654435761u)));
     }

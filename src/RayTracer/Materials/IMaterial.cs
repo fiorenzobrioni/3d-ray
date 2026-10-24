@@ -25,8 +25,8 @@ public interface IMaterial
 
     /// <summary>
     /// True when every lobe of the material is a delta function (perfect
-    /// mirror, ideal refraction): no light sample can reach it, so the renderer
-    /// skips the caustic photon gather there. Each sample still reports its own
+    /// mirror, ideal refraction): no light sample or connection can reach it,
+    /// so the renderer skips them there. Each sample still reports its own
     /// deltaness through <see cref="BsdfSample.IsDelta"/>, which is what drives
     /// the emission weight of the next hit.
     /// </summary>
@@ -43,8 +43,8 @@ public interface IMaterial
     /// the returned factor is multiplied into the throughput. This is the
     /// standard "transparent shadow rays" approximation: it correctly handles
     /// the loss of direct light through glass (no more hard shadow under glass)
-    /// but does NOT reproduce focused refractive lighting effects, which would
-    /// require photon mapping (see DEVLOG roadmap).
+    /// but does NOT reproduce focused refractive lighting effects (sampled
+    /// paths do: path tracing, BDPT, VCM).
     /// </summary>
     /// <param name="wi">Unit shadow-ray direction at the hit (surface → light).</param>
     /// <param name="rec">Hit record at the shadow-ray intersection.</param>
@@ -105,21 +105,6 @@ public interface IMaterial
     /// transmission_depth</c> per channel.
     /// </summary>
     Vector3 ShadowAbsorption(in HitRecord rec) => Vector3.Zero;
-
-    /// <summary>
-    /// True when this surface transmits light through a <b>smooth specular</b>
-    /// (delta) interface — clear glass, water, a polished gem. This is exactly the
-    /// transport the caustic photon map reconstructs (<c>L S+ D</c>), so when
-    /// photon caustics are active the renderer makes such an interface opaque to
-    /// straight NEE shadow rays: the focused, refracted (and Beer-Lambert tinted)
-    /// light is supplied by the photon map instead, avoiding a double count and
-    /// reproducing physically correct — coloured — refractive shadows.
-    ///
-    /// <para>Rough/frosted transmission returns <c>false</c>: the photon map does
-    /// not capture it, so the soft straight-through transparent shadow stays its
-    /// only fill. Default <c>false</c> (opaque or non-transmissive).</para>
-    /// </summary>
-    bool IsSpecularTransmissive(in HitRecord rec) => false;
 
     /// <summary>
     /// Reports the absolute index of refraction of this material's refractive

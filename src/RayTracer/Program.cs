@@ -215,39 +215,6 @@ class Program
 
 
         // Verbose mode
-        // ── Caustics ─────────────────────────────────────────────────────────
-        // `--caustics on|off` toggles photon-mapped caustics; an explicit flag
-        // overrides the quality-preset default (FINAL/ULTRA enable it). When on,
-        // a photon pre-pass focuses light through every specular surface in the
-        // scene — no per-object flags. `--caustic-photons N` overrides the budget.
-        bool? causticsExplicit = null;
-        string? causticsArg = GetArg(args, "--caustics", null);
-        if (causticsArg != null)
-        {
-            switch (causticsArg.ToLowerInvariant())
-            {
-                case "on":  causticsExplicit = true;  break;
-                case "off": causticsExplicit = false; break;
-                default:
-                    Console.WriteLine($"Error: Unknown --caustics '{causticsArg}'. Valid: on, off.");
-                    return;
-            }
-        }
-        bool enableCaustics = causticsExplicit ?? (quality?.Caustics ?? false);
-
-        // Caustic photon budget: preset default (final/ultra raise it), global
-        // fallback when on outside those presets, and an explicit --caustic-photons
-        // override. Zero when caustics are off.
-        int causticPhotons = 0;
-        if (enableCaustics)
-        {
-            const int DefaultCausticPhotons = 2_000_000;
-            int presetBudget = quality?.CausticPhotons ?? 0;
-            causticPhotons = presetBudget > 0 ? presetBudget : DefaultCausticPhotons;
-            if (int.TryParse(GetArg(args, "--caustic-photons", null), out var cpArg) && cpArg > 0)
-                causticPhotons = cpArg;
-        }
-
         // ── Path guiding ─────────────────────────────────────────────────────
         // `--guiding on|off`: learn where the light comes from in training
         // passes, then sample bounces from that as well as from the BSDF
@@ -374,20 +341,21 @@ class Program
         // validate the engine (PIANO-REVIEW.md, Phase 0): no clamps, no
         // straight-through transparent shadows, one depth for every kind of
         // bounce.
-        // The denoiser and photon caustics are biased by construction, so they
+        // The denoiser and vertex merging are biased by construction, so they
         // are refused rather than silently mixed into a reference image.
         bool referenceMode = HasFlag(args, "--reference", null);
         if (referenceMode)
         {
+            if (integrator == IntegratorKind.Vcm)
+            {
+                Console.WriteLine("Error: --integrator vcm is biased (it merges nearby vertices): use bdpt with --reference.");
+                return;
+            }
             if (denoiserArg != null && denoiserKind != DenoiserKind.None)
                 Console.WriteLine("Warning: --denoiser ignored in --reference mode.");
-            if (causticsExplicit == true)
-                Console.WriteLine("Warning: --caustics on ignored in --reference mode.");
             if (clampOverride.HasValue || indirectClampArg != null)
                 Console.WriteLine("Warning: --clamp / --indirect-clamp-factor ignored in --reference mode.");
             denoiserKind = DenoiserKind.None;
-            enableCaustics = false;
-            causticPhotons = 0;
             clampOverride = null;
             indirectClampFactor = Renderer.DefaultIndirectClampFactor;
         }
@@ -562,7 +530,7 @@ class Program
         if (shadowSamplesOverride.HasValue)
             Console.WriteLine($"  Shadow smp:  {shadowSamplesOverride.Value} (override)");
         if (referenceMode)
-            Console.WriteLine("  Reference:   on (no clamps, no transparent shadows, uniform depths, no denoiser/caustics)");
+            Console.WriteLine("  Reference:   on (no clamps, no transparent shadows, uniform depths, no denoiser)");
         if (seed != 0)
             Console.WriteLine($"  Seed:        {seed}");
         if (integrator != IntegratorKind.Path)
@@ -640,7 +608,6 @@ class Program
                 clampOverride, verbose, misHeuristic, lightSampling,
                 indirectClampFactor, textureFiltering, exposureEv,
                 sssMode,
-                enableCaustics: enableCaustics, causticPhotons: causticPhotons,
                 motionBlur: motionBlur,
                 referenceMode: referenceMode, seed: seed,
                 transparentShadows: transparentShadows,
@@ -741,7 +708,7 @@ class Program
         Console.WriteLine("                                          final-tiny, final-small, final,");
         Console.WriteLine("                                          ultra (4K).");
         Console.WriteLine("                                standard = final-class quality for classic scenes");
-        Console.WriteLine("                                (no caustics/SSS, 512 spp, denoiser).");
+        Console.WriteLine("                                (no SSS, 512 spp, denoiser).");
         Console.WriteLine("                                pre-final = faithful preview of final (full feature");
         Console.WriteLine("                                set, 256 spp + denoiser, ~4-6x faster than final).");
         Console.WriteLine("  -w, --width <px>             Image width  (default: 960 via draft-small preset)");
@@ -765,14 +732,12 @@ class Program
         Console.WriteLine("      --mis <balance|power>    MIS combination heuristic (default: balance)");
         Console.WriteLine("      --light-sampling <auto|all|power|uniform|bvh>  NEE light strategy (default: auto = all up to 16 lights, bvh above)");
         Console.WriteLine("      --texture-filtering <auto|on|off>     Analytic anti-aliasing via ray differentials (default: auto)");
-        Console.WriteLine("      --caustics <on|off>      Photon-mapped caustics (default: off, on for final/ultra)");
         Console.WriteLine("      --integrator <path|bdpt|vcm>  Light transport: path tracing (default), bidirectional path tracing,");
         Console.WriteLine("                               or vertex connection and merging (bdpt + merging: caustics through glass/water)");
         Console.WriteLine("      --vcm-radius <f>         VCM merging radius at the first iteration, fraction of the scene radius (default: 0.003)");
         Console.WriteLine("      --guiding <on|off>       Path guiding: learn the incident light in training passes,");
         Console.WriteLine("                                then sample bounces from it too (unbiased; default: off)");
         Console.WriteLine("      --guiding-training <n>   Training spp out of -s, passes of 1, 2, 4, ... that join the image (default: -s / 2)");
-        Console.WriteLine("      --caustic-photons <n>    Caustic photon budget when --caustics on (default: 2-4M by preset)");
         Console.WriteLine("      --denoiser <none|nlm|nfor>  Feature-guided denoiser on the linear HDR beauty");
         Console.WriteLine("                                (default: none; draft/standard/pre-final presets use nfor)");
         Console.WriteLine("      --denoise-quality <fast|high>  Denoiser speed/quality trade-off (default: high)");
@@ -795,7 +760,7 @@ class Program
         Console.WriteLine("      --bit-depth <8|16>       Bits per channel of a .png output (default: 8)");
         Console.WriteLine("      --dither <on|off>        Dither 8-bit output against banding (default: on)");
         Console.WriteLine("      --reference              Unbiased reference estimator for validation: no clamps,");
-        Console.WriteLine("                                no transparent shadows, uniform depths, no denoiser/caustics");
+        Console.WriteLine("                                no transparent shadows, uniform depths, no denoiser");
         Console.WriteLine("      --seed <n>               Independent sample sequence (default 0 = standard sequence)");
         Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
         Console.WriteLine("  -v, --verbose                Show detailed loading and scene analysis info");
@@ -1020,10 +985,6 @@ class Program
         /// <summary>The tier's split of <see cref="Depth"/> by kind of bounce.</summary>
         public PathDepths? Depths { get; }
         public int ShadowSamples { get; }
-        public bool Caustics { get; }
-        /// <summary>Caustic photon budget for this tier when caustics are on
-        /// (0 → use the global default). FINAL/ULTRA raise it for cleaner maps.</summary>
-        public int CausticPhotons { get; }
         /// <summary>When non-null, the tier forces a <c>--sss-mode</c> value
         /// (the FINAL-FAST tiers force <see cref="SssMode.Off"/>). An explicit
         /// <c>--sss-mode</c> flag still wins.</summary>
@@ -1046,7 +1007,6 @@ class Program
         public DenoiseQuality DenoiseQuality { get; }
 
         private QualityPreset(string name, int w, int h, int s, int d, int ss,
-                              bool caustics = false, int causticPhotons = 0,
                               SssMode? sssModeOverride = null,
                               LightSamplingStrategy? lightSampling = null,
                               float? indirectClampFactor = null,
@@ -1056,7 +1016,6 @@ class Program
         {
             Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
             Depths = depths;
-            Caustics = caustics; CausticPhotons = causticPhotons;
             SssModeOverride = sssModeOverride;
             LightSampling = lightSampling;
             IndirectClampFactor = indirectClampFactor;
@@ -1083,39 +1042,36 @@ class Program
         // on a *classic* scene — Lambertian/Disney, non-nested glass,
         // procedural marble — with the expensive global-illumination extras
         // stripped:
-        // photon caustics OFF, volumetric SSS OFF, single shadow sample
+        // volumetric SSS OFF, single shadow sample
         // (512 spp already anti-aliases), relaxed indirect clamp, and the
         // NFOR denoiser absorbing the faint residual grain 512 spp can leave.
         public static readonly QualityPreset StandardTiny  = new("standard-tiny",  480, 270,  512, 12, 1,
-            caustics: false, sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
+            sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
         public static readonly QualityPreset StandardSmall = new("standard-small", 960, 540,  512, 12, 1,
-            caustics: false, sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
+            sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
         public static readonly QualityPreset Standard      = new("standard",      1920, 1080, 512, 12, 1,
-            caustics: false, sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
+            sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
 
         // PRE-FINAL: a faithful preview of `final` — the FULL final feature
-        // set (caustics on, SSS high, final bounce budgets, default
+        // set (SSS high, final bounce budgets, default
         // indirect clamp) with the sampling budgets cut where the denoiser
         // compensates best: ¼ of the pixel samples and a single shadow
         // sample (penumbra noise is exactly what feature-guided filtering
         // removes cleanest). Roughly 4-6× faster than `final`.
         public static readonly QualityPreset PreFinalTiny  = new("pre-final-tiny",  480, 270,  256, 16, 1,
-            caustics: true, causticPhotons: 2_000_000,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
         public static readonly QualityPreset PreFinalSmall = new("pre-final-small", 960, 540,  256, 16, 1,
-            caustics: true, causticPhotons: 2_000_000,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
         public static readonly QualityPreset PreFinal      = new("pre-final",      1920, 1080, 256, 16, 1,
-            caustics: true, causticPhotons: 2_000_000,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
 
-        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 16, 4, caustics: true, causticPhotons: 2_000_000, depths: FinalDepths);
-        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 16, 4, caustics: true, causticPhotons: 2_000_000, depths: FinalDepths);
-        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 16, 4, caustics: true, causticPhotons: 3_000_000, depths: FinalDepths);
-        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 32, 4, caustics: true, causticPhotons: 4_000_000, depths: UltraDepths);
+        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 16, 4, depths: FinalDepths);
+        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 16, 4, depths: FinalDepths);
+        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 16, 4, depths: FinalDepths);
+        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 32, 4, depths: UltraDepths);
 
         public const string NamesCsv =
             "draft-tiny, draft-small, draft, standard-tiny, standard-small, standard, " +
