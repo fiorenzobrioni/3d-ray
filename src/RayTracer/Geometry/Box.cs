@@ -190,10 +190,15 @@ public class Box : IHittable, ISamplable
             _ => -Vector3.UnitZ,
         };
 
-        // Uniform UV in [0,1]² over each face — a reasonable default for Box's
-        // procedural/solid emissives. Box's Hit() does not define per-face UVs,
-        // so this is not expected to coincide with any artist UV atlas.
-        return (point, normal, new Vector2(xi1, xi2), totalArea);
+        // The UV Hit() reports at this point (a textured emitter must give the
+        // light sample the radiance a ray hitting it sees).
+        Vector2 uv = face switch
+        {
+            0 or 1 => new Vector2(point.Z + 0.5f, point.Y + 0.5f),
+            2 or 3 => new Vector2(point.X + 0.5f, point.Z + 0.5f),
+            _      => new Vector2(point.X + 0.5f, point.Y + 0.5f),
+        };
+        return (point, normal, uv, totalArea);
     }
 
     public int Seed { get; set; }

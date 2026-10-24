@@ -40,9 +40,9 @@ public readonly record struct MotionKey(float Time, Vector3 Translate, Quaternio
 /// <see cref="BoundingBox"/> returns a cached union of the world-space bounds
 /// swept over the whole key range, so the static BVH built on top never culls
 /// a true hit at any time: each segment is sampled at enough intermediate
-/// poses (rotation-angle driven), and each sampled box is padded by the
-/// chord-vs-arc bound so corners travelling on rotation arcs between samples
-/// stay inside.
+/// poses (rotation-angle driven), and the union is padded by the
+/// interpolation-error bound so corners travelling on arcs between samples
+/// stay inside, also while the scale changes.
 ///
 /// Deliberately NOT ISamplable: animated emissive geometry is registered for
 /// NEE as a static snapshot at the mid-shutter pose (see
@@ -172,14 +172,14 @@ public class AnimatedTransform : IHittable
 
     /// <summary>
     /// Conservative union of the world-space bounds over the whole key range.
-    /// Translation/scale lerp moves box corners along straight lines, so for
-    /// those segments the two endpoint boxes suffice (AABB union is convex).
-    /// Rotation moves corners along arcs that bulge outside the chord between
-    /// sampled poses, so rotating segments are (a) sampled every ≤15° of
-    /// rotation and (b) each sampled box is padded by the maximal sagitta
-    /// r_max·(1 − cos(θ_step/2)) — the largest distance an arc of θ_step can
-    /// stray from its chord at radius r_max (farthest inner-box corner from
-    /// the object origin under the largest key scale).
+    /// Each segment is sampled at poses at most 15° of rotation apart, and the
+    /// union of the sampled boxes is padded by how far a corner can stray from
+    /// the chord between two samples: the error of linear interpolation,
+    /// max|p''| / 8 over a step (PIANO-REVIEW.md Phase 2). A corner c moves as
+    /// p = T(v) + R(v) S(v) c with T and S linear and R turning at a constant
+    /// rate θ (slerp), so |p''| ≤ θ² |S c| + 2 θ |S' c|: the rotation's
+    /// sagitta, and the cross term of a turn and a change of scale, which the
+    /// sagitta alone missed.
     /// </summary>
     private AABB ComputeMotionBox()
     {
@@ -189,18 +189,19 @@ public class AnimatedTransform : IHittable
             return Transform.ComputeWorldBox(localBox, _staticTransform);
 
         AABB box = AABB.Empty;
-        float maxSagitta = 0f;
+        float pad = 0f;
 
         // Farthest corner of the local box from the object-space origin (the
-        // rotation pivot), under the largest |scale| component of any key.
+        // rotation pivot), alone and under the largest |scale| of any key.
         float maxScale = 0f;
         foreach (var k in _keys)
         {
-            Vector3 s = Vector3.Abs(k.Scale);
-            maxScale = MathF.Max(maxScale, MathF.Max(s.X, MathF.Max(s.Y, s.Z)));
+            Vector3 sc = Vector3.Abs(k.Scale);
+            maxScale = MathF.Max(maxScale, MathF.Max(sc.X, MathF.Max(sc.Y, sc.Z)));
         }
         Vector3 farCorner = Vector3.Max(Vector3.Abs(localBox.Min), Vector3.Abs(localBox.Max));
-        float rMax = farCorner.Length() * maxScale;
+        float cMax = farCorner.Length();
+        float rMax = cMax * maxScale;
 
         for (int i = 1; i < _keys.Length; i++)
         {
@@ -210,7 +211,8 @@ public class AnimatedTransform : IHittable
             // Rotation swept by this segment (shortest arc between the keys).
             float cosHalf = MathF.Min(1f, MathF.Abs(Quaternion.Dot(
                 Quaternion.Normalize(a.Rotate), Quaternion.Normalize(b.Rotate))));
-            float angleDeg = 2f * MathF.Acos(cosHalf) * (180f / MathF.PI);
+            float angle = 2f * MathF.Acos(cosHalf);
+            float angleDeg = angle * (180f / MathF.PI);
 
             int steps = angleDeg > 1e-3f
                 ? Math.Clamp((int)MathF.Ceiling(angleDeg / 15f), 1, 32)
@@ -224,15 +226,17 @@ public class AnimatedTransform : IHittable
 
             if (angleDeg > 1e-3f && float.IsFinite(rMax))
             {
-                float stepRad = (angleDeg / steps) * (MathF.PI / 180f);
-                maxSagitta = MathF.Max(maxSagitta, rMax * (1f - MathF.Cos(stepRad * 0.5f)));
+                float theta = angle / steps;
+                Vector3 ds = Vector3.Abs(b.Scale - a.Scale) / steps;
+                float dsMax = MathF.Max(ds.X, MathF.Max(ds.Y, ds.Z));
+                pad = MathF.Max(pad, (theta * theta * rMax + 2f * theta * dsMax * cMax) / 8f);
             }
         }
 
-        if (maxSagitta > 0f)
+        if (pad > 0f)
         {
-            var pad = new Vector3(maxSagitta);
-            box = new AABB(box.Min - pad, box.Max + pad);
+            var p = new Vector3(pad);
+            box = new AABB(box.Min - p, box.Max + p);
         }
         return box;
     }

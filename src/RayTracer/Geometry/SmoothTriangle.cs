@@ -7,7 +7,7 @@ namespace RayTracer.Geometry;
 /// <summary>
 /// Triangle with per-vertex normals and texture coordinates for smooth-shaded meshes.
 ///
-/// Uses the same Möller–Trumbore intersection as <see cref="Triangle"/>, but
+/// Uses the same watertight intersection as <see cref="Triangle"/>, but
 /// interpolates normals and UVs via barycentric coordinates for:
 ///   • Smooth shading (Phong normal interpolation) — no visible facet edges.
 ///   • Artist UV mapping — texture coordinates from OBJ/glTF vertex data.
@@ -18,7 +18,7 @@ namespace RayTracer.Geometry;
 ///   w0 = 1 - u - v  (weight for V0)
 ///   w1 = u           (weight for V1)
 ///   w2 = v           (weight for V2)
-///   This matches the Möller–Trumbore output where u, v are the coordinates
+///   u, v are the coordinates
 ///   along edges V0→V1 and V0→V2 respectively.
 ///
 /// <b>Normal interpolation:</b>
@@ -182,23 +182,9 @@ public class SmoothTriangle : IHittable, ISamplable
 
     public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
-        // ── Möller–Trumbore (identical to flat Triangle) ────────────────
-        Vector3 h = Vector3.Cross(ray.Direction, _edge2);
-        float a = Vector3.Dot(_edge1, h);
-
-        if (MathF.Abs(a) < 1e-7f) return false;
-
-        float f = 1f / a;
-        Vector3 s = ray.Origin - V0;
-        float u = f * Vector3.Dot(s, h);
-        if (u < 0f || u > 1f) return false;
-
-        Vector3 q = Vector3.Cross(s, _edge1);
-        float v = f * Vector3.Dot(ray.Direction, q);
-        if (v < 0f || u + v > 1f) return false;
-
-        float t = f * Vector3.Dot(_edge2, q);
-        if (t < tMin || t > tMax) return false;
+        // Watertight test, shared with the flat Triangle.
+        if (!TriangleIntersection.Intersect(ray, V0, V1, V2, tMin, tMax, out float t, out float u, out float v))
+            return false;
 
         // ── Barycentric weights ─────────────────────────────────────────
         float w0 = 1f - u - v;
@@ -288,7 +274,7 @@ public class SmoothTriangle : IHittable, ISamplable
     public int Seed { get; set; }
 
     /// <summary>
-    /// Recovers the Möller–Trumbore barycentrics (u along V0→V1, v along V0→V2)
+    /// Recovers the barycentrics (u along V0→V1, v along V0→V2)
     /// of a point assumed to lie in this triangle's plane.
     /// </summary>
     public void Barycentric(Vector3 p, out float u, out float v)
@@ -308,8 +294,7 @@ public class SmoothTriangle : IHittable, ISamplable
 
     public AABB BoundingBox()
     {
-        var min = Vector3.Min(Vector3.Min(V0, V1), V2) - new Vector3(MathUtils.Epsilon);
-        var max = Vector3.Max(Vector3.Max(V0, V1), V2) + new Vector3(MathUtils.Epsilon);
-        return new AABB(min, max);
+        // Exact: the BVH's slab test is conservative (AABB.Hit).
+        return new AABB(Vector3.Min(Vector3.Min(V0, V1), V2), Vector3.Max(Vector3.Max(V0, V1), V2));
     }
 }

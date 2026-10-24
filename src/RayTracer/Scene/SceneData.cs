@@ -1578,6 +1578,29 @@ public class EntityData
     [YamlMember(Alias = "subdivision_max_iterations")]
     public int SubdivisionMaxIterations { get; set; } = 6;
 
+    /// <summary>
+    /// How the open boundary is subdivided: <c>edge_and_corner</c> (default:
+    /// boundary edges sharp, a boundary vertex with a single face kept in
+    /// place) or <c>edge_only</c> (corners rounded along the boundary).
+    /// </summary>
+    [YamlMember(Alias = "subdivision_boundary")]
+    public string? SubdivisionBoundary { get; set; }
+
+    /// <summary>
+    /// Edges whose two faces meet at more than this many degrees (between
+    /// their normals) become creases. 0 (default) = no creases.
+    /// </summary>
+    [YamlMember(Alias = "subdivision_crease_angle")]
+    public float SubdivisionCreaseAngle { get; set; } = 0f;
+
+    /// <summary>
+    /// Sharpness of those creases: sharp for this many subdivision levels,
+    /// then smooth, fractions blending (semi-sharp creases). Omitted = always
+    /// sharp.
+    /// </summary>
+    [YamlMember(Alias = "subdivision_crease_sharpness")]
+    public float? SubdivisionCreaseSharpness { get; set; }
+
     // ── Surface displacement (material-level — Cycles/RenderMan parity) ────
     //
     // Displacement is now a property of the material, not the entity. This

@@ -517,16 +517,18 @@ internal sealed class SplineSegment : ILatheSegment
         int count = SturmSolver.FindRoots(coeffs, 0.0, 1.0, roots, 1e-7);
         if (count == 0) return false;
 
-        float invDy = (float)(1.0 / dy);
-        float oyF = (float)oy;
         bool found = false;
         float tBest = tMax;
 
         for (int i = 0; i < count; i++)
         {
-            double uParam = roots[i];
-            float y = (float)Y(uParam);
-            float t = (y - oyF) * invDy;
+            // Sturm brackets the root to 1e-7 in u, but F is the geometric
+            // residual times dy²: for a ray close to horizontal that error,
+            // divided by dy², exceeded the residual guard below and the hit
+            // was dropped (holes along the bulges of a spline profile). A few
+            // Newton steps in double take u to machine precision.
+            double uParam = PolishRoot(coeffs, roots[i]);
+            float t = (float)((Y(uParam) - oy) / dy);
             if (t <= tMin || t >= tBest) continue;
 
             // Residual guard: reject phantom roots whose implicit value is far
@@ -560,6 +562,25 @@ internal sealed class SplineSegment : ILatheSegment
         }
 
         return found;
+    }
+
+    /// <summary>Newton steps on the degree-6 polynomial from a bracketed root, kept inside [0, 1].</summary>
+    private static double PolishRoot(ReadOnlySpan<double> c, double u)
+    {
+        for (int k = 0; k < 4; k++)
+        {
+            double f = c[6], fp = 0.0;
+            for (int j = 5; j >= 0; j--)
+            {
+                fp = fp * u + f;
+                f = f * u + c[j];
+            }
+            if (fp == 0.0) break;
+            double next = u - f / fp;
+            if (!(next >= 0.0 && next <= 1.0) || System.Math.Abs(next - u) > 1e-4) break;
+            u = next;
+        }
+        return u;
     }
 
     /// <summary>

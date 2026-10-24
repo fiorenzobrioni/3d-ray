@@ -33,8 +33,31 @@ internal sealed class PolyMesh
     public List<Vector2>? UVs { get; set; }
 
     public List<int[]> FacePositions { get; } = new();
+
+    /// <summary>
+    /// Sharpness of the crease edges (key: <see cref="SubdivisionTopology.EdgeKey"/>
+    /// of the two position indices). An edge with sharpness s is sharp for s
+    /// levels of subdivision, then smooth (DeRose et al. 1998); infinity keeps
+    /// it sharp. Boundary edges are always sharp and need no entry.
+    /// </summary>
+    public Dictionary<long, float>? Creases { get; set; }
+
+    /// <summary>
+    /// Normals of the limit surface at each position, set when the positions
+    /// are moved onto the limit surface (<see cref="LimitSurface"/>): exact at
+    /// smooth vertices, the angle-weighted mean of the faces around a crease
+    /// or corner vertex. Null once anything moves the positions again.
+    /// </summary>
+    public Vector3[]? LimitNormals { get; set; }
     public List<int[]>? FaceNormals { get; set; }
     public List<int[]>? FaceUVs { get; set; }
+
+    /// <summary>
+    /// Material slot of each face (an index into the importer's material
+    /// list), or null when the whole mesh has one material. Subdivision
+    /// gives every child face its parent's slot.
+    /// </summary>
+    public List<int>? FaceMaterials { get; set; }
 
     public bool HasNormals => Normals is { Count: > 0 } && FaceNormals is { Count: > 0 };
     public bool HasUVs => UVs is { Count: > 0 } && FaceUVs is { Count: > 0 };
@@ -58,34 +81,27 @@ internal sealed class PolyMesh
     }
 
     /// <summary>
-    /// Fan-triangulates every n-gon (n > 3) in place. Used before Loop
-    /// subdivision when the input has a mix of arities.
+    /// Triangulates every polygon (n > 3) in place (<see cref="TriangulateFace"/>).
+    /// Used before Loop subdivision when the input has a mix of arities.
     /// </summary>
     public void TriangulateInPlace()
     {
         var newPos = new List<int[]>(FacePositions.Count);
         var newNor = FaceNormals != null ? new List<int[]>(FacePositions.Count) : null;
         var newUv  = FaceUVs     != null ? new List<int[]>(FacePositions.Count) : null;
+        var newMat = FaceMaterials != null ? new List<int>(FacePositions.Count) : null;
 
         for (int i = 0; i < FacePositions.Count; i++)
         {
             int[] f = FacePositions[i];
             int[]? fn = FaceNormals?[i];
             int[]? fu = FaceUVs?[i];
-
-            if (f.Length == 3)
+            foreach (var (a, b, c) in TriangulateFace(f))
             {
-                newPos.Add(f);
-                if (newNor != null) newNor.Add(fn!);
-                if (newUv  != null) newUv .Add(fu!);
-                continue;
-            }
-
-            for (int k = 1; k < f.Length - 1; k++)
-            {
-                newPos.Add(new[] { f[0], f[k], f[k + 1] });
-                if (newNor != null) newNor.Add(new[] { fn![0], fn[k], fn[k + 1] });
-                if (newUv  != null) newUv .Add(new[] { fu![0], fu[k], fu[k + 1] });
+                newPos.Add(new[] { f[a], f[b], f[c] });
+                if (newNor != null) newNor.Add(fn!.Length > 0 ? new[] { fn[a], fn[b], fn[c] } : fn);
+                if (newUv  != null) newUv .Add(fu!.Length > 0 ? new[] { fu[a], fu[b], fu[c] } : fu);
+                newMat?.Add(FaceMaterials![i]);
             }
         }
 
@@ -93,6 +109,70 @@ internal sealed class PolyMesh
         FacePositions.AddRange(newPos);
         if (newNor != null) { FaceNormals!.Clear(); FaceNormals.AddRange(newNor); }
         if (newUv  != null) { FaceUVs!    .Clear(); FaceUVs    .AddRange(newUv ); }
+        if (newMat != null) { FaceMaterials = newMat; }
+    }
+
+    /// <summary>
+    /// Splits a polygon into triangles, as triples of its corner indices with
+    /// the polygon's winding (PIANO-REVIEW.md Phase 2). A triangle stays as it
+    /// is; a quad is cut along its shorter diagonal, or along the one through
+    /// its reflex corner when it is concave; a larger polygon is ear-clipped in
+    /// the plane of its (Newell) normal, so a concave n-gon is not covered by
+    /// a fan reaching outside it. A polygon ear clipping cannot handle (self
+    /// intersecting, degenerate) falls back to the fan.
+    /// </summary>
+    public List<(int A, int B, int C)> TriangulateFace(int[] f)
+    {
+        int n = f.Length;
+        var tris = new List<(int, int, int)>(Math.Max(1, n - 2));
+        if (n == 3) { tris.Add((0, 1, 2)); return tris; }
+
+        Vector3 normal = Vector3.Zero;
+        for (int k = 0; k < n; k++)
+        {
+            Vector3 a = Positions[f[k]], b = Positions[f[(k + 1) % n]];
+            normal += new Vector3((a.Y - b.Y) * (a.Z + b.Z), (a.Z - b.Z) * (a.X + b.X), (a.X - b.X) * (a.Y + b.Y));
+        }
+
+        if (n == 4)
+        {
+            // Diagonal 0-2 is valid iff corners 1 and 3 lie on opposite sides
+            // of it (both triangles keep the polygon's orientation); same for 1-3.
+            Vector3 p0 = Positions[f[0]], p1 = Positions[f[1]], p2 = Positions[f[2]], p3 = Positions[f[3]];
+            bool d02 = Vector3.Dot(Vector3.Cross(p1 - p0, p2 - p0), normal) > 0f
+                    && Vector3.Dot(Vector3.Cross(p2 - p0, p3 - p0), normal) > 0f;
+            bool d13 = Vector3.Dot(Vector3.Cross(p2 - p1, p3 - p1), normal) > 0f
+                    && Vector3.Dot(Vector3.Cross(p3 - p1, p0 - p1), normal) > 0f;
+            bool use13 = d13 && (!d02 || (p3 - p1).LengthSquared() < (p2 - p0).LengthSquared());
+            if (use13) { tris.Add((0, 1, 3)); tris.Add((1, 2, 3)); }
+            else { tris.Add((0, 1, 2)); tris.Add((0, 2, 3)); }
+            return tris;
+        }
+
+        float len = normal.Length();
+        if (len > 0f)
+        {
+            // A frame with the normal as +Z: the polygon is counter-clockwise
+            // in it, and so are the ears.
+            normal /= len;
+            Vector3 helper = MathF.Abs(normal.X) < 0.9f ? Vector3.UnitX : Vector3.UnitY;
+            Vector3 ax = Vector3.Normalize(Vector3.Cross(helper, normal));
+            Vector3 ay = Vector3.Cross(normal, ax);
+            var flat = new Vector2[n];
+            for (int k = 0; k < n; k++)
+            {
+                Vector3 p = Positions[f[k]];
+                flat[k] = new Vector2(Vector3.Dot(p, ax), Vector3.Dot(p, ay));
+            }
+            var ears = Polygon2D.EarClip(flat, out bool complete);
+            if (complete)
+            {
+                foreach (var (a, b, c) in ears) tris.Add((a, b, c));
+                return tris;
+            }
+        }
+        for (int k = 1; k < n - 1; k++) tris.Add((0, k, k + 1));
+        return tris;
     }
 
     /// <summary>

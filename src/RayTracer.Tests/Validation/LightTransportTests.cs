@@ -271,6 +271,47 @@ public class LightTransportTests
     }
 
     [Theory, MemberData(nameof(Floors))]
+    public void GeometryLight_NonUniformlyScaled(string floor)
+    {
+        // An emissive ellipsoid (a unit sphere scaled 0.15 × 0.5 × 0.3 and
+        // turned): its area samples are not uniform in world space, so the MIS
+        // weight of a BSDF ray that hits it must use the density at the point
+        // hit (ISamplable.AreaPdf), not an average area.
+        var m = Floor(floor);
+        var em = new Emissive(Vector3.One, 5f);
+        var matrix = Matrix4x4.CreateScale(0.15f, 0.5f, 0.3f) * Matrix4x4.CreateRotationZ(0.7f)
+                   * Matrix4x4.CreateTranslation(0.3f, 1.1f, 0.2f);
+        var ellipsoid = new Transform(new Sphere(Vector3.Zero, 1f, em), matrix);
+        // Expected: ∫ Le f cos cos' / d² dA over the ellipsoid, the surface
+        // sampled uniformly in object space and weighted by the Jacobian.
+        var (rec, v) = FloorHit(m);
+        Matrix4x4.Invert(matrix, out var inv);
+        var normalMatrix = Matrix4x4.Transpose(inv);
+        float det = MathF.Abs(matrix.GetDeterminant());
+        var rng = new Random(3);
+        double sum = 0;
+        const int n = 2_000_000;
+        for (int i = 0; i < n; i++)
+        {
+            float z = 2f * rng.NextSingle() - 1f, phi = 2f * MathF.PI * rng.NextSingle(), sr = MathF.Sqrt(1f - z * z);
+            var nObj = new Vector3(sr * MathF.Cos(phi), sr * MathF.Sin(phi), z);
+            Vector3 nW = Vector3.TransformNormal(nObj, normalMatrix);
+            float jac = det * nW.Length();
+            nW = Vector3.Normalize(nW);
+            Vector3 p = Vector3.Transform(nObj, matrix);
+            Vector3 d = p - rec.Point;
+            float d2 = d.LengthSquared();
+            Vector3 l = d / MathF.Sqrt(d2);
+            float cosL = Vector3.Dot(-l, nW);
+            if (cosL <= 0f) continue;   // the far side (convex: no other occlusion)
+            sum += 5.0 * MathUtils.Luminance(F(m, in rec, v, l)) * cosL / d2 * (4 * Math.PI * jac);
+        }
+        float expected = (float)(sum / n);
+        var (got, se) = Render(m, new() { ellipsoid }, new() { new GeometryLight(ellipsoid, em, 16) }, Black, 256);
+        Check("emissive ellipsoid", got, se, new Vector3(expected));
+    }
+
+    [Theory, MemberData(nameof(Floors))]
     public void EnvironmentLight_UniformSky(string floor)
     {
         var m = Floor(floor);

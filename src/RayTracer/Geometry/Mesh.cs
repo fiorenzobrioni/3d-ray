@@ -41,6 +41,9 @@ public class Mesh : IHittable, ISamplable
     /// <summary>Number of triangular faces in the mesh.</summary>
     public int FaceCount { get; }
 
+    /// <summary>The mesh's triangles.</summary>
+    public IReadOnlyList<IHittable> Triangles => _triangles;
+
     /// <summary>Number of unique vertices used (informational).</summary>
     public int VertexCount { get; }
 

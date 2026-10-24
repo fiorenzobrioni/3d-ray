@@ -252,6 +252,64 @@ public class AnimatedTransformTests
         AssertBoxConservative(at, seed);
     }
 
+    [Theory]
+    [InlineData(3)]
+    [InlineData(41)]
+    [InlineData(977)]
+    public void BoundingBox_ContainsEveryCornerAtEveryTime_RotationWithScale(int seed)
+    {
+        // Rotation and scale changing together: a corner's path is the
+        // product of an arc and a line, which strays from its chord farther
+        // than the rotation's sagitta alone. Random keys, every corner of the
+        // object's box followed at many times (PIANO-REVIEW.md Phase 2).
+        var rng = new Random(seed);
+        Quaternion RandomRotation()
+        {
+            var q = new Quaternion((float)rng.NextDouble() * 2 - 1, (float)rng.NextDouble() * 2 - 1,
+                                   (float)rng.NextDouble() * 2 - 1, (float)rng.NextDouble() * 2 - 1);
+            return Quaternion.Normalize(q);
+        }
+        Vector3 RandomScale() => new((float)(0.1 + 6 * rng.NextDouble()), (float)(0.1 + 6 * rng.NextDouble()),
+                                     (float)(0.1 + 6 * rng.NextDouble()));
+        var keys = new List<MotionKey>();
+        for (int k = 0; k < 4; k++)
+            keys.Add(new MotionKey(k / 3f, new Vector3((float)rng.NextDouble() * 4 - 2, 0, 0), RandomRotation(), RandomScale()));
+        AssertCornersInside(new AnimatedTransform(new Box(Mat()), keys));
+    }
+
+    [Fact]
+    public void BoundingBox_ContainsEveryCornerAtEveryTime_SmallTurnLargeGrowth()
+    {
+        // A 14° turn (one sampled step) while the object grows 60 times: the
+        // corners bow out of the chord by the cross term of the turn and the
+        // growth, far more than the turn's sagitta.
+        var keys = new[]
+        {
+            Key(0f, Vector3.Zero, Rot(0f, 0f, 0f), new Vector3(0.1f, 0.1f, 0.1f)),
+            Key(1f, Vector3.Zero, Rot(0f, 14f, 0f), new Vector3(6f, 0.1f, 6f)),
+        };
+        AssertCornersInside(new AnimatedTransform(new Box(Mat()), keys));
+    }
+
+    private static void AssertCornersInside(AnimatedTransform at)
+    {
+        AABB box = at.BoundingBox();
+
+        for (int i = 0; i <= 20000; i++)
+        {
+            Matrix4x4 m = at.MatrixAt(i / 20000f);
+            for (int c = 0; c < 8; c++)
+            {
+                var corner = new Vector3((c & 1) - 0.5f, ((c >> 1) & 1) - 0.5f, ((c >> 2) & 1) - 0.5f);
+                Vector3 p = Vector3.Transform(corner, m);
+                const float tol = 1e-4f;
+                Assert.True(p.X >= box.Min.X - tol && p.Y >= box.Min.Y - tol && p.Z >= box.Min.Z - tol
+                         && p.X <= box.Max.X + tol && p.Y <= box.Max.Y + tol && p.Z <= box.Max.Z + tol,
+                    $"Corner {c} at time {i / 20000f:0.#####} at {p} is outside the motion box {box.Min}..{box.Max}.");
+            }
+        }
+    }
+
     private static void AssertBoxConservative(AnimatedTransform at, int seed)
     {
         AABB box = at.BoundingBox();

@@ -5,7 +5,8 @@ using RayTracer.Materials;
 namespace RayTracer.Geometry;
 
 /// <summary>
-/// Triangle primitive using the Möller–Trumbore intersection algorithm.
+/// Flat triangle, intersected watertight (<see cref="TriangleIntersection"/>):
+/// the rays through the edges and vertices of a mesh never slip between its faces.
 /// </summary>
 public class Triangle : IHittable, ISamplable
 {
@@ -25,13 +26,6 @@ public class Triangle : IHittable, ISamplable
     private readonly Vector3 _tangent;
     private readonly Vector3 _bitangent;
 
-    // Möller–Trumbore parallelism cutoff. The determinant scales as
-    // |edge1|·|edge2|·|sin(D, edge2)|·|cos(...)|; with edges ~1e-2 valid hits
-    // already produce |a| ~ 1e-4, so the previous MathUtils.Epsilon (1e-4)
-    // silently dropped intersections on small / scaled mesh triangles. 1e-7 is
-    // the same value used by SmoothTriangle and matches PBRT/Embree practice.
-    private const float ParallelEpsilon = 1e-7f;
-
     public Triangle(Vector3 v0, Vector3 v1, Vector3 v2, IMaterial material)
     {
         V0 = v0; V1 = v1; V2 = v2;
@@ -48,22 +42,8 @@ public class Triangle : IHittable, ISamplable
 
     public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
-        Vector3 h = Vector3.Cross(ray.Direction, _edge2);
-        float a = Vector3.Dot(_edge1, h);
-
-        if (MathF.Abs(a) < ParallelEpsilon) return false;
-
-        float f = 1f / a;
-        Vector3 s = ray.Origin - V0;
-        float u = f * Vector3.Dot(s, h);
-        if (u < 0f || u > 1f) return false;
-
-        Vector3 q = Vector3.Cross(s, _edge1);
-        float v = f * Vector3.Dot(ray.Direction, q);
-        if (v < 0f || u + v > 1f) return false;
-
-        float t = f * Vector3.Dot(_edge2, q);
-        if (t < tMin || t > tMax) return false;
+        if (!TriangleIntersection.Intersect(ray, V0, V1, V2, tMin, tMax, out float t, out float u, out float v))
+            return false;
 
         rec.T = t;
         rec.Point = ray.At(t);
@@ -76,7 +56,7 @@ public class Triangle : IHittable, ISamplable
         // barycentric UV mapping (U along edge V0→V1, V along edge V0→V2).
         rec.Tangent = _tangent;
         rec.Bitangent = _bitangent;
-        // ∂P/∂u, ∂P/∂v match the Möller-Trumbore barycentric parametrization
+        // ∂P/∂u, ∂P/∂v match the barycentric parametrization
         // used to populate rec.U, rec.V: along (V0→V1) and (V0→V2) respectively,
         // with full edge magnitude. Texture filtering uses these to map screen
         // partials to texel partials at the correct rate for triangle UVs.
@@ -88,7 +68,7 @@ public class Triangle : IHittable, ISamplable
         return true;
     }
 
-    /// <summary>Möller–Trumbore barycentrics (u along V0→V1, v along V0→V2) of an in-plane point.</summary>
+    /// <summary>Barycentrics (u along V0→V1, v along V0→V2) of an in-plane point.</summary>
     public void Barycentric(Vector3 p, out float u, out float v)
     {
         Vector3 w = p - V0;
@@ -134,7 +114,7 @@ public class Triangle : IHittable, ISamplable
         float u = 1f - r1;
         float v = xi2 * r1;
         Vector3 point = V0 + u * _edge1 + v * _edge2;
-        // Triangle's Hit() stores the Möller-Trumbore (u, v) barycentric
+        // Triangle's Hit() stores the (u, v) barycentric
         // coordinates directly into rec.U, rec.V — keep the sample UV
         // consistent with that convention.
         return (point, _normal, new Vector2(u, v), _area);
@@ -144,8 +124,7 @@ public class Triangle : IHittable, ISamplable
 
     public AABB BoundingBox()
     {
-        var min = Vector3.Min(Vector3.Min(V0, V1), V2) - new Vector3(MathUtils.Epsilon);
-        var max = Vector3.Max(Vector3.Max(V0, V1), V2) + new Vector3(MathUtils.Epsilon);
-        return new AABB(min, max);
+        // Exact: the BVH's slab test is conservative (AABB.Hit).
+        return new AABB(Vector3.Min(Vector3.Min(V0, V1), V2), Vector3.Max(Vector3.Max(V0, V1), V2));
     }
 }

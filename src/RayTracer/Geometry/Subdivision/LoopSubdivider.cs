@@ -3,8 +3,9 @@ using System.Numerics;
 namespace RayTracer.Geometry.Subdivision;
 
 /// <summary>
-/// Loop subdivision surface — the production-grade algorithm Pixar's
-/// OpenSubdiv, Cycles and Arnold use for triangle meshes.
+/// Loop subdivision surface for triangle meshes, with sharp and semi-sharp
+/// creases and boundaries (Hoppe et al. 1994, DeRose et al. 1998; vertex
+/// rules from <see cref="SubdivisionTopology"/>).
 ///
 /// <para>
 /// Reference: Charles Loop, <i>Smooth subdivision surfaces based on
@@ -18,18 +19,19 @@ namespace RayTracer.Geometry.Subdivision;
 ///     boundary edges and opposite vertices in O(F) time.</description></item>
 ///   <item><description><b>Odd vertices</b> — one new vertex per edge:
 ///     <list type="bullet">
-///       <item><description>Interior: <c>3/8·(a+b) + 1/8·(c+d)</c>
+///       <item><description>Smooth: <c>3/8·(a+b) + 1/8·(c+d)</c>
 ///         with c,d the two opposite vertices.</description></item>
-///       <item><description>Boundary: <c>1/2·(a+b)</c>.</description></item>
+///       <item><description>Sharp (boundary or crease): <c>1/2·(a+b)</c>;
+///         a blend for a sharpness below 1.</description></item>
 ///     </list></description></item>
 ///   <item><description><b>Even vertices</b> — relax existing vertices:
 ///     <list type="bullet">
-///       <item><description>Interior: <c>(1 − n·β)·v + β·Σ vᵢ</c> with
+///       <item><description>Smooth: <c>(1 − n·β)·v + β·Σ vᵢ</c> with
 ///         <c>β = (1/n)(5/8 − (3/8 + 1/4·cos(2π/n))²)</c> (Loop's original
 ///         formula).</description></item>
-///       <item><description>Boundary: <c>6/8·v + 1/8·v_prev + 1/8·v_next</c>
-///         using the two boundary neighbors only.</description></item>
-///       <item><description>Corner (1 or ≥3 boundary neighbors): retained.</description></item>
+///       <item><description>Crease: <c>6/8·v + 1/8·(a + b)</c> with a, b the
+///         neighbours along the two sharp edges.</description></item>
+///       <item><description>Corner: retained.</description></item>
 ///     </list></description></item>
 /// </list>
 ///
@@ -42,133 +44,70 @@ namespace RayTracer.Geometry.Subdivision;
 /// </summary>
 internal static class LoopSubdivider
 {
-    public static void Subdivide(PolyMesh mesh, int iterations)
+    public static void Subdivide(PolyMesh mesh, int iterations,
+        BoundaryInterpolation boundary = BoundaryInterpolation.EdgeAndCorner)
     {
         for (int i = 0; i < iterations; i++)
-            SubdivideOnce(mesh);
+            SubdivideOnce(mesh, boundary);
     }
 
-    private static void SubdivideOnce(PolyMesh mesh)
+    /// <summary>Loop's β for an interior vertex of valence n.</summary>
+    internal static float Beta(int n)
+    {
+        float c = 3f / 8f + 0.25f * MathF.Cos(2f * MathF.PI / n);
+        return (1f / n) * (5f / 8f - c * c);
+    }
+
+    private static void SubdivideOnce(PolyMesh mesh, BoundaryInterpolation boundary)
     {
         int faceCount = mesh.FacePositions.Count;
         int posCount  = mesh.Positions.Count;
-        int uvCount   = mesh.HasUVs     ? mesh.UVs!.Count     : 0;
-        int nrCount   = mesh.HasNormals ? mesh.Normals!.Count : 0;
-
-        // ── Undirected-edge adjacency for positions ───────────────────────
-        var edges = new Dictionary<long, EdgeRecord>(faceCount * 3);
-
-        for (int fi = 0; fi < faceCount; fi++)
-        {
-            int[] f = mesh.FacePositions[fi];
+        foreach (var f in mesh.FacePositions)
             if (f.Length != 3)
                 throw new InvalidOperationException("LoopSubdivider expects only triangles.");
+        var topo = new SubdivisionTopology(mesh, boundary);
 
-            for (int k = 0; k < 3; k++)
-            {
-                int a = f[k];
-                int b = f[(k + 1) % 3];
-                long key = EdgeKey(a, b);
-                if (!edges.TryGetValue(key, out var rec))
-                {
-                    rec = new EdgeRecord
-                    {
-                        A = Math.Min(a, b),
-                        B = Math.Max(a, b),
-                        Face0 = -1, Face1 = -1,
-                        Corner0 = -1, Corner1 = -1,
-                    };
-                }
-                if (rec.Face0 < 0) { rec.Face0 = fi; rec.Corner0 = k; }
-                else               { rec.Face1 = fi; rec.Corner1 = k; }
-                edges[key] = rec;
-            }
-        }
-
-        // ── Vertex adjacency (interior + boundary lists) ─────────────────
-        var neighbors    = new List<int>[posCount];
-        var isBoundary   = new bool[posCount];
-        var boundaryNbrs = new List<int>[posCount];
-
-        for (int i = 0; i < posCount; i++)
-        {
-            neighbors[i]    = new List<int>(6);
-            boundaryNbrs[i] = new List<int>(2);
-        }
-
-        foreach (var rec in edges.Values)
-        {
-            if (!neighbors[rec.A].Contains(rec.B)) neighbors[rec.A].Add(rec.B);
-            if (!neighbors[rec.B].Contains(rec.A)) neighbors[rec.B].Add(rec.A);
-
-            if (rec.Face1 < 0)
-            {
-                isBoundary[rec.A] = true;
-                isBoundary[rec.B] = true;
-                if (!boundaryNbrs[rec.A].Contains(rec.B)) boundaryNbrs[rec.A].Add(rec.B);
-                if (!boundaryNbrs[rec.B].Contains(rec.A)) boundaryNbrs[rec.B].Add(rec.A);
-            }
-        }
-
-        // ── Allocate edge-midpoint slot indices (one per undirected edge) ─
-        var edgeMidIdx = new Dictionary<long, int>(edges.Count);
-        var newPositions = new List<Vector3>(posCount + edges.Count);
+        // ── Odd vertices: one per edge ────────────────────────────────────
+        var edgeMidIdx = new Dictionary<long, int>(topo.Edges.Count);
+        var newPositions = new List<Vector3>(posCount + topo.Edges.Count);
         newPositions.AddRange(mesh.Positions);
-
-        foreach (var kv in edges)
+        foreach (var (key, e) in topo.Edges)
         {
-            var rec = kv.Value;
-            Vector3 a = mesh.Positions[rec.A];
-            Vector3 b = mesh.Positions[rec.B];
-            Vector3 mid;
-            if (rec.Face1 < 0)
+            Vector3 a = mesh.Positions[e.A];
+            Vector3 b = mesh.Positions[e.B];
+            var edge = e;
+            Vector3 mid = SubdivisionTopology.EdgePoint(edge, 0.5f * (a + b), () =>
             {
-                mid = 0.5f * (a + b);
-            }
-            else
-            {
-                int c = OppositeVertex(mesh.FacePositions[rec.Face0], rec.Corner0);
-                int d = OppositeVertex(mesh.FacePositions[rec.Face1], rec.Corner1);
-                mid = (3f / 8f) * (a + b) +
-                      (1f / 8f) * (mesh.Positions[c] + mesh.Positions[d]);
-            }
-            edgeMidIdx[kv.Key] = newPositions.Count;
+                int c = Opposite(mesh.FacePositions[edge.Face0], edge.A, edge.B);
+                int d = Opposite(mesh.FacePositions[edge.Face1], edge.A, edge.B);
+                return (3f / 8f) * (a + b) + (1f / 8f) * (mesh.Positions[c] + mesh.Positions[d]);
+            });
+            edgeMidIdx[key] = newPositions.Count;
             newPositions.Add(mid);
         }
 
-        // ── Relax existing vertices ──────────────────────────────────────
+        // ── Even vertices ────────────────────────────────────────────────
         var relaxed = new Vector3[posCount];
         for (int v = 0; v < posCount; v++)
         {
-            if (isBoundary[v])
+            int vv = v;
+            relaxed[v] = topo.VertexPoint(mesh, v, () =>
             {
-                if (boundaryNbrs[v].Count == 2)
+                var incident = topo.VertexEdges[vv];
+                int n = incident.Count;
+                float beta = Beta(n);
+                Vector3 sum = Vector3.Zero;
+                foreach (long key in incident)
                 {
-                    Vector3 a = mesh.Positions[boundaryNbrs[v][0]];
-                    Vector3 b = mesh.Positions[boundaryNbrs[v][1]];
-                    relaxed[v] = (6f / 8f) * mesh.Positions[v] + (1f / 8f) * (a + b);
+                    var e = topo.Edges[key];
+                    sum += mesh.Positions[e.A == vv ? e.B : e.A];
                 }
-                else
-                {
-                    relaxed[v] = mesh.Positions[v]; // corner / non-manifold
-                }
-                continue;
-            }
-
-            int n = neighbors[v].Count;
-            if (n == 0) { relaxed[v] = mesh.Positions[v]; continue; }
-
-            float c = 3f / 8f + 0.25f * MathF.Cos(2f * MathF.PI / n);
-            float beta = (1f / n) * (5f / 8f - c * c);
-
-            Vector3 sum = Vector3.Zero;
-            for (int j = 0; j < n; j++) sum += mesh.Positions[neighbors[v][j]];
-
-            relaxed[v] = (1f - n * beta) * mesh.Positions[v] + beta * sum;
+                return (1f - n * beta) * mesh.Positions[vv] + beta * sum;
+            });
         }
         for (int v = 0; v < posCount; v++) newPositions[v] = relaxed[v];
 
-        // ── Build child triangles ─────────────────────────────────────────
+        // ── Child triangles ───────────────────────────────────────────────
         var newFaces = new List<int[]>(faceCount * 4);
         for (int fi = 0; fi < faceCount; fi++)
         {
@@ -183,6 +122,14 @@ internal static class LoopSubdivider
             newFaces.Add(new[] { v2,  m20, m12 });
             newFaces.Add(new[] { m01, m12, m20 });
         }
+        List<int>? newMaterials = null;
+        if (mesh.FaceMaterials != null)
+        {
+            newMaterials = new List<int>(faceCount * 4);
+            foreach (int slot in mesh.FaceMaterials)
+                for (int c = 0; c < 4; c++) newMaterials.Add(slot);
+        }
+        var childCreases = topo.ChildCreases(key => edgeMidIdx[key]);
 
         // ── Vertex-varying UV channel ─────────────────────────────────────
         //
@@ -253,6 +200,9 @@ internal static class LoopSubdivider
         }
 
         // ── Commit ────────────────────────────────────────────────────────
+        mesh.Creases = childCreases;
+        mesh.LimitNormals = null;
+        mesh.FaceMaterials = newMaterials;
         mesh.Positions.Clear();
         mesh.Positions.AddRange(newPositions);
         mesh.FacePositions.Clear();
@@ -294,19 +244,8 @@ internal static class LoopSubdivider
         return idx;
     }
 
-    private static long EdgeKey(int a, int b)
-    {
-        int lo = Math.Min(a, b);
-        int hi = Math.Max(a, b);
-        return ((long)lo << 32) | (uint)hi;
-    }
+    private static long EdgeKey(int a, int b) => SubdivisionTopology.EdgeKey(a, b);
 
-    private static int OppositeVertex(int[] f, int k) => f[(k + 2) % 3];
-
-    private struct EdgeRecord
-    {
-        public int A, B;
-        public int Face0, Face1;
-        public int Corner0, Corner1;
-    }
+    private static int Opposite(int[] f, int a, int b)
+        => f[0] != a && f[0] != b ? f[0] : f[1] != a && f[1] != b ? f[1] : f[2];
 }

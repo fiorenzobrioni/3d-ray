@@ -337,12 +337,13 @@ public class Cone : IHittable, ISamplable
             float sinT = MathF.Sin(theta);
             Vector3 point = new(Center.X + rAtV * cosT, y, Center.Z + rAtV * sinT);
 
-            // Normal on the cone surface
-            Vector3 radial = new(cosT, 0, sinT);
-            Vector3 normal = Vector3.Normalize(
-                new Vector3(radial.X, -rAtV * _slope, radial.Z));
+            // Normal on the cone surface: the gradient of √(x² + z²) − r(y),
+            // (cos θ, −dr/dy, sin θ) (the radius used to scale dr/dy, tilting
+            // the normal of a frustum's samples toward the axis).
+            Vector3 normal = Vector3.Normalize(new Vector3(cosT, -_slope, sinT));
 
-            return (point, normal, new Vector2(theta / (2f * MathF.PI), v), totalArea);
+            // The UV Hit() reports here: U = (atan2 + π) / 2π, V the height fraction.
+            return (point, normal, new Vector2((MathF.Atan2(sinT, cosT) + MathF.PI) / (2f * MathF.PI), v), totalArea);
         }
         else if (r < lateralArea + bottomArea)
         {
@@ -370,9 +371,10 @@ public class Cone : IHittable, ISamplable
 
         Vector3 point = center + r * MathF.Cos(theta) * uAxis + r * MathF.Sin(theta) * vAxis;
 
+        // The cap UV Hit() reports: a projection on world X and Z.
         float invR = radius > 0f ? 1f / radius : 0f;
-        float uu = (r * MathF.Cos(theta) * invR + 1f) * 0.5f;
-        float vv = (r * MathF.Sin(theta) * invR + 1f) * 0.5f;
+        float uu = ((point.X - center.X) * invR + 1f) * 0.5f;
+        float vv = ((point.Z - center.Z) * invR + 1f) * 0.5f;
         return (point, normal, new Vector2(uu, vv), totalArea);
     }
 

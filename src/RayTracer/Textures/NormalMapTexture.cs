@@ -46,10 +46,14 @@ public class NormalMapTexture
     /// <param name="flipY">If true, inverts the Y (green) channel for DirectX-style maps.</param>
     public NormalMapTexture(string imagePath, float strength = 1f,
                             float scaleU = 1f, float scaleV = 1f, bool flipY = false)
+        : this(new ImageTexture(imagePath, scaleU, scaleV, TextureColorSpace.Linear), strength, flipY) { }
+
+    /// <summary>A normal map from an image already loaded (linear, not sRGB).</summary>
+    public NormalMapTexture(ImageTexture image, float strength = 1f, bool flipY = false)
     {
         _strength = Math.Clamp(strength, 0f, 3f);
         _flipY = flipY;
-        _image = new ImageTexture(imagePath, scaleU, scaleV, TextureColorSpace.Linear);
+        _image = image;
     }
 
     /// <summary>

@@ -28,7 +28,7 @@ public class PrimitiveUvDerivativeTests
         new object[] { "disk" }, new object[] { "annulus" }, new object[] { "capsule" },
         new object[] { "torus" }, new object[] { "plane" }, new object[] { "triangle" },
         new object[] { "smooth-triangle" }, new object[] { "lathe" }, new object[] { "lathe-step" },
-        new object[] { "lathe-spline" },
+        new object[] { "lathe-spline" }, new object[] { "heightfield" },
     };
 
     private static IHittable Make(string name) => name switch
@@ -57,8 +57,19 @@ public class PrimitiveUvDerivativeTests
                                           new Vector2(0.4f, 0.7f) }, LatheMode.Linear, M),
         "lathe-spline" => new Lathe(new[] { new Vector2(0.3f, -0.7f), new Vector2(0.8f, -0.2f), new Vector2(0.6f, 0.2f),
                                             new Vector2(0.5f, 0.7f) }, LatheMode.CatmullRom, M),
+        "heightfield" => HeightFieldOf(),
         _ => throw new ArgumentException(name),
     };
+
+    private static IHittable HeightFieldOf()
+    {
+        const int n = 9;
+        var s = new float[n * n];
+        for (int j = 0; j < n; j++)
+            for (int i = 0; i < n; i++)
+                s[i + j * n] = 0.5f + 0.4f * MathF.Sin(1.3f * i) * MathF.Cos(0.9f * j);
+        return new HeightField(-1.2f, -1.2f, 1.2f, 1.2f, s, n, n, 0.5f, M);
+    }
 
     private static bool HitAt(IHittable h, Vector3 o, Vector3 d, out HitRecord rec)
     {

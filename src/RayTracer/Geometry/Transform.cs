@@ -36,6 +36,8 @@ public class Transform : IHittable, ISamplable
     private readonly Matrix4x4 _transform;
     private readonly Matrix4x4 _inverse;
     private readonly Matrix4x4 _normalMatrix; // Transpose of the inverse
+    private readonly Matrix4x4 _transposed;   // maps a world normal back to object space
+    private readonly bool _similarity;        // rotation × uniform scale: area Jacobian constant
 
     // Precomputed absolute determinant of the 3×3 linear sub-matrix.
     // Used in Sample() to convert object-space area to world-space area.
@@ -96,6 +98,15 @@ public class Transform : IHittable, ISamplable
         float ny = Vector3.TransformNormal(Vector3.UnitY, _normalMatrix).Length();
         float nz = Vector3.TransformNormal(Vector3.UnitZ, _normalMatrix).Length();
         _avgNormalLen = (nx + ny + nz) / 3f;
+        _transposed = Matrix4x4.Transpose(_transform);
+        // M Mᵀ = s² I: every normal scales alike, so uniform object samples stay uniform.
+        Vector3 r0 = new(matrix.M11, matrix.M12, matrix.M13), r1 = new(matrix.M21, matrix.M22, matrix.M23),
+                r2 = new(matrix.M31, matrix.M32, matrix.M33);
+        float s2 = (r0.LengthSquared() + r1.LengthSquared() + r2.LengthSquared()) / 3f;
+        float tol = 1e-4f * s2;
+        _similarity = MathF.Abs(r0.LengthSquared() - s2) < tol && MathF.Abs(r1.LengthSquared() - s2) < tol
+                   && MathF.Abs(r2.LengthSquared() - s2) < tol && MathF.Abs(Vector3.Dot(r0, r1)) < tol
+                   && MathF.Abs(Vector3.Dot(r0, r2)) < tol && MathF.Abs(Vector3.Dot(r1, r2)) < tol;
 
         _worldBox = ComputeWorldBox(_object.BoundingBox(), _transform);
 
@@ -291,6 +302,28 @@ public class Transform : IHittable, ISamplable
             // Jacobian. Computed once at construction since _normalMatrix is immutable.
             return innerArea * _absDetM * _avgNormalLen;
         }
+    }
+
+    /// <inheritdoc/>
+    public bool UniformArea => _similarity && (_object is not ISamplable inner || inner.UniformArea);
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// The inner shape's density at the object-space point, divided by the
+    /// area Jacobian |det M| |M⁻ᵀ n̂_obj| of its normal: the density
+    /// <see cref="Sample"/> actually draws with (it reports 1 / this as the
+    /// sample's area), exact whatever the scaling.
+    /// </remarks>
+    public float AreaPdf(Vector3 point, Vector3 normal)
+    {
+        if (_object is not ISamplable inner) return 0f;
+        Vector3 nObj = Vector3.TransformNormal(normal, _transposed);
+        float len = nObj.Length();
+        if (!(len > 0f)) return 0f;
+        nObj /= len;
+        float jacobian = _absDetM * Vector3.TransformNormal(nObj, _normalMatrix).Length();
+        if (!(jacobian > 0f)) return 0f;
+        return inner.AreaPdf(Vector3.Transform(point, _inverse), nObj) / jacobian;
     }
 
     /// <inheritdoc/>

@@ -52,4 +52,21 @@ public interface ISamplable
     /// PRNG-free.
     /// </summary>
     float SurfaceArea => Sample().Area;
+
+    /// <summary>
+    /// The density, in area measure, with which <see cref="Sample"/> draws the
+    /// surface point <paramref name="point"/> of normal <paramref name="normal"/>
+    /// (either orientation): what a light sample's MIS weight and a
+    /// bidirectional emission density must use for a point reached by a ray.
+    /// <c>1 / SurfaceArea</c> for a sampler uniform by area.
+    /// </summary>
+    float AreaPdf(Vector3 point, Vector3 normal) => 1f / SurfaceArea;
+
+    /// <summary>
+    /// True when <see cref="Sample"/> is uniform by area (then
+    /// <see cref="AreaPdf"/> is the constant <c>1 / SurfaceArea</c>). A
+    /// non-uniformly scaled <see cref="Transform"/> is not: it maps the inner
+    /// shape's uniform samples through a Jacobian that varies with the normal.
+    /// </summary>
+    bool UniformArea => true;
 }

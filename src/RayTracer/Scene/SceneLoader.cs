@@ -3471,14 +3471,35 @@ public class SceneLoader
             EntityToWorld      = entityToWorld,
         };
 
+        var boundary = BoundaryInterpolation.EdgeAndCorner;
+        if (!string.IsNullOrWhiteSpace(e.SubdivisionBoundary))
+        {
+            boundary = e.SubdivisionBoundary.Trim().ToLowerInvariant() switch
+            {
+                "edge_and_corner" or "edge-and-corner" => BoundaryInterpolation.EdgeAndCorner,
+                "edge_only" or "edge-only"             => BoundaryInterpolation.EdgeOnly,
+                _ => WarnedBoundary(e.SubdivisionBoundary, e.Name),
+            };
+        }
+
         return new SubdivisionOptions
         {
-            Scheme        = scheme,
-            Iterations    = Math.Max(0, e.SubdivisionIterations),
-            PixelError    = Math.Max(0f, e.SubdivisionPixelError),
-            MaxIterations = Math.Max(1, e.SubdivisionMaxIterations),
-            Screen        = ctx,
+            Scheme          = scheme,
+            Iterations      = Math.Max(0, e.SubdivisionIterations),
+            PixelError      = Math.Max(0f, e.SubdivisionPixelError),
+            MaxIterations   = Math.Max(1, e.SubdivisionMaxIterations),
+            Screen          = ctx,
+            Boundary        = boundary,
+            CreaseAngle     = Math.Clamp(e.SubdivisionCreaseAngle, 0f, 180f),
+            CreaseSharpness = e.SubdivisionCreaseSharpness is float cs && cs > 0f ? cs : float.PositiveInfinity,
         };
+
+        static BoundaryInterpolation WarnedBoundary(string s, string? name)
+        {
+            Warn($"Mesh '{name ?? "(unnamed)"}': unknown subdivision_boundary " +
+                 $"'{s}'. Expected edge_and_corner|edge_only. Using edge_and_corner.");
+            return BoundaryInterpolation.EdgeAndCorner;
+        }
 
         static SubdivisionScheme Warned(string s, string? name)
         {

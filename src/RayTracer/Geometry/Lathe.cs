@@ -379,7 +379,7 @@ public sealed class Lathe : IHittable, ISamplable
             var (p, nrm, vSeg, theta) = _segments[idx].Sample(xi1, xi2);
             float segArc = _segments[idx].ArcLength;
             float v = (_vBase[idx] + vSeg * segArc) / _totalArc;
-            float u = theta / (2f * MathF.PI);
+            float u = (MathF.Atan2(MathF.Sin(theta), MathF.Cos(theta)) + MathF.PI) / (2f * MathF.PI);   // as Hit()
             return (p, nrm, new Vector2(u, v), _totalArea);
         }
 

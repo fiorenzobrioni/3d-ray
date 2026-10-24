@@ -8,17 +8,18 @@ namespace RayTracer.Geometry.Subdivision;
 /// Surface displacement on a (sub)divided <see cref="PolyMesh"/>. Supports
 /// both <see cref="DisplacementMode.Scalar"/> (height-field along the
 /// smooth normal, DEVLOG step 3) and <see cref="DisplacementMode.Vector"/>
-/// (RGB → XYZ offset, DEVLOG step 4).
+/// (RGB → XYZ offset, DEVLOG step 4). The stack's order is fixed: bump,
+/// subdivision (onto the limit surface), scalar or vector displacement,
+/// autobump; the normals are rebuilt from the displaced mesh.
 ///
 /// <para>
 /// Pipeline position: runs <i>after</i> the Loop / Catmull-Clark subdivision
 /// pass and <i>before</i> the final triangulation in
 /// <see cref="SubdivisionEngine"/>. For scalar mode the displacement
-/// direction is the angle-weighted average of incident face normals on the
-/// limit topology (Max 1999 — the Blender/Maya/OpenSubdiv default for
-/// smooth shading), so the surface inflates along the same "shading normal"
-/// the renderer would otherwise see — which is the canonical
-/// Arnold/RenderMan/Cycles convention for height-field displacement.
+/// direction is the limit surface's normal when subdivision put the vertices
+/// on it (<see cref="PolyMesh.LimitNormals"/>; one direction per vertex, so a
+/// crease does not open), otherwise the angle-weighted average of the incident
+/// face normals: the normal the surface would be shaded with.
 /// </para>
 ///
 /// <para>
@@ -64,7 +65,8 @@ internal static class DisplacementEngine
             return 0f;
 
         var triFaces = TriangulateForNormals(mesh);
-        var smoothNormals = ComputeAngleWeightedNormals(mesh, triFaces);
+        // On the limit surface its own normals; otherwise the faces' mean.
+        var smoothNormals = mesh.LimitNormals ?? ComputeAngleWeightedNormals(mesh, triFaces);
 
         float maxDisp = options.Mode == DisplacementMode.Vector
             ? ApplyVector(mesh, options, triFaces, smoothNormals, objectSeed)
@@ -79,6 +81,7 @@ internal static class DisplacementEngine
             // post-displacement shading normals.
             RecomputeVertexNormalsInPlace(mesh, triFaces);
         }
+        mesh.LimitNormals = null; // the vertices have left the limit surface
 
         return maxDisp;
     }
@@ -110,7 +113,8 @@ internal static class DisplacementEngine
         var optsA = leafA.Options;
         var optsB = leafB.Options;
         var triFaces = TriangulateForNormals(mesh);
-        var smoothNormals = ComputeAngleWeightedNormals(mesh, triFaces);
+        // On the limit surface its own normals; otherwise the faces' mean.
+        var smoothNormals = mesh.LimitNormals ?? ComputeAngleWeightedNormals(mesh, triFaces);
 
         // Vertex-varying UV lookup, shared between the two children.
         bool hasUv = mesh.HasUVs;
@@ -163,6 +167,7 @@ internal static class DisplacementEngine
 
         if (mesh.Normals != null && mesh.FaceNormals != null)
             RecomputeVertexNormalsInPlace(mesh, triFaces);
+        mesh.LimitNormals = null; // the vertices have left the limit surface
 
         return MathF.Sqrt(maxLenSq);
     }

@@ -35,6 +35,15 @@ namespace RayTracer.Textures;
 ///     path: "textures/brick_wall.png"      # Relative to the scene YAML file
 ///     scale: [1, 1]                        # Optional UV scale (tiling)
 /// </summary>
+/// <summary>Which channels of an image a texture reads.</summary>
+public enum ImageChannels
+{
+    /// <summary>The colour.</summary>
+    Rgb,
+    /// <summary>The alpha channel, into all three channels (an opacity mask).</summary>
+    Alpha,
+}
+
 public class ImageTexture : ITexture
 {
     // Mip pyramid. Level 0 is full resolution, each subsequent level is half
@@ -73,67 +82,91 @@ public class ImageTexture : ITexture
     /// images are sRGB-encoded, data maps (roughness, metallic, masks,
     /// heights) are stored as they are and must not be decoded. Radiance
     /// <c>.hdr</c> and OpenEXR files hold linear values whatever is asked.
+    /// <paramref name="channels"/> picks the colour or the alpha channel
+    /// (an opacity mask, read linearly into all three channels).
     /// </summary>
     public ImageTexture(string imagePath, float scaleU = 1f, float scaleV = 1f,
-                        TextureColorSpace colorSpace = TextureColorSpace.Srgb)
-    {
-        _scaleU = scaleU;
-        _scaleV = scaleV;
+                        TextureColorSpace colorSpace = TextureColorSpace.Srgb,
+                        ImageChannels channels = ImageChannels.Rgb)
+        : this(LoadFile(imagePath, colorSpace, channels), scaleU, scaleV) { }
 
-        float[] level0;
-        int w0, h0;
+    /// <summary>
+    /// An image held in memory in any format ImageSharp reads (a texture
+    /// embedded in a glTF file).
+    /// </summary>
+    public ImageTexture(byte[] encoded, TextureColorSpace colorSpace,
+                        ImageChannels channels = ImageChannels.Rgb, float scaleU = 1f, float scaleV = 1f)
+        : this(Decode(Image.Load<Rgba64>(encoded), colorSpace, channels), scaleU, scaleV) { }
+
+    private readonly record struct Level0(float[] Pixels, int Width, int Height, TextureColorSpace ColorSpace);
+
+    private static Level0 LoadFile(string imagePath, TextureColorSpace colorSpace, ImageChannels channels)
+    {
         string ext = Path.GetExtension(imagePath).ToLowerInvariant();
         if (ext is ".hdr" or ".pic" or ".exr")
         {
             // A colour stays non-negative; a data map keeps its sign (a
             // displacement EXR moves the surface both ways).
-            (level0, w0, h0) = ext == ".exr"
+            var (px, w, h) = ext == ".exr"
                 ? ExrLoader.Load(imagePath, clampNegative: colorSpace == TextureColorSpace.Srgb)
                 : HdrLoader.Load(imagePath);
-            ColorSpace = TextureColorSpace.Linear;
+            return new Level0(px, w, h, TextureColorSpace.Linear);
         }
-        else
+        // 16 bits per channel: a 16-bit PNG keeps its precision (an 8-bit
+        // read quantised heights and roughness to 256 steps).
+        return Decode(Image.Load<Rgba64>(imagePath), colorSpace, channels);
+    }
+
+    private static Level0 Decode(Image<Rgba64> image, TextureColorSpace colorSpace, ImageChannels channels)
+    {
+        using (image)
         {
-            ColorSpace = colorSpace;
-            float[]? decode = colorSpace == TextureColorSpace.Srgb ? SrgbDecodeLut.Value : null;
+            bool alpha = channels == ImageChannels.Alpha;
+            float[]? decode = colorSpace == TextureColorSpace.Srgb && !alpha ? SrgbDecodeLut.Value : null;
             const float inv65535 = 1f / 65535f;
-            float[] pixels;
-            int w, h;
-            // 16 bits per channel: a 16-bit PNG keeps its precision (an 8-bit
-            // read quantised heights and roughness to 256 steps).
-            using (var image = Image.Load<Rgba64>(imagePath))
+            int w = image.Width, h = image.Height;
+            var pixels = new float[w * h * 3];
+            image.ProcessPixelRows(accessor =>
             {
-                w = image.Width;
-                h = image.Height;
-                pixels = new float[w * h * 3];
-                image.ProcessPixelRows(accessor =>
+                for (int y = 0; y < h; y++)
                 {
-                    for (int y = 0; y < h; y++)
+                    var row = accessor.GetRowSpan(y);
+                    int baseIdx = y * w * 3;
+                    for (int x = 0; x < w; x++)
                     {
-                        var row = accessor.GetRowSpan(y);
-                        int baseIdx = y * w * 3;
-                        for (int x = 0; x < w; x++)
+                        var px = row[x];
+                        int idx = baseIdx + x * 3;
+                        if (alpha)
                         {
-                            var px = row[x];
-                            int idx = baseIdx + x * 3;
-                            if (decode != null)
-                            {
-                                pixels[idx]     = decode[px.R];
-                                pixels[idx + 1] = decode[px.G];
-                                pixels[idx + 2] = decode[px.B];
-                            }
-                            else
-                            {
-                                pixels[idx]     = px.R * inv65535;
-                                pixels[idx + 1] = px.G * inv65535;
-                                pixels[idx + 2] = px.B * inv65535;
-                            }
+                            float a = px.A * inv65535;
+                            pixels[idx] = pixels[idx + 1] = pixels[idx + 2] = a;
+                        }
+                        else if (decode != null)
+                        {
+                            pixels[idx]     = decode[px.R];
+                            pixels[idx + 1] = decode[px.G];
+                            pixels[idx + 2] = decode[px.B];
+                        }
+                        else
+                        {
+                            pixels[idx]     = px.R * inv65535;
+                            pixels[idx + 1] = px.G * inv65535;
+                            pixels[idx + 2] = px.B * inv65535;
                         }
                     }
-                });
-            }
-            level0 = pixels; w0 = w; h0 = h;
+                }
+            });
+            return new Level0(pixels, w, h, alpha ? TextureColorSpace.Linear : colorSpace);
         }
+    }
+
+    private ImageTexture(Level0 image, float scaleU, float scaleV)
+    {
+        _scaleU = scaleU;
+        _scaleV = scaleV;
+        ColorSpace = image.ColorSpace;
+        float[] level0 = image.Pixels;
+        int w0 = image.Width, h0 = image.Height;
 
         // ── Build mip pyramid (box filter, linear space, stops at 1×1) ──────
         // Each level halves the size, rounding up, and every texel averages

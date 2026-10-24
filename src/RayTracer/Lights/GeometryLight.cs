@@ -260,12 +260,13 @@ public class GeometryLight : ILight
         if (cosLight < 1e-6f)
             return 0f;
 
+        // The sampler's own density at this point (a non-uniformly scaled
+        // emitter is not sampled uniformly, and its SurfaceArea is approximate).
+        float pdfArea = Geometry.UniformArea
+            ? (_representativeArea > 1e-12f ? 1f / _representativeArea : 0f)
+            : Geometry.AreaPdf(rec.Point, rec.Normal);
         float distSq = rec.T * rec.T;
-        float area = _representativeArea;
-        if (area < 1e-12f)
-            return 0f;
-
-        return distSq / (area * cosLight);
+        return distSq * pdfArea / cosLight;
     }
 
     // ── Emission (bidirectional integrators) ────────────────────────────────
@@ -286,5 +287,15 @@ public class GeometryLight : ILight
     }
 
     public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight)
-        => _representativeArea > 0f ? 1f / (_representativeArea * MathF.PI) : 0f;
+    {
+        if (Geometry.UniformArea)
+            return _representativeArea > 0f ? 1f / (_representativeArea * MathF.PI) : 0f;
+        // The density depends on the normal there: find it with a short ray
+        // back onto the surface from the side the light leaves.
+        if (Geometry is not IHittable hittable) return 0f;
+        float eps = 1e-3f * (1f + point.Length());
+        var rec = new HitRecord();
+        if (!hittable.Hit(new Ray(point + eps * dirFromLight, -dirFromLight), 0f, 2f * eps, ref rec)) return 0f;
+        return Geometry.AreaPdf(rec.Point, rec.Normal) / MathF.PI;
+    }
 }

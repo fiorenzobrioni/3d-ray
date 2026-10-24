@@ -232,18 +232,26 @@ public sealed class HeightField : IHittable
         rec.U = (p.X - XMin) / (XMax - XMin);
         rec.V = (p.Z - ZMin) / (ZMax - ZMin);
 
+        // The side the ray arrives from is decided by the patch's own normal;
+        // the shading normal is the smoothed one (central differences over a
+        // cell, continuous across the cells), turned to that side. With the
+        // smoothed normal deciding, a grazing ray from above could arrive "from
+        // below": a water surface then refracted as if leaving the water.
+        Vector3 geometric = PatchNormal(p.X, p.Z);
+        rec.FrontFace = Vector3.Dot(ray.Direction, geometric) < 0f;
         Vector3 n = ComputeNormal(p.X, p.Z);
-        rec.SetFaceNormal(ray, n);
+        rec.Normal = rec.FrontFace ? n : -n;
 
-        // Tangent along +X (in the height-gradient plane), bitangent = N × T
-        // so the (T, B, N) frame stays orthonormal.
-        float dhdx = SampleHeightDerivX(p.X, p.Z);
-        Vector3 tangent = Vector3.Normalize(new Vector3(1f, dhdx, 0f));
-        Vector3 bitangent = Vector3.Normalize(Vector3.Cross(rec.Normal, tangent));
+        // ∂P/∂u, ∂P/∂v of the UV mapping (u, v span the bounds) on the patch
+        // hit: the surface rises by ∂h/∂x per unit of x.
+        var (dhdx, dhdz) = PatchGradient(p.X, p.Z);
+        rec.DpDu = new Vector3(XMax - XMin, dhdx * (XMax - XMin), 0f);
+        rec.DpDv = new Vector3(0f, dhdz * (ZMax - ZMin), ZMax - ZMin);
+        // Tangent along +U, bitangent along +V (made orthogonal to it), as
+        // every primitive's frame.
+        Vector3 tangent = Vector3.Normalize(rec.DpDu);
         rec.Tangent = tangent;
-        rec.Bitangent = bitangent;
-        rec.DpDu = new Vector3(XMax - XMin, 0f, 0f);
-        rec.DpDv = new Vector3(0f, 0f, ZMax - ZMin);
+        rec.Bitangent = Vector3.Normalize(rec.DpDv - Vector3.Dot(rec.DpDv, tangent) * tangent);
 
         rec.Material = SelectMaterial(p, rec.Normal);
         rec.ObjectSeed = Seed;
@@ -427,41 +435,78 @@ public sealed class HeightField : IHittable
     private bool TryBisectCell(Ray ray, int cellX, int cellZ,
                                float tEnter, float tExit, out float tHit)
     {
+        // Exact: inside a cell the surface is the bilinear patch
+        //   h = S (A + B fu + C fv + D fu fv),
+        // and along the ray fu, fv are linear in t, so f(t) = y(t) − h is a
+        // quadratic. Its smallest root in the cell's interval is the hit. (A
+        // bisection between the interval's ends missed every ray that enters
+        // and leaves the surface inside one cell, and took a later crossing
+        // when the first one was such a pair.)
         tHit = 0f;
+        double cw = (XMax - XMin) / (double)(_samplesX - 1), ch = (ZMax - ZMin) / (double)(_samplesZ - 1);
+        double h00 = _samples[cellX + cellZ * _samplesX], h10 = _samples[cellX + 1 + cellZ * _samplesX];
+        double h01 = _samples[cellX + (cellZ + 1) * _samplesX], h11 = _samples[cellX + 1 + (cellZ + 1) * _samplesX];
+        double S = HeightScale;
+        double A = h00, B = h10 - h00, C = h01 - h00, D = h00 - h10 - h01 + h11;
+        double fu0 = (ray.Origin.X - (XMin + cellX * cw)) / cw, du = ray.Direction.X / cw;
+        double fv0 = (ray.Origin.Z - (ZMin + cellZ * ch)) / ch, dv = ray.Direction.Z / ch;
+        double c0 = ray.Origin.Y - S * (A + B * fu0 + C * fv0 + D * fu0 * fv0);
+        double c1 = ray.Direction.Y - S * (B * du + C * dv + D * (fu0 * dv + fv0 * du));
+        double c2 = -S * D * du * dv;
 
-        // Sign of f(t) = ray.At(t).Y - h(ray.At(t).XZ). When it crosses zero
-        // the ray pierces the surface. Sample at both ends of the cell entry
-        // interval; if both have the same sign and small magnitude, recurse
-        // a couple of times to detect grazing hits, otherwise bisect.
-        float tA = tEnter;
-        float tB = tExit;
-        float fA = SignedHeightDiff(ray, tA);
-        float fB = SignedHeightDiff(ray, tB);
-
-        // Skip cells where both endpoints are clearly above the surface — the
-        // pyramid bound says the cell envelope is pierced, but the ray's Y
-        // trajectory may still ride above the surface within this single cell
-        // (e.g. coarse cell, ray glancing the tip of a peak).
-        if (fA > 0f && fB > 0f) return false;
-        if (fA < 0f && fB < 0f) return false;
-
-        // Standard 12-step bisection: at ~10 we're already at 1e-3 of the
-        // interval; 12 gives sub-pixel accuracy for any reasonable cell size.
-        for (int i = 0; i < 12; i++)
+        // The cell's interval, widened by a hair so a root on a shared edge is
+        // found by one of the two cells.
+        double slack = 1e-6 * (1.0 + System.Math.Abs(tExit));
+        double lo = tEnter - slack, hi = tExit + slack;
+        double best = double.PositiveInfinity;
+        void Consider(double t)
         {
-            float tM = 0.5f * (tA + tB);
-            float fM = SignedHeightDiff(ray, tM);
-            if (Math.Sign(fM) == Math.Sign(fA))
+            if (t >= lo && t <= hi && t < best) best = t;
+        }
+        double scale = System.Math.Abs(c1) + System.Math.Abs(c0);
+        if (System.Math.Abs(c2) <= 1e-12 * (scale + 1e-30))
+        {
+            if (c1 != 0.0) Consider(-c0 / c1);
+        }
+        else
+        {
+            double disc = c1 * c1 - 4.0 * c2 * c0;
+            if (disc < 0.0)
             {
-                tA = tM; fA = fM;
+                // A grazing ray: the vertex of the parabola touches the surface.
+                if (disc > -1e-12 * c1 * c1) Consider(-c1 / (2.0 * c2));
             }
             else
             {
-                tB = tM; fB = fM;
+                double sq = System.Math.Sqrt(disc);
+                double q = c1 >= 0.0 ? -0.5 * (c1 + sq) : -0.5 * (c1 - sq);   // stable roots
+                Consider(q / c2);
+                if (q != 0.0) Consider(c0 / q);
             }
         }
-        tHit = 0.5f * (tA + tB);
+        if (double.IsPositiveInfinity(best)) return false;
+        tHit = (float)System.Math.Clamp(best, tEnter, tExit);
         return true;
+    }
+
+    /// <summary>The exact normal of the bilinear patch under (x, z), facing up.</summary>
+    private Vector3 PatchNormal(float x, float z)
+    {
+        var (hx, hz) = PatchGradient(x, z);
+        return Vector3.Normalize(new Vector3(-hx, 1f, -hz));
+    }
+
+    /// <summary>∂h/∂x, ∂h/∂z of the bilinear patch under (x, z), in world units.</summary>
+    private (float Hx, float Hz) PatchGradient(float x, float z)
+    {
+        float u = (x - XMin) * _invCellX, v = (z - ZMin) * _invCellZ;
+        int i = Math.Clamp((int)MathF.Floor(u), 0, _samplesX - 2), j = Math.Clamp((int)MathF.Floor(v), 0, _samplesZ - 2);
+        float fu = Math.Clamp(u - i, 0f, 1f), fv = Math.Clamp(v - j, 0f, 1f);
+        float h00 = _samples[i + j * _samplesX], h10 = _samples[i + 1 + j * _samplesX];
+        float h01 = _samples[i + (j + 1) * _samplesX], h11 = _samples[i + 1 + (j + 1) * _samplesX];
+        float dhdu = (h10 - h00) + (h00 - h10 - h01 + h11) * fv;
+        float dhdv = (h01 - h00) + (h00 - h10 - h01 + h11) * fu;
+        return (dhdu * HeightScale * _invCellX, dhdv * HeightScale * _invCellZ);
     }
 
     private float SignedHeightDiff(Ray ray, float t)

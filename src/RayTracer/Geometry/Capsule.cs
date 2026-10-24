@@ -270,7 +270,8 @@ public class Capsule : IHittable, ISamplable
                 _yMin + h,
                 Center.Z + Radius * sinT);
             Vector3 normal = new(cosT, 0, sinT);
-            return (point, normal, new Vector2(xi1, xi2), totalArea);
+            // The UV Hit() reports here (body: V in [0.25, 0.75]).
+            return (point, normal, new Vector2((MathF.Atan2(sinT, cosT) + MathF.PI) / (2f * MathF.PI), 0.25f + 0.5f * xi2), totalArea);
         }
         else
         {
@@ -286,7 +287,10 @@ public class Capsule : IHittable, ISamplable
                 sinPhi * MathF.Sin(theta));
             Vector3 hemiCenter = top ? _topCenter : _bottomCenter;
             Vector3 point = hemiCenter + dir * Radius;
-            return (point, dir, new Vector2(xi1, xi2), totalArea);
+            // The UV Hit() reports here (hemispheres: V in [0, 0.25] and [0.75, 1]).
+            float u = (MathF.Atan2(dir.Z, dir.X) + MathF.PI) / (2f * MathF.PI);
+            float v = top ? 0.75f + 0.25f * dir.Y : 0.25f * (dir.Y + 1f);
+            return (point, dir, new Vector2(u, v), totalArea);
         }
     }
 

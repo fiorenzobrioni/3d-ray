@@ -70,6 +70,22 @@ public readonly struct SubdivisionOptions
     /// </summary>
     public int MaxIterations { get; init; }
 
+    /// <summary>How the open boundary is subdivided (corners kept by default).</summary>
+    public BoundaryInterpolation Boundary { get; init; }
+
+    /// <summary>
+    /// Edges whose faces meet at more than this angle (degrees, between their
+    /// normals) become creases of sharpness <see cref="CreaseSharpness"/>.
+    /// 0 = no automatic creases.
+    /// </summary>
+    public float CreaseAngle { get; init; }
+
+    /// <summary>
+    /// Sharpness of the automatic creases: sharp for this many levels, then
+    /// smooth (fractions blend). Infinity, the default, keeps them sharp.
+    /// </summary>
+    public float CreaseSharpness { get; init; }
+
     /// <summary>
     /// Camera-to-mesh world-space context for the adaptive heuristic.
     /// Populated by <see cref="Scene.SceneLoader"/> from the resolved camera.
@@ -86,6 +102,7 @@ public readonly struct SubdivisionOptions
         PixelError = 0f,
         MaxIterations = 6,
         Screen = null,
+        CreaseSharpness = float.PositiveInfinity,
     };
 }
 

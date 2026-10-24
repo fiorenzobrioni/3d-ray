@@ -400,7 +400,10 @@ public class Torus : IHittable, ISamplable
 
         float area = 4f * MathF.PI * MathF.PI * MajorRadius * MinorRadius;
 
-        return (point, normal, new Vector2(xi1, xi2), area);
+        // The UV Hit() reports at this point (angles measured as there).
+        float u = (MathF.Atan2(sinPhi, cosPhi) + MathF.PI) / (2f * MathF.PI);
+        float v = (MathF.Atan2(sinTheta, cosTheta) + MathF.PI) / (2f * MathF.PI);
+        return (point, normal, new Vector2(u, v), area);
     }
 
     public int Seed { get; set; }

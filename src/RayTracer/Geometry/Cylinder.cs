@@ -203,8 +203,8 @@ public class Cylinder : IHittable, ISamplable
                 Center.Z + Radius * sinT);
             Vector3 normal = new(cosT, 0, sinT);
 
-            // UV mirrors a natural cylindrical unwrap: U along θ, V along height
-            return (point, normal, new Vector2(theta / (2f * MathF.PI), xi2), totalArea);
+            // The UV Hit() reports here: U = (atan2 + π) / 2π, V along height.
+            return (point, normal, new Vector2((MathF.Atan2(sinT, cosT) + MathF.PI) / (2f * MathF.PI), xi2), totalArea);
         }
         else if (r < lateralArea + capArea)
         {

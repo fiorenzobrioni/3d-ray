@@ -153,8 +153,10 @@ public class Annulus : IHittable, ISamplable
         float r = MathF.Sqrt(_innerRadiusSq + u1 * (_outerRadiusSq - _innerRadiusSq));
         float theta = u2 * 2f * MathF.PI;
 
-        Vector3 point = Center + r * MathF.Cos(theta) * _uAxis + r * MathF.Sin(theta) * _vAxis;
-        return (point, Normal, new Vector2(u1, u2), area);
+        float x = r * MathF.Cos(theta), y = r * MathF.Sin(theta);
+        Vector3 point = Center + x * _uAxis + y * _vAxis;
+        // The planar UV Hit() reports here (the disk's projection).
+        return (point, Normal, new Vector2((x / OuterRadius + 1f) / 2f, (y / OuterRadius + 1f) / 2f), area);
     }
 
     public int Seed { get; set; }
