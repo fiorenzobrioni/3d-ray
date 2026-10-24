@@ -941,7 +941,14 @@ nei mezzi usava t parametrico, phase function comprese (3.64).
 **NaN.** Tutte le 20 scene con mezzi del repository avevano valori NaN/Inf azzerati (fino a 271 000
 a draft-tiny in `volumetric-procedural`); ora nessuna.
 
-**Prestazioni:** misure a parità di condizioni in corso (devlog).
+**Prestazioni** (draft-tiny, vecchio e nuovo alternati, la VM varia molto tra un run e l'altro):
+`foggy-road` (nebbia procedurale, 12 luci) 0.88× il tempo di prima, `volumetric-grid` 1.2×,
+`volumetric-homogeneous` 1.4× (il costo dell'equiangolare, che su `fog-sphere-light` riduce
+l'errore di 16 volte a parità di campioni), `sky-aerial` da 38 s a 3.5 s. I raggi d'ombra
+attraversano i mezzi solo dopo aver verificato che nessuna superficie li blocca. Convergenza
+(`--convergence`, 8 semi): pavimenti di 9.6e-5 (sfera cromatica) e 5e-4 (nebbia), al livello del
+rumore dei riferimenti a 4096 campioni (quello della nebbia, senza equiangolare, è il più
+rumoroso).
 
 ### Fase 8b - Integratori bidirezionali: BDPT, poi VCM
 

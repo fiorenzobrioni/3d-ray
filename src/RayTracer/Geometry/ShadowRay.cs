@@ -175,6 +175,22 @@ public static class ShadowRay
         => rec.MediumIface.Interior != null || rec.MediumIface.Exterior != null
            || (rec.Material?.TryGetDielectricIor(in rec, out _) ?? false);
 
+    private readonly record struct MediumSegment(IMedium Medium, Ray Ray, float Length);
+    private const int MaxSegments = 16;
+    [ThreadStatic] private static MediumSegment[]? t_segments;
+
+    /// <summary>The transmittance of the noted medium stretches, once the ray is known to get through.</summary>
+    private static Vector3 ThroughMedia(Vector3 throughput, int count)
+    {
+        var segs = t_segments;
+        for (int k = 0; k < count && segs != null; k++)
+        {
+            throughput *= segs[k].Medium.Transmittance(segs[k].Ray, segs[k].Length);
+            if (MathUtils.NearZero(throughput)) return Vector3.Zero;
+        }
+        return throughput;
+    }
+
     private static void Cross(ref MediumStack media, bool frontFace, IMedium? interior, IHittable? entity)
     {
         if (frontFace) media.Push(interior, entity);
@@ -230,6 +246,7 @@ public static class ShadowRay
         bool inMedium = false;
 
         bool media = t_mediaOn;
+        int segCount = 0;
         MediumStack stack = media ? t_media : default;
         IMedium? global = media ? t_globalMedium : null;
         // Leaving through the receiver's far side crosses its boundary.
@@ -244,14 +261,15 @@ public static class ShadowRay
             var stepRay = new Ray(origin, dir, ray.Time);
             bool hit = world.Hit(stepRay, tMin, remaining, ref rec);
 
-            // The medium over this stretch, up to the hit or the end.
+            // The medium over this stretch, up to the hit or the end: noted,
+            // and tracked only once no surface has blocked the ray.
             if (media && (stack.Top ?? global) is { } m)
             {
-                throughput *= m.Transmittance(stepRay, hit ? rec.T : remaining);
-                if (MathUtils.NearZero(throughput)) return Vector3.Zero;
+                var segs = t_segments ??= new MediumSegment[MaxSegments];
+                if (segCount < MaxSegments) segs[segCount++] = new MediumSegment(m, stepRay, hit ? rec.T : remaining);
             }
             if (!hit)
-                return throughput;
+                return ThroughMedia(throughput, segCount);
 
             // ── Shadow visibility (Arnold `visibility.shadow` / Cycles
             //    "Ray Visibility → Shadow") ───────────────────────────────
@@ -265,7 +283,7 @@ public static class ShadowRay
                 Vector3 advanceN = Vector3.Dot(dir, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
                 origin = MathUtils.OffsetOrigin(rec.Point, advanceN);
                 remaining -= rec.T + 2f * MathUtils.OffsetDistance(rec.Point);
-                if (remaining <= tMin) return throughput;
+                if (remaining <= tMin) return ThroughMedia(throughput, segCount);
                 continue;
             }
 
@@ -280,7 +298,7 @@ public static class ShadowRay
                 Vector3 passN = Vector3.Dot(dir, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
                 origin = MathUtils.OffsetOrigin(rec.Point, passN);
                 remaining -= rec.T + 2f * MathUtils.OffsetDistance(rec.Point);
-                if (remaining <= tMin) return throughput;
+                if (remaining <= tMin) return ThroughMedia(throughput, segCount);
                 continue;
             }
 
@@ -345,7 +363,7 @@ public static class ShadowRay
             Vector3 offsetN = Vector3.Dot(dir, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
             origin = MathUtils.OffsetOrigin(rec.Point, offsetN);
             remaining -= rec.T + 2f * MathUtils.OffsetDistance(rec.Point);
-            if (remaining <= tMin) return throughput;
+            if (remaining <= tMin) return ThroughMedia(throughput, segCount);
         }
 
         return Vector3.Zero;
