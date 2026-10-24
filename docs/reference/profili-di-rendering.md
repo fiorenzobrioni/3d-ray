@@ -69,7 +69,7 @@ rifrazioni e l'interriflessione diffusa poche:
 Feature per tier: `standard` spegne caustiche fotoniche e SSS volumetrico e
 rilassa il fattore del clamp indiretto a 0.5 (agisce solo con `-C`); `pre-final`,
 `final` e `ultra` girano con la **feature-set completa** (caustiche on - 2M
-fotoni per pre-final, 2–4M per final/ultra - SSS high, NEE su tutte le luci,
+fotoni per pre-final, 2–4M per final/ultra - SSS attivo, NEE su tutte le luci,
 senza clamp). `ultra` resta a 512 spp di proposito: a 4K la densità di
 pixel nasconde il rumore per-pixel che a 1080p sarebbe visibile, e 1024 spp
 raddoppierebbero un render già lungo.
@@ -129,7 +129,7 @@ traslucenza/SSS profondo o vetri impilati/annidati - lì usa
 `pre-final`/`final`.
 
 **`pre-final` - anteprima fedele di `final`.** Stessa feature-set di `final`
-(caustiche on, SSS high, gli stessi budget di rimbalzi, lo stesso
+(caustiche on, SSS attivo, gli stessi budget di rimbalzi, lo stesso
 campionamento delle luci) con i budget di campionamento tagliati dove il denoiser compensa
 meglio: **¼ dei campioni per pixel** (256) e **un solo shadow sample** - il
 rumore delle penombre è esattamente ciò che il filtro guidato dalle feature
@@ -447,10 +447,12 @@ veloce in iterazione quando non vuoi committare una modifica alla luce.
 `double_hg`, `schlick`. Ogni tipo ha un costo/rumore molto diverso.
 
 - **Homogeneous e height_fog sono "gratis"** rispetto al rendering normale: la
-  trasmittanza ha forma chiusa, nessun delta tracking. Un Preview è già
+  trasmittanza ha forma chiusa, le distanze sono campionate esattamente. Un Preview è già
   usabile; uno Standard è quasi sempre sufficiente.
-- **Procedural (Perlin fBm) e grid usano delta tracking** (Woodcock) + ratio
-  tracking: più rumorosi per costruzione, soprattutto nelle zone dense.
+- **Procedural (Perlin fBm) e grid sono attraversati con collisioni nulle**
+  (spectral tracking per le distanze, ratio tracking per i raggi d'ombra, su
+  una griglia di majorant per `grid`): senza distorsione, ma più rumorosi per
+  costruzione, soprattutto nelle zone dense.
   - Preview mostra grana evidente - va bene per la composizione.
   - Per immagini pubblicabili punta a `-s 576` (24×24) o `-s 1024`.
   - Se vedi rumore concentrato nel cono luminoso, aumenta `-s` (non `-S`).
@@ -458,14 +460,13 @@ veloce in iterazione quando non vuoi committare una modifica alla luce.
   producono talvolta spike luminosi rari. Se più campioni o il denoiser non
   li tolgono, aggiungi `-C 5` o `-C 3`: scambi un po' di bias con
   un'immagine molto più pulita.
-- **`soft_radius` su luci point/spot dentro un medium.** Con un medium
-  partecipante attivo, l'attenuazione 1/d² delle luci `point`/`spot` diverge
-  agli eventi di scattering vicini all'emettitore, producendo pixel-firefly
-  isolati che neanche più samples riescono a livellare. Imposta `soft_radius`
-  su quelle luci a un valore vicino al raggio fisico del bulbo (es.
-  `0.10`–`0.25`): il denominatore viene clampato a `max(d², r²)`, lo spike
-  sparisce, e a `d ≥ r` il look è invariato. Default `0` = nessun clamp
-  (comportamento originale). Vedi `riferimento-scene.md` §8.
+- **Luci point/spot dentro un medium.** In `homogeneous`, `height_fog` e
+  `atmosphere` la loro luce è campionata anche in modo equiangolare (distanze
+  distribuite come l'angolo visto dalla luce) e combinata per MIS con il volo
+  libero: l'alone intorno all'emettitore, dove 1/d² ha il picco, converge
+  pulito. Sulla scena di validazione `fog-sphere-light` l'errore a parità di
+  campioni è sceso di 16 volte. `soft_radius` resta la dimensione fisica del
+  bulbo, non un rimedio ai firefly.
 - **`soft_radius` su luci area dentro un medium.** Il termine `cosLight/d²`
   dello stimatore area può divergere ad angoli radenti in media densi.
   Imposta `soft_radius` sulle area light (es. `0.5`–`2.0`). Le sphere
@@ -490,7 +491,7 @@ veloce in iterazione quando non vuoi committare una modifica alla luce.
 # Preview volumetric (controllo composizione, ~30-60 s)
 RayTracer -i scene.yaml -w 400 -H 225 -s 64 -d 4 -S 1
 
-# Standard volumetric (review; delta-tracking ancora un po' rumoroso)
+# Standard volumetric (review; i mezzi con tracking ancora un po' rumorosi)
 RayTracer -i scene.yaml -w 800 -H 450 -s 400 -d 6 -S 1
 
 # Final volumetric (pulizia pubblicabile)

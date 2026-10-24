@@ -1,44 +1,41 @@
 using System.Numerics;
-using RayTracer.Core;
 
 namespace RayTracer.Volumetrics;
 
 /// <summary>
-/// Two-lobe Henyey-Greenstein phase function used to approximate cloud
-/// scattering (strong forward lobe + softer backward/side lobe).
+/// Two-lobe Henyey-Greenstein phase function for clouds (a strong forward
+/// lobe and a softer back lobe):
 ///
 ///   p(θ) = w · HG(g₁, θ) + (1 - w) · HG(g₂, θ),   w ∈ [0, 1]
 ///
-/// Typical cumulus settings: g₁ ≈ 0.85 (forward), g₂ ≈ -0.3 (silver lining /
-/// glory), w ≈ 0.5 — the configuration popularised by Guerrilla Games' Nubis
-/// cloud system and also used by Arnold for cumulus rendering. Falls back to
-/// a single HG lobe when w = 1 or w = 0.
+/// Typical cumulus: g₁ ≈ 0.85, g₂ ≈ -0.3, w ≈ 0.5. The lobe is picked with the
+/// first coordinate of the pair, rescaled, so the pair stays stratified and
+/// the density sampled is the mixture.
 /// </summary>
 public sealed class DoubleHenyeyGreensteinPhase : IPhaseFunction
 {
-    private readonly HenyeyGreensteinPhase _hg1;
-    private readonly HenyeyGreensteinPhase _hg2;
-    private readonly float _w;
+    private readonly float _g1, _g2, _w;
 
     public DoubleHenyeyGreensteinPhase(float g1, float g2, float w)
     {
-        _hg1 = new HenyeyGreensteinPhase(g1);
-        _hg2 = new HenyeyGreensteinPhase(g2);
-        _w = MathF.Max(0f, MathF.Min(1f, w));
+        _g1 = Math.Clamp(g1, -0.999f, 0.999f);
+        _g2 = Math.Clamp(g2, -0.999f, 0.999f);
+        _w = Math.Clamp(w, 0f, 1f);
     }
 
     public float Evaluate(Vector3 wo, Vector3 wi)
     {
-        return _w * _hg1.Evaluate(wo, wi) + (1f - _w) * _hg2.Evaluate(wo, wi);
+        float mu = Vector3.Dot(wo, wi);
+        return _w * HenyeyGreensteinPhase.Value(_g1, mu) + (1f - _w) * HenyeyGreensteinPhase.Value(_g2, mu);
     }
 
-    public (Vector3 Wi, float Pdf) Sample(Vector3 wo)
+    public (Vector3 Wi, float Pdf) Sample(Vector3 wo, Vector2 u)
     {
-        // Stochastic lobe selection with probability _w: the resulting sample
-        // density is exactly the mixture p(wi), so PDF = Evaluate(wo, wi).
-        Vector3 wi = MathUtils.RandomFloat() < _w
-            ? _hg1.Sample(wo).Wi
-            : _hg2.Sample(wo).Wi;
+        float g, x;
+        if (u.X < _w) { g = _g1; x = u.X / _w; }
+        else { g = _g2; x = (u.X - _w) / (1f - _w); }
+        x = MathF.Min(x, 0.99999994f);
+        Vector3 wi = PhaseFrame.Around(wo, HenyeyGreensteinPhase.SampleCos(g, x), 2f * MathF.PI * u.Y);
         return (wi, Evaluate(wo, wi));
     }
 }

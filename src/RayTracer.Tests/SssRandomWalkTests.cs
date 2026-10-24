@@ -277,14 +277,12 @@ public class SssRandomWalkTests
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Stresses the walk on a very dense (σ_t up to 50) medium with a low
-    /// volume-bounce budget. The MaxVolumeBounces clamp combined with the
-    /// in-walk RR must terminate every path cleanly, producing finite
-    /// per-pixel values (no NaN / +Inf leaks through). This is the
-    /// guard-rail against the worst-case low-albedo path stall.
+    /// Stresses the walk on a very dense (σ_t up to 50) medium: the in-walk
+    /// roulette must terminate every path cleanly, producing finite
+    /// per-pixel values (no NaN / +Inf leaks through).
     /// </summary>
     [Fact]
-    public void DenseMedium_LowBudget_TerminatesCleanly()
+    public void DenseMedium_TerminatesCleanly()
     {
         Sampler.SetKind(SamplerKind.Prng);
 
@@ -304,11 +302,7 @@ public class SssRandomWalkTests
             lights:          new List<ILight>(),
             sky:             new SkySettings(Vector3.One),
             samplesPerPixel: 16, // keep test fast
-            maxDepth:        Depth,
-            walkConfig:      new RandomWalkConfig(maxVolumeBounces: 8,
-                                                   rrStartBounce: 1,
-                                                   neeInsideWalk: true,
-                                                   neeMaxBounce:  int.MaxValue));
+            maxDepth:        Depth);
         var pixels = renderer.Render(Width, Height);
 
         for (int y = 0; y < Height; y++)

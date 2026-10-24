@@ -20,46 +20,53 @@ public enum GridInterpolation
 
 /// <summary>
 /// Heterogeneous medium backed by a regular 3D density grid inside an
-/// axis-aligned bounding box — the model used by Arnold's <c>volume</c> node
-/// (when reading VDB), V-Ray <c>VolumeGrid</c>, RenderMan <c>PxrVolume</c>
-/// grid mode, and PBRT <c>GridMedium</c>.
+/// axis-aligned box. The grid stores a scalar density d(i,j,k) ∈ [0, 1];
+/// σ_t(p) = σ_base_t · d(p), σ_s(p) = σ_base_s · d(p), d reconstructed
+/// trilinearly or with a Catmull-Rom tricubic.
 ///
-/// The grid stores a scalar density d(i,j,k) ∈ [0, 1]. Local coefficients
-/// come from base values scaled by the interpolated density:
-///   σ_T(p) = σ_base_T · d(p),   σ_S(p) = σ_base_S · d(p).
+/// <para>Null-collision tracking (<see cref="TrackedMedium"/>) against a coarse
+/// grid of majorants walked with a 3D DDA: each majorant cell holds the
+/// largest density its points can reconstruct to (the voxels its filter
+/// reaches, times the Catmull-Rom overshoot bound for the tricubic),
+/// so empty and thin regions cost few collisions and the bound is never
+/// violated. The single global majorant before wasted collisions wherever
+/// the smoke was thin, and the tricubic overshoot could exceed it.</para>
 ///
-/// Free-path sampling uses delta tracking with majorant
-/// σ_maj = σ_base_T · maxDensity (precomputed once at load). Rays are
-/// clipped to the grid's AABB so empty space costs nothing.
-///
-/// The grid format itself is format-agnostic inside this class: the
-/// constructor takes raw data + bounds + resolution. Parsing of the YAML
-/// schema or of the custom <c>.vol</c> file format lives in
-/// <see cref="Scene.SceneLoader"/>.
+/// <para>The constructor takes raw data + bounds + resolution; parsing of the
+/// YAML schema or of the <c>.vol</c> file lives in
+/// <see cref="Scene.SceneLoader"/>.</para>
 /// </summary>
-public sealed class GridMedium : IMedium
+public sealed class GridMedium : TrackedMedium
 {
     private readonly Vector3 _sigmaBaseA;
     private readonly Vector3 _sigmaBaseS;
-    private readonly Vector3 _sigmaBaseT;
+    private readonly float _sigmaBaseMax;
     private readonly Vector3 _boundsMin;
     private readonly Vector3 _boundsMax;
     private readonly Vector3 _invExtent;
     private readonly int _nx, _ny, _nz;
     private readonly float[] _density;
-    private readonly float _maxDensity;
     private readonly GridInterpolation _interpolation;
 
-    private const int MaxIterations = 4096;
+    // Majorant grid: _mx × _my × _mz cells over the bounds.
+    private readonly int _mx, _my, _mz;
+    private readonly float[] _majorant;
+    private readonly Vector3 _cellSize;
 
-    public IPhaseFunction Phase { get; }
+    /// <summary>
+    /// Bound of the separable Catmull-Rom tricubic over data in [0, M], over
+    /// M: per axis the weights' positive part sums to at most P = 1.125 and
+    /// their negative part to N = 0.125 (at t = ½), so after three passes the
+    /// range [a, b] obeys b − a ≤ (P + N)³ M and b + a = M: b ≤ (1 + 1.25³) / 2.
+    /// </summary>
+    private const float CubicOvershoot = (1f + 1.25f * 1.25f * 1.25f) / 2f;
 
     public GridMedium(
         Vector3 sigmaBaseA, Vector3 sigmaBaseS,
         Vector3 boundsMin, Vector3 boundsMax,
         int nx, int ny, int nz, float[] density,
         IPhaseFunction phase,
-        GridInterpolation interpolation = GridInterpolation.Trilinear)
+        GridInterpolation interpolation = GridInterpolation.Trilinear) : base(phase)
     {
         if (density.Length != nx * ny * nz)
             throw new ArgumentException(
@@ -69,9 +76,8 @@ public sealed class GridMedium : IMedium
 
         _sigmaBaseA = Vector3.Max(sigmaBaseA, Vector3.Zero);
         _sigmaBaseS = Vector3.Max(sigmaBaseS, Vector3.Zero);
-        _sigmaBaseT = _sigmaBaseA + _sigmaBaseS;
+        _sigmaBaseMax = MediumMath.Max(_sigmaBaseA + _sigmaBaseS);
 
-        // Ensure well-ordered bounds.
         _boundsMin = Vector3.Min(boundsMin, boundsMax);
         _boundsMax = Vector3.Max(boundsMin, boundsMax);
         Vector3 extent = _boundsMax - _boundsMin;
@@ -84,17 +90,53 @@ public sealed class GridMedium : IMedium
         _density = density;
         _interpolation = interpolation;
 
-        float maxD = 0f;
-        for (int i = 0; i < density.Length; i++)
-        {
-            float v = density[i];
-            if (v < 0f) v = 0f;
-            if (v > 1f) v = 1f;
-            if (v > maxD) maxD = v;
-        }
-        _maxDensity = maxD;
+        // About four voxel cells per majorant cell, at most 32 per axis.
+        _mx = Math.Clamp((nx - 1 + 3) / 4, 1, 32);
+        _my = Math.Clamp((ny - 1 + 3) / 4, 1, 32);
+        _mz = Math.Clamp((nz - 1 + 3) / 4, 1, 32);
+        _cellSize = extent / new Vector3(_mx, _my, _mz);
+        _majorant = BuildMajorants();
+    }
 
-        Phase = phase;
+    private float[] BuildMajorants()
+    {
+        var maj = new float[_mx * _my * _mz];
+        bool cubic = _interpolation == GridInterpolation.Tricubic;
+        int reachLo = cubic ? 1 : 0, reachHi = cubic ? 2 : 1;
+        float overshoot = cubic ? CubicOvershoot : 1f;
+        for (int k = 0; k < _mz; k++)
+        for (int j = 0; j < _my; j++)
+        for (int i = 0; i < _mx; i++)
+        {
+            // The cell's range in grid coordinates, and the voxels the filter
+            // reads for any point in it.
+            (int x0, int x1) = VoxelRange(i, _mx, _nx, reachLo, reachHi);
+            (int y0, int y1) = VoxelRange(j, _my, _ny, reachLo, reachHi);
+            (int z0, int z1) = VoxelRange(k, _mz, _nz, reachLo, reachHi);
+            float m = 0f;
+            for (int z = z0; z <= z1; z++)
+                for (int y = y0; y <= y1; y++)
+                    for (int x = x0; x <= x1; x++)
+                        m = MathF.Max(m, Fetch(x, y, z));
+            maj[(k * _my + j) * _mx + i] = MathF.Min(1f, m * overshoot);
+        }
+        return maj;
+    }
+
+    private static (int Lo, int Hi) VoxelRange(int cell, int cells, int voxels, int reachLo, int reachHi)
+    {
+        float g0 = cell / (float)cells * (voxels - 1);
+        float g1 = (cell + 1) / (float)cells * (voxels - 1);
+        int lo = (int)MathF.Floor(g0) - reachLo;
+        int hi = (int)MathF.Floor(g1) + reachHi;
+        return (Math.Clamp(lo, 0, voxels - 1), Math.Clamp(hi, 0, voxels - 1));
+    }
+
+    protected override void Coefficients(Vector3 p, out Vector3 sigmaA, out Vector3 sigmaS)
+    {
+        float d = DensityAt(p);
+        sigmaA = _sigmaBaseA * d;
+        sigmaS = _sigmaBaseS * d;
     }
 
     private float Fetch(int ix, int iy, int iz)
@@ -249,86 +291,74 @@ public sealed class GridMedium : IMedium
         return tExit > tEnter;
     }
 
-    public Vector3 Transmittance(Ray ray, float tMax)
+    protected override MajorantWalk BeginMajorants(Ray ray, float tMax)
     {
-        float tEnd = MathF.Min(MathF.Max(tMax, 0f), 1e30f);
-        if (!ClipToBounds(ray, tEnd, out float tEnter, out float tExit))
-            return Vector3.One;   // ray misses grid → no attenuation
-
-        float sigmaMaj = MathF.Max(MathF.Max(_sigmaBaseT.X, _sigmaBaseT.Y), _sigmaBaseT.Z)
-                        * _maxDensity;
-        if (sigmaMaj <= 0f) return Vector3.One;
-
-        Vector3 Tr = Vector3.One;
-        float t = tEnter;
-        for (int iter = 0; iter < MaxIterations; iter++)
+        var w = new MajorantWalk();
+        if (!ClipToBounds(ray, tMax, out float tEnter, out float tExit) || !(_sigmaBaseMax > 0f))
         {
-            float dt = -MathF.Log(1f - MathUtils.RandomFloat()) / sigmaMaj;
-            t += dt;
-            if (t >= tExit) break;
-
-            Vector3 p = ray.Origin + ray.Direction * t;
-            float d = DensityAt(p);
-            Vector3 sigmaT = _sigmaBaseT * d;
-            Tr *= Vector3.One - sigmaT / sigmaMaj;
-
-            if (Tr.X < 1e-5f && Tr.Y < 1e-5f && Tr.Z < 1e-5f) break;
+            w.Done = true;
+            return w;
         }
-        return Tr;
+        w.T = tEnter;
+        w.TEnd = tExit;
+        Vector3 p = ray.Origin + ray.Direction * tEnter;
+        Vector3 c = (p - _boundsMin) / _cellSize;
+        w.X = Math.Clamp((int)MathF.Floor(c.X), 0, _mx - 1);
+        w.Y = Math.Clamp((int)MathF.Floor(c.Y), 0, _my - 1);
+        w.Z = Math.Clamp((int)MathF.Floor(c.Z), 0, _mz - 1);
+        Axis(ray.Origin.X, ray.Direction.X, _boundsMin.X, _cellSize.X, w.X, out w.StepX, out w.NextX, out w.DeltaX);
+        Axis(ray.Origin.Y, ray.Direction.Y, _boundsMin.Y, _cellSize.Y, w.Y, out w.StepY, out w.NextY, out w.DeltaY);
+        Axis(ray.Origin.Z, ray.Direction.Z, _boundsMin.Z, _cellSize.Z, w.Z, out w.StepZ, out w.NextZ, out w.DeltaZ);
+        return w;
     }
 
-    public bool Sample(Ray ray, float tMax, out float t, out Vector3 beta, out bool scattered)
+    private static void Axis(float o, float d, float min, float size, int cell, out int step, out float next, out float delta)
     {
-        if (!ClipToBounds(ray, tMax, out float tEnter, out float tExit))
+        if (d > 0f)
         {
-            // Ray never enters the grid — the volumetric path is a no-op, same
-            // as the null-medium fast path.
-            t = tMax;
-            beta = Vector3.One;
-            scattered = false;
-            return false;
+            step = 1;
+            next = (min + (cell + 1) * size - o) / d;
+            delta = size / d;
         }
-
-        // Channel-selected delta tracking, scaled by the max density so that
-        // σ_maj_ch actually bounds σ_T[ch](p) tightly over the grid.
-        int ch = (int)(MathUtils.RandomFloat() * 3f);
-        if (ch > 2) ch = 2;
-        float baseCh = ch == 0 ? _sigmaBaseT.X : ch == 1 ? _sigmaBaseT.Y : _sigmaBaseT.Z;
-        float sigmaMajCh = baseCh * _maxDensity;
-
-        if (sigmaMajCh <= 0f)
+        else if (d < 0f)
         {
-            t = tMax;
-            beta = Vector3.One;
-            scattered = false;
-            return false;
+            step = -1;
+            next = (min + cell * size - o) / d;
+            delta = -size / d;
         }
-
-        float tCur = tEnter;
-        for (int iter = 0; iter < MaxIterations; iter++)
+        else
         {
-            float dt = -MathF.Log(1f - MathUtils.RandomFloat()) / sigmaMajCh;
-            tCur += dt;
-            if (tCur >= tExit) break;
-
-            Vector3 p = ray.Origin + ray.Direction * tCur;
-            float d = DensityAt(p);
-            float sigmaTch = baseCh * d;
-
-            if (MathUtils.RandomFloat() * sigmaMajCh < sigmaTch)
-            {
-                t = tCur;
-                scattered = true;
-                Vector3 sigmaS = _sigmaBaseS * d;
-                float denom = MathF.Max(sigmaTch, 1e-20f);
-                beta = sigmaS / denom;
-                return true;
-            }
+            step = 0;
+            next = float.PositiveInfinity;
+            delta = float.PositiveInfinity;
         }
+    }
 
-        t = tMax;
-        beta = Vector3.One;
-        scattered = false;
-        return false;
+    protected override bool NextMajorant(Ray ray, ref MajorantWalk w, out MajorantSegment segment)
+    {
+        segment = default;
+        if (w.Done || w.T >= w.TEnd) return false;
+        float tNext = MathF.Min(MathF.Min(w.NextX, w.NextY), MathF.Min(w.NextZ, w.TEnd));
+        segment.T0 = w.T;
+        segment.T1 = MathF.Max(tNext, w.T);
+        segment.Sigma = _sigmaBaseMax * _majorant[(w.Z * _my + w.Y) * _mx + w.X];
+        w.T = segment.T1;
+        if (tNext >= w.TEnd) { w.Done = true; return true; }
+        if (w.NextX <= w.NextY && w.NextX <= w.NextZ)
+        {
+            w.X += w.StepX; w.NextX += w.DeltaX;
+            if (w.X < 0 || w.X >= _mx) w.Done = true;
+        }
+        else if (w.NextY <= w.NextZ)
+        {
+            w.Y += w.StepY; w.NextY += w.DeltaY;
+            if (w.Y < 0 || w.Y >= _my) w.Done = true;
+        }
+        else
+        {
+            w.Z += w.StepZ; w.NextZ += w.DeltaZ;
+            if (w.Z < 0 || w.Z >= _mz) w.Done = true;
+        }
+        return true;
     }
 }

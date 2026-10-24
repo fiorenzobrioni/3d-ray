@@ -25,8 +25,6 @@
 #
 #  Knobs SSS dedicati (CLI):
 #    --sss-mode auto|off            (default auto)
-#    --sss-quality preview|normal|high
-#    --max-volume-bounces N
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:

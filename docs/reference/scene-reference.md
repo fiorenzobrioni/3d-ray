@@ -348,20 +348,24 @@ medium:
   type: "atmosphere"               # aliases: "nishita", "aerial_perspective"
   world_scale: 1000.0              # metres per world unit (1000 = 1 wu : 1 km). Default 1000.
   sea_level_y: 0.0                 # world Y of altitude 0 (Y0 alias retained)
-  air_density: [1, 1, 1]           # multiplier on Rayleigh density per channel
-  dust_density: 1.0                # Mie density (0 = pristine, 1 = clean, >1 = polluted)
-  phase: "hg"                      # default Henyey-Greenstein g=0.76 (Mie forward)
+  air_density: 1.0                 # air (Rayleigh) density, 1 = standard atmosphere
+  dust_density: 1.0                # dust (Mie) density (0 = pristine, 1 = clean, >1 = polluted)
+  ozone_density: 1.0               # ozone (absorption around 25 km), 1 = standard
+  phase: "hg"                      # the dust's phase function (default Henyey-Greenstein g = 0.76)
   g: 0.76
 ```
-Earth-realistic two-species exponential medium (Rayleigh 8 km scale height +
-Mie 1.2 km) using the same physical constants as `NishitaSky`. Optical depth
-has a closed form (sum of two exponentials) - no delta-tracking variance for
-the transmittance path. Free-path sampling uses delta tracking with a
-lower-altitude majorant. Pair with `world.sky.type: nishita` for visually
-consistent sky + aerial perspective (the medium attenuates distant geometry
-with the same physics that produced the sky's colour).
+The Earth's atmosphere over a flat ground, with the same air, dust and ozone
+as the physical skies: air scatters with the Rayleigh phase function (always),
+dust with `phase` (forward Henyey-Greenstein by default), ozone only absorbs.
+Each species' optical depth has a closed form, so the transmittance is exact
+and distances are sampled exactly (no tracking noise); at a scattering event
+the species is picked in proportion to the light it scatters. The medium is
+**aerial perspective**: it acts only between the eye (or a scattering point)
+and the surface it sees. A ray or shadow ray that runs to the sky crosses it
+untouched, because the physical sky already holds the whole atmosphere's light
+and the sun's disc its transmittance. Pair it with `world.sky.type: nishita`.
 
-**Type 3 - `procedural`** (Perlin fBm, delta tracking):
+**Type 3 - `procedural`** (Perlin fBm, null-collision tracking):
 ```yaml
 medium:
   type: "procedural"
@@ -376,7 +380,7 @@ medium:
   g: 0.75
 ```
 
-**Type 4 - `grid`** (3D grid inline or from `.vol` file, delta tracking + reconstruction filter):
+**Type 4 - `grid`** (3D grid inline or from `.vol` file, null-collision tracking against a grid of majorants + reconstruction filter):
 ```yaml
 # Variant A - inline data (useful for small grids, e.g. ≤ 8³)
 medium:
@@ -411,7 +415,7 @@ medium:
 | Value | Taps | Continuity | When to use |
 |---|---|---|---|
 | `trilinear` (default) | 8 | C⁰ | Default. Cheap, but at low resolutions (≤16³) the derivative jumps at cell boundaries → visible linear banding. |
-| `tricubic` | 64 | C¹ | Catmull-Rom cardinal spline (τ = 0.5). ~8× per-sample cost, but removes kinks on low-res grids and smooths binary data. Result is clamped to `[0,1]` to preserve the delta-tracking majorant invariant. Accepted aliases: `cubic`, `catmull-rom`, `smooth`. |
+| `tricubic` | 64 | C¹ | Catmull-Rom cardinal spline (τ = 0.5). ~8× per-sample cost, but removes kinks on low-res grids and smooths binary data. Result is clamped to `[0,1]`; the majorant grid allows for its overshoot between voxels (at most (1 + 1.25³)/2 of the largest voxel it reads), so the bound always holds. Accepted aliases: `cubic`, `catmull-rom`, `smooth`. |
 
 On high-resolution grids (128³+) with smoothly varying density the two filters are visually indistinguishable - `trilinear` is enough. On small inline grids or binary 0/1 data, `tricubic` is the standard way to hide artifacts by reconstructing density smoothly across voxel boundaries.
 
@@ -447,15 +451,17 @@ g: 0.6
 |---|---|---|---|
 | `homogeneous` | Constant everywhere | Analytic, cheap | Indoor scenes, bounded interiors, underwater interiors, smoke columns confined by geometry. **Avoid when the only lighting is `sky` + `sun` or HDRI** (see warning below). |
 | `height_fog` | Exponential falloff with altitude (`exp(-(y-y0)/H)`) | Analytic, cheap | Outdoor scenes lit by sky / sun / HDRI: aerial perspective, mountains at dawn, sea horizon, smog. **Default choice for any outdoor scene with directional / environment lighting.** |
-| `procedural` | Perlin fBm (delta tracking) | Noisier (+30–100% time) | Patchy / irregular fog, horror, uneven god-rays, misty forests, water surfaces with patchy haze. |
-| `grid` | Density baked on a 3D grid (inline or `.vol`) | Delta tracking + voxel filter | Localized clouds, sim-cached smoke, explosions, hero VFX assets. The medium exists only inside its AABB - outside is vacuum, so other parts of the scene are unaffected. |
+| `procedural` | Perlin fBm (null-collision tracking) | Noisier (+30–100% time) | Patchy / irregular fog, horror, uneven god-rays, misty forests, water surfaces with patchy haze. |
+| `grid` | Density baked on a 3D grid (inline or `.vol`) | Tracking against a majorant grid + voxel filter | Localized clouds, sim-cached smoke, explosions, hero VFX assets. The medium exists only inside its AABB - outside is vacuum, so other parts of the scene are unaffected. |
 
 > ⚠️ **Sky + sun + `homogeneous` = black render.** A homogeneous global medium has *constant* density extending to infinity, so the Beer–Lambert shadow ray toward the sun (or any environment direction) travels through `exp(-σ_t · ∞) ≈ 0` and direct environmental lighting collapses to zero. Spot/point/area/sphere lights have finite distance and behave correctly, but if the *only* emitters are `sky` + `sun` (or HDRI) the render comes out black. Use `height_fog` instead - its optical depth toward the zenith is bounded by the scale height, which is the standard "aerial perspective" behaviour. This is the physically correct behaviour of `homogeneous` (real atmospheres are not infinite), not a renderer bug.
 
 - **Usage:** Simulates fog, smoke, atmospheric haze, clouds, underwater effects.
-- **Rendering tip:** `homogeneous` and `height_fog` are analytic and cheap. `procedural` and `grid` use delta tracking and are noisier - raise `-s` to 400/576/1024 and keep `-d 6-8`. For dense-fog scenes consider `-C 25`. See [Rendering Profiles](./rendering-profiles.md) §8 for the full guide.
+- **How media are sampled (every estimator unbiased):** `homogeneous`, `height_fog` and `atmosphere` have closed-form optical depths: the distance to the next scattering event is sampled exactly. `procedural` and `grid` are tracked with null collisions against a majorant (a coarse grid of majorants for `grid`): spectral tracking for distances, ratio tracking for shadow rays, with no cap on the number of steps. Coloured media pick the colour channel that drives the sampling in proportion to the light the path still carries (spectral MIS), so every channel converges. Shadow rays are attenuated by every medium they cross, switching media at the boundaries of medium-bound entities.
+- **Rendering tip:** `homogeneous` and `height_fog` are analytic and cheap. `procedural` and `grid` need collisions along the ray and are noisier - raise `-s` to 400/576/1024 and keep `-d 6-8`. See [Rendering Profiles](./rendering-profiles.md) §8 for the full guide.
+- **Equiangular sampling:** in an analytic medium (`homogeneous`, `height_fog`, `atmosphere`), the light of point and spot lights is also sampled at distances distributed as the angle the light sees (Kulla and Fajardo 2012) and combined by MIS with the free flight: halos and spot beams converge with a fraction of the noise. Automatic, no setting.
 - **Effects:** Spot lights → visible god-rays; point lights → halos; directional → aerial perspective (with `height_fog`).
-- **Fireflies with point/spot in fog:** the 1/d² attenuation diverges when scattering events land near a point/spot emitter, producing isolated bright pixels. Set `soft_radius` on those lights (see §8.1, §8.3) to a value approximating the physical bulb size (e.g. `0.15`–`0.30`).
+- **Point/spot lights in fog:** the 1/d² attenuation diverges near the emitter; equiangular sampling (above) already places samples where it peaks, so halos stay clean. `soft_radius` (see §8.1, §8.3) still models a physical bulb size if wanted.
 - **Fireflies with area lights in fog:** the `cosLight/d²` term in the area estimator can diverge at grazing angles in dense media. Set `soft_radius` on area lights (see §8.4). Sphere lights use a solid-angle estimator that is bounded by construction - no `soft_radius` needed. If spikes remain, the opt-in clamp `-C 10 --indirect-clamp-factor 0.25` (CLI) suppresses deep-bounce spikes at the cost of some bias.
 - **Advanced firefly control:** `--clamp` is off by default (it is biased: an absolute radiance ceiling also removes legitimate light). When given, `--indirect-clamp-factor <f>` (default `0.25`; `1.0` = no extra suppression) multiplies it for the indirect contribution. E.g. `--clamp 10 --indirect-clamp-factor 0.25` gives an indirect clamp of 2.5 (primary 10). The clamp is applied **once, camera-relative**, to the throughput-weighted indirect contribution at the primary surface - not compounded at every bounce.
 - **Photographic exposure:** `--exposure <EV>` (default `0`) applies a linear gain `2^EV` to every pixel before ACES tone mapping. Use negative EV (`-1`, `-2`) when the scene reads washed-out because the lights drive arriving radiance above ~2.0, where ACES flattens onto a 0.95-0.99 plateau and hides texture contrast. Positive EV brightens scenes that fall below the curve's linear range. Mirrors the standard photographic exposure compensation found in production renderers.
@@ -520,8 +526,8 @@ The surface material's `spec_trans`/`ior` (Disney) or `dielectric` lobe controls
 | Flag | Default | Effect |
 |---|---|---|
 | `--sss-mode auto\|off` | `auto` | `off` declasses bound media to absorption-only (legacy Beer-Lambert), useful for fast A/B previews. |
-| `--sss-quality preview\|normal\|high` | inherits from `-q` | Bundles MaxVolumeBounces / RrStartBounce / NeeInsideWalk. `draft*` quality preset → preview, `medium*` → normal, `final*`/`ultra` → high. |
-| `--max-volume-bounces <n>` | preset-dependent (16/64/256) | Hard cap on bounces inside one walk. Caps worst-case cost on dense media. |
+
+The walk is unbiased: a light sample at every bounce, no cap on the number of bounces (a Russian roulette on the path throughput ends it).
 
 Migration note: the legacy Disney parameters `subsurface`, `flatness` are no longer read. Use either:
 
@@ -756,7 +762,7 @@ camera:
   thin_film_ior: 1.5                       # Film IOR (η₂)
 
   # ── Material-embedded SSS ────────────────────────────────────────────
-  subsurface_color: [0.95, 0.90, 0.85]     # Volume albedo (default: reuse color)
+  subsurface_color: [0.95, 0.90, 0.85]     # Albedo the surface shows (default: reuse color)
   subsurface_radius: [0.45, 0.35, 0.22]    # Mean Free Path per RGB channel (world units)
   subsurface_scale: 1.0                    # Global multiplier on the MFP (default 1.0)
   subsurface_anisotropy: 0.0               # HG g for the auto-built medium (0 = isotropic)
@@ -841,7 +847,7 @@ renderer (the loader emits an `Info` line when it sees one).
 | `thin_film_thickness` | float | 0.0 | ≥ 0 (nm) | Thin-film | Belcour-Barla 2017; 100–800 nm = iridescence |
 | `thin_film_ior` | float | 1.5 | ≥ 1 | Thin-film | Film η₂ (water = 1.33, soap = 1.40) |
 | `subsurface_radius` | colour | - | ≥ 0 (wu) | SSS | Mean Free Path per RGB channel. Presence triggers auto-build of an embedded `HomogeneousMedium`. |
-| `subsurface_color` | colour | `color` | 0–1 | SSS | Volume albedo. Defaults to the surface `color` when omitted. |
+| `subsurface_color` | colour | `color` | 0–1 | SSS | The albedo a thick piece shows under uniform light (the multiple-scattering albedo). The single-scattering albedo of the medium is derived from it (Chiang, Kutz and Burley 2016, with the anisotropy term of OpenPBR), as for `openpbr`. Defaults to the surface `color` when omitted. |
 | `subsurface_scale` | float | 1.0 | > 0 | SSS | Global multiplier applied to `subsurface_radius` before the σ conversion. |
 | `subsurface_anisotropy` | float | 0.0 | -1–1 | SSS | HG `g` for the auto-built phase function. 0 ≈ isotropic. |
 | `texture` | block | - | - | Texturing | Procedural or image, replaces `color` |
@@ -899,7 +905,7 @@ materials:
     type: disney
     color: [0.92, 0.89, 0.85]
     roughness: 0.25
-    subsurface_color:     [0.95, 0.90, 0.85]   # volume albedo (default: reuse color)
+    subsurface_color:     [0.95, 0.90, 0.85]   # albedo the surface shows (default: reuse color)
     subsurface_radius:    [0.45, 0.35, 0.22]   # Mean Free Path per RGB channel (world units)
     subsurface_scale:     1.0                  # optional global MFP multiplier (default 1.0)
     subsurface_anisotropy: 0.0                 # optional HG g (default 0 = isotropic)
@@ -913,16 +919,24 @@ entities:
     # no interior_medium, no mediums: section - SSS still works
 ```
 
-**How the medium is built.** Let `α` be the surface albedo
+**How the medium is built.** Let `A` be the albedo the surface should show
 (`subsurface_color` if present, otherwise `color`), and `r` the radius
-(`subsurface_radius × subsurface_scale`, per channel). Then:
+(`subsurface_radius × subsurface_scale`, per channel). The medium's
+single-scattering albedo `α` is the one whose thick slab shows `A` under
+uniform light (the inversion of Chiang, Kutz and Burley 2016 with the
+anisotropy term of OpenPBR, the same as `openpbr`):
 
 ```
+s   = 4.09712 + 4.20863 A − √(9.59217 + 41.6808 A + 17.7126 A²)
+α   = (1 − s²) / (1 − g s²)
 σ_t = 1 / (radius · scale)
 σ_s = α · σ_t
 σ_a = (1 − α) · σ_t
 phase = HG(g = subsurface_anisotropy)        # isotropic when g ≈ 0
 ```
+
+(Until Phase 8 of the engine review `A` was taken as `α` itself: a colour
+of 0.8 rendered as about 0.4.)
 
 The resulting `HomogeneousMedium` is anonymous (no `mediums:` `id`) and
 lives only for the lifetime of the scene.

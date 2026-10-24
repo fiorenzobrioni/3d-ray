@@ -115,7 +115,7 @@ world:
     type: "atmosphere"            # aliases: nishita | aerial_perspective
     world_scale: 1000.0           # metres per world unit (1000 = "1 wu : 1 km")
     sea_level_y: 0.0              # world Y of altitude 0
-    air_density: [1, 1, 1]        # Rayleigh density per channel
+    air_density: 1.0              # Rayleigh (air) density
     dust_density: 1.0             # Mie density (0=pristine, 1=clean, >1=polluted)
     phase: "hg"                   # default Henyey-Greenstein g=0.76 (Mie forward)
     g: 0.76
@@ -224,7 +224,7 @@ world:
     type: "atmosphere"
     world_scale: 500.0          # 500 m/wu — "country road" scale
     dust_density: 1.5           # slightly hazy
-    air_density: [1, 1, 1]
+    air_density: 1.0
 ```
 
 Distant geometry gains a bluish tint and loses contrast (Rayleigh

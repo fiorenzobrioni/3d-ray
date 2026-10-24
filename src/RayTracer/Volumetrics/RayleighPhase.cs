@@ -1,17 +1,14 @@
 using System.Numerics;
-using RayTracer.Core;
 
 namespace RayTracer.Volumetrics;
 
 /// <summary>
-/// Rayleigh phase function for scattering off particles much smaller than the
-/// wavelength of light (gas molecules in the atmosphere).
+/// Rayleigh phase function, for particles much smaller than the wavelength
+/// (the molecules of air):
 ///
 ///   p(cosθ) = (3 / 16π) · (1 + cos²θ)
 ///
-/// Symmetric forward/backward (cos²θ), peaks at θ = 0 and θ = π, minimum at
-/// θ = π/2. Used by sky models (Bruneton, Hosek-Wilkie) and Arnold's
-/// atmospheric shaders for the molecular scattering component of air.
+/// Sampled by the closed-form inverse of its CDF in cos θ.
 /// </summary>
 public sealed class RayleighPhase : IPhaseFunction
 {
@@ -23,27 +20,11 @@ public sealed class RayleighPhase : IPhaseFunction
         return ThreeOver16Pi * (1f + mu * mu);
     }
 
-    public (Vector3 Wi, float Pdf) Sample(Vector3 wo)
+    public (Vector3 Wi, float Pdf) Sample(Vector3 wo, Vector2 u)
     {
-        // Closed-form inverse CDF of μ ∈ [-1, 1] under p_μ(μ) = (3/8)(1 + μ²).
-        // Solving μ³ + 3μ = 8u - 4 via the trigonometric/hyperbolic Cardano form
-        // with substitution μ = 2·sinh(t): sinh(3t) = 4u - 2.
-        var (u1, u2) = MathUtils.Random2D();
-
-        float v = 4f * u1 - 2f;
-        float t = MathF.Asinh(v) / 3f;
-        float cosTheta = 2f * MathF.Sinh(t);
-        cosTheta = MathF.Max(-1f, MathF.Min(1f, cosTheta));
-        float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
-        float phi = 2f * MathF.PI * u2;
-
-        // ONB around wo so cosTheta = 1 ⇒ wi = wo (shared with HG convention).
-        Vector3 w = wo;
-        Vector3 a = MathF.Abs(w.X) > 0.9f ? Vector3.UnitY : Vector3.UnitX;
-        Vector3 v1 = Vector3.Normalize(Vector3.Cross(w, a));
-        Vector3 u = Vector3.Cross(w, v1);
-        Vector3 wi = sinTheta * MathF.Cos(phi) * u + sinTheta * MathF.Sin(phi) * v1 + cosTheta * w;
-        wi = Vector3.Normalize(wi);
+        // CDF (μ³ + 3μ + 4)/8 = u: with μ = 2 sinh t, sinh 3t = 4u - 2.
+        float t = MathF.Asinh(4f * u.X - 2f) / 3f;
+        Vector3 wi = PhaseFrame.Around(wo, 2f * MathF.Sinh(t), 2f * MathF.PI * u.Y);
         return (wi, Evaluate(wo, wi));
     }
 }

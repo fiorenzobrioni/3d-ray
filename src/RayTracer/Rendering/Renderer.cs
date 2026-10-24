@@ -70,54 +70,6 @@ public enum SssMode
     Off,
 }
 
-/// <summary>
-/// Random-walk integrator configuration. Quality presets (Phase 4 CLI:
-/// <c>--sss-quality preview|normal|high</c>) plug into the Renderer
-/// constructor by selecting one of <see cref="Preview"/>, <see cref="Normal"/>,
-/// or <see cref="High"/>. The defaults below match <see cref="Normal"/> and
-/// are tuned for the median scene (marble bust under area light).
-/// </summary>
-public readonly struct RandomWalkConfig
-{
-    /// <summary>Hard ceiling on volumetric bounces inside one entity walk.
-    /// Caps the worst-case cost on low-albedo / high-density media where
-    /// Russian Roulette alone wouldn't terminate fast enough.</summary>
-    public readonly int MaxVolumeBounces;
-
-    /// <summary>Walk-bounce index at which Russian Roulette kicks in. Earlier
-    /// bounces are guaranteed to run — this is the warmup before RR takes
-    /// over.</summary>
-    public readonly int RrStartBounce;
-
-    /// <summary>Whether to evaluate next-event estimation at internal
-    /// scattering events. Standard production setting (Cycles / Arnold).
-    /// When true, <see cref="NeeMaxBounce"/> caps which bounces actually
-    /// fire a shadow ray — the preview tier uses a small cap to get a
-    /// representative tint at minimal cost. Without NEE inside the walk,
-    /// dense SSS media (σ_t ~ 10–20) render near-black because the walk
-    /// almost never escapes with useful throughput.</summary>
-    public readonly bool NeeInsideWalk;
-
-    /// <summary>Upper bound (exclusive) on the walk bounce index at which
-    /// NEE is evaluated. The exponential attenuation across the medium
-    /// makes deep in-scattering NEE contributions negligible, so a small
-    /// cap retains the visually dominant contribution at a fraction of the
-    /// shadow-ray cost. Used by the preview tier; production tiers leave
-    /// this at <see cref="int.MaxValue"/>.</summary>
-    public readonly int NeeMaxBounce;
-
-    public RandomWalkConfig(int maxVolumeBounces, int rrStartBounce, bool neeInsideWalk, int neeMaxBounce)
-    {
-        MaxVolumeBounces = maxVolumeBounces;
-        RrStartBounce    = rrStartBounce;
-        NeeInsideWalk    = neeInsideWalk;
-        NeeMaxBounce     = neeMaxBounce;
-    }
-
-    public static RandomWalkConfig Preview => new(maxVolumeBounces: 16,  rrStartBounce: 1, neeInsideWalk: true, neeMaxBounce: 2);
-    public static RandomWalkConfig Normal  => new(maxVolumeBounces: 64,  rrStartBounce: 3, neeInsideWalk: true, neeMaxBounce: 8);
-    public static RandomWalkConfig High    => new(maxVolumeBounces: 128, rrStartBounce: 6, neeInsideWalk: true, neeMaxBounce: 16);
-}
 
 public partial class Renderer
 {
@@ -128,6 +80,7 @@ public partial class Renderer
     private readonly int _maxDepth;
     private readonly int _samplesPerPixel;
     private readonly LightMisTable _mis;
+    private readonly bool _hasEquiangularLights;
     private readonly EnvironmentLight? _envLight;
     private readonly IMedium? _globalMedium;
     private readonly bool _verbose;
@@ -295,7 +248,6 @@ public partial class Renderer
     // the lit appearance and for fast previews of scene composition before
     // the full walk cost). See RandomWalkSss.cs for the integrator.
     private readonly SssMode _sssMode;
-    private readonly RandomWalkConfig _walkConfig;
 
     // ── Motion blur ─────────────────────────────────────────────────────────
     // When active, each camera sample draws ONE extra sampler dimension (right
@@ -323,7 +275,6 @@ public partial class Renderer
         TextureFilteringMode textureFiltering = TextureFilteringMode.Auto,
         float exposureEv = DefaultExposureEv,
         SssMode sssMode = SssMode.Auto,
-        RandomWalkConfig? walkConfig = null,
         bool enableCaustics = false,
         int causticPhotons = 0,
         MotionBlurSettings motionBlur = default,
@@ -360,7 +311,6 @@ public partial class Renderer
             : _maxSampleRadiance * MathF.Max(0f, indirectClampFactor);
         _exposureScale = MathF.Pow(2f, exposureEv);
         _sssMode = sssMode;
-        _walkConfig = walkConfig ?? RandomWalkConfig.Normal;
         _verbose = verbose;
         _misHeuristic = misHeuristic;
         _lightSamplingStrategy = lightSamplingStrategy;
@@ -427,6 +377,7 @@ public partial class Renderer
         else if (lightSamplingStrategy == LightSamplingStrategy.Bvh && lights.Count > 0)
             lightBvh = new LightBvh(lights, sceneBounds);
         _mis = new LightMisTable(lights, _lightDist, lightBvh);
+        _hasEquiangularLights = lights.Any(l => EquiangularLight(l, out _));
 
         // MIS compensation of the environment map assumes every light sample
         // shares its weight with a BSDF sample; straight-through transparent
@@ -1328,18 +1279,24 @@ public partial class Renderer
     /// samples and start the shadow ray on the far side while the switch is up
     /// (PIANO-REVIEW.md §3.36).
     /// </summary>
-    private Vector3 DirectLightingAt(in HitRecord rec, Vector3 viewDir, IMaterial? material,
-                                     IMedium? shadowMedium, IHittable? shadowMediumEntity)
+    private Vector3 DirectLightingAt(in HitRecord rec, Vector3 viewDir, IMaterial? material, in MediumStack media)
     {
         bool transmits = material?.HasTransmission(in rec) ?? false;
         ShadowRay.ReceiverTransmits = transmits;
+        // The shadow rays start in the media the path is in, and cross this
+        // surface's boundary when they leave from its far side.
+        ShadowRay.BeginMedia(in media, _globalMedium);
+        if (transmits && material!.TryGetDielectricIor(in rec, out _) || rec.MediumIface.Interior != null)
+            ShadowRay.SetReceiver(Vector3.Dot(rec.Normal, viewDir) >= 0f ? rec.Normal : -rec.Normal,
+                                  rec.FrontFace, rec.MediumIface.Interior, rec.EntityRoot);
         try
         {
-            return ComputeDirectLighting(in rec, viewDir, material, shadowMedium, shadowMediumEntity);
+            return ComputeDirectLighting(in rec, viewDir, material);
         }
         finally
         {
             ShadowRay.ReceiverTransmits = false;
+            ShadowRay.EndMedia();
         }
     }
 
@@ -1366,9 +1323,7 @@ public partial class Renderer
             ? MathUtils.ShadowTerminatorTerm(rec.ShadingNg, rec.Normal, dirToLight)
             : MathUtils.ShadowTerminatorTerm(-rec.ShadingNg, -rec.Normal, dirToLight);
 
-    private Vector3 ComputeDirectLighting(in HitRecord rec, Vector3 viewDir, IMaterial? material,
-                                          IMedium? shadowMedium = null,
-                                          IHittable? shadowMediumEntity = null)
+    private Vector3 ComputeDirectLighting(in HitRecord rec, Vector3 viewDir, IMaterial? material)
     {
         Vector3 result = Vector3.Zero;
 
@@ -1411,22 +1366,13 @@ public partial class Renderer
                 // transmittance walk and the BSDF-pdf MIS evaluation entirely.
                 if (brdf == Vector3.Zero) continue;
 
-                Vector3 Tr = Vector3.One;
-                if (shadowMedium != null)
-                {
-                    float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                    float mediumDist = ClipShadowToBoundary(rec.Point, dirToLight, shadowDist,
-                                                            shadowMediumEntity, time: rec.Time);
-                    Tr = shadowMedium.Transmittance(new Ray(rec.Point, dirToLight, rec.Time), mediumDist);
-                }
-
                 // MIS: the NEE density carries the pick probability.
                 float wNee = material != null && _mis.PairsWithBsdf(light)
                     ? LightSampleWeight(light, pPick, rec.Point, dirToLight, MisBsdfPdf(material, viewDir, dirToLight, in rec))
                     : 1f;
 
                 if (LightSampleOwnsTransport()) wNee = 1f;
-                lightAccum += wNee * lightColor * brdf * Tr;
+                lightAccum += wNee * lightColor * brdf;
             }
 
             // Divide by pPick to get the unbiased estimator (1 light sampled, not all).
@@ -1461,15 +1407,6 @@ public partial class Renderer
                     // the BSDF-pdf MIS evaluation. See the single-light branch.
                     if (brdf == Vector3.Zero) continue;
 
-                    Vector3 Tr = Vector3.One;
-                    if (shadowMedium != null)
-                    {
-                        float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                        float mediumDist = ClipShadowToBoundary(rec.Point, dirToLight, shadowDist,
-                                                                shadowMediumEntity, time: rec.Time);
-                        Tr = shadowMedium.Transmittance(new Ray(rec.Point, dirToLight, rec.Time), mediumDist);
-                    }
-
                     // ── MIS weight (balance or power, configured per-renderer) ──
                     // Delta lights: always weight 1 (no BSDF sampler can hit them).
                     // Non-delta lights: if the material exposes Pdf() > 0, the
@@ -1479,7 +1416,7 @@ public partial class Renderer
                         : 1f;
 
                     if (LightSampleOwnsTransport()) wNee = 1f;
-                lightAccum += wNee * lightColor * brdf * Tr;
+                lightAccum += wNee * lightColor * brdf;
                 }
 
                 result += lightAccum;
@@ -1507,57 +1444,29 @@ public partial class Renderer
     }
 
     /// <summary>
-    /// Distance the medium attenuates over for a shadow ray fired from a point
-    /// inside a bound entity. Without a bound entity (global / world medium)
-    /// the medium fills the entire scene and the full shadow distance is used.
-    /// With one, the medium only exists between <paramref name="p"/> and the
-    /// first entity-boundary intersection along <paramref name="dir"/> — past
-    /// that, transmittance is unity (outside the medium). Falls back to the
-    /// full distance if the boundary query fails (numerical edge case at the
-    /// origin sitting within ε of a surface).
+    /// Next-event estimation at a scattering event in a medium, with the
+    /// event's phase function in the BSDF's place. The shadow rays start in
+    /// <paramref name="media"/> (the path's stack, the global medium when it
+    /// is empty) and are attenuated by every medium they cross on the way
+    /// (<see cref="ShadowRay.BeginMedia"/>).
     /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float ClipShadowToBoundary(Vector3 p, Vector3 dir, float shadowDist,
-                                               IHittable? boundEntity, float tMin = -1f,
-                                               float time = 0f)
+    /// <param name="wo">Direction of the ray that produced the event (it points
+    ///                  into the event, the phase functions' convention).</param>
+    private Vector3 ComputeDirectLightingMedium(Vector3 p, Vector3 wo, IPhaseFunction phase,
+                                                in MediumStack media, float time)
     {
-        if (boundEntity == null) return shadowDist;
-        if (tMin < 0f) tMin = MathUtils.RayEpsilon;
-        var rec = new HitRecord();
-        if (boundEntity.Hit(new Ray(p, dir, time), tMin, shadowDist, ref rec))
-            return rec.T;
-        return shadowDist;
+        ShadowRay.BeginMedia(in media, _globalMedium);
+        try
+        {
+            return DirectLightingInMedium(p, wo, phase, time);
+        }
+        finally
+        {
+            ShadowRay.EndMedia();
+        }
     }
 
-    /// <summary>
-    /// Direct lighting at a medium scattering event.
-    /// Mirrors ComputeDirectLighting but uses the phase function in place of
-    /// the BRDF and attenuates each shadow ray by the medium transmittance.
-    /// </summary>
-    /// <param name="p">Scattering point in world space (along the ray at tMed).</param>
-    /// <param name="wo">Direction of the ray that produced the scattering event
-    ///                  (i.e. ray.Direction). Passed to the phase function as-is —
-    ///                  IsotropicPhase / HenyeyGreensteinPhase use the convention
-    ///                  that wo points "into" the event.</param>
-    /// <param name="medium">The medium hosting this scattering event. Drives
-    ///                  the phase function used by NEE and the shadow-ray
-    ///                  transmittance. Caller resolves from the MediumStack
-    ///                  (Phase 1) — falls back to <see cref="_globalMedium"/>
-    ///                  when the stack is empty.</param>
-    /// <param name="boundEntity">When non-null, the medium is bound to this
-    ///                  entity (random-walk SSS dispatch from
-    ///                  <see cref="RandomWalkSubsurface"/>). The shadow ray's
-    ///                  in-medium segment is then clipped to the distance from
-    ///                  <paramref name="p"/> to the entity boundary along
-    ///                  <c>dirToLight</c> — beyond that, the ray is back in the
-    ///                  outer world and the bound medium no longer attenuates.
-    ///                  Without this clip, a dense scattering medium (σ_t ~ 10
-    ///                  for skin / wax) would collapse NEE to zero over any
-    ///                  shadow distance &gt; 1 unit, even though the actual
-    ///                  in-medium segment is only a fraction of a sphere radius.</param>
-    private Vector3 ComputeDirectLightingMedium(Vector3 p, Vector3 wo, IMedium medium,
-                                                 IHittable? boundEntity = null,
-                                                 float time = 0f)
+    private Vector3 DirectLightingInMedium(Vector3 p, Vector3 wo, IPhaseFunction phase, float time)
     {
         Vector3 result = Vector3.Zero;
 
@@ -1586,17 +1495,15 @@ public partial class Renderer
 
                 if (inShadow) continue;
 
-                float phaseVal = medium.Phase.Evaluate(wo, dirToLight);
-                float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity, 1e-7f, time);
-                Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight, time), mediumDist);
+                float phaseVal = phase.Evaluate(wo, dirToLight);
 
                 float wNee = _mis.PairsWithBsdf(light)
-                    ? LightSampleWeight(light, pPick, p, dirToLight, MisPhasePdf(medium.Phase, wo, dirToLight))
+                    ? LightSampleWeight(light, pPick, p, dirToLight, MisPhasePdf(phase, wo, dirToLight))
                     : 1f;
 
                 if (LightSampleOwnsTransport()) wNee = 1f;
-                lightAccum += wNee * lightColor * phaseVal * Tr;
+                wNee *= EquiangularNeeWeight(light, pPick);
+                lightAccum += wNee * lightColor * phaseVal;
             }
 
             if (pPick > 0f)
@@ -1623,24 +1530,19 @@ public partial class Renderer
                     if (inShadow) continue;
 
                     // Phase function value for this in-scattering direction.
-                    float phaseVal = medium.Phase.Evaluate(wo, dirToLight);
-
-                    // Beer-Lambert attenuation along the shadow ray, clipped to
-                    // the bound-entity boundary when the medium is bound.
-                    float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                    float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity, 1e-7f, time);
-                    Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight, time), mediumDist);
+                    float phaseVal = phase.Evaluate(wo, dirToLight);
 
                     // ── MIS weight (phase-function vs light sampler) ────────────
                     // Delta lights cannot be reached by phase sampling; emit at
                     // full weight. Otherwise pair the analytic phase PDF against
                     // the light PDF using the configured heuristic.
                     float wNee = _mis.PairsWithBsdf(light)
-                        ? LightSampleWeight(light, 1f, p, dirToLight, MisPhasePdf(medium.Phase, wo, dirToLight))
+                        ? LightSampleWeight(light, 1f, p, dirToLight, MisPhasePdf(phase, wo, dirToLight))
                         : 1f;
 
                     if (LightSampleOwnsTransport()) wNee = 1f;
-                lightAccum += wNee * lightColor * phaseVal * Tr;
+                    wNee *= EquiangularNeeWeight(light, 1f);
+                lightAccum += wNee * lightColor * phaseVal;
                 }
 
                 result += lightAccum;

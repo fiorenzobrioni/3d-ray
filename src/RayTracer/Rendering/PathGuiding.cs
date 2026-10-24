@@ -244,9 +244,7 @@ public partial class Renderer
         var (u1, u2) = MathUtils.Random2D();
         if (u1 < a)
         {
-            Sampler.Provide2D(u1 / a, u2);
-            (wi, _) = phase.Sample(wo);
-            Sampler.ClearProvided();
+            (wi, _) = phase.Sample(wo, new Vector2(u1 / a, u2));
         }
         else
         {

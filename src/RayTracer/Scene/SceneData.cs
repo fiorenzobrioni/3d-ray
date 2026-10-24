@@ -2088,9 +2088,13 @@ public class MediumData
     public string Interpolation { get; set; } = "trilinear";
 
     // ── atmosphere (Nishita aerial perspective) ─────────────────────────────
-    /// <summary>RGB air-density multiplier (grey by default). Tints Rayleigh scattering.</summary>
+    /// <summary>Air density multiplier (Rayleigh), 1 = the standard atmosphere.</summary>
     [YamlMember(Alias = "air_density")]
-    public List<float>? AirDensity { get; set; }
+    public float AirDensity { get; set; } = 1f;
+
+    /// <summary>Ozone density multiplier (absorption around 25 km), 1 = the standard atmosphere.</summary>
+    [YamlMember(Alias = "ozone_density")]
+    public float OzoneDensity { get; set; } = 1f;
 
     /// <summary>Mie dust density (0 = pristine, 1 = clean, &gt;1 = polluted). Default 1.</summary>
     [YamlMember(Alias = "dust_density")]

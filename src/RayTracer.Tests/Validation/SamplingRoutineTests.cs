@@ -76,16 +76,20 @@ public class SamplingRoutineTests
         Assert.True(p > Alpha, $"chi2 {chi2:0.0}, p {p:E2}");
     }
 
-    public static TheoryData<string> Phases() => new() { "iso", "hg0.7", "hg-0.5", "dhg", "rayleigh", "schlick0.6" };
+    public static TheoryData<string> Phases() => new() { "iso", "hg0.7", "hg-0.5", "hg0.95", "hg0.0005", "dhg", "dhg-back", "rayleigh", "schlick0.6", "schlick-0.8" };
 
     private static IPhaseFunction Phase(string name) => name switch
     {
         "iso" => new IsotropicPhase(),
         "hg0.7" => new HenyeyGreensteinPhase(0.7f),
         "hg-0.5" => new HenyeyGreensteinPhase(-0.5f),
+        "hg0.95" => new HenyeyGreensteinPhase(0.95f),
+        "hg0.0005" => new HenyeyGreensteinPhase(0.0005f),
         "dhg" => new DoubleHenyeyGreensteinPhase(0.8f, -0.4f, 0.7f),
+        "dhg-back" => new DoubleHenyeyGreensteinPhase(0.9f, -0.6f, 0.2f),
         "rayleigh" => new RayleighPhase(),
         "schlick0.6" => new SchlickPhase(0.6f),
+        "schlick-0.8" => new SchlickPhase(-0.8f),
         _ => throw new ArgumentException(name),
     };
 
@@ -96,6 +100,30 @@ public class SamplingRoutineTests
         var phase = Phase(name);
         var wo = Vector3.Normalize(new Vector3(0.2f, -0.9f, 0.4f));
         AssertMatches(() => phase.Sample(wo).Wi, w => phase.Pdf(wo, w), name);
+    }
+
+    [Theory]
+    [MemberData(nameof(Phases))]
+    public void PhaseFunction_WarpKeepsThePairStratified(string name)
+    {
+        // A phase function is sampled from one stratified pair (Phase 8): the
+        // first coordinate alone sets the scattering angle, monotonically (the
+        // two-lobe one inside each lobe's share of it), so an even split of the
+        // pair is an even split of the angular CDF; the returned pdf is the
+        // value, so the weight is exactly 1.
+        var phase = Phase(name);
+        var wo = Vector3.Normalize(new Vector3(-0.4f, 0.1f, 0.9f));
+        float prev = float.NegativeInfinity;
+        for (int i = 0; i < 256; i++)
+        {
+            var (wi, pdf) = phase.Sample(wo, new Vector2((i + 0.5f) / 256f, 0.3f));
+            Assert.InRange(wi.Length(), 0.9999f, 1.0001f);
+            Assert.Equal(phase.Evaluate(wo, wi), pdf, 1e-5f * MathF.Max(1f, pdf));
+            float mu = Vector3.Dot(wo, wi);
+            if (!name.StartsWith("dhg"))
+                Assert.True(mu >= prev - 1e-4f, $"{name}: cos θ not monotone in u ({prev} then {mu})");
+            prev = mu;
+        }
     }
 
     [Fact]

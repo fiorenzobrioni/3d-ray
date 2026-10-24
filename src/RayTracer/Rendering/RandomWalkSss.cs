@@ -41,11 +41,9 @@ namespace RayTracer.Rendering;
 /// degenerates to baseColor tint, giving the exact energy-preserving round-trip
 /// the test asserts.</para>
 ///
-/// <para><b>Russian Roulette.</b> Throughput-based termination kicks in after
-/// <see cref="RandomWalkConfig.RrStartBounce"/> bounces using the walk's local
-/// β (with a 5%-95% clamp on the survival probability). The max-bounces cap is
-/// a hard ceiling on low-albedo paths where RR alone would not terminate in
-/// reasonable time.</para>
+/// <para><b>Russian roulette.</b> After <see cref="WalkRouletteStart"/>
+/// bounces, on the full path throughput; no cap on the number of bounces and
+/// a light sample at every one (Phase 8).</para>
 /// </summary>
 public partial class Renderer
 {
@@ -88,6 +86,16 @@ public partial class Renderer
     /// light left the entity, the exit ray with the walk's own throughput and
     /// whether it scattered (for the MIS of what the exit ray reaches).
     /// </summary>
+    /// <summary>
+    /// Safety limit on the bounces of one walk; the roulette ends walks, not
+    /// this. (The quality presets used to cap a walk at 16 to 128 bounces and
+    /// to stop its light samples after 2 to 16: both lost light, Phase 8.)
+    /// </summary>
+    private const int MaxWalkBounces = 1 << 20;
+
+    /// <summary>Bounces of a walk before its roulette starts.</summary>
+    private const int WalkRouletteStart = 8;
+
     private readonly record struct WalkResult(Vector3 Radiance, bool Escaped, Ray EscapeRay,
                                               Vector3 Throughput, bool Scattered, float LastPhasePdf);
 
@@ -116,7 +124,7 @@ public partial class Renderer
     {
         Vector3 sigmaA = medium.SigmaA;
         Vector3 sigmaS = medium.SigmaS;
-        Vector3 sigmaT = medium.SigmaT;
+        Vector3 sigmaT = medium.SigmaTotal;
         IPhaseFunction phase = medium.Phase;
 
         // Throughput inside the walk, relative to the entry point: the path
@@ -134,7 +142,7 @@ public partial class Renderer
         bool scattered = false;
         float lastPhasePdf = 0f;
 
-        for (int b = 0; b < _walkConfig.MaxVolumeBounces; b++)
+        for (int b = 0; b < MaxWalkBounces; b++)
         {
             // ── Hero channel pick (proportional to current throughput) ─────
             float sumB = relBeta.X + relBeta.Y + relBeta.Z;
@@ -222,7 +230,6 @@ public partial class Renderer
             // SSS medium (σ_t ~ 10 for skin / wax) collapses every NEE
             // contribution to ~exp(-20) over the boundary-to-light air gap
             // that should not attenuate the shadow ray at all.
-            if (_walkConfig.NeeInsideWalk && b < _walkConfig.NeeMaxBounce)
             {
                 // The walk's own boundary is a null interface for its light
                 // samples, exactly as for its escape (see ShadowRay.PassThroughEntity).
@@ -230,7 +237,7 @@ public partial class Renderer
                 Vector3 Lnee;
                 try
                 {
-                    Lnee = ComputeDirectLightingMedium(p, ray.Direction, medium, entityRoot, ray.Time);
+                    Lnee = ComputeDirectLightingMedium(p, ray.Direction, phase, in mediums, ray.Time);
                 }
                 finally
                 {
@@ -247,29 +254,27 @@ public partial class Renderer
             scattered = true;
             lastPhasePdf = phasePdf;
 
-            // ── Russian Roulette ───────────────────────────────────────────
-            // Survival on the *full* path importance (entry attenuation already
-            // accumulated in pathThroughput × the walk-local relBeta), so walks
-            // through dark / strongly tinted media terminate earlier. RR stays
-            // unbiased; max-channel keeps it conservative.
-            if (b >= _walkConfig.RrStartBounce)
+            // ── Russian roulette ───────────────────────────────────────────
+            // On the full path throughput (the entry's times the walk's), as
+            // the path loop's own: survival max(β), at least 5%. Unbiased.
+            if (b >= WalkRouletteStart)
             {
                 Vector3 full = pathThroughput * relBeta;
-                float qRr = MathF.Max(full.X, MathF.Max(full.Y, full.Z));
-                qRr = MathF.Min(0.95f, MathF.Max(qRr, 0.05f));
-                if (MathUtils.RandomFloat() > qRr)
+                float qRr = MathF.Min(1f, MathF.Max(MathF.Max(full.X, MathF.Max(full.Y, full.Z)), 0.05f));
+                if (qRr < 1f)
                 {
-                    mediums.Pop();
-                    return new WalkResult(L, false, default, Vector3.Zero, scattered, lastPhasePdf);
+                    if (MathUtils.RandomFloat() >= qRr)
+                    {
+                        mediums.Pop();
+                        return new WalkResult(L, false, default, Vector3.Zero, scattered, lastPhasePdf);
+                    }
+                    relBeta /= qRr;
                 }
-                relBeta /= qRr;
             }
         }
 
-        // Max walk bounces exhausted without escape — kill the path. Drops
-        // the residual energy intentionally; the RR clamp keeps this bias
-        // small (~ qRr_min^budget) and bounded against fireflies on dense /
-        // dark albedo media.
+        // Only a pathological walk (an albedo of exactly 1 in an enormous
+        // entity) gets here: the roulette ends every other one long before.
         mediums.Pop();
         return new WalkResult(L, false, default, Vector3.Zero, scattered, lastPhasePdf);
     }
@@ -285,8 +290,8 @@ public partial class Renderer
     /// <summary>
     /// Depth-aware NEE clamp inside the walk. Damps deep-volume fireflies
     /// where the per-channel throughput spike + a bright direct hit can spike
-    /// the estimator. The ramp <c>1 / (1 + 0.1·b)</c> matches the heuristic
-    /// in <see cref="RandomWalkConfig"/>'s rationale — at <c>b = 0</c> the
+    /// the estimator (only with the opt-in clamp, -C). The ramp
+    /// <c>1 / (1 + 0.1·b)</c> — at <c>b = 0</c> the
     /// clamp is identical to <see cref="ClampRadianceIndirect"/>; at
     /// <c>b = 30</c> it has tightened by ~4× — without flat-clamping early
     /// bounces that carry most of the legitimate radiance.

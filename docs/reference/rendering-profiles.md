@@ -70,7 +70,7 @@ diffuse interreflection few:
 Feature switches per tier: `standard` turns photon caustics and volumetric
 SSS **off** and relaxes the indirect clamp factor to 0.5 (it only acts with `-C`);
 `pre-final`, `final` and `ultra` run the **full feature set** (caustics on -
-2M photons for pre-final, 2–4M for final/ultra - SSS high, all-lights NEE,
+2M photons for pre-final, 2–4M for final/ultra - SSS on, all-lights NEE,
 no clamp). `ultra` stays at 512 spp on purpose: at 4K the pixel density
 hides per-pixel noise that would be visible at 1080p, and 1024 spp would
 double an already long render.
@@ -127,7 +127,7 @@ rely on focused caustics, deep translucency/SSS, or stacked/nested glass -
 use `pre-final`/`final` there.
 
 **`pre-final` - a faithful preview of `final`.** Same feature set as
-`final` (caustics on, SSS high, the same bounce budgets, the same light
+`final` (caustics on, SSS on, the same bounce budgets, the same light
 sampling) with the sampling budgets cut where the denoiser compensates best:
 **¼ of the pixel samples** (256) and a **single shadow sample** - penumbra
 noise is exactly what feature-guided filtering removes cleanest. The result
@@ -438,10 +438,12 @@ artist-time iteration knob when you don't want to commit a light tweak.
 characteristics.
 
 - **Homogeneous and height_fog are "free"** relative to normal rendering:
-  transmittance has a closed form, no delta tracking required. A Preview is
+  transmittance has a closed form, distances are sampled exactly. A Preview is
   already usable; Standard is almost always sufficient.
-- **Procedural (Perlin fBm) and grid use delta tracking** (Woodcock) + ratio
-  tracking: noisier by construction, especially in dense regions.
+- **Procedural (Perlin fBm) and grid are tracked with null collisions**
+  (spectral tracking for distances, ratio tracking for shadow rays, against a
+  grid of majorants for `grid`): unbiased, but noisier by construction,
+  especially in dense regions.
   - Preview shows obvious grain - fine for composition work.
   - For publication-ready images aim for `-s 576` (24×24) or `-s 1024`.
   - If noise concentrates in the light cone, raise `-s` (not `-S`).
@@ -449,14 +451,12 @@ characteristics.
   occasionally produce rare bright spikes. If more samples or the denoiser
   do not remove them, add `-C 5` or `-C 3`: you trade a little bias for a
   much cleaner image.
-- **`soft_radius` on point/spot lights inside a medium.** When a participating
-  medium is active, the 1/d² attenuation of a `point`/`spot` light diverges at
-  scattering events near the emitter, producing isolated firefly pixels that
-  more samples cannot smooth out. Set `soft_radius` on those lights to a value
-  approximating the physical bulb size (e.g. `0.10`–`0.25`): the attenuation
-  denominator is clamped to `max(d², r²)`, the spike is removed, and the look
-  at `d ≥ r` is unchanged. Default `0` = unclamped (original behaviour). See
-  `scene-reference.md` §8.
+- **Point/spot lights inside a medium.** In `homogeneous`, `height_fog` and
+  `atmosphere` their light is also sampled equiangularly (distances spread as
+  the angle the light sees) and combined by MIS with the free flight: the
+  halo round the emitter, where 1/d² peaks, converges cleanly. On the
+  validation scene `fog-sphere-light` the error at equal samples fell 16×.
+  `soft_radius` remains a physical bulb size, not a firefly fix.
 - **`soft_radius` on area lights inside a medium.** The `cosLight/d²`
   area estimator can diverge at grazing angles in dense media. Set
   `soft_radius` on area lights (e.g. `0.5`–`2.0`). Sphere lights use a
@@ -481,7 +481,7 @@ characteristics.
 # Volumetric Preview (composition check, ~30-60 s)
 RayTracer -i scene.yaml -w 400 -H 225 -s 64 -d 4 -S 1
 
-# Volumetric Standard (review; delta-tracking still a bit noisy)
+# Volumetric Standard (review; tracked media still a bit noisy)
 RayTracer -i scene.yaml -w 800 -H 450 -s 400 -d 6 -S 1
 
 # Volumetric Final (publication-ready cleanliness)

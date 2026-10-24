@@ -37,7 +37,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 5 | Materiali e BSDF | ✅ Chiusa (2026-10-21), esito in §4 Fase 5 |
 | 6 | Luci, cielo | ✅ Chiusa (2026-10-22), esito in §4 Fase 6 |
 | 7 | Integratore | ✅ Chiusa (2026-10-24), esito in §4 Fase 7; 7b (path guiding) ✅ 2026-10-24 |
-| 8 | Volumi e SSS (null-scattering) | 🔄 In corso (dal 2026-10-24) |
+| 8 | Volumi e SSS (null-scattering) | ✅ Chiusa (2026-10-24), esito in §4 Fase 8 |
 | 8b | Integratori bidirezionali: BDPT, poi VCM per le caustiche | ⬜ (dopo la Fase 8) |
 | 9 | Post-processing e denoiser | ⬜ |
 | 10 | Formato scene v2 | ⬜ |
@@ -205,11 +205,16 @@ fase indicata.
 | 3.56 | ✅ **corretto** (2026-10-22, Fase 6), era **[BIAS]** | `Rendering/Renderer.cs` (`SampleSky`, LOD mip dell'HDRI) | Sui rimbalzi BSDF il cielo HDRI era letto pre-filtrato (mip sfocato) anche sotto MIS: la luce di una zona luminosa finiva in direzioni pesate per la BSDF e contava due volte, +26% su un pavimento diffuso (da solo ne perdeva un terzo). Ora il mip si usa solo per un cielo che nessuna luce campiona, mai in riferimento. In più la compensazione MIS di Karlík 2019 sulla CDF dell'HDRI. |
 | 3.57 | ✅ **corretto** (2026-10-22, Fase 6), era **[BUG]** grave | `Rendering/Sky/*` (sole di Preetham, "Hosek-Wilkie", Nishita), `PhysicalSun` | Ogni cielo fisico dava al disco del sole come radianza il valore che usava come irradianza dello scattering: il sole era circa **15 000 volte** troppo debole rispetto al suo cielo, le ombre quasi assenti. Ora il disco vale l'illuminanza al limite dell'atmosfera (133.8 klux) per la trasmittanza lungo il percorso, diviso l'angolo solido (`Atmosphere`, `AnalyticSky`). A mezzogiorno sereno 75-110 klux a terra, il sole 3-5 volte il cielo, il disco 1.35×10⁹ nit. L'oscuramento al bordo usava l'angolo nel cielo (nessun effetto su 0.265°): ora sulla superficie del sole, normalizzato. Test `SkyModelTests`. |
 | 3.58 | ✅ **fatto** (2026-10-22, Fase 6), era **[NON-STANDARD]** | `Rendering/Sky/HosekWilkieSky.cs` | `hosek_wilkie` era un alias di Preetham (il README prometteva Hosek-Wilkie). Ora il modello RGB vero dalle tabelle degli autori (`validation/gen_hosek_wilkie_data.py`), verificato su 24 punti contro il loro codice C compilato (scarto sotto 1e-4). |
-| 3.59 | **[BUG]**, da Fase 8 | `Volumetrics/` (height fog, atmosfera di Nishita) | NaN/Inf azzerati nei render con un mezzo: `showcases/ground-alpine-lake.yaml` 31 627 a draft-tiny (1.5% dei campioni, già al primo vertice, spariscono togliendo l'`height_fog`), `showcases/sky-aerial.yaml` 688. Presenti anche prima della Fase 6. Fase 8. |
-| 3.60 | **[BUG]**, da Fase 8 | `Volumetrics/NishitaAtmosphereMedium.cs` | In `showcases/sky-aerial.yaml` una banda di firefly nel cielo verso il sole, con netta separazione a un cerchio massimo, già a profondità 1 e con entrambi i sampler: la NEE del mezzo verso il sole. Invisibile prima della Fase 6 (sole 15 000 volte più debole). Sospetti: il rapporto cromatico `exp(τ̄ - τc)` senza limite e il tetto di 256 passi del delta tracking. Fase 8. |
+| 3.59 | ✅ **corretto** (2026-10-24, Fase 8), era **[BUG]** | `Volumetrics/` (height fog, atmosfera di Nishita) | NaN/Inf azzerati nei render con un mezzo: `showcases/ground-alpine-lake.yaml` 31 627 a draft-tiny (1.5% dei campioni, già al primo vertice, spariscono togliendo l'`height_fog`), `showcases/sky-aerial.yaml` 688. Presenti anche prima della Fase 6. Fase 8. Causa: l'height fog in float andava in overflow (∞ · 0) molto sotto y0, e i NaN erano in tutte le 20 scene con mezzi. Ora doppia precisione e serie; nessun NaN. |
+| 3.60 | ✅ **corretto** (2026-10-24, Fase 8), era **[BUG]** | `Volumetrics/NishitaAtmosphereMedium.cs` | In `showcases/sky-aerial.yaml` una banda di firefly nel cielo verso il sole, con netta separazione a un cerchio massimo, già a profondità 1 e con entrambi i sampler: la NEE del mezzo verso il sole. Invisibile prima della Fase 6 (sole 15 000 volte più debole). Sospetti: il rapporto cromatico `exp(τ̄ - τc)` senza limite e il tetto di 256 passi del delta tracking. Fase 8. Causa confermata: la ricolorazione exp(τ̄ − τ_c) senza limite. Ora l'atmosfera è analitica con MIS spettrale (pesi limitati dall'albedo sulla probabilità del canale) e non agisce sui raggi verso il cielo: banda sparita, render da 38 s a 3.5 s. |
 | 3.61 | ✅ **corretto** (2026-10-24, Fase 7), era **[BUG]** | `Rendering/Renderer.cs` (`ClassifyScatteredRay`, `SampleSky`, SSS e mezzi) | Categoria del raggio per i flag di visibilità sbagliata in cinque casi: i raggi usciti dal SSS e quelli diffusi da un mezzo restavano "camera" e saltavano le superfici `visible_to_camera: false` (marmo SSS senza la luce dei pannelli nascosti, -0.36%); un rimbalzo glossy non delta era "diffuse"; il cielo visto in uno specchio era letto come "camera" (lo sfondo riservato alla camera e i suoi flag comparivano nei riflessi); un raggio che attraversa un cut-out diventava "transmission" (dietro una foglia la camera vedeva ciò che le è nascosto). Ora la categoria viene dal lobo campionato (`BsdfLobe`) e un cut-out la lascia com'è. |
 | 3.62 | ✅ **corretto** (2026-10-24, Fase 7b), era **[BIAS]** | `Rendering/PathIntegrator.cs` (`LastSegment`) | All'ultimo vertice ammesso dalla profondità la NEE era pesata dal MIS ma il rimbalzo BSDF non veniva tracciato: la quota della BSDF andava persa (Cornell a profondità 2: 0.9981 contro Mitsuba dalla Fase 0) e in misura dipendente dalla pdf della BSDF. Ora il rimbalzo è seguito per l'emissione che incontra: 1.0000. |
 | 3.63 | ✅ **fatto** (2026-10-24, Fase 7b), era **[NON-STANDARD]** misurato | `Rendering/PathIntegrator.cs` (`RouletteStartBounce`) | La roulette dal secondo rimbalzo (Fase 7) dimezzava l'efficienza degli interni illuminati di rimbalzo. Ora dal quinto: Cornell 254 → 395, stanza al sole 23 → 29 in 1 / (errore × tempo). |
+| 3.64 | ✅ **corretto** (2026-10-24, Fase 8), era **[BUG]** | `Rendering/PathIntegrator.cs` (`TracePath`) | I raggi camera hanno la direzione verso il piano di fuoco, non unitaria: lungo il primo segmento i mezzi misuravano t parametrico (attenuazione e scattering sbagliati del fattore \|d\|, fino al 30% agli angoli con `focal_dist: 1`, molto di più con una messa a fuoco lontana) e la phase function riceveva un vettore non unitario. Ora il raggio è normalizzato all'ingresso del cammino. |
+| 3.65 | ✅ **corretto** (2026-10-24, Fase 8), era **[BUG]** | `Rendering/Renderer.cs` (NEE), `Geometry/ShadowRay.cs` | I raggi d'ombra contavano solo il mezzo da cui partivano, e solo fino al suo confine: un volume di nebbia tra una superficie e una luce non faceva ombra, e la nebbia globale oltre il confine di un mezzo legato non attenuava. Ora il raggio d'ombra cambia mezzo a ogni confine, come il cammino. |
+| 3.66 | ✅ **corretto** (2026-10-24, Fase 8), era **[BIAS]** | `Rendering/RandomWalkSss.cs`, `RandomWalkConfig` | I preset del random walk tagliavano il walk a 16-256 rimbalzi e fermavano la NEE dopo 2-16 rimbalzi mentre il MIS dell'uscita contava su di essa: sfera cromatica 0.9648 contro Mitsuba. Ora NEE sempre, nessun tetto, roulette: 0.9981. |
+| 3.67 | ✅ **corretto** (2026-10-24, Fase 8), era **[NON-STANDARD]** | `Scene/SceneLoader.cs` (`BuildEmbeddedSssMedium`) | Il colore SSS dei materiali Disney era preso come albedo di singolo scattering (0.8 usciva circa 0.4), quello di OpenPBR come albedo visibile: ora entrambi con l'inversione di Chiang 2016 e il termine di anisotropia di OpenPBR. |
+| 3.68 | ✅ **corretto** (2026-10-24, Fase 8), era **[BIAS]** | `Volumetrics/*Medium.cs` | Campionamento per canale scelto a caso con peso 1 sul canale a estinzione nulla (omogeneo, height fog); tracking di un solo canale pesato con σ_s/σ_t di quel canale (procedurale, griglia); tetto di 4096 passi; majorant della griglia superabile dal tricubico; atmosfera con un canale medio e ricolorazione exp(τ̄ − τ_c) illimitata, una sola phase function per aria e polvere, e applicata anche ai raggi verso il cielo. Vedi l'esito della Fase 8. |
 
 ---
 
@@ -856,25 +861,87 @@ Obiettivo (decisione del proprietario, 2026-10-24): nebbia e volumi "ottimali", 
 null-scattering (Miller, Georgiev, Jarosz 2019), la stessa del `volpath` di Mitsuba, e confrontati
 con esso pixel per pixel.
 
-- [ ] Phase function (isotropica, HG, double HG, Rayleigh, Schlick): normalizzazione,
+- [x] Phase function (isotropica, HG, double HG, Rayleigh, Schlick): normalizzazione,
       campionamento, chi-quadro.
-- [ ] Trasporto null-scattering: delta tracking per le distanze, ratio tracking per la
+- [x] Trasporto null-scattering: delta tracking per le distanze, ratio tracking per la
       trasmittanza dei raggi d'ombra, majorant corretti (omogeneo, height fog, grid, procedurale,
       atmosfera), non distorsione verificata.
-- [ ] Mezzi cromatici: campionamento a canale "hero" con MIS spettrale (Wrenninge 2017 /
+- [x] Mezzi cromatici: campionamento a canale "hero" con MIS spettrale (Wrenninge 2017 /
       Miller 2019) invece del campionamento su un solo canale.
-- [ ] Campionamento equiangolare verso luci piccole nei mezzi (Kulla e Fajardo 2012), combinato
+- [x] Campionamento equiangolare verso luci piccole nei mezzi (Kulla e Fajardo 2012), combinato
       per MIS con il campionamento per distanza: coni di luce e god ray puliti.
-- [ ] Majorant per regione nei mezzi eterogenei (griglia di majorant), per non sprecare passi.
-- [ ] NaN e firefly dei mezzi (3.59, 3.60).
-- [ ] Atmosfera Nishita: densità, coefficienti Rayleigh/Mie, assorbimento dell'ozono, una sola
+- [x] Majorant per regione nei mezzi eterogenei (griglia di majorant), per non sprecare passi.
+- [x] NaN e firefly dei mezzi (3.59, 3.60).
+- [x] Atmosfera Nishita: densità, coefficienti Rayleigh/Mie, assorbimento dell'ozono, una sola
       atmosfera condivisa con `Rendering/Sky/Atmosphere.cs`.
-- [ ] SSS random walk: parametrizzazione artistica (colore + mean free path) con inversione
+- [x] SSS random walk: parametrizzazione artistica (colore + mean free path) con inversione
       dell'albedo di Christensen-Burley 2015 o Chiang 2016, test energetici, confronto con
       Mitsuba.
-- [ ] Scene di validazione con mezzi in `validation/scenes/` (nebbia omogenea con luce sferica,
+- [x] Scene di validazione con mezzi in `validation/scenes/` (nebbia omogenea con luce sferica,
       mezzo colorato, fumo eterogeneo, SSS) e confronto con `volpath`.
-- [ ] Estensioni premium: mezzi emissivi, VDB (NanoVDB), interfacce mezzo per entità.
+- [ ] Estensioni premium: mezzi emissivi, VDB (NanoVDB), interfacce mezzo per entità. **Rinviate**
+      (non toccano la correttezza): restano in PLANNING.md come voci della roadmap.
+
+#### Esito Fase 8 (2026-10-24)
+
+Verdetto: i mezzi sono ora senza distorsioni in ogni canale e confrontati pixel per pixel con il
+`volpath` di Mitsuba: nebbia globale colorata con luce sferica e puntiforme 1.0011, sfera di mezzo
+fortemente cromatico (random walk) 0.9981, fumo eterogeneo colorato su griglia 1.0000 (relMSE
+9.7e-5). Documento tecnico nuovo: `docs/technical/participating-media.md`.
+
+**Interfaccia.** `IMedium.Sample(ray, tMax, throughput)` restituisce un `MediumEvent` (scattering
+o no, distanza, peso, phase function dell'evento). La throughput del cammino entra nel
+campionamento: i mezzi colorati scelgono il canale in proporzione alla luce che il cammino porta
+ancora (MIS spettrale a un campione, euristica balance sui tre canali). Prima il canale era
+scelto a caso e, se aveva estinzione nulla, il peso era 1: distorto per un mezzo che non attenua
+un canale.
+
+**Mezzi analitici** (`AnalyticMedium`): omogeneo, height fog, atmosfera hanno la profondità
+ottica in forma chiusa e la distanza è campionata invertendola, senza tracking. Height fog in
+doppia precisione con le serie vicino al raggio orizzontale (3.59). Atmosfera: aria (Rayleigh, con
+la sua phase function), polvere (Mie, HG 0.76 o la `phase` della scena) e ozono, con le costanti
+di `Atmosphere`; integrali in quota in forma chiusa, inversione con Newton protetto; la specie è
+scelta a ogni evento in proporzione alla luce che diffonde. È prospettiva aerea: agisce solo sui
+tratti finiti, perché il cielo fisico contiene già la luce dell'atmosfera lungo un raggio aperto e
+il disco del sole la sua trasmittanza (applicato anche a quelli, il cielo usciva sbiadito e il
+sole attenuato due volte). `air_density` è ora uno scalare, nuovo `ozone_density`.
+
+**Mezzi eterogenei** (`TrackedMedium`): spectral tracking (Kutz et al. 2017) per le distanze,
+ratio tracking per la trasmittanza, majorant grigio, nessun tetto ai passi (roulette sul peso),
+estrazioni dopo la prima fuori dal blocco di dimensioni del vertice (`Sampler.SampleLoose1D`).
+La griglia percorre una griglia di majorant con un DDA 3D (circa quattro voxel per cella, al
+massimo 32 per asse); per il tricubico il majorant tiene conto del superamento della Catmull-Rom,
+al massimo (1 + 1.25³)/2 ≈ 1.477 volte il voxel più grande letto (la stima del piano, 1.25³, era
+larga; 1.125³ sarebbe stata sbagliata). Nessuna violazione su dati casuali (test).
+
+**Raggi d'ombra attraverso i mezzi.** `ShadowRay.BeginMedia` apre un contesto con la pila dei mezzi
+del cammino e il mezzo globale: il raggio d'ombra è attenuato da ogni mezzo che attraversa e
+cambia mezzo a ogni confine (3.65).
+
+**Equiangolare** (`Rendering/Equiangular.cs`): per point e spot light nei mezzi analitici, una
+distanza equiangolare con un campione di luce, combinata per MIS (balance sulla distanza, con le
+probabilità di scelta della luce) con la NEE al punto del volo libero. Scena `fog-sphere-light`:
+relMSE da 2.0e-2 a 1.3e-3 a parità di campioni; test di singolo scattering contro la quadratura:
+0.08827 contro 0.08824, rumore 3.8 volte più basso.
+
+**Phase function.** Campionate da una coppia stratificata esplicita (`Sample(wo, u)`): la doppia HG
+sceglie il lobo con la prima coordinata riscalata invece di un terzo numero; test di monotonia e
+di peso 1, chi-quadro esteso a g = 0.95, 0.0005, Schlick -0.8.
+
+**SSS.** Il walk perdeva luce per i preset (3.66): ora un campione di luce a ogni rimbalzo, nessun
+tetto, roulette sulla throughput completa dopo 8 rimbalzi; `RandomWalkConfig`, `--sss-quality`,
+`--max-volume-bounces` rimossi. La sfera cromatica passa da 0.9648 a 0.9981 contro Mitsuba.
+Il colore SSS dei materiali Disney è ora l'albedo che mostra la superficie, invertito come per
+OpenPBR (3.67); il test della lastra spessa (albedo emisferica, nove angoli) torna sul colore
+entro l'1% per g = 0 e 0.5.
+
+**Altri difetti trovati e corretti:** i raggi camera non erano normalizzati e il primo segmento
+nei mezzi usava t parametrico, phase function comprese (3.64).
+
+**NaN.** Tutte le 20 scene con mezzi del repository avevano valori NaN/Inf azzerati (fino a 271 000
+a draft-tiny in `volumetric-procedural`); ora nessuna.
+
+**Prestazioni:** misure a parità di condizioni in corso (devlog).
 
 ### Fase 8b - Integratori bidirezionali: BDPT, poi VCM
 

@@ -213,52 +213,6 @@ class Program
             }
         }
 
-        // Random-walk quality preset (Preview/Normal/High). Default is `normal`
-        // unless a top-level `--quality` preset implies a different SSS tier
-        // (draft* → preview, final*/ultra → high). Explicit `--sss-quality`
-        // always wins. Each preset configures MaxVolumeBounces, RrStartBounce
-        // and NeeInsideWalk in lockstep — see RandomWalkConfig.
-        RandomWalkConfig? walkConfig = null;
-        string? sssQualityArg = GetArg(args, "--sss-quality", null);
-        string? sssQualityLabel = null;
-        if (sssQualityArg != null)
-        {
-            switch (sssQualityArg.ToLowerInvariant())
-            {
-                case "preview": walkConfig = RandomWalkConfig.Preview; sssQualityLabel = "preview"; break;
-                case "normal":  walkConfig = RandomWalkConfig.Normal;  sssQualityLabel = "normal";  break;
-                case "high":    walkConfig = RandomWalkConfig.High;    sssQualityLabel = "high";    break;
-                default:
-                    Console.WriteLine($"Error: Unknown --sss-quality '{sssQualityArg}'. Valid: preview, normal, high.");
-                    return;
-            }
-        }
-        else if (quality != null && sssMode != SssMode.Off)
-        {
-            // Skipped when SSS is forced off (e.g. standard): the random-walk
-            // config is unused, so don't load it or print a misleading
-            // "SSS quality" line — the "SSS mode: off" line says it all.
-            walkConfig       = quality.WalkConfig;
-            sssQualityLabel  = quality.SssQualityName;
-        }
-
-        // Volume-bounce hard cap (defaults inherited from the resolved SSS quality
-        // preset; this flag is the per-render escape hatch over the preset value).
-        int? maxVolumeBouncesOverride = null;
-        if (int.TryParse(GetArg(args, "--max-volume-bounces", null),
-                         System.Globalization.NumberStyles.Integer,
-                         System.Globalization.CultureInfo.InvariantCulture,
-                         out var mvb) && mvb > 0)
-            maxVolumeBouncesOverride = mvb;
-        if (maxVolumeBouncesOverride.HasValue)
-        {
-            var baseCfg = walkConfig ?? RandomWalkConfig.Normal;
-            walkConfig = new RandomWalkConfig(
-                maxVolumeBounces: maxVolumeBouncesOverride.Value,
-                rrStartBounce:    baseCfg.RrStartBounce,
-                neeInsideWalk:    baseCfg.NeeInsideWalk,
-                neeMaxBounce:     baseCfg.NeeMaxBounce);
-        }
 
         // Verbose mode
         // ── Caustics ─────────────────────────────────────────────────────────
@@ -603,14 +557,6 @@ class Program
             Console.WriteLine($"  Light pick:  {lightSampling.ToString().ToLowerInvariant()}");
         if (sssMode != SssMode.Auto)
             Console.WriteLine($"  SSS mode:    {sssMode.ToString().ToLowerInvariant()}");
-        if (sssQualityLabel != null || maxVolumeBouncesOverride.HasValue)
-        {
-            var effective = walkConfig ?? RandomWalkConfig.Normal;
-            string label = sssQualityLabel ?? "normal";
-            Console.WriteLine(
-                $"  SSS quality: {label} (vol-bounces={effective.MaxVolumeBounces}, " +
-                $"rr-start={effective.RrStartBounce}, nee-in-walk={(effective.NeeInsideWalk ? "on" : "off")})");
-        }
         if (denoiserKind != DenoiserKind.None)
             Console.WriteLine($"  Denoiser:    {denoiserKind.ToString().ToLowerInvariant()} ({denoiseQuality.ToString().ToLowerInvariant()})");
 
@@ -663,7 +609,7 @@ class Program
                 world, camera, lights, sky, samples, depth, globalMedium,
                 clampOverride, verbose, misHeuristic, lightSampling,
                 indirectClampFactor, textureFiltering, exposureEv,
-                sssMode, walkConfig,
+                sssMode,
                 enableCaustics: enableCaustics, causticPhotons: causticPhotons,
                 motionBlur: motionBlur,
                 referenceMode: referenceMode, seed: seed,
@@ -801,8 +747,6 @@ class Program
         Console.WriteLine("      --aov-format <pfm|exr>   Force one file per AOV in the given format, even when");
         Console.WriteLine("                                -o is .exr (default: embed in .exr output, else pfm)");
         Console.WriteLine("      --sss-mode <auto|off>    Subsurface-scattering dispatch (default: auto = follow scene)");
-        Console.WriteLine("      --sss-quality <preview|normal|high>   Random-walk preset; inherits from -q when omitted");
-        Console.WriteLine("      --max-volume-bounces <n> Hard cap on random-walk bounces inside one entity");
         Console.WriteLine("      --transparent-shadows <on|off>  Glass lets shadow rays through, tinted, instead of");
         Console.WriteLine("                                casting its physical shadow and caustic (default: off)");
         Console.WriteLine("      --filter <box|gaussian|blackman-harris>  Pixel reconstruction filter (default: gaussian,");
@@ -1041,15 +985,6 @@ class Program
         /// <summary>The tier's split of <see cref="Depth"/> by kind of bounce.</summary>
         public PathDepths? Depths { get; }
         public int ShadowSamples { get; }
-        /// <summary>SSS random-walk preset matched to this quality tier.
-        /// draft → preview (cheap), pre-final/final/ultra → high (standard
-        /// forces SSS off, so its value is unused).</summary>
-        public RandomWalkConfig WalkConfig { get; }
-        public string SssQualityName { get; }
-        /// <summary>Whether this tier turns caustics on by default. FINAL/ULTRA
-        /// presets enable them: harmless on scenes without flagged entities (the
-        /// caster registry is empty → zero cost), and exactly what a final render
-        /// of a caustic-marked scene wants. An explicit <c>--caustics</c> overrides.</summary>
         public bool Caustics { get; }
         /// <summary>Caustic photon budget for this tier when caustics are on
         /// (0 → use the global default). FINAL/ULTRA raise it for cleaner maps.</summary>
@@ -1076,7 +1011,6 @@ class Program
         public DenoiseQuality DenoiseQuality { get; }
 
         private QualityPreset(string name, int w, int h, int s, int d, int ss,
-                              RandomWalkConfig walk, string walkName,
                               bool caustics = false, int causticPhotons = 0,
                               SssMode? sssModeOverride = null,
                               LightSamplingStrategy? lightSampling = null,
@@ -1087,7 +1021,6 @@ class Program
         {
             Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
             Depths = depths;
-            WalkConfig = walk; SssQualityName = walkName;
             Caustics = caustics; CausticPhotons = causticPhotons;
             SssModeOverride = sssModeOverride;
             LightSampling = lightSampling;
@@ -1104,11 +1037,11 @@ class Program
         private static readonly PathDepths FinalDepths    = new(8, 8, 16, 8, 16);
         private static readonly PathDepths UltraDepths    = new(16, 16, 32, 16, 32);
 
-        public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 8, 1, RandomWalkConfig.Preview, "preview",
+        public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 8, 1,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
-        public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 8, 1, RandomWalkConfig.Preview, "preview",
+        public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 8, 1,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
-        public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 8, 1, RandomWalkConfig.Preview, "preview",
+        public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 8, 1,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
 
         // STANDARD: the day-to-day quality render. Final-class image quality
@@ -1118,13 +1051,13 @@ class Program
         // photon caustics OFF, volumetric SSS OFF, single shadow sample
         // (512 spp already anti-aliases), relaxed indirect clamp, and the
         // NFOR denoiser absorbing the faint residual grain 512 spp can leave.
-        public static readonly QualityPreset StandardTiny  = new("standard-tiny",  480, 270,  512, 12, 1, RandomWalkConfig.High, "high",
+        public static readonly QualityPreset StandardTiny  = new("standard-tiny",  480, 270,  512, 12, 1,
             caustics: false, sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
-        public static readonly QualityPreset StandardSmall = new("standard-small", 960, 540,  512, 12, 1, RandomWalkConfig.High, "high",
+        public static readonly QualityPreset StandardSmall = new("standard-small", 960, 540,  512, 12, 1,
             caustics: false, sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
-        public static readonly QualityPreset Standard      = new("standard",      1920, 1080, 512, 12, 1, RandomWalkConfig.High, "high",
+        public static readonly QualityPreset Standard      = new("standard",      1920, 1080, 512, 12, 1,
             caustics: false, sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
 
@@ -1134,20 +1067,20 @@ class Program
         // compensates best: ¼ of the pixel samples and a single shadow
         // sample (penumbra noise is exactly what feature-guided filtering
         // removes cleanest). Roughly 4-6× faster than `final`.
-        public static readonly QualityPreset PreFinalTiny  = new("pre-final-tiny",  480, 270,  256, 16, 1, RandomWalkConfig.High, "high",
+        public static readonly QualityPreset PreFinalTiny  = new("pre-final-tiny",  480, 270,  256, 16, 1,
             caustics: true, causticPhotons: 2_000_000,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
-        public static readonly QualityPreset PreFinalSmall = new("pre-final-small", 960, 540,  256, 16, 1, RandomWalkConfig.High, "high",
+        public static readonly QualityPreset PreFinalSmall = new("pre-final-small", 960, 540,  256, 16, 1,
             caustics: true, causticPhotons: 2_000_000,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
-        public static readonly QualityPreset PreFinal      = new("pre-final",      1920, 1080, 256, 16, 1, RandomWalkConfig.High, "high",
+        public static readonly QualityPreset PreFinal      = new("pre-final",      1920, 1080, 256, 16, 1,
             caustics: true, causticPhotons: 2_000_000,
             denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
 
-        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 16, 4, RandomWalkConfig.High, "high", caustics: true, causticPhotons: 2_000_000, depths: FinalDepths);
-        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 16, 4, RandomWalkConfig.High, "high", caustics: true, causticPhotons: 2_000_000, depths: FinalDepths);
-        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 16, 4, RandomWalkConfig.High, "high", caustics: true, causticPhotons: 3_000_000, depths: FinalDepths);
-        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 32, 4, RandomWalkConfig.High, "high", caustics: true, causticPhotons: 4_000_000, depths: UltraDepths);
+        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 16, 4, caustics: true, causticPhotons: 2_000_000, depths: FinalDepths);
+        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 16, 4, caustics: true, causticPhotons: 2_000_000, depths: FinalDepths);
+        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 16, 4, caustics: true, causticPhotons: 3_000_000, depths: FinalDepths);
+        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 32, 4, caustics: true, causticPhotons: 4_000_000, depths: UltraDepths);
 
         public const string NamesCsv =
             "draft-tiny, draft-small, draft, standard-tiny, standard-small, standard, " +

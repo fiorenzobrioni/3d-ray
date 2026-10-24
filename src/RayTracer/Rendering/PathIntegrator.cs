@@ -81,9 +81,15 @@ public partial class Renderer
     /// </summary>
     private Vector3 TracePath(Ray cameraRay)
     {
+        // A camera ray's direction reaches the focus plane, it is not a unit
+        // vector; along the path t must be a distance (media, phase
+        // functions, depth). The differentials keep their own directions.
+        Vector3 unit = Vector3.Normalize(cameraRay.Direction);
         var path = new PathState
         {
-            Ray = cameraRay,
+            Ray = cameraRay.HasDifferentials
+                ? new Ray(cameraRay.Origin, unit, cameraRay.Differentials, cameraRay.Time)
+                : new Ray(cameraRay.Origin, unit, cameraRay.Time),
             Beta = Vector3.One,
             PrevPdf = 0f,
             PrevIsDelta = true,
@@ -120,12 +126,11 @@ public partial class Renderer
             bool hit = FindVisibleHit(ref path, out HitRecord rec);
             Ray ray = path.Ray;
 
-            // AOV depth: the first surface the camera ray meets (camera rays
-            // are not normalised, so scale by |direction|).
+            // AOV depth: the first surface the camera ray meets.
             if (_captureAovs && hit && path.Category == RayCategory.Camera
                 && t_aovProbe is { Pending: true, HaveDepth: false } depthProbe)
             {
-                depthProbe.Depth = rec.T * ray.Direction.Length();
+                depthProbe.Depth = rec.T;
                 depthProbe.HaveDepth = true;
             }
 
@@ -143,15 +148,34 @@ public partial class Renderer
             if (medium != null)
             {
                 float tMax = hit ? rec.T : 1e30f;
-                bool scattered = medium.Sample(ray, tMax, out float tMed, out Vector3 mediumBeta, out _);
-                path.Beta *= mediumBeta;
-                if (scattered)
+                // Equiangular light samples along the segment, MIS-paired
+                // with the NEE at the free flight's scattering point (both
+                // are one more vertex: not on the last segment).
+                AnalyticMedium? eqMedium = !last && _hasEquiangularLights && Equiangular && !HasAbsorption(path.SigmaA)
+                                           && medium is AnalyticMedium am && am.ActsOn(tMax) ? am : null;
+                Vector3 segmentBeta = path.Beta;
+                if (eqMedium != null)
+                    path.Add(path.Beta * EquiangularDirect(ray, tMax, eqMedium, path.Beta, in path.Mediums));
+                MediumEvent ev = medium.Sample(ray, tMax, path.Beta);
+                path.Beta *= ev.Weight;
+                if (ev.Scattered)
                 {
                     // A scatter would be one more vertex: the light the
                     // last segment was after does not get through.
                     if (last) break;
-                    path.Beta *= BeerLambert(path.SigmaA, tMed);
-                    if (!MediumVertex(ref path, medium, tMed)) break;
+                    path.Beta *= BeerLambert(path.SigmaA, ev.T);
+                    if (eqMedium != null)
+                    {
+                        t_eqOn = true;
+                        t_eqRay = ray;
+                        t_eqTMax = tMax;
+                        t_eqT = ev.T;
+                        t_eqPff = eqMedium.FreeFlightPdf(ray, ev.T, segmentBeta);
+                    }
+                    bool alive;
+                    try { alive = MediumVertex(ref path, medium, ev.Phase, ev.T); }
+                    finally { t_eqOn = false; }
+                    if (!alive) break;
                     continue;
                 }
             }
@@ -222,7 +246,7 @@ public partial class Renderer
     /// in-scattered light by next-event estimation, then a phase-sampled
     /// continuation. False when the path ends here.
     /// </summary>
-    private bool MediumVertex(ref PathState path, IMedium medium, float tMed)
+    private bool MediumVertex(ref PathState path, IMedium medium, IPhaseFunction phase, float tMed)
     {
         Ray ray = path.Ray;
         Vector3 p = ray.Origin + ray.Direction * tMed;
@@ -232,7 +256,7 @@ public partial class Renderer
         {
             if (!medProbe.HaveDepth)
             {
-                medProbe.Depth = tMed * ray.Direction.Length();
+                medProbe.Depth = tMed;
                 medProbe.HaveDepth = true;
             }
             medProbe.CommitAs(Vector3.One, Vector3.Zero);
@@ -249,10 +273,9 @@ public partial class Renderer
             guideA = _guide.BsdfFraction(guideLeaf);
         }
 
-        IHittable? boundEntity = path.Mediums.Top != null ? path.Mediums.TopEntity : null;
         t_guideMis = guideTree;
         t_guideBsdfFraction = guideA;
-        path.Add(path.Beta * ComputeDirectLightingMedium(p, ray.Direction, medium, boundEntity, ray.Time));
+        path.Add(path.Beta * ComputeDirectLightingMedium(p, ray.Direction, phase, in path.Mediums, ray.Time));
         t_guideMis = null;
 
         path.PastFirstBounce = true;
@@ -266,15 +289,15 @@ public partial class Renderer
         float phasePdf, phaseOnly = 0f, guidePdf = 0f, phaseWeight = 1f;
         if (guideTree != null)
         {
-            if (!SamplePhaseGuided(medium.Phase, ray.Direction, guideTree, guideA, out wi, out phaseWeight, out phasePdf,
+            if (!SamplePhaseGuided(phase, ray.Direction, guideTree, guideA, out wi, out phaseWeight, out phasePdf,
                                    out phaseOnly, out guidePdf))
                 return false;
             path.Beta *= phaseWeight;
         }
         else
         {
-            (wi, phasePdf) = medium.Phase.Sample(ray.Direction);
-            float phaseVal = medium.Phase.Evaluate(ray.Direction, wi);
+            (wi, phasePdf) = phase.Sample(ray.Direction);
+            float phaseVal = phase.Evaluate(ray.Direction, wi);
             if (!(phasePdf > 1e-20f)) return false;
             path.Beta *= phaseVal / phasePdf;
         }
@@ -345,11 +368,9 @@ public partial class Renderer
         bool needsLight = material?.NeedsDirectLighting ?? true;
         if (needsLight)
         {
-            IMedium? shadowMedium = path.Mediums.Top ?? _globalMedium;
-            IHittable? shadowEntity = path.Mediums.Top != null ? path.Mediums.TopEntity : null;
             t_guideMis = guideTree;
             t_guideBsdfFraction = guideA;
-            Vector3 direct = DirectLightingAt(in rec, viewDir, material, shadowMedium, shadowEntity);
+            Vector3 direct = DirectLightingAt(in rec, viewDir, material, in path.Mediums);
             t_guideMis = null;
             if (_causticsActive && material != null && !material.IsDeltaScatter)
                 direct += GatherCaustics(in rec, viewDir, material);

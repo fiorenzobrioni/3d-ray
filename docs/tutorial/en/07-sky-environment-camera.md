@@ -416,15 +416,18 @@ world:
     world_scale: 1000.0          # metres per world unit (1000 = "1 wu : 1 km")
     sea_level_y: 0.0             # world Y of altitude 0
     dust_density: 1.2            # Mie density (0 = pristine, 1 = clean, >1 = polluted)
-    air_density: [1, 1, 1]       # Rayleigh density multiplier per channel
-    # phase defaults to Henyey-Greenstein g=0.76 (Mie forward scattering)
+    air_density: 1.0             # air (Rayleigh) density, 1 = standard atmosphere
+    # air scatters with the Rayleigh phase function; `phase` sets the dust's
+    # (default Henyey-Greenstein g = 0.76, forward)
 ```
 
 `world_scale` is the key mapping knob — choose it based on the scene's
 scale (1000 for "stadium scale" scenes, 200 for "city block" scale, 50
-for "single room" scale). Optical depth has a closed form (sum of two
-exponentials) so there is no extra variance for the transmittance path —
-free-path sampling uses delta tracking with a lower-altitude majorant.
+for "single room" scale). Optical depth has a closed form for air, dust
+and ozone, so transmittance is exact and distances are sampled exactly.
+The medium is aerial perspective: it acts between the eye and the surfaces
+it sees, while rays that run to the sky cross it untouched (the Nishita sky
+already holds that light; counting it twice washed the sky out).
 
 ---
 

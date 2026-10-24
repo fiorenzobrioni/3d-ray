@@ -41,11 +41,9 @@ Light enters through the material's own dielectric interface: the smooth (delta)
 
 When a free flight reaches the boundary, the walk pops the medium (and the IOR pushed with it) and hands the ray, unchanged in direction, back to the path loop (`TracePath`) from the exit point, with the walk's throughput folded into the path's. No second Fresnel evaluation is applied at the exit: the entry-side transmission is the only Fresnel coupling, which is exactly energy-preserving with matched IORs (the white-furnace configuration). The walk's own boundary is likewise a null interface for the shadow rays of its in-walk NEE (`ShadowRay.PassThroughEntity`), consistent with the way the walk exits.
 
-## Russian Roulette + max-bounces cap
+## Russian roulette, no cap
 
-In-walk Russian Roulette kicks in at `b >= RrStartBounce` (default 3, configurable via `--sss-quality`). The survival probability is `q = max(β.X, β.Y, β.Z)` clamped to `[0.05, 0.95]`. On survival the throughput is divided by `q` to remain unbiased; on death the walk returns the radiance accumulated so far.
-
-The max-bounces hard cap (default 64) is a guard rail against worst-case low-albedo paths that RR would terminate eventually but not fast enough to bound the per-pixel cost. On a milk-like medium (albedo ≈ 1) most walks terminate by RR around bounce 30-40; on a dense waxy medium the cap takes over.
+After `WalkRouletteStart` (8) bounces the walk plays a Russian roulette on the full path throughput (the entry's times the walk's): survival `q = min(1, max(β.X, β.Y, β.Z))`, at least 0.05; on survival the throughput is divided by `q`. A light sample is taken at every bounce, and there is no cap on the number of bounces (a safety limit of 2²⁰ only). Until Phase 8 of the engine review three presets capped a walk at 16 to 256 bounces and stopped its light samples after 2 to 16 bounces, while the escape's MIS still counted on them: a strongly scattering sphere lost 3.5% of its light against the independent reference of the validation harness (`validation/scenes/medium-chromatic.yaml`, now 0.998). The presets and their flags (`--sss-quality`, `--max-volume-bounces`) are gone.
 
 ## Indirect firefly clamp inside the walk
 
@@ -62,18 +60,18 @@ so the bounce-2 NEE is clamped at the global indirect limit, but the bounce-32 N
 | Flag | Default | Notes |
 |---|---|---|
 | `--sss-mode auto\|off` | `auto` | `off` declasses pushed media to absorption-only (legacy Beer-Lambert), useful for preview / A/B. |
-| `--sss-quality preview\|normal\|high` | inherits from `-q` | One-shot configuration of MaxVolumeBounces / RrStartBounce / NeeInsideWalk. |
-| `--max-volume-bounces <n>` | preset-dependent (16/64/256) | Hard cap on walk depth. Trades cost against energy on dense media. |
 
-Quality presets follow the same Preview/Normal/High convention as the main `--quality` flag:
+## Artistic parametrisation
 
-| Preset | MaxVolumeBounces | RrStartBounce | NeeInsideWalk | Tier |
-|---|---|---|---|---|
-| `preview` | 16 | 1 | off | Composition / sanity check. Light enters only via boundary refraction. |
-| `normal`  | 64 | 3 | on  | Production default. NEE samples lights at every internal scatter event. |
-| `high`    | 256 | 6 | on  | Portfolio / hero shots. Deep walks fully resolved. |
+A material's subsurface colour is the albedo a thick piece of it shows under uniform light (its multiple-scattering albedo), and its radius the mean free path. The loader inverts the colour to the medium's single-scattering albedo with the fit of Chiang, Kutz and Burley 2016 and the anisotropy term of OpenPBR, for `openpbr` and Disney materials alike (`SceneLoader.SubsurfaceMedium`):
 
-When the user passes `-q draft-small`, the SSS tier defaults to `preview`. `-q pre-final`/`-q final`/`-q ultra` default to `high` (`-q standard` forces SSS off entirely). An explicit `--sss-quality` always wins over the inferred tier.
+```
+s   = 4.09712 + 4.20863 A − √(9.59217 + 41.6808 A + 17.7126 A²)
+α   = (1 − s²) / (1 − g s²)
+σ_t = 1 / mfp,   σ_s = α σ_t,   σ_a = (1 − α) σ_t
+```
+
+`MediumTransportTests.Subsurface_ThickSlab_ShowsItsColour` renders a deep index-matched slab under a white sky from nine angles: the cosine-weighted albedo matches the colour within 1% for g = 0 and g = 0.5 (seen only from above it reads darker, from the horizon brighter).
 
 ## Jensen 2001 preset reference
 

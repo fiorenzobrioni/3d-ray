@@ -1263,17 +1263,7 @@ public class SceneLoader
             Vector3 color = Vector3.Clamp(PbrVector(m, m.SubsurfaceColor, new Vector3(0.8f), "subsurface_color"),
                                           Vector3.Zero, Vector3.One);
             float g = Math.Clamp(PbrConstant(m.SubsurfaceScatterAnisotropy, 0f) ?? 0f, -0.999f, 0.999f);
-            static float Single(float c, float g)
-            {
-                double s = 4.09712 + 4.20863 * c - Math.Sqrt(9.59217 + 41.6808 * c + 17.7126 * c * c);
-                return (float)Math.Clamp((1 - s * s) / (1 - g * s * s), 0.0, 1.0);
-            }
-            Vector3 albedo = new(Single(color.X, g), Single(color.Y, g), Single(color.Z, g));
-            Vector3 sigmaT = Vector3.One / mfp;
-            IPhaseFunction phase = MathF.Abs(g) < 1e-4f ? new IsotropicPhase() : new HenyeyGreensteinPhase(g);
-            Verbose($"OpenPBR subsurface medium: material '{m.Id}', mfp [{mfp.X:0.###},{mfp.Y:0.###},{mfp.Z:0.###}], " +
-                    $"single-scattering albedo [{albedo.X:0.###},{albedo.Y:0.###},{albedo.Z:0.###}]");
-            return new HomogeneousMedium(sigmaT * (Vector3.One - albedo), sigmaT * albedo, phase);
+            return SubsurfaceMedium(m.Id, color, mfp, g);
         }
 
         float tw = PbrConstant(m.TransmissionWeight, 0f) ?? 1f;
@@ -4567,63 +4557,54 @@ public class SceneLoader
     }
 
     /// <summary>
-    /// Converts a material's <c>subsurface_radius</c> (mean free path per
-    /// RGB channel, in world units) + <c>subsurface_color</c> (volume
-    /// albedo) into a <see cref="HomogeneousMedium"/>. Mirrors the
-    /// Arnold <c>standard_surface</c> / Cycles <c>Principled BSDF</c>
-    /// random-walk SSS parameterization:
+    /// The medium of a subsurface material from its artistic parameters, the
+    /// OpenPBR parametrisation: <paramref name="color"/> is the albedo the
+    /// surface shows (the multiple-scattering albedo of a thick slab), and
+    /// <paramref name="mfp"/> the mean free path per channel:
     /// <code>
-    ///   r_eff = radius · scale         (effective MFP per channel)
-    ///   σ_t   = 1 / r_eff              (extinction coefficient)
-    ///   σ_s   = albedo · σ_t           (scattering coefficient)
-    ///   σ_a   = (1 − albedo) · σ_t     (absorption coefficient)
+    ///   σ_t = 1 / mfp
+    ///   s   = 4.09712 + 4.20863·A − √(9.59217 + 41.6808·A + 17.7126·A²)
+    ///   α   = (1 − s²) / (1 − g·s²)          (single-scattering albedo)
     /// </code>
-    /// Phase function: Henyey–Greenstein with g = <c>subsurface_anisotropy</c>
-    /// (0 by default → near-isotropic, typical for marble / wax / stone).
+    /// the inversion of Chiang, Kutz and Burley 2016 with the anisotropy term
+    /// of the OpenPBR specification. Taking the colour as the single-scattering
+    /// albedo, as the Disney path did before Phase 8, rendered a colour of 0.8
+    /// as 0.4 or so.
+    /// </summary>
+    internal static HomogeneousMedium SubsurfaceMedium(string? id, Vector3 color, Vector3 mfp, float g)
+    {
+        static float Single(float c, float g)
+        {
+            double s = 4.09712 + 4.20863 * c - Math.Sqrt(9.59217 + 41.6808 * c + 17.7126 * c * c);
+            return (float)Math.Clamp((1 - s * s) / (1 - g * s * s), 0.0, 1.0);
+        }
+        color = Vector3.Clamp(color, Vector3.Zero, Vector3.One);
+        mfp = Vector3.Max(mfp, new Vector3(1e-4f));
+        g = Math.Clamp(g, -0.999f, 0.999f);
+        Vector3 albedo = new(Single(color.X, g), Single(color.Y, g), Single(color.Z, g));
+        Vector3 sigmaT = Vector3.One / mfp;
+        IPhaseFunction phase = MathF.Abs(g) < 1e-4f ? new IsotropicPhase() : new HenyeyGreensteinPhase(g);
+        Verbose($"Subsurface medium: material '{id}', mfp [{mfp.X:0.###},{mfp.Y:0.###},{mfp.Z:0.###}], " +
+                $"single-scattering albedo [{albedo.X:0.###},{albedo.Y:0.###},{albedo.Z:0.###}]");
+        return new HomogeneousMedium(sigmaT * (Vector3.One - albedo), sigmaT * albedo, phase);
+    }
+
+    /// <summary>
+    /// The subsurface medium of a Disney material (<c>subsurface_radius</c>
+    /// × <c>subsurface_scale</c>, <c>subsurface_color</c> or else the base
+    /// colour, <c>subsurface_anisotropy</c>), with the OpenPBR parametrisation
+    /// the Disney material is translated onto (<see cref="SubsurfaceMedium"/>).
     /// </summary>
     private static IMedium? BuildEmbeddedSssMedium(MaterialData m)
     {
         if (m.SubsurfaceRadius == null || m.SubsurfaceRadius.Count == 0)
             return null;
-
-        // Volume albedo: subsurface_color when present, otherwise base_color
-        // (Cycles convention). Falls back to white if neither is set.
-        List<float>? albedoSrc = m.SubsurfaceColor ?? m.Color;
-        Vector3 albedo = albedoSrc != null && albedoSrc.Count >= 3
-            ? new Vector3(
-                MathF.Max(0f, MathF.Min(1f, albedoSrc[0])),
-                MathF.Max(0f, MathF.Min(1f, albedoSrc[1])),
-                MathF.Max(0f, MathF.Min(1f, albedoSrc[2])))
-            : Vector3.One;
-
-        // Radius: pad / clamp to 3 channels. Values ≤ 0 fall back to a
-        // sentinel large MFP so the channel is effectively transparent.
+        List<float>? colorSrc = m.SubsurfaceColor ?? m.Color;
+        Vector3 color = colorSrc is { Count: >= 3 } ? new Vector3(colorSrc[0], colorSrc[1], colorSrc[2]) : Vector3.One;
         var r = m.SubsurfaceRadius;
-        float rR = r.Count >= 1 ? r[0] : 1f;
-        float rG = r.Count >= 2 ? r[1] : rR;
-        float rB = r.Count >= 3 ? r[2] : rG;
-
+        float rR = r[0], rG = r.Count >= 2 ? r[1] : rR, rB = r.Count >= 3 ? r[2] : rG;
         float scale = m.SubsurfaceScale > 0f ? m.SubsurfaceScale : 1f;
-        rR = MathF.Max(1e-4f, rR * scale);
-        rG = MathF.Max(1e-4f, rG * scale);
-        rB = MathF.Max(1e-4f, rB * scale);
-
-        Vector3 sigmaT = new Vector3(1f / rR, 1f / rG, 1f / rB);
-        Vector3 sigmaS = sigmaT * albedo;
-        Vector3 sigmaA = sigmaT - sigmaS; // = σ_t · (1 − albedo), nonneg by clamp
-
-        float g = MathF.Max(-0.999f, MathF.Min(0.999f, m.SubsurfaceAnisotropy));
-        IPhaseFunction phase = MathF.Abs(g) < 1e-4f
-            ? new IsotropicPhase()
-            : new HenyeyGreensteinPhase(g);
-
-        Verbose($"SSS medium:  material '{m.Id}' → " +
-                $"r=[{rR:0.###},{rG:0.###},{rB:0.###}] α=[{albedo.X:0.##},{albedo.Y:0.##},{albedo.Z:0.##}] " +
-                $"σ_s=[{sigmaS.X:0.##},{sigmaS.Y:0.##},{sigmaS.Z:0.##}] " +
-                $"σ_a=[{sigmaA.X:0.###},{sigmaA.Y:0.###},{sigmaA.Z:0.###}] " +
-                $"phase={(MathF.Abs(g) < 1e-4f ? "isotropic" : $"hg(g={g:0.##})")}");
-
-        return new HomogeneousMedium(sigmaA, sigmaS, phase);
+        return SubsurfaceMedium(m.Id, color, new Vector3(rR, rG, rB) * scale, m.SubsurfaceAnisotropy);
     }
 
     /// <summary>
@@ -4662,25 +4643,17 @@ public class SceneLoader
 
     private static NishitaAtmosphereMedium BuildNishitaAtmosphere(MediumData md, IPhaseFunction phase)
     {
-        // The atmosphere medium reuses the Nishita physical constants; the
-        // YAML knobs are limited to the scene-mapping ones (sea level, world
-        // scale) and density multipliers. Default phase is HG g=0.76 (Mie
-        // forward scattering); the user can override via the `phase` key.
-        // When no phase is specified in YAML, BuildPhaseFunction returns
-        // IsotropicPhase by default — for atmosphere we substitute the
-        // Mie-typical HG g=0.76 if isotropic was the implicit choice.
-        IPhaseFunction effectivePhase = string.IsNullOrWhiteSpace(md.Phase)
-            ? new HenyeyGreensteinPhase(0.76f)
-            : phase;
-
-        Vector3 air     = ToVector3(md.AirDensity) ?? Vector3.One;
-        float seaLevel  = md.Y0;
-        Info($"Medium:      atmosphere (Nishita, sea_level={seaLevel}, world_scale={md.WorldScale} m/wu, {(string.IsNullOrWhiteSpace(md.Phase) ? "hg(0.76)" : md.Phase)} phase)");
-        return new NishitaAtmosphereMedium(effectivePhase,
-                                            airDensity: air,
-                                            dustDensity: md.DustDensity,
-                                            seaLevelY: seaLevel,
-                                            worldScale: md.WorldScale);
+        // Air scatters with the Rayleigh phase function; `phase` sets the
+        // dust's (Henyey-Greenstein g = 0.76 by default).
+        IPhaseFunction? dustPhase = string.IsNullOrWhiteSpace(md.Phase) ? null : phase;
+        Info($"Medium:      atmosphere (sea_level={md.Y0}, world_scale={md.WorldScale} m/wu, " +
+             $"air {md.AirDensity}, dust {md.DustDensity}, ozone {md.OzoneDensity}, dust phase {md.Phase ?? "hg(0.76)"})");
+        return new NishitaAtmosphereMedium(dustPhase,
+                                           airDensity: md.AirDensity,
+                                           dustDensity: md.DustDensity,
+                                           ozoneDensity: md.OzoneDensity,
+                                           seaLevelY: md.Y0,
+                                           worldScale: md.WorldScale);
     }
 
     private static IPhaseFunction BuildPhaseFunction(MediumData md)

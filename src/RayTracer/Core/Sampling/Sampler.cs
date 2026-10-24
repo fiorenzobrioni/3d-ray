@@ -158,6 +158,19 @@ public static class Sampler
     }
 
     /// <summary>
+    /// A draw that never takes a dimension of the vertex's block: for loops
+    /// with a random number of draws (null-collision tracking along a ray),
+    /// which would otherwise push the vertex's later decisions (its light
+    /// sample, its bounce) onto dimensions that differ from sample to sample.
+    /// </summary>
+    public static float SampleLoose1D()
+    {
+        var c = LocalCtx;
+        if (!c.Active) return (float)MathUtils.Rng.NextDouble();
+        return OwenSobol.Sample(c.SampleIndex, OverflowBase + c.Overflow++, c.PixelSeed);
+    }
+
+    /// <summary>
     /// 2D draw for a two-dimensional decision (a direction, a point on a
     /// light, a lens position). With Sobol it first aligns the dimension
     /// counter to an even dimension, so the two coordinates are the two halves

@@ -425,15 +425,19 @@ world:
     world_scale: 1000.0          # metri per unità mondo (1000 = "1 wu : 1 km")
     sea_level_y: 0.0             # Y world dell'altitudine 0
     dust_density: 1.2            # densità Mie (0 = puro, 1 = pulito, >1 = inquinato)
-    air_density: [1, 1, 1]       # moltiplicatore densità Rayleigh per canale
-    # phase di default Henyey-Greenstein g=0.76 (Mie forward scattering)
+    air_density: 1.0             # densità dell'aria (Rayleigh), 1 = atmosfera standard
+    # l'aria diffonde con la phase function di Rayleigh; `phase` imposta
+    # quella della polvere (default Henyey-Greenstein g = 0.76, in avanti)
 ```
 
 `world_scale` è il knob chiave del mapping — scegli in base alla scala
 della scena (1000 per scene "scala stadio", 200 per "isolato urbano", 50
-per "singola stanza"). L'optical depth ha forma chiusa (somma di due
-esponenziali) quindi nessuna varianza extra sulla trasmittanza — il
-free-path sampling usa delta tracking con majorante alla quota più bassa.
+per "singola stanza"). L'optical depth ha forma chiusa per aria, polvere
+e ozono, quindi la trasmittanza è esatta e le distanze sono campionate
+esattamente. Il mezzo è aerial perspective: agisce tra l'occhio e le
+superfici che vede, mentre i raggi che vanno verso il cielo lo attraversano
+intatti (il cielo Nishita contiene già quella luce; contarla due volte
+sbiadiva il cielo).
 
 ---
 

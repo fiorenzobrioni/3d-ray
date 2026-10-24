@@ -67,7 +67,6 @@ Aggiungi i seguenti flag **solo se pertinenti** alla scena o richiesti dall'uten
 | `--denoiser nfor` | già attivo per `draft`/`standard`/`pre-final`; aggiungere solo per override su `final`/`ultra` |
 | `--caustics on` | scene con superfici di vetro + luci puntuali (prismi, bicchieri, piscine) |
 | `--sss-mode off` | scena senza materiali SSS, per saltare il dispatch |
-| `--sss-quality high` | scena con SSS in render finale (override del default del preset) |
 | `-v` | debug del caricamento scena o analisi delle luci |
 | `-d <n>` | override depth: 12+ per dielectric stratificato, 16–20 per liquidi in bicchieri |
 

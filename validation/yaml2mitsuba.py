@@ -16,6 +16,11 @@ Conventions matched:
   sphere light / area light   radiance = color * intensity (visible proxy)
   point light                 radiant intensity = color * intensity (W/sr)
   flat sky                    constant environment of radiance = color
+  media (Phase 8)             homogeneous and grid, global (the sensor's medium) or
+                              bound to an entity (interior); integrator volpath.
+                              Grid: 3D-Ray's voxels sit on the box's corners, Mitsuba's
+                              at cell centres, so the box grows by half a voxel (the
+                              border voxels must be zero, or the clamp differs).
 """
 
 from __future__ import annotations
@@ -199,6 +204,52 @@ def _bsdf_one_sided(m, used):
     raise UnsupportedFeature(f"material type '{t}'")
 
 
+def _phase(md):
+    p = (md.get("phase") or ("hg" if md.get("g") is not None else "isotropic")).lower()
+    if p == "isotropic":
+        return {"type": "isotropic"}
+    if p in ("hg", "henyey_greenstein"):
+        return {"type": "hg", "g": float(md.get("g", 0.0))}
+    if p == "rayleigh":
+        return {"type": "rayleigh"}
+    raise UnsupportedFeature(f"phase function '{p}'")
+
+
+def _medium(md):
+    """A 3D-Ray medium as a Mitsuba one (homogeneous or grid)."""
+    import mitsuba as mi
+    import numpy as np
+
+    t = (md.get("type") or "homogeneous").lower()
+    sa = np.array(_vec(md.get("sigma_a"), (0, 0, 0)), dtype=np.float64)
+    ss = np.array(_vec(md.get("sigma_s"), (0, 0, 0)), dtype=np.float64)
+    st = sa + ss
+    albedo = [float(ss[c] / st[c]) if st[c] > 0 else 0.0 for c in range(3)]
+    if t == "homogeneous":
+        # An RGB spectrum must lie in [0, 1]: the extinction goes through 'scale'.
+        scale = float(max(st.max(), 1e-12))
+        return {"type": "homogeneous", "sigma_t": {"type": "rgb", "value": (st / scale).tolist()}, "scale": scale,
+                "albedo": {"type": "rgb", "value": albedo}, "phase": _phase(md), "sample_emitters": True}
+    if t == "grid":
+        if md.get("file") or (md.get("interpolation") or "trilinear").lower() != "trilinear":
+            raise UnsupportedFeature("grid from a file or with a tricubic filter")
+        nx, ny, nz = int(md["nx"]), int(md["ny"]), int(md["nz"])
+        d = np.clip(np.array(md["data"], dtype=np.float32).reshape(nz, ny, nx), 0.0, 1.0)
+        if d[0].any() or d[-1].any() or d[:, 0].any() or d[:, -1].any() or d[:, :, 0].any() or d[:, :, -1].any():
+            raise UnsupportedFeature("grid with density on its border voxels")
+        grid = np.stack([d * float(st[c]) for c in range(3)], axis=-1)
+        lo = np.array(_vec(md["bounds_min"]), dtype=np.float64)
+        hi = np.array(_vec(md["bounds_max"]), dtype=np.float64)
+        half = (hi - lo) / (np.array([nx, ny, nz]) - 1) * 0.5
+        lo, hi = lo - half, hi + half
+        to_world = mi.ScalarTransform4f().translate(lo.tolist()).scale((hi - lo).tolist())
+        return {"type": "heterogeneous", "phase": _phase(md), "sample_emitters": True, "scale": 1.0,
+                "albedo": {"type": "rgb", "value": albedo},
+                "sigma_t": {"type": "gridvolume", "grid": mi.VolumeGrid(grid), "to_world": to_world,
+                            "filter_type": "trilinear"}}
+    raise UnsupportedFeature(f"medium type '{t}'")
+
+
 def convert(path: str, width: int, height: int, spp: int, depth: int, camera_index: int = 0):
     """Returns (mitsuba scene dict, set of approximation keys used)."""
     import mitsuba as mi
@@ -216,8 +267,10 @@ def convert(path: str, width: int, height: int, spp: int, depth: int, camera_ind
     }
 
     world = scene.get("world") or {}
+    media = {m["id"].lower(): m for m in scene.get("mediums") or []}
+    has_media = bool(world.get("medium")) or bool(media)
     if world.get("medium"):
-        raise UnsupportedFeature("world medium")
+        d["sensor"]["medium"] = _medium(world["medium"])
     sky = world.get("sky") or {"type": "flat", "color": [0, 0, 0]}
     if (sky.get("type") or "flat").lower() != "flat":
         raise UnsupportedFeature(f"sky type '{sky.get('type')}'")
@@ -230,7 +283,7 @@ def convert(path: str, width: int, height: int, spp: int, depth: int, camera_ind
     for i, e in enumerate(scene.get("entities") or []):
         t = (e.get("type") or "").lower()
         for key in ("transform", "rotate", "scale", "translate", "children", "visible_to_camera",
-                    "interior_medium", "visibility"):
+                    "exterior_medium", "visibility"):
             if key in e:
                 raise UnsupportedFeature(f"entity key '{key}'")
         m = materials.get(e.get("material"))
@@ -252,11 +305,13 @@ def convert(path: str, width: int, height: int, spp: int, depth: int, camera_ind
             shape["emitter"] = {"type": "area", "radiance": {"type": "rgb", "value": radiance}}
         else:
             shape["bsdf"] = bsdf
+        if e.get("interior_medium"):
+            shape["interior"] = _medium(media[e["interior_medium"].lower()])
         d[f"entity_{i}"] = shape
 
     # Mitsuba's 'path' integrator lets shadow rays stop at pass-through (null)
     # surfaces; 'volpath' crosses them, as 3D-Ray does for an IOR-1 shell.
-    if any(isinstance(v, dict) and v.get("bsdf", {}).get("type") == "null" for v in d.values()):
+    if has_media or any(isinstance(v, dict) and v.get("bsdf", {}).get("type") == "null" for v in d.values()):
         d["integrator"]["type"] = "volpath"
 
     for i, l in enumerate(scene.get("lights") or []):

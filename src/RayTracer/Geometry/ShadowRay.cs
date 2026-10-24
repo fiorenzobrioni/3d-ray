@@ -1,6 +1,7 @@
 using System.Numerics;
 using RayTracer.Core;
 using RayTracer.Materials;
+using RayTracer.Volumetrics;
 
 namespace RayTracer.Geometry;
 
@@ -115,6 +116,71 @@ public static class ShadowRay
         set => _lastCrossedTransparent = value;
     }
 
+    // ── Participating media along shadow rays (PIANO-REVIEW.md Phase 8) ────
+    // The renderer opens a context around its light samples: the media the
+    // shadow ray starts in (the path's stack and the global medium) and, at a
+    // surface, the receiver's own boundary. The walk below then attenuates
+    // every stretch by the medium it crosses and switches media at every
+    // boundary it passes, as the path does: a fog volume between a surface
+    // and a light now shadows it, and the global fog past the boundary of a
+    // bound medium is counted (before, only the medium at the start was, and
+    // only up to its own boundary).
+    [ThreadStatic] private static bool t_mediaOn;
+    [ThreadStatic] private static MediumStack t_media;
+    [ThreadStatic] private static IMedium? t_globalMedium;
+    [ThreadStatic] private static bool t_receiverCrosses, t_receiverFront;
+    [ThreadStatic] private static Vector3 t_receiverSide;
+    [ThreadStatic] private static IMedium? t_receiverInterior;
+    [ThreadStatic] private static IHittable? t_receiverEntity;
+
+    /// <summary>Opens a media context for the light samples that follow on this thread.</summary>
+    public static void BeginMedia(in MediumStack media, IMedium? global)
+    {
+        t_mediaOn = true;
+        t_media = media;
+        t_globalMedium = global;
+        t_receiverCrosses = false;
+    }
+
+    /// <summary>
+    /// The receiver of the light samples is a boundary the path would cross
+    /// on refraction: a shadow ray that leaves on its far side (against
+    /// <paramref name="side"/>, the normal on the side the path arrived)
+    /// crosses it first.
+    /// </summary>
+    public static void SetReceiver(Vector3 side, bool frontFace, IMedium? interior, IHittable? entity)
+    {
+        t_receiverCrosses = true;
+        t_receiverSide = side;
+        t_receiverFront = frontFace;
+        t_receiverInterior = interior;
+        t_receiverEntity = entity;
+    }
+
+    public static void EndMedia()
+    {
+        t_mediaOn = false;
+        t_media = default;
+        t_globalMedium = null;
+        t_receiverCrosses = false;
+        t_receiverInterior = null;
+        t_receiverEntity = null;
+    }
+
+    /// <summary>
+    /// A surface the media switch at: a refractive solid, or an entity bound
+    /// to a medium (the path pushes the interior on entry and pops it on exit).
+    /// </summary>
+    private static bool IsMediumBoundary(in HitRecord rec)
+        => rec.MediumIface.Interior != null || rec.MediumIface.Exterior != null
+           || (rec.Material?.TryGetDielectricIor(in rec, out _) ?? false);
+
+    private static void Cross(ref MediumStack media, bool frontFace, IMedium? interior, IHittable? entity)
+    {
+        if (frontFace) media.Push(interior, entity);
+        else media.Pop();
+    }
+
     /// <summary>
     /// Shadow ray from a shading point to a point sampled ON a light's surface
     /// (area, sphere, emissive geometry), PBRT's "spawn ray to": both ends are
@@ -163,13 +229,28 @@ public static class ShadowRay
         Vector3 entryPoint = default;
         bool inMedium = false;
 
+        bool media = t_mediaOn;
+        MediumStack stack = media ? t_media : default;
+        IMedium? global = media ? t_globalMedium : null;
+        // Leaving through the receiver's far side crosses its boundary.
+        if (media && t_receiverCrosses && Vector3.Dot(dir, t_receiverSide) < 0f)
+            Cross(ref stack, t_receiverFront, t_receiverInterior, t_receiverEntity);
+
         for (int i = 0; i < maxBounces; i++)
         {
             var rec = new HitRecord();
             // Inherit the caller's shutter time so transparent-shadow walking
             // tests occlusion against animated geometry at the path's instant.
             var stepRay = new Ray(origin, dir, ray.Time);
-            if (!world.Hit(stepRay, tMin, remaining, ref rec))
+            bool hit = world.Hit(stepRay, tMin, remaining, ref rec);
+
+            // The medium over this stretch, up to the hit or the end.
+            if (media && (stack.Top ?? global) is { } m)
+            {
+                throughput *= m.Transmittance(stepRay, hit ? rec.T : remaining);
+                if (MathUtils.NearZero(throughput)) return Vector3.Zero;
+            }
+            if (!hit)
                 return throughput;
 
             // ── Shadow visibility (Arnold `visibility.shadow` / Cycles
@@ -190,6 +271,12 @@ public static class ShadowRay
 
             if (_passThroughEntity != null && ReferenceEquals(rec.EntityRoot, _passThroughEntity))
             {
+                // The walk's own boundary: leaving it pops its medium.
+                if (media)
+                {
+                    if (ReferenceEquals(stack.TopEntity, rec.EntityRoot)) stack.Pop();
+                    else stack.Push(rec.MediumIface.Interior, rec.EntityRoot);
+                }
                 Vector3 passN = Vector3.Dot(dir, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
                 origin = MathUtils.OffsetOrigin(rec.Point, passN);
                 remaining -= rec.T + 2f * MathUtils.OffsetDistance(rec.Point);
@@ -234,6 +321,9 @@ public static class ShadowRay
             if (MathUtils.NearZero(throughput))
                 return Vector3.Zero;
             _lastCrossedTransparent = true;
+
+            if (media && IsMediumBoundary(in rec))
+                Cross(ref stack, rec.FrontFace, rec.MediumIface.Interior, rec.EntityRoot);
 
             // Entering a Beer-Lambert medium on this front-face hit?
             if (rec.FrontFace)
