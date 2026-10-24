@@ -7,7 +7,7 @@ namespace RayTracer.Geometry;
 /// <summary>
 /// A quadrilateral (parallelogram) primitive defined by an origin Q and two vectors U, V.
 /// </summary>
-public class Quad : IHittable, ISamplable
+public class Quad : IHittable, ISamplable, ISolidAngleSamplable
 {
     public Vector3 Q { get; }
     public Vector3 U { get; }
@@ -22,6 +22,7 @@ public class Quad : IHittable, ISamplable
     private readonly Vector3 _tangent;
     private readonly Vector3 _bitangent;
     private readonly float _area;
+    private readonly bool _rectangular;
 
     public Quad(Vector3 q, Vector3 u, Vector3 v, IMaterial material)
     {
@@ -37,6 +38,7 @@ public class Quad : IHittable, ISamplable
         _tangent = Vector3.Normalize(U);
         _bitangent = Vector3.Normalize(V);
         _area = n.Length(); // == Vector3.Cross(U, V).Length()
+        _rectangular = SphericalRectangle.IsRectangle(U, V);
     }
 
     public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
@@ -90,22 +92,62 @@ public class Quad : IHittable, ISamplable
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
-        float u = MathUtils.RandomFloat();
-        float v = MathUtils.RandomFloat();
+        var (u, v) = MathUtils.Random2D();
         Vector3 point = Q + u * U + v * V;
         return (point, _normal, new Vector2(u, v), _area);
     }
 
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
 
-        float u = (su + MathUtils.RandomFloat()) * inv;
-        float v = (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+
+        float u = xs1;
+
+        float v = xs2;
         Vector3 point = Q + u * U + v * V;
         return (point, _normal, new Vector2(u, v), _area);
+    }
+
+    // ── Solid-angle sampling (an emissive quad as a light) ──────────────────
+    // A rectangle is sampled uniformly over the solid angle it subtends
+    // (SphericalRectangle, Ureña 2013): the weight of every sample is the same,
+    // however close the receiver. A parallelogram falls back to area sampling,
+    // converted to solid angle.
+
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float SolidAnglePdf) SampleSolidAngle(Vector3 from)
+        => SampleSolidAngleAt(from, MathUtils.Random2D());
+
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float SolidAnglePdf)
+        SampleSolidAngleStratified(Vector3 from, int sampleIndex, int sampleCount)
+        => SampleSolidAngleAt(from, MathUtils.Stratum2D(sampleIndex, sampleCount));
+
+    private (Vector3 Point, Vector3 Normal, Vector2 Uv, float SolidAnglePdf) SampleSolidAngleAt(Vector3 from, (float U, float V) xi)
+    {
+        if (_rectangular && SphericalRectangle.TrySample(from, Q, U, V, xi.U, xi.V, out Vector3 p, out float pdf))
+        {
+            Vector3 rel = p - Q;
+            var uv = new Vector2(Vector3.Dot(rel, U) / U.LengthSquared(), Vector3.Dot(rel, V) / V.LengthSquared());
+            return (p, _normal, uv, pdf);
+        }
+        Vector3 point = Q + xi.U * U + xi.V * V;
+        return (point, _normal, new Vector2(xi.U, xi.V), AreaPdf(from, point));
+    }
+
+    public float SolidAnglePdf(Vector3 from, Vector3 wi)
+    {
+        if (_rectangular) return SphericalRectangle.Pdf(from, Q, U, V, wi);
+        var rec = new HitRecord();
+        return Hit(new Ray(from, wi), 0f, MathUtils.Infinity, ref rec) ? AreaPdf(from, rec.Point) : 0f;
+    }
+
+    /// <summary>Uniform-area density converted to solid angle at <paramref name="from"/>.</summary>
+    private float AreaPdf(Vector3 from, Vector3 point)
+    {
+        Vector3 d = point - from;
+        float d2 = d.LengthSquared();
+        float cos = MathF.Abs(Vector3.Dot(d, _normal)) / MathF.Sqrt(d2);
+        return cos > 1e-7f ? d2 / (_area * cos) : 0f;
     }
 
     public int Seed { get; set; }

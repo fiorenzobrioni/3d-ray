@@ -37,18 +37,13 @@ The phase function is HG with `g` from the medium (default 0). The HG-sample den
 
 ## Energy & Fresnel coupling
 
-The entry Fresnel transmission is applied by the surface BSDF *before* the walk: the throughput passed to `RandomWalkSubsurface` is already `T_entry · viewBSDF`. The walk itself never sees the surface again until it tries to escape.
+Light enters through the material's own dielectric interface: the smooth (delta) or rough (Walter 2007, non-delta) refraction lobe of `Dielectric` or `OpenPbr`. The refraction sample carries `MediumTransition.Enter`, and its weight (Fresnel transmission, tint, the `(η_i/η_t)²` radiance factor, and for a rough interface `F × |cos| / pdf`) is already in the throughput passed to `RandomWalkSubsurface`. The walk itself never sees the surface again until it escapes.
 
-At a boundary hit during the walk, the surface BSDF is sampled to decide whether the photon:
+When a free flight reaches the boundary, the walk pops the medium (and the IOR pushed with it) and hands the ray, unchanged in direction, back to the path loop (`TracePath`) from the exit point, with the walk's throughput folded into the path's. No second Fresnel evaluation is applied at the exit: the entry-side transmission is the only Fresnel coupling, which is exactly energy-preserving with matched IORs (the white-furnace configuration). The walk's own boundary is likewise a null interface for the shadow rays of its in-walk NEE (`ShadowRay.PassThroughEntity`), consistent with the way the walk exits.
 
-- Refracts out (probability = Fresnel transmission). Walk terminates; the exit ray is fed back into `TraceRay` to continue accumulating radiance in world space.
-- Reflects back (probability = Fresnel reflection / TIR). Walk continues with the reflected direction; bounce counter decrements as normal. This handles the polished-marble look — without it, all the light that hits the back of the surface at grazing angle would leak out instead of refracting back into the volume.
+## Russian roulette, no cap
 
-## Russian Roulette + max-bounces cap
-
-In-walk Russian Roulette kicks in at `b >= RrStartBounce` (default 3, configurable via `--sss-quality`). The survival probability is `q = max(β.X, β.Y, β.Z)` clamped to `[0.05, 0.95]`. On survival the throughput is divided by `q` to remain unbiased; on death the walk returns the radiance accumulated so far.
-
-The max-bounces hard cap (default 64) is a guard rail against worst-case low-albedo paths that RR would terminate eventually but not fast enough to bound the per-pixel cost. On a milk-like medium (albedo ≈ 1) most walks terminate by RR around bounce 30-40; on a dense waxy medium the cap takes over.
+After `WalkRouletteStart` (8) bounces the walk plays a Russian roulette on the full path throughput (the entry's times the walk's): survival `q = min(1, max(β.X, β.Y, β.Z))`, at least 0.05; on survival the throughput is divided by `q`. A light sample is taken at every bounce, and there is no cap on the number of bounces (a safety limit of 2²⁰ only). Until Phase 8 of the engine review three presets capped a walk at 16 to 256 bounces and stopped its light samples after 2 to 16 bounces, while the escape's MIS still counted on them: a strongly scattering sphere lost 3.5% of its light against the independent reference of the validation harness (`validation/scenes/medium-chromatic.yaml`, now 0.998). The presets and their flags (`--sss-quality`, `--max-volume-bounces`) are gone.
 
 ## Indirect firefly clamp inside the walk
 
@@ -65,18 +60,18 @@ so the bounce-2 NEE is clamped at the global indirect limit, but the bounce-32 N
 | Flag | Default | Notes |
 |---|---|---|
 | `--sss-mode auto\|off` | `auto` | `off` declasses pushed media to absorption-only (legacy Beer-Lambert), useful for preview / A/B. |
-| `--sss-quality preview\|normal\|high` | inherits from `-q` | One-shot configuration of MaxVolumeBounces / RrStartBounce / NeeInsideWalk. |
-| `--max-volume-bounces <n>` | preset-dependent (16/64/256) | Hard cap on walk depth. Trades cost against energy on dense media. |
 
-Quality presets follow the same Preview/Normal/High convention as the main `--quality` flag:
+## Artistic parametrisation
 
-| Preset | MaxVolumeBounces | RrStartBounce | NeeInsideWalk | Tier |
-|---|---|---|---|---|
-| `preview` | 16 | 1 | off | Composition / sanity check. Light enters only via boundary refraction. |
-| `normal`  | 64 | 3 | on  | Production default. NEE samples lights at every internal scatter event. |
-| `high`    | 256 | 6 | on  | Portfolio / hero shots. Deep walks fully resolved. |
+A material's subsurface colour is the albedo a thick piece of it shows under uniform light (its multiple-scattering albedo), and its radius the mean free path. The loader inverts the colour to the medium's single-scattering albedo with the fit of Chiang, Kutz and Burley 2016 and the anisotropy term of OpenPBR, for `openpbr` and Disney materials alike (`SceneLoader.SubsurfaceMedium`):
 
-When the user passes `-q draft-small`, the SSS tier defaults to `preview`. `-q pre-final`/`-q final`/`-q ultra` default to `high` (`-q standard` forces SSS off entirely). An explicit `--sss-quality` always wins over the inferred tier.
+```
+s   = 4.09712 + 4.20863 A − √(9.59217 + 41.6808 A + 17.7126 A²)
+α   = (1 − s²) / (1 − g s²)
+σ_t = 1 / mfp,   σ_s = α σ_t,   σ_a = (1 − α) σ_t
+```
+
+`MediumTransportTests.Subsurface_ThickSlab_ShowsItsColour` renders a deep index-matched slab under a white sky from nine angles: the cosine-weighted albedo matches the colour within 1% for g = 0 and g = 0.5 (seen only from above it reads darker, from the horizon brighter).
 
 ## Jensen 2001 preset reference
 
@@ -107,8 +102,9 @@ exposes two interoperable ways to set this up.
 
 The artist defines a `homogeneous` medium in the top-level `mediums:`
 block (or inline in the scene) and binds it on the entity via
-`interior_medium: <id>`. The surface material only needs `spec_trans`
-> 0 and an `ior` to emit `MediumTransition.Enter` on refraction.
+`interior_medium: <id>`. The surface material only needs a refractive
+interface that emits `MediumTransition.Enter`: `transmission_weight > 0` on
+`openpbr`, `spec_trans > 0` on `disney`, or a `dielectric`, with its IOR.
 
 ```yaml
 mediums:
@@ -130,14 +126,40 @@ entities:
     interior_medium: marble_int
 ```
 
-### Path 2 — Material-embedded (`subsurface_radius`)
+### Path 2 - Material-embedded (`subsurface_weight` / `subsurface_radius`)
 
-The artist declares `subsurface_radius` on the Disney material and the
-loader synthesises an anonymous `HomogeneousMedium` and auto-injects it
-on every entity that uses the material and does not already have an
-explicit `interior_medium`. This emulates volumetric subsurface
-scattering inside the material, with all parameters expressed as artistic
-subsurface controls.
+The artist declares the subsurface on the material and the loader
+synthesises an anonymous `HomogeneousMedium` and auto-injects it on every
+entity that uses the material and does not already have an explicit
+`interior_medium`. This emulates volumetric subsurface scattering inside
+the material, with all parameters expressed as artistic subsurface
+controls. Thin-walled materials get no medium (a sheet has no interior).
+
+**On `openpbr`**, `subsurface_weight > 0` binds the medium. The mean free
+path is `subsurface_radius × subsurface_radius_scale` per channel (scalar
+radius, default 1; RGB scale, default `[1, 0.5, 0.25]`), and the
+single-scattering albedo is inverted from `subsurface_color` (the
+multiple-scattering albedo the artist sees) with the OpenPBR formula, which
+takes the phase function's `g = subsurface_scatter_anisotropy` into
+account. In the material the subsurface share goes through the dielectric
+interface with the transmission (`T' = T + (1 − T) S`), so subsurface light
+refracts in through the same smooth or rough lobe and the walk carries it.
+
+```yaml
+materials:
+  - id: opb_marble
+    type: openpbr
+    base_color: [0.92, 0.89, 0.85]
+    subsurface_weight: 1.0
+    subsurface_color: [0.95, 0.90, 0.85]
+    subsurface_radius: 0.45
+    subsurface_radius_scale: [1.0, 0.78, 0.49]
+    specular_roughness: 0.2
+```
+
+**On `disney`**, `subsurface_radius` builds the medium as below, and
+`spec_trans` is the share of light that enters it (the translation onto
+OpenPBR maps it to `subsurface_weight`).
 
 ```yaml
 materials:
@@ -157,7 +179,7 @@ entities:
     # no interior_medium, no mediums: section — SSS still works
 ```
 
-The medium is built from the per-channel formula
+For `disney` the medium is built from the per-channel formula
 
 ```
 σ_t = 1 / (radius · scale)

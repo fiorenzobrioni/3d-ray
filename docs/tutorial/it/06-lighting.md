@@ -637,32 +637,34 @@ un calice lascia sul tavolo, il bagliore colorato sotto una bottiglia tinta.
 Sono le **caustiche**, e poiché richiedono che la luce segua il cammino piegato
 (rifratto) o riflesso, i normali shadow ray non sanno produrle.
 
-3D-Ray le rende con un **pre-pass di fotoni**. Non devi marcare niente nella
-scena: qualsiasi superficie speculare (vetro, acqua, metallo, specchio)
-focalizza la luce in automatico, e qualsiasi superficie diffusa (un pavimento,
-una parete) la riceve. Tutte le luci guidano le caustiche, **sole**
-(`directional`) compreso. Basta attivarle:
+Non devi marcare niente nella scena: qualsiasi superficie speculare (vetro,
+acqua, metallo, specchio) focalizza la luce, e qualsiasi superficie diffusa (un
+pavimento, una parete) la riceve, da ogni tipo di luce, **sole**
+(`directional`) e cielo HDRI compresi. L'integratore di default, il path
+tracing, rende anche le caustiche, ma le trova solo quando un rimbalzo colpisce
+per caso la luce attraverso il vetro: escono granulose, tanto più quanto la
+luce è piccola. Due altri integratori tracciano la luce anche dalle sorgenti:
 
 ```bash
-# Le caustiche sono attive di default nei preset final/ultra:
-RayTracer -i mia-scena.yaml -q final
+# Path tracing bidirezionale: caustiche viste direttamente o in uno specchio
+RayTracer -i mia-scena.yaml -q final --integrator bdpt
 
-# Oppure attivale esplicitamente su qualsiasi preset:
-RayTracer -i mia-scena.yaml -q standard --caustics on
+# Vertex connection and merging: anche caustiche viste attraverso vetro o acqua
+# (il fondo di una piscina, un oggetto dentro un bicchiere)
+RayTracer -i mia-scena.yaml -q standard --integrator vcm
 ```
 
 Qualche nota pratica:
 
-- **`--caustic-photons <N>`** regola la qualità: più fotoni = caustiche più
-  nitide e meno rumorose (e pre-pass più lento). I preset scelgono un default
-  ragionevole.
-- **Il vetro tinto proietta una caustica colorata** — un vetro rosso getta una
-  pozza di luce rossa, perché i fotoni assorbono il colore del vetro che
-  attraversano.
+- **`-s`** è il numero di iterazioni: di più = caustiche più pulite. Il VCM
+  inoltre le rende più nitide man mano (`--vcm-radius` regola la sfocatura
+  iniziale).
+- **Il vetro tinto proietta una caustica colorata**: un vetro rosso getta una
+  pozza di luce rossa, perché la luce prende il colore del vetro che
+  attraversa.
 - Una luce piccola e intensa dà una caustica **netta**; una grande la rende
   **morbida**. Il sole dà caustiche nitide a raggi paralleli.
-- Le caustiche da vetro smerigliato/rough e da ambiente HDRI sono più morbide e
-  gestite dal path tracer ordinario in questa versione.
+- Il vetro smerigliato/rough dà caustiche più morbide, rese allo stesso modo.
 
 Configurazioni pronte di vetro, metallo e lenti sono in
 [`scenes/presets/caustics.md`](../../../scenes/presets/caustics.md).
@@ -718,6 +720,58 @@ cambia è *quale fetta* della curva ACES vede la tua radianza.
 
 ---
 
+## 6.14 Unità fisiche ed esposizione fotografica
+
+Finora ogni luce aveva un'`intensity` senza unità. Ognuna si può invece
+scrivere nelle unità di un catalogo di illuminotecnica, e la camera
+espone allora l'immagine come una fotografia:
+
+```yaml
+camera:
+  position: [0, 1.6, 4]
+  look_at:  [0, 1, 0]
+  ev100: 6                       # un soggiorno illuminato
+
+lights:
+  - type: "point"                # una lampadina equivalente a 60 W
+    position: [0, 2.4, 0]
+    power: 800
+    power_unit: "lumen"
+    temperature: 2700            # bianco caldo, colore di corpo nero
+  - type: "area"                 # un pannello LED
+    corner: [1, 2.79, -0.3]
+    u: [0.6, 0, 0]
+    v: [0, 0, 0.6]
+    luminance: 3000              # nit
+    temperature: 4000
+  - type: "spot"                 # un faretto con un profilo misurato
+    position: [-1.5, 2.8, 0]
+    direction: [0, -1, 0]
+    ies: "assets/ies/downlight.ies"
+```
+
+| Chiave | Unità | Luci |
+|---|---|---|
+| `power` (+ `power_unit`) | watt o lumen | point, spot, area, sphere |
+| `candela` | cd | point, spot |
+| `luminance` | nit (cd/m²) | area, sphere, materiale `emissive` |
+| `illuminance` | lux | directional |
+| `temperature` | kelvin | tutte |
+| `ies` | file IES LM-63 | point, spot |
+
+Con un'unità fotometrica il `color` tinge soltanto la luce. L'`ev100`
+della camera (oppure `iso`, `shutter_speed` e `f_stop`) fa la parte di
+un'esposizione vera: 15 per una giornata di sole, 7-8 per un interno
+illuminato, 3-5 per uno poco illuminato. Anche un cielo fisico si può
+scrivere in nit (`units: "photometric"`, capitolo 7).
+`scenes/review/light-units.yaml` verifica ogni unità contro un calcolo a
+mano.
+
+**Molte luci.** Con più di 16 luci il renderer sceglie una luce per punto
+attraverso un BVH delle luci che favorisce quelle vicine al punto e
+rivolte verso di lui (`--light-sampling auto`, il default); ogni
+strategia converge alla stessa immagine.
+
 ## Cosa si è imparato
 
 - Le luci **Point** irradiano da un punto (decadimento con l'inverso del quadrato, ombre nette).
@@ -732,8 +786,9 @@ cambia è *quale fetta* della curva ACES vede la tua radianza.
 - Lo **schema a tre punti** (chiave, riempimento, contorno) è un punto di partenza affidabile per ogni scena.
 - **Controlli firefly:**
   - `soft_radius` su luci point/spot/area → clampa il denominatore dell'attenuazione
-  - `--indirect-clamp-factor 0.25` → clamp più stretto sui bounce ≥ 1
-  - `--light-sampling power` → sceglie una luce per evento NEE ∝ `ApproximatePower` (convergenza più rapida in scene multi-luce)
+  - `-C 10 --indirect-clamp-factor 0.25` → clamp opzionale (introduce bias), più stretto sui bounce ≥ 1
+  - `--light-sampling bvh` → sceglie una luce per potenza, distanza e orientamento (il default `auto` ci passa oltre le 16 luci)
+- Le **unità fisiche** (`power`, `candela`, `luminance`, `illuminance`, `temperature`, `ies`) con l'`ev100` della camera illuminano ed espongono una scena come nella realtà.
 
 ---
 

@@ -39,13 +39,12 @@ public class SpotLight : ILight
     // Precomputed ONB for disc jittering when softRadius > 0 && shadowSamples > 1.
     private readonly Vector3 _tangentU;
     private readonly Vector3 _tangentV;
-    private readonly int _sqrtSamples;
-    private readonly float _invSqrtSamples;
 
     public SpotLight(Vector3 position, Vector3 direction, Vector3 color,
                      float intensity = 1f, float innerAngleDeg = 15f, float outerAngleDeg = 30f,
-                     float softRadius = 0f, int shadowSamples = 1)
+                     float softRadius = 0f, int shadowSamples = 1, IesProfile? ies = null)
     {
+        Ies = ies;
         Position = position;
         Direction = Vector3.Normalize(direction);
         Color = color;
@@ -54,9 +53,6 @@ public class SpotLight : ILight
         CosOuterAngle = MathF.Cos(MathUtils.DegreesToRadians(outerAngleDeg));
         SoftRadius = MathF.Max(0f, softRadius);
         ShadowSamples = Math.Max(1, shadowSamples);
-
-        _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
-        _invSqrtSamples = 1f / _sqrtSamples;
 
         // Precompute an orthonormal basis perp to Direction for disc jittering.
         // Used when softRadius > 0 and shadowSamples > 1.
@@ -74,8 +70,16 @@ public class SpotLight : ILight
     // (the smoothstep ramps roughly linearly in cos θ over the ring, squared, so
     // its mean-squared contribution is ~1/3). This is an approximation but
     // matches the actual IlluminateAndTest() integral to within a small constant.
+    /// <summary>
+    /// Optional luminaire distribution (IES), its nadir along <see cref="Direction"/>:
+    /// the profile's candela times <see cref="Intensity"/>, inside the cone.
+    /// </summary>
+    public IesProfile? Ies { get; }
+
     public float ApproximatePower(AABB sceneBounds)
     {
+        // With a profile, its flux (the cone only trims it: an upper bound).
+        if (Ies != null) return Ies.Flux * MathUtils.Luminance(Color) * Intensity;
         float coreSolidAngle = 2f * MathF.PI * (1f - CosInnerAngle);
         float falloffSolidAngle = 2f * MathF.PI * (CosInnerAngle - CosOuterAngle) / 3f;
         float omegaEff = coreSolidAngle + falloffSolidAngle;
@@ -106,10 +110,7 @@ public class SpotLight : ILight
         Vector3 sourcePos = Position;
         if (SoftRadius > 0f && ShadowSamples > 1 && sampleIndex >= 0)
         {
-            int su = sampleIndex % _sqrtSamples;
-            int sv = sampleIndex / _sqrtSamples;
-            float xi1 = (su + MathUtils.RandomFloat()) * _invSqrtSamples;
-            float xi2 = (sv + MathUtils.RandomFloat()) * _invSqrtSamples;
+            var (xi1, xi2) = MathUtils.Stratum2D(sampleIndex, ShadowSamples);
 
             // Uniform disc sampling: map [0,1)² to a disc of radius SoftRadius.
             float r = SoftRadius * MathF.Sqrt(xi1);
@@ -132,10 +133,10 @@ public class SpotLight : ILight
         // normal — same pattern as AreaLight/SphereLight/GeometryLight, kept
         // in sync so future visible proxies (point/spot bulbs) don't
         // self-intersect.
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        Vector3 shadowOrigin = MathUtils.OffsetToward(hitPoint, surfaceNormal, dirToLight);
         var shadowRay = new Ray(shadowOrigin, dirToLight, time);
-        float shadowTMax = (sourcePos - shadowOrigin).Length() - MathUtils.Epsilon;
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
+        float shadowTMax = (sourcePos - shadowOrigin).Length() - MathUtils.OffsetDistance(sourcePos);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, shadowTMax);
 
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
@@ -153,6 +154,46 @@ public class SpotLight : ILight
             0f, 1f);
         spotAttenuation *= spotAttenuation;
 
+        if (Ies != null) distanceAttenuation *= Ies.Candela(-dirToLight, Direction, _tangentU);
+
         return (false, Color * distanceAttenuation * spotAttenuation * trans, dirToLight, distance);
     }
+
+    // ── Emission (bidirectional integrators) ────────────────────────────────
+    // Uniform inside the outer cone; with a soft radius and several shadow
+    // samples the source is the same disc of points the light samples see.
+
+    private float ConeSolidAngle => 2f * MathF.PI * (1f - CosOuterAngle);
+
+    /// <summary>Radiant intensity toward <paramref name="dirFromLight"/>.</summary>
+    private Vector3 IntensityToward(Vector3 dirFromLight)
+    {
+        float cosAngle = Vector3.Dot(dirFromLight, Direction);
+        if (cosAngle < CosOuterAngle) return Vector3.Zero;
+        float a = Math.Clamp((cosAngle - CosOuterAngle) / (CosInnerAngle - CosOuterAngle), 0f, 1f);
+        float k = Intensity * a * a;
+        if (Ies != null) k *= Ies.Candela(dirFromLight, Direction, _tangentU);
+        return Color * k;
+    }
+
+    public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        Vector3 pos = Position;
+        if (SoftRadius > 0f && ShadowSamples > 1)
+        {
+            float r = SoftRadius * MathF.Sqrt(uPos.X);
+            float theta = 2f * MathF.PI * uPos.Y;
+            pos += r * (MathF.Cos(theta) * _tangentU + MathF.Sin(theta) * _tangentV);
+        }
+        Vector3 dir = EmissionMath.UniformCone(Direction, CosOuterAngle, uDir);
+        e = new LightEmission
+        {
+            Position = pos, Direction = dir, Normal = Vector3.Zero, Radiance = IntensityToward(dir),
+            PdfPos = 1f, PdfDir = 1f / ConeSolidAngle, Cos = 1f, DeltaPosition = true,
+        };
+        return e.Radiance != Vector3.Zero;
+    }
+
+    public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight)
+        => Vector3.Dot(dirFromLight, Direction) >= CosOuterAngle ? 1f / ConeSolidAngle : 0f;
 }

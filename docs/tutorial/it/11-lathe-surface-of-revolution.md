@@ -419,8 +419,8 @@ Per un profilo **spline** (`catmull_rom` o `bezier`) ogni segmento
 attorno a Y e intersecandola con una retta si ottiene un
 **polinomio di grado 6** nel parametro `u` della curva. Non esiste
 una soluzione in forma chiusa oltre il grado 4, perciò 3D-Ray
-risolve numericamente con l'approccio della `lathe` di PovRay e
-della `Curve` di PBRT (usata per i capelli):
+risolve numericamente con l'approccio standard per le superfici a
+spline:
 
 1. **Costruire una Sturm chain** dal polinomio di grado 6 e dalle
    sue derivate.

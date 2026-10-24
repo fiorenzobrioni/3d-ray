@@ -148,12 +148,12 @@ public class Mesh : IHittable, ISamplable
     /// surface and dramatically reduces NEE variance for large or fragmented
     /// emissive meshes.
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
         if (_triangles.Count == 0)
             return (Vector3.Zero, Vector3.UnitY, new Vector2(0.5f, 0.5f), 0f);
 
-        int totalStrata = Math.Max(1, sqrtSamples * sqrtSamples);
+        int totalStrata = Math.Max(1, sampleCount);
         float stratum = 1f / totalStrata;
         float jittered = (sampleIndex + MathUtils.RandomFloat()) * stratum;
         float target = Math.Clamp(jittered, 0f, 0.9999999f) * _totalArea;

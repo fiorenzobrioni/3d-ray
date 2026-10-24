@@ -150,7 +150,7 @@ entities:
   - `texture-` — texture procedurali/immagini, bump, normal, displacement
   - `primitive-` — primitiva geometrica, mesh, lathe, extrusion, heightfield
   - `lighting-` — tipi di luce, sky, HDRI
-  - `lighting-caustics` — caustics fotonica (richiede `--caustics on` e scene con vetro/specchi); usare `-q final` o aggiungere `--caustics on` a `-q pre-final`
+  - `lighting-caustics`: caustiche (scene con vetro/specchi); renderle con `--integrator bdpt`, o `--integrator vcm` se si vedono attraverso vetro o acqua
   - `volumetric-` — mezzi volumetrici (numerati `01–N`)
   - `glass-` — fenomeni ottici dedicati al vetro
   - `scene-` — strutture di scena (CSG, group, instancing)

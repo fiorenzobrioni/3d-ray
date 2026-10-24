@@ -171,7 +171,7 @@ world:
     type: "atmosphere"
     world_scale: 500.0
     dust_density: 1.5
-    air_density: [1, 1, 1]
+    air_density: 1.0
 ```
 
 Single-scattering Rayleigh+Mie produces the cinematic red-orange gradient

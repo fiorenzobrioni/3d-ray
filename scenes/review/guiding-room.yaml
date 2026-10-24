@@ -1,0 +1,56 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  guiding-room.yaml - una stanza illuminata dal sole attraverso una finestra
+#  (PIANO-REVIEW.md, Fase 7b)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Stanza chiusa 6 × 3 × 6 m, pareti bianche (albedo 0.7), una finestra di
+#  1.2 × 1.2 m nella parete di sinistra. Il sole entra dalla finestra e
+#  disegna una macchia sul pavimento; tutto il resto della stanza è
+#  illuminato solo di rimbalzo da quella macchia e dal cielo visto dalla
+#  finestra. La camera guarda la parete di fondo, lontana dalla macchia.
+#
+#  È il caso per cui esiste il path guiding: da quasi ogni punto della
+#  stanza la luce arriva da una regione piccola (la macchia, la finestra)
+#  che il campionamento della BSDF trova di rado. Senza guiding il render
+#  è dominato dal rumore di bassa frequenza e da firefly; con
+#  `--guiding on` la guida impara la direzione della macchia e il rumore
+#  scende a parità di campioni (misure nell'esito della Fase 7b).
+#
+#    -s 64 --denoiser none                      (senza guiding)
+#    -s 64 --denoiser none --guiding on         (con guiding)
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "flat"
+    color: [0.35, 0.45, 0.6]
+
+camera:
+  position: [0.9, 1.5, 2.6]
+  look_at: [-0.6, 1.2, -3]
+  vup: [0, 1, 0]
+  fov: 70
+
+materials:
+  - { id: "wall",  type: "lambertian", color: [0.7, 0.7, 0.7] }
+  - { id: "floor", type: "lambertian", color: [0.6, 0.5, 0.4] }
+  - { id: "red",   type: "lambertian", color: [0.7, 0.15, 0.1] }
+
+entities:
+  # Pavimento e soffitto (normali verso l'interno).
+  - { type: "quad", q: [-3, 0, -3], u: [0, 0, 6], v: [6, 0, 0], material: "floor" }
+  - { type: "quad", q: [-3, 3, -3], u: [6, 0, 0], v: [0, 0, 6], material: "wall" }
+  # Parete di fondo (z = -3), parete davanti (z = 3), parete di destra (x = 3).
+  - { type: "quad", q: [-3, 0, -3], u: [6, 0, 0], v: [0, 3, 0], material: "wall" }
+  - { type: "quad", q: [-3, 0, 3], u: [0, 3, 0], v: [6, 0, 0], material: "wall" }
+  - { type: "quad", q: [3, 0, -3], u: [0, 0, 6], v: [0, 3, 0], material: "red" }
+  # Parete di sinistra (x = -3) con la finestra: y 1.2-2.4, z -0.6-0.6.
+  - { type: "quad", q: [-3, 0, -3], u: [0, 1.2, 0], v: [0, 0, 6], material: "wall" }
+  - { type: "quad", q: [-3, 2.4, -3], u: [0, 0.6, 0], v: [0, 0, 6], material: "wall" }
+  - { type: "quad", q: [-3, 1.2, -3], u: [0, 1.2, 0], v: [0, 0, 2.4], material: "wall" }
+  - { type: "quad", q: [-3, 1.2, 0.6], u: [0, 1.2, 0], v: [0, 0, 2.4], material: "wall" }
+  # Un cubo sul pavimento, nell'ombra.
+  - { type: "box", material: "wall", scale: [0.8, 0.8, 0.8], translate: [1.2, 0.4, -1.5] }
+
+lights:
+  - { type: "directional", direction: [0.8, -0.55, 0.1], color: [1.0, 0.95, 0.85], intensity: 8 }

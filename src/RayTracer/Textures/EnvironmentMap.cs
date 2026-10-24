@@ -132,14 +132,65 @@ public class EnvironmentMap
         }
     }
 
+    // The two sampling distributions: by luminance, and by the luminance in
+    // excess of the mean (MIS compensation). _margCdf / _condCdf point at the
+    // one in use.
+    private float[] _plainMarg = [], _compMarg = [];
+    private float[][] _plainCond = [], _compCond = [];
+    private bool _useCompensation;
+
+    /// <summary>
+    /// MIS compensation (Karlík, Šik, Vévoda, Skřivan, Křivánek 2019): next-event
+    /// estimation samples the luminance in excess of the map's mean, leaving
+    /// the even part of the sky to the BSDF samples it is combined with, which
+    /// already cover it well; the bright features get the light samples. Only
+    /// sound where every light sample is MIS-weighted against a BSDF sample:
+    /// the renderer turns it off when it lets light samples own the transport
+    /// (straight-through transparent shadows). A map with nothing above its
+    /// mean keeps the plain distribution.
+    /// </summary>
+    public bool UseMisCompensation
+    {
+        get => _useCompensation;
+        set
+        {
+            _useCompensation = value && _compMarg.Length > 0;
+            (_margCdf, _condCdf) = _useCompensation ? (_compMarg, _compCond) : (_plainMarg, _plainCond);
+        }
+    }
+
     private void BuildCdfs()
     {
-        float[] rowWeights = new float[_height];
-        _condCdf = new float[_height][];
-        
+        // Solid-angle-weighted mean luminance (texels shrink as sin θ).
+        double sum = 0, weights = 0;
         for (int y = 0; y < _height; y++)
         {
-            _condCdf[y] = new float[_width];
+            float sinTheta = MathF.Sin(MathF.PI * (y + 0.5f) / _height);
+            for (int x = 0; x < _width; x++)
+            {
+                int idx = (y * _width + x) * 3;
+                sum += (0.2126f * _pixels[idx] + 0.7152f * _pixels[idx + 1] + 0.0722f * _pixels[idx + 2]) * sinTheta;
+                weights += sinTheta;
+            }
+        }
+        float mean = weights > 0 ? (float)(sum / weights) : 0f;
+
+        (_plainMarg, _plainCond, _) = Build(0f);
+        var (cm, cc, total) = Build(mean);
+        // Compensation needs something left above the mean: at least 1% of the
+        // plain weight, or the light samples would starve.
+        if (total > 0.01 * sum) (_compMarg, _compCond) = (cm, cc);
+        UseMisCompensation = true;
+    }
+
+    private (float[] Marg, float[][] Cond, double Total) Build(float subtract)
+    {
+        float[] rowWeights = new float[_height];
+        var cond = new float[_height][];
+
+        for (int y = 0; y < _height; y++)
+        {
+            cond[y] = new float[_width];
             float rowSum = 0f;
             // sin(theta) factor for solid angle weighting. theta is 0 at zenith, pi at bottom.
             float theta = MathF.PI * (y + 0.5f) / _height;
@@ -149,34 +200,36 @@ public class EnvironmentMap
             {
                 int idx = (y * _width + x) * 3;
                 float lum = 0.2126f * _pixels[idx] + 0.7152f * _pixels[idx+1] + 0.0722f * _pixels[idx+2];
-                rowSum += lum * sinTheta;
-                _condCdf[y][x] = rowSum;
+                rowSum += MathF.Max(0f, lum - subtract) * sinTheta;
+                cond[y][x] = rowSum;
             }
 
             if (rowSum > 0f)
             {
-                for (int x = 0; x < _width; x++) _condCdf[y][x] /= rowSum;
+                for (int x = 0; x < _width; x++) cond[y][x] /= rowSum;
             }
             rowWeights[y] = rowSum;
         }
 
-        _margCdf = new float[_height];
-        float totalWeight = 0f;
+        var marg = new float[_height];
+        double totalWeight = 0;
         for (int y = 0; y < _height; y++)
         {
             totalWeight += rowWeights[y];
-            _margCdf[y] = totalWeight;
+            marg[y] = (float)totalWeight;
         }
 
-        if (totalWeight > 0f)
+        if (totalWeight > 0)
         {
-            for (int y = 0; y < _height; y++) _margCdf[y] /= totalWeight;
+            for (int y = 0; y < _height; y++) marg[y] = (float)(marg[y] / totalWeight);
+            marg[_height - 1] = 1f;
         }
         else
         {
             // Fallback for completely black HDRI
-            for (int y = 0; y < _height; y++) _margCdf[y] = (y + 1f) / _height;
+            for (int y = 0; y < _height; y++) marg[y] = (y + 1f) / _height;
         }
+        return (marg, cond, totalWeight);
     }
 
     /// <summary>
@@ -209,16 +262,11 @@ public class EnvironmentMap
         u -= MathF.Floor(u);
 
         // ── Bilinear filtering ──────────────────────────────────────────
-        float px = u * (_width - 1);
-        float py = v * (_height - 1);
-
-        int x0 = (int)px;
-        int y0 = (int)py;
-        int x1 = (x0 + 1) % _width; // wrap horizontally (equirectangular seam)
-        int y1 = Math.Min(y0 + 1, _height - 1);
-
-        float fx = px - x0;
-        float fy = py - y0;
+        // Texel-centred, like the CDF's cells: texel x covers [x/W, (x+1)/W).
+        // (u·(W−1) stretched the image by a texel against the cells the
+        // importance sampler picks.) Wraps across the seam, clamps at the poles.
+        var (x0, x1, fx) = Axis(u * _width - 0.5f, _width, wrap: true);
+        var (y0, y1, fy) = Axis(v * _height - 0.5f, _height, wrap: false);
 
         Vector3 c00 = GetPixel(x0, y0);
         Vector3 c10 = GetPixel(x1, y0);
@@ -238,14 +286,16 @@ public class EnvironmentMap
     /// <returns>The sampled direction, and the PDF (probability density function) of picking that direction.</returns>
     public (Vector3 Direction, float Pdf) SampleDirection()
     {
+        // One 2D decision: row from the marginal CDF, column from the row's
+        // conditional CDF.
+        var (r1, r2) = MathUtils.Random2D();
+
         // 1. Sample row (marginal CDF)
-        float r1 = MathUtils.RandomFloat();
         int y = Array.BinarySearch(_margCdf, r1);
         if (y < 0) y = ~y;
         y = Math.Clamp(y, 0, _height - 1);
 
         // 2. Sample column (conditional CDF)
-        float r2 = MathUtils.RandomFloat();
         int x = Array.BinarySearch(_condCdf[y], r2);
         if (x < 0) x = ~x;
         x = Math.Clamp(x, 0, _width - 1);
@@ -255,9 +305,18 @@ public class EnvironmentMap
         float pdfCol = (x == 0 ? _condCdf[y][0] : _condCdf[y][x] - _condCdf[y][x - 1]);
         float pdfPixel = pdfRow * pdfCol; // Probability of picking this pixel
 
-        // Convert UV to angles
-        float u = (x + 0.5f) / _width;
-        float v = (y + 0.5f) / _height;
+        // Continuous position inside the chosen texel: the residual of each
+        // uniform within its CDF bin is itself uniform, so the direction is
+        // spread over the whole texel instead of always landing on its centre
+        // (a discrete set of directions gave stepped shadows and a biased
+        // estimate, PIANO-REVIEW.md §3.9). The density stays piecewise
+        // constant per texel, matching PdfDirection.
+        float rowLo = y == 0 ? 0f : _margCdf[y - 1];
+        float colLo = x == 0 ? 0f : _condCdf[y][x - 1];
+        float fy = pdfRow > 0f ? Math.Clamp((r1 - rowLo) / pdfRow, 0f, 0.99999f) : 0.5f;
+        float fx = pdfCol > 0f ? Math.Clamp((r2 - colLo) / pdfCol, 0f, 0.99999f) : 0.5f;
+        float u = (x + fx) / _width;
+        float v = (y + fy) / _height;
 
         float phi = (u - 0.5f) * 2f * MathF.PI; // -π to π
         // Remove rotation applied during lookup
@@ -265,11 +324,13 @@ public class EnvironmentMap
         
         float theta = (0.5f - v) * MathF.PI; // π/2 (zenith) to -π/2 (bottom)
 
-        Vector3 dir = new Vector3(
-            MathF.Cos(theta) * MathF.Sin(phi),
-            MathF.Sin(theta),
-            -MathF.Cos(theta) * MathF.Cos(phi)
-        );
+        // The inverse of Sample's mapping (φ = atan2(x, z)): the sampled
+        // direction must look up the texel that was sampled. With
+        // z = −cos θ cos φ it landed on the texel mirrored across φ = π/2,
+        // unbiased (the pdf was the sampler's) but aimed away from the
+        // bright texels, and an extracted sun sat at the mirrored azimuth
+        // (PIANO-REVIEW.md §3.44).
+        Vector3 dir = DirectionOf(phi, theta);
 
         // Solid angle of one pixel: dW = sin(theta) * dTheta * dPhi
         // PDF with respect to solid angle: p(dir) = p(pixel) / dW
@@ -293,9 +354,7 @@ public class EnvironmentMap
     {
         Vector3 dir = Vector3.Normalize(direction);
 
-        float phi = MathF.Atan2(dir.X, -dir.Z); // undo the -cos/sin pairing used in SampleDirection
-        // SampleDirection builds dir = (cos θ sin φ, sin θ, -cos θ cos φ), so
-        // atan2(dir.X, -dir.Z) recovers φ in (-π, π].
+        float phi = MathF.Atan2(dir.X, dir.Z); // Sample's and SampleDirection's φ, in (-π, π]
         float theta = MathF.Asin(Math.Clamp(dir.Y, -1f, 1f));
 
         // Apply the same rotation convention as the sampling routine (phi was
@@ -428,6 +487,35 @@ public class EnvironmentMap
         }
     }
 
+    /// <summary>
+    /// Direction of equirect angles (φ longitude, θ latitude): the inverse of
+    /// <see cref="Sample"/>'s φ = atan2(x, z), θ = asin(y).
+    /// </summary>
+    public static Vector3 DirectionOf(float phi, float theta) => new(
+        MathF.Cos(theta) * MathF.Sin(phi),
+        MathF.Sin(theta),
+        MathF.Cos(theta) * MathF.Cos(phi));
+
+    /// <summary>The two texels around a texel-space coordinate and the weight of the second.</summary>
+    private static (int I0, int I1, float F) Axis(float t, int n, bool wrap)
+    {
+        float f0 = MathF.Floor(t);
+        int i0 = (int)f0;
+        float f = t - f0;
+        int i1 = i0 + 1;
+        if (wrap)
+        {
+            i0 = ((i0 % n) + n) % n;
+            i1 = ((i1 % n) + n) % n;
+        }
+        else
+        {
+            i0 = Math.Clamp(i0, 0, n - 1);
+            i1 = Math.Clamp(i1, 0, n - 1);
+        }
+        return (i0, i1, f);
+    }
+
     private Vector3 SampleLevel(Vector3 direction, int level)
     {
         var (px, w, h) = _mipChain![level];
@@ -440,14 +528,8 @@ public class EnvironmentMap
         float u = 0.5f + phi * inv2Pi;
         float v = 0.5f - theta * invPi;
         u -= MathF.Floor(u);
-        float px_ = u * (w - 1);
-        float py_ = v * (h - 1);
-        int x0 = (int)px_;
-        int y0 = (int)py_;
-        int x1 = (x0 + 1) % w;
-        int y1 = Math.Min(y0 + 1, h - 1);
-        float fx = px_ - x0;
-        float fy = py_ - y0;
+        var (x0, x1, fx) = Axis(u * w - 0.5f, w, wrap: true);
+        var (y0, y1, fy) = Axis(v * h - 0.5f, h, wrap: false);
         Vector3 c00 = new(px[(y0 * w + x0) * 3], px[(y0 * w + x0) * 3 + 1], px[(y0 * w + x0) * 3 + 2]);
         Vector3 c10 = new(px[(y0 * w + x1) * 3], px[(y0 * w + x1) * 3 + 1], px[(y0 * w + x1) * 3 + 2]);
         Vector3 c01 = new(px[(y1 * w + x0) * 3], px[(y1 * w + x0) * 3 + 1], px[(y1 * w + x0) * 3 + 2]);

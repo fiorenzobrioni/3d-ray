@@ -1,236 +1,169 @@
 # Modello di Shading e Materiali
 
-Questo documento approfondisce la fisica e la matematica dietro l'interazione raggio-superficie in 3D-Ray, con particolare focus sul modello PBR avanzato.
-
-## 1. Disney Principled BSDF
-
-Il materiale principale (`type: "disney"`) implementa il modello BRDF unificato proposto da Brent Burley (Disney Animation) nel 2012. Questo modello permette di rappresentare una vasta gamma di materiali reali (metalli, plastiche, vetri, tessuti) attraverso un set di parametri artistici che vengono mappati internamente a funzioni di distribuzione micro-sfaccettature fisicamente corrette.
-
-### 1.1 Microfacet Model (Cook-Torrance)
-Per i lobi speculari e il clearcoat, il motore utilizza il modello di Cook-Torrance:
-
-$$ f(l, v) = \frac{D(h) G(l, v, h) F(v, h)}{4(n \cdot l)(n \cdot v)} $$
-
-*   **D(h) - Normal Distribution Function (NDF)**: Utilizziamo la distribuzione **GGX** (Trowbridge-Reitz), nota per le sue code lunghe che simulano meglio i riflessi del mondo reale.
-    $$ D(h) = \frac{\alpha^2}{\pi ((n \cdot h)^2 (\alpha^2 - 1) + 1)^2} $$
-    dove $\alpha = \text{Roughness}^2$.
-
-*   **G(l, v, h) - Geometry Term**: Implementiamo il modello **Smith** correlato all'altezza per mascheramento e ombreggiamento (masking/shadowing), che assicura la conservazione dell'energia.
-
-*   **F(v, h) - Fresnel Term**: Utilizziamo l'approssimazione di **Schlick** per calcolare la riflettanza in base all'angolo di incidenza:
-    $$ F = F_0 + (1 - F_0)(1 - \cos \theta)^5 $$
-
-### 1.2 I Lobi del BSDF
-Il materiale Disney in 3D-Ray campiona stocasticamente i seguenti lobi:
-
-1. **Diffuse** — Disney Diffuse con retro-riflessione radente; il parametro `subsurface` e il parametro Disney 2015 `flatness` mescolano il Lambert classico con la forma "HK-flat" di Hanrahan-Krueger (modulata da `subsurface_color` quando l'artista vuole una tinta sotto-pelle indipendente dal `base_color`).
-2. **Diffuse transmission** (`diff_trans`, Disney 2015) — Lobo Lambertiano nell'emisfero opposto per fogli, foglie, tendaggi: una frazione dell'energia diffusa viene rifratta invece che riflessa. Combinato con `thin_walled: true` evita la double-refraction tipica dei fogli sottili.
-3. **Specular anisotropo** — Lobo GGX anisotropo (Burley 2012 §5.4) con `anisotropic` che controlla il rapporto αx/αy e `anisotropic_rotation` che ruota il frame tangente — highlight allungati per metallo spazzolato, capelli, vinile. Sampled con **VNDF** (Heitz 2018). Per i metalli F₀ ≈ `base_color`; per i dielettrici F₀ ≈ `0.04 × specular`. Una correzione di **thin-film iridescence** (Belcour-Barla 2017) sostituisce F₀ con la riflettanza di un film sottile di spessore `thin_film_thickness` e IOR `thin_film_ior` — bolle di sapone, opal, anti-riflesso.
-4. **Multi-scattering compensation (Kulla-Conty 2017)** — Lobo additivo che recupera l'energia che il Smith single-scatter dropperebbe ad alta roughness (metalli e dielettrici a roughness > 0.3 altrimenti perdono fino al 30% della riflettanza). LUT 32×32 precalcolata con lazy init protetta da possibili dead-lock del thread pool.
-5. **Specular transmission** (`spec_trans`) — Rifrazione di Fresnel campionata attraverso micronormali GGX per vetro smerigliato. Con `transmission_color` + `transmission_depth` il renderer attiva l'assorbimento **Beer-Lambert** all'interno del materiale (medium-switch riportato in `BsdfSample.NextSegmentAbsorption`), convertendo `color` in σ_a = −ln(color) / depth per un'attenuazione esponenziale lungo la distanza percorsa nel vetro.
-6. **Charlie sheen** (`sheen`, `sheen_tint`, `sheen_roughness`) — Lobo microfacet "Charlie" di Estevez-Kulla 2017 (NDF invertita con coda grazing + Λ polinomiale) al posto dello Schlick sheen; produce velluto, pesca e microfibra in modo energeticamente pulito.
-7. **Clearcoat** (`clearcoat`, `coat_ior`, `coat_roughness`, `coat_normal`) — Secondo lobo speculare per vernici e lacche. Nella modalità classica Disney 2012 l'α è derivato da `clearcoat_gloss`; quando l'artista forza `coat_roughness ≥ 0` o `coat_ior ≠ 1.5`, il coat diventa un lobo fisico con IOR esplicita e `coat_normal` dedicato (la vernice trasparente si perturba indipendentemente dalla base).
-
-### 1.3 Selezione Stocastica dei Lobi e Importance Sampling
-
-Ogni rimbalzo indiretto del path tracer deve scegliere **una** direzione scattered. Poiché il Disney BSDF è una somma di contributi, la scelta avviene stocasticamente: si seleziona un lobo con probabilità proporzionale alla sua energia attesa, si campiona una direzione da quel lobo, e si compensa l'attenuation per mantenere l'estimatore Monte Carlo unbiased.
-
-#### Calcolo dei pesi per lobo
-
-I pesi non sono costanti arbitrari: approssimano il contributo energetico di ciascun lobo prima di conoscere la direzione incidente.
-
-```
-diffuseW  = (1 - metallic) × (1 - specTrans)
-specularW = max(0.1, lerp(F₀_dielectric, 1, metallic))
-transW    = (1 - metallic) × specTrans
-sheenW    = sheen × 0.25 × diffuseW
-clearW    = clearcoat × 0.04          ← F₀ del clearcoat (IOR ≈ 1.5)
-```
-
-Il floor `max(0.1, ...)` su `specularW` garantisce che il lobo speculare venga sempre campionato, anche per dielettrici con F₀ molto basso — fondamentale perché il riflesso speculare è visivamente dominante su superfici lisce anche a F₀ = 0.04.
-
-Le probabilità normalizzate sono:
-
-$$p_i = \frac{w_i}{\sum_j w_j}$$
-
-#### Compensazione Monte Carlo (unbiased estimator)
-
-Selezionato il lobo $i$ con probabilità $p_i$, la direzione campionata da quel lobo produce un'attenuation $a_i$. Per mantenere l'estimatore corretto, l'attenuation viene divisa per la probabilità di selezione:
-
-$$\text{attenuation}_\text{final} = \frac{a_i}{p_i}$$
-
-In questo modo, in media sui molti campioni, ogni lobo contribuisce con il suo peso corretto indipendentemente da quanto spesso viene scelto.
-
-#### Campionamento GGX per il lobo Specular
-
-Invece di campionare una direzione casuale e valutare la BRDF (campionamento ingenuo), il lobo speculare usa **GGX importance sampling**: si campiona direttamente la normal distribution function per generare una half-vector $H$ allineata con il picco della NDF.
-
-$$H = \text{GGX\_sample}(\alpha, \xi_1, \xi_2)$$
-
-La direzione scattered è la riflessione di $V$ attorno a $H$. La PDF di questo campionamento è:
-
-$$p(H) = \frac{D(H) \cdot (N \cdot H)}{4 \cdot (V \cdot H)}$$
-
-Questo riduce drasticamente la varianza per materiali lucidi (roughness bassa), dove campionare una direzione casuale produrrebbe quasi sempre un contributo nullo perché il lobo è molto stretto.
-
-Il clearcoat usa lo stesso schema con il proprio $\alpha_\text{cc}$ derivato da `clearcoatGloss`.
-
-#### Frosted glass: GGX normals per la trasmissione (FIX #7a)
-
-Il lobo di trasmissione per vetri smerigliati (`spec_trans > 0`, `roughness > 0`) aveva originariamente un bug: la direzione rifratta veniva perturbata con rumore uniforme sulla sfera. Questo non corrispondeva alla distribuzione GGX usata dal lobo speculare, producendo alta varianza per vetri con roughness media.
-
-La soluzione corretta campiona prima una micronormale $H$ dalla GGX NDF, poi calcola la rifrazione attraverso $H$ invece che attraverso la normale geometrica $N$:
-
-```
-H = GGX_sample(α, ξ₁, ξ₂)      // micronormale dal NDF
-direction = Refract(ray, H, eta)  // rifrazione attraverso H, non N
-```
-
-Questo produce una distribuzione di direzioni rifratte coerente con il modello GGX, eliminando il disaccoppiamento tra trasmissione e riflessione che causava il rumore eccessivo.
-
-#### Charlie sheen (Estevez-Kulla 2017)
-
-Originariamente lo sheen era sommato al diffuse con un taglio radente alla Schlick. Il modello attuale (`src/RayTracer/Materials/SheenCharlie.cs`) sostituisce l'approssimazione con un microfacet "Charlie": NDF invertita
-
-$$ D_\text{Charlie}(\theta_h) = \frac{(2 + 1/\alpha)\, \sin^{1/\alpha} \theta_h}{2\pi} $$
-
-combinata con un Λ polinomiale fittato (Estevez-Kulla 2017). Il parametro `sheen_roughness` (default 0.3) controlla la larghezza della cintura radente indipendentemente dalla `roughness` base; `sheen_tint` interpola la tinta tra bianco e la tinta del `base_color`. Il lobo è campionato cosine-weighted e compensato dal peso `sheenW = sheen × 0.25 × diffuseW`.
-
-#### VNDF sampling (Heitz 2018)
-
-Specular e transmission campionano le micronormali dalla **Visible NDF** invece che dalla NDF completa: si disegnano solo le micronormali effettivamente viste dal punto di vista, eliminando la selezione-rigetto per le micronormali nascoste. Elimina i clamp empirici di roughness e converge più velocemente a grazing. Per back-hemisphere L la PDF viene riportata sulla sfera completa (convenzione PBRT 2018): le micronormali che riflettono nel semispazio sbagliato trasportano peso nullo via G2/G1, ma restano nell'integrale di normalizzazione.
-
-#### Beer-Lambert per il vetro
-
-Quando `transmission_color` è impostato con `transmission_depth > 0`, il Disney BSDF converte il colore in coefficienti di assorbimento
-
-$$ \sigma_a = -\frac{\ln(\text{transmissionColor})}{\text{transmissionDepth}} $$
-
-e — al momento di una rifrazione che *entra* nel materiale — restituisce nella `BsdfSample.NextSegmentAbsorption` il σ_a da applicare al segmento di raggio successivo. Il Renderer traccia l'assorbimento lungo ogni segmento interno con `exp(−σ_a · t)`; quando il raggio esce, il sample riporta σ_a = 0 per tornare al vuoto. Il risultato: spessori reali di vetro colorato (brandy, assenzio, birra nell'ambra), invece della tinta uniforme dell'attenuation in superficie.
-
-#### Multi-scattering compensation (Kulla-Conty 2017)
-
-Il modello Smith single-scatter perde una frazione crescente di energia al crescere di α (fino al 30% a α = 0.9 per i metalli). Il termine di compensazione
-
-$$ f_\text{ms}(\mu_i, \mu_o, \alpha) = \frac{(1 - E(\mu_i, \alpha))(1 - E(\mu_o, \alpha))}{\pi (1 - E_\text{avg}(\alpha))} \cdot F_\text{ms} $$
-
-ripristina il bilanciamento via una LUT 2D di E(μ, α) (32×32, linear-interp) e un integrale LUT 1D di E_avg(α). Il fattore di Fresnel effettivo F_ms viene calcolato dalla media direzionale della Schlick. Si applica anche ai dielettrici, scalato dal loro F̄ dipendente dall'IOR. La LUT è lazy-init con guardia anti-deadlock (il primo accesso viene wrappato in un `Task.Run` se la initialization avviene già sul thread pool, altrimenti rischieremmo un deadlock del pool su `Task.Run().Wait()`).
-
-#### MIS balance heuristic (Veach 1997)
-
-Per ogni hit, il renderer combina due stimatori del direct lighting via **balance heuristic**:
-
-$$ w_\text{NEE} = \frac{p_\text{light}}{p_\text{light} + p_\text{bsdf}}, \quad w_\text{BSDF} = \frac{p_\text{bsdf}}{p_\text{light} + p_\text{bsdf}} $$
-
-- **NEE contribution**: shadow ray verso la luce, pesata da `material.Evaluate(V, L) × cos × lightColor × w_NEE`, con `p_bsdf` fornita da `material.Pdf(V, L)`.
-- **BSDF contribution**: emissione vista al prossimo hit (o nella sky miss), pesata da `w_BSDF = prevBsdfPdf / (prevBsdfPdf + p_light)` — la `prevBsdfPdf` è quella restituita da `BsdfSample.Pdf` al bounce precedente.
-
-I materiali legacy che esportano solo `Scatter()` (Lambert, Metal, Dielectric, Mix) usano la convenzione `prevBsdfPdf = 0`: NEE vede peso 1, l'emissione al prossimo hit viene soppressa dagli emettitori NEE-registrati (per evitare doppio conteggio) ma passa intera dagli emettitori non registrati e dai bounce delta (`IMaterial.IsDeltaScatter = true`).
-
-Le luci espongono `IsDelta` (i point/directional/spot sono delta — NEE = 1, nessuna corrispondenza BSDF) e `PdfSolidAngle(origin, dir)` per chiudere il cerchio sul lato luminoso.
-
-#### Consistenza direct/indirect (FIX #3)
-
-Il renderer calcola l'illuminazione in due passi per ogni hit: direct lighting (NEE, via `EvaluateDirect`) e indirect lighting (via `Sample`/`Scatter`). Per coerenza energetica, entrambi usano lo stesso modello di BRDF (Cook-Torrance completo — GGX NDF + Smith geometry + Schlick Fresnel) così che la somma non produca banding né fireflies da mismatch fra stimatori.
+Questa pagina descrive come i materiali di 3D-Ray rispondono alla luce: il nucleo microfacet comune, i materiali classici, il materiale a strati OpenPBR e la traduzione del tipo `disney` su di esso, l'interfaccia che il renderer usa. Il riferimento YAML dei parametri è in [`docs/reference/scene-reference.md`](../reference/scene-reference.md) §5.
 
 ---
 
-## 2. Varianza e Convergenza: Disney BSDF vs Materiali Classici
+## 1. I materiali
 
-### 2.1 Perché il Disney è più rumoroso
-
-Il materiale Disney utilizza la **selezione stocastica dei lobi**: ad ogni rimbalzo il path tracer sceglie casualmente un solo lobo tra i cinque disponibili (diffuse, specular, transmission, sheen, clearcoat), campiona una direzione da quel lobo, e divide l'attenuation per la probabilità di selezione (`1/p`) per mantenere l'estimatore Monte Carlo corretto.
-
-Questa compensazione `1/p` è la fonte principale di varianza aggiuntiva rispetto ai materiali classici:
-
-- **Lambertian**: un solo lobo (cosine-weighted), attenuation = albedo. Nessuna selezione, nessuna compensazione. Varianza minima.
-- **Metal**: un solo lobo (GGX specular), attenuation = albedo × ggxWeight (≤ 1.0). Nessuna compensazione. Varianza bassa.
-- **Dielectric**: scelta binaria riflessione/rifrazione via Fresnel, ma entrambi i path restituiscono lo stesso peso. Nessuna compensazione. Varianza bassa.
-- **Disney opaco** (es. plastica): due lobi attivi (diffuse + specular). Il ~9% dei campioni seleziona lo specular con compensazione ~11×, il ~91% seleziona il diffuse con compensazione ~1.1×. L'oscillazione tra i due crea grana visibile.
-- **Disney trasmissivo** (vetro): due lobi attivi (transmission + specular). La trasmissione gestisce già il Fresnel internamente, ma il lobo specular aggiunge campioni ridondanti con alta compensazione.
-
-### 2.2 Quando il Disney NON aggiunge rumore
-
-Il Disney metallico puro (`metallic=1.0`, senza clearcoat né sheen) ha un solo lobo attivo — lo specular con probabilità ~100%. La compensazione `1/p ≈ 1.0` non amplifica nulla. In questa configurazione, il Disney è equivalente al `metal` classico in termini di rumore.
-
-### 2.3 Guida pratica: quando usare Disney vs classici
-
-| Superficie | Materiale consigliato | Motivazione |
+| Tipo YAML | Classe | Uso |
 |---|---|---|
-| Pavimento, muri, soffitti | `lambertian` | Grandi superfici, differenza visiva minima, rumore massimo per area coperta |
-| Tavoli, piedistalli, supporti | `lambertian` o `metal` | Superfici di sfondo, il Fresnel Disney non giustifica il costo |
-| Metalli (oro, cromo, acciaio) | `disney` metallic=1.0 | **Nessun rumore aggiuntivo**, GGX corretto, Fresnel colorato per metalli |
-| Plastica protagonista, pelle, cera | `disney` | Effetti unici (subsurface, sheen, Fresnel) non ottenibili con classici |
-| Vernice auto, lacca | `disney` con clearcoat | Effetto a due strati non ottenibile con classici |
-| Vetro chiaro semplice | `dielectric` | Più pulito e veloce del Disney equivalente |
-| Vetro colorato, smerigliato | `disney` spec_trans | Feature uniche (tint + roughness) non disponibili in `dielectric` |
-| Tessuti, velluto | `disney` con sheen | Effetto radente unico del Disney |
+| `lambertian` | `Lambertian` | Diffuso ideale. |
+| `metal` | `Metal` | Conduttore GGX: Fresnel complesso misurato (`preset`, `eta`/`k`) o F82 (`color` + `edge_color`), scattering multiplo. |
+| `dielectric` | `Dielectric` | Vetro liscio (due lobi delta) o satinato (Walter 2007). |
+| `emissive` | `Emissive` | Sorgente di luce di superficie, campionata dalla NEE. |
+| `openpbr` | `OpenPbr` | Materiale a strati OpenPBR Surface v1.1: metallo, dielettrico, diffuso, vetro, subsurface, coat, fuzz, film sottile, emissione, opacità, thin-walled. |
+| `disney` / `pbr` | `OpenPbr` (via `DisneyMaterial.Create`) | I parametri Disney tradotti su OpenPBR (§5). |
+| `mix` | `MixMaterial` | Miscela di due materiali con peso costante o maschera. |
 
-### 2.4 Sample count consigliati per materiali Disney
-
-A causa della varianza aggiuntiva, i materiali Disney richiedono più campioni per convergere allo stesso livello di pulizia dei classici:
-
-| Qualità target | Solo classici | Mix classici + Disney | Tutto Disney |
-|---|---|---|---|
-| Preview (rumoroso) | 16 spp | 32 spp | 64 spp |
-| Draft (grana leggera) | 32 spp | 64 spp | 128 spp |
-| Produzione (pulito) | 128 spp | 256 spp | 512 spp |
-
-> **Nota tecnica:** La varianza del Disney decresce come `1/√spp` (legge dei grandi numeri). Per dimezzare il rumore visibile serve 4× i campioni. Passare da 64 a 256 spp dimezza il rumore; passare da 256 a 1024 lo dimezza ancora.
+Ogni materiale conserva l'energia: con colori bianchi e senza assorbimento una sfera sotto un cielo bianco uniforme sparisce nello sfondo (scene `scenes/review/*white-furnace*.yaml`, misure nel loro README).
 
 ---
 
-## 3. Normal Mapping e Spazio Tangente
+## 2. Il nucleo microfacet (`Microfacet.cs`)
 
-Il motore supporta Normal Mapping su tutti i materiali e primitive.
+Tutti i lobi lucidi usano lo stesso modello:
 
-### 3.1 Matrice TBN
-Per perturbare la normale di shading, costruiamo una base ortonormale locale chiamata matrice TBN (Tangent, Bitangent, Normal):
-1.  **Tangent (T)** e **Bitangent (B)** sono derivati dalle coordinate UV della primitiva.
-2.  Utilizziamo l'**ortogonalizzazione di Gram-Schmidt** per garantire che T e B siano perfettamente perpendicolari alla normale geometrica N.
-3.  In caso di back-face hitting (interno dell'oggetto), invertiamo T e B per mantenere la "handedness" corretta ed evitare che i rilievi appaiano invertiti.
+- **NDF GGX anisotropa**, normalizzata: $\int D(h)\,(h\cdot n)\,d\omega_h = 1$.
+- **Smith correlato in altezza**: $G_2 = 1 / (1 + \Lambda(v) + \Lambda(l))$, con il $\Lambda$ della GGX. Soddisfa l'identità dell'area proiettata (test `MicrofacetTests`).
+- **Campionamento delle normali visibili** (Heitz 2018): la direzione riflessa ha pdf $G_1(v)\,D(h) / (4\,v\cdot n)$. Le direzioni che finiscono sotto l'orizzonte sono scartate (il campione è perso, la pdf dichiarata resta esatta dove il lobo ha supporto).
+- **Anisotropia** alla OpenPBR: con rugosità $r$ e anisotropia $a$, $\alpha_t = r^2 \sqrt{2 / (1 + (1-a)^2)}$, $\alpha_b = (1-a)\,\alpha_t$.
 
-La normale perturbata viene quindi calcolata come:
+**Albedo direzionale tabulata.** Il singolo scattering perde la luce che rimbalza più volte fra le microfacette, e gli strati di OpenPBR pesano ciò che sta sotto un'interfaccia con l'albedo di quell'interfaccia. Le albedo sono integrate offline con una quadratura deterministica sulle normali visibili (nessun rumore Monte Carlo) e scritte in tabelle C#:
+
+| Tabella | Generatore | Contenuto |
+|---|---|---|
+| `MicrofacetAlbedo` | `validation/gen_microfacet_albedo.py` | $E(\mu, \alpha)$ e $E_{avg}(\alpha)$ di un riflettore bianco isotropo |
+| `AnisotropicAlbedo` | `validation/gen_aniso_albedo.py` | $E(\mu, \phi, r, a)$ di un riflettore bianco anisotropo e la sua media |
+| `DielectricAlbedo` | `validation/gen_dielectric_albedo.py` | $E_R(\mu, \alpha, \eta)$ del lobo riflesso di un dielettrico (Fresnel esatto) e la media emisferica del Fresnel $E_F(\eta)$ |
+
+Ogni tabella ha un test che la confronta con l'integrale diretto del BRDF (`OpenPbrLobeTests`).
+
+**Soglia delta.** Sotto rugosità 0.0317 ($\alpha \le 10^{-3}$, un lobo più stretto di 0.06°) un lobo speculare è trattato come specchio perfetto: è campionato come delta e nessun raggio d'ombra o connessione bidirezionale incontra un lobo quasi singolare.
+
+---
+
+## 3. Metallo (`Metal.cs`, lobo metallico di OpenPBR)
+
+- **Fresnel**: per un metallo misurato le equazioni esatte per l'indice complesso $n + ik$ (15 preset, riduzione RGB di dati spettrali misurati); altrimenti il modello F82 (Kutz 2021): la curva di Schlick dal colore a incidenza normale, abbassata verso $\mu = 1/7$ fino a `edge_color` per la depressione dei metalli reali.
+- **Scattering multiplo** (Kulla e Conty 2017): un lobo $f_{ms} = F_{ms}\,(1 - E(\omega_o))(1 - E(\omega_i)) / (\pi\,(1 - E_{avg}))$ restituisce la luce che il singolo scattering perde, nel colore della media del Fresnel: un metallo bianco resta bianco a ogni rugosità. Per un lobo anisotropo $E$ viene dalla tabella anisotropa, letta a entrambe le direzioni: il lobo resta reciproco ed esatto.
+- **Campionamento**: normali visibili con probabilità $E(\mu_o)$, coseno per il resto (la forma del lobo multiplo).
+
+Validato contro un renderer di riferimento indipendente (`validation/`): `metal-presets` 1.0001, `metal-rough` 1.0032 (il residuo è la scelta del $G_2$ correlato in altezza; con il $G$ separabile il risultato è 1.0000).
+
+---
+
+## 4. Dielettrico (`Dielectric.cs`, interfaccia di OpenPBR)
+
+- **Liscio**: Fresnel esatto non polarizzato, riflessione o rifrazione scelte con probabilità $F$, ciascuna un lobo delta. Riflessione totale interna senza consumare numeri casuali.
+- **Ruvido** (Walter et al. 2007): riflessione GGX e trasmissione con il semivettore $h \propto v + \eta\,l$, pdf dalle normali visibili con lo jacobiano della rifrazione. Rispetta la reciprocità generalizzata $f(v \to l)/n_v^2 = f(l \to v)/n_l^2$.
+- **Radianza alla rifrazione**: la radianza attraversando l'interfaccia scala di $(\eta_i/\eta_t)^2$ (si conserva $L/n^2$). I sottocammini di luce del BDPT/VCM, che trasportano importanza (la BSDF aggiunta), tolgono il fattore.
+- **Dielettrici annidati**: l'indice relativo viene dalla pila degli IOR del raggio (`IorStack`), quindi vino in un bicchiere rifrange contro il vetro, non contro l'aria.
+- **NEE attraverso la superficie**: una superficie che trasmette in modo non delta (vetro satinato, diffusione thin-walled) riceve luce anche da dietro (`IMaterial.HasTransmission`).
+
+Validato contro il renderer di riferimento: `glass-rough` 1.0013, `glass-shadow` 0.9995, `null-shell` 1.0001.
+
+---
+
+## 5. OpenPBR Surface (`OpenPbr.cs`)
+
+Il modello della Academy Software Foundation, ridotto a una miscela di lobi come la specifica stessa deriva:
+
+$$ f = \alpha \Big( F\,f_{fuzz} + (1 - F\,E_{fuzz})\,\big[\,C\,f_{coat} + \mathrm{lerp}(1, A\,(1 - E_{coat}), C)\;\Delta_C\; f_{base} \big] \Big) $$
+$$ f_{base} = \mathrm{lerp}\big(\, f^R + T'\,f^T + D(\omega_o, \omega_i)\,f_{diff},\; f_{metal},\; M \big) $$
+
+con $\alpha$ l'opacità, $F, C, M, T$ i pesi di fuzz, coat, metallicità e trasmissione, $A$ l'assorbimento del coat lungo i due cammini, $\Delta_C$ l'oscuramento del coat dovuto alle riflessioni interne.
+
+| Lobo | Modello |
+|---|---|
+| $f_{metal}$ | §3, F82 da `base_color` e `specular_color`, scalato da `specular_weight` |
+| $f^R$, $f^T$ | §4, interfaccia di `specular_ior`; `specular_weight` scala la riflettanza a incidenza normale cambiando l'indice; film sottile di Belcour e Barla sul Fresnel |
+| $f_{diff}$ | EON (Portsmouth, Kutz e Hill 2024): Oren-Nayar di Fujii più un lobo multiplo che conserva l'energia; rugosità 0 è Lambert |
+| $f_{coat}$ | riflessione GGX di `coat_ior`; un coat ruvido rende più ruvida la base |
+| $f_{fuzz}$ | lo sheen a scattering multiplo di Zeltner, Burley e Chiang 2022 (coseno trasformato linearmente) |
+
+**Strati.** Ciò che sta sotto un'interfaccia riceve solo la luce che l'interfaccia non riflette:
+
+- **Diffuso sotto lo speculare**: peso reciproco $D = (1 - E_R(\omega_o))(1 - E_R(\omega_i)) / (1 - \bar E_R)$, esatto per una base lambertiana e simmetrico nelle due direzioni (la forma della specifica, $1 - E_R(\omega_o)$, non è reciproca).
+- **Coat e fuzz**: la forma della specifica, con la sola albedo della direzione di vista. È quella che conserva l'energia sopra qualsiasi base (anche uno specchio); il prezzo è che questi due strati non sono reciproci. Il renderer usa le BSDF non delta solo nel verso della camera, quindi la non reciprocità non introduce errori nelle immagini.
+
+**Trasmissione e subsurface.** $T' = T + (1 - T)\,S$: la luce del subsurface entra dalla stessa interfaccia del vetro e il random walk del renderer la porta dentro il mezzo che il loader lega all'oggetto (cammino libero medio `subsurface_radius` × `subsurface_radius_scale`, albedo di scattering singolo invertita perché il colore complessivo sia `subsurface_color`). Senza profondità `transmission_color` tinge la rifrazione all'ingresso; con `transmission_depth` è la trasmittanza a quella profondità (Beer-Lambert).
+
+**Thin-walled.** Un foglio senza interno: la trasmissione è una lastra (dritta se liscia, il lobo riflesso specchiato attraverso il foglio se ruvida), il subsurface diventa riflessione e trasmissione diffuse ripartite da `subsurface_scatter_anisotropy`.
+
+**Campionamento.** Un lobo è scelto con probabilità proporzionale alla sua albedo stimata; ogni lobo tiene solo le direzioni dentro il proprio supporto, così la pdf della miscela riportata in quel punto è esattamente la densità del campionatore. I lobi delta (coat liscio, base liscia) restituiscono il loro peso diviso per la probabilità di scelta.
+
+**Verifiche** (`OpenPbrTests`, `OpenPbrLobeTests`, `DisneyBsdfTests`): fornace bianca in tutte le configurazioni elencate dalla specifica, chi-quadro del campionamento per ogni lobo, riduzioni esatte al `metal` e al vetro ruvido, reciprocità dove è dovuta.
+
+---
+
+## 6. Il tipo `disney` (`DisneyMaterial.cs`)
+
+I parametri Disney sono tradotti su OpenPBR; il trasporto della luce è quello del §5.
+
+| Disney | OpenPBR |
+|---|---|
+| `color`, `metallic`, `roughness` | `base_color`, `base_metalness`, `specular_roughness` |
+| `specular` (0.5) | `specular_weight` = 2 × specular (Disney scala F0 di 2 × specular) |
+| `specular_tint` | `specular_color` = lerp(1, tinta di `color`, tint) |
+| `anisotropic`, `anisotropic_rotation` | `specular_roughness_anisotropy` = 0.9 a; la rotazione gira la tangente |
+| `sheen`, `sheen_tint`, `sheen_roughness` | `fuzz_weight`, `fuzz_color`, `fuzz_roughness` |
+| `clearcoat`, `clearcoat_gloss` | `coat_weight`; `coat_roughness` = $\sqrt{\alpha}$ con $\alpha$ = lerp(0.1, 0.001, gloss) se non è scritto |
+| `spec_trans`, `ior` | `transmission_weight` (o `subsurface_weight` con il mezzo incorporato), `specular_ior` |
+| `transmission_color` senza profondità | il colore al quadrato all'ingresso (Disney tingeva ogni rifrazione); senza colore, `color` |
+| `diff_trans` | subsurface thin-walled con g = 2 × diff_trans − 1 |
+| `thin_film_thickness` (nm) | `thin_film_weight` 1 e spessore in micrometri |
+
+Il diffuso è Lambert. Le differenze di aspetto rispetto al vecchio modello sono elencate nel riferimento delle scene (§5.5) e mostrate in `scenes/review/images/disney-to-openpbr.jpg`.
+
+---
+
+## 7. Rumore e campioni
+
+Il materiale OpenPBR sceglie un lobo per rimbalzo, ma riporta peso e pdf della miscela intera: un campione di qualsiasi lobo pesa $f / p$ con la stessa $f$, quindi la varianza dipende dalla forma della BSDF, non dal numero di lobi. Le superfici con un lobo delta e uno diffuso (plastica liscia, vernice con coat liscio) sono le più rumorose, perché il riflesso nitido dell'ambiente arriva solo dai campioni del lobo delta. Il denoiser dei preset `draft`, `standard` e `pre-final` copre bene questo caso; per i render finali `-q final` (1024 campioni) è il punto di partenza.
+
+---
+
+## 8. Normal mapping e shadow terminator
+
+### 8.1 Matrice TBN
+La normale di shading è perturbata in una base ortonormale locale (Tangent, Bitangent, Normal):
+1. T e B sono derivati dalle coordinate UV della primitiva.
+2. Gram-Schmidt li rende perpendicolari alla normale.
+3. Su una faccia posteriore T e B sono invertiti, per non capovolgere i rilievi.
+
 $$ n_{\text{world}} = \text{normalize}(T \cdot n_x + B \cdot n_y + N \cdot n_z) $$
-dove $(n_x, n_y, n_z)$ sono i valori campionati dalla texture (rimappati da $[0, 1]$ a $[-1, 1]$).
+
+### 8.2 Shadow terminator
+Una normale perturbata può vedere luce dove la superficie vera è in ombra. Il fattore di Chiang (2019) sul lato della luce attenua quei contributi; fa parte dell'integrando, quindi pesa allo stesso modo il campione di luce della NEE e il campione della BSDF (§3.11 del piano di revisione). Dove la normale non è perturbata vale 1.
 
 ---
 
-## 4. Conservazione dell'Energia e Firefly Guard
+## 9. Interfaccia `IMaterial`
 
-Per garantire render puliti (senza "fireflies") e fisicamente stabili, il motore applica diverse protezioni:
-- **Albedo Clamping**: I colori base sono limitati per evitare materiali che generano più energia di quella che ricevono.
-- **NDF Limiting**: Il termine D(h) della GGX viene limitato per rugosità estremamente basse per evitare singolarità matematiche.
-- **Lobe Weighting**: Il campionamento stocastico è pesato sull'energia attesa di ogni lobo (Importance Sampling), riducendo drasticamente il rumore nel path tracing indiretto.
+Il renderer consuma i materiali attraverso `IMaterial` (`src/RayTracer/Materials/IMaterial.cs`):
+
+- `Evaluate(V, L, rec)`: la BSDF senza il coseno. È l'unica descrizione del materiale: la NEE pesa un campione di luce con `Evaluate` per il coseno $|\cos\theta_L|$, il rimbalzo indiretto campiona con `Sample`, il MIS combina le due strategie con `Pdf`. Le due stime riguardano quindi per costruzione la stessa funzione.
+- `Pdf(V, L, rec)`: densità in angolo solido del campionatore, senza i lobi delta.
+- `Sample(V, rec)`: direzione, valore, pdf, flag delta, transizione di mezzo; null significa luce assorbita.
+- Query di trasmissione: `HasTransmission` (NEE da dietro), `TransmitsStraight` (attraversamento esatto per i raggi d'ombra), `ShadowTransmittance` e `ShadowAbsorption` (ombre trasparenti), `TryGetDielectricIor` (pila degli IOR).
+- `Emit(...)`, `AovAlbedo(...)`, `NormalMap`, `BumpMap`, `Displacement`.
+- `NeedsDirectLighting` (falso per `Emissive`) e `IsDeltaScatter` (vero quando ogni lobo è delta).
 
 ---
-
-## 5. Interfaccia `IMaterial`
-
-Il renderer consuma i materiali attraverso `IMaterial` (`src/RayTracer/Materials/IMaterial.cs`). L'interfaccia è deliberatamente sottile:
-
-- `bool Scatter(rayIn, rec, out attenuation, out scattered)` — bounce indiretto "legacy" (Lambert, Metal, Dielectric, Mix). Deve restituire una direzione e un'attenuazione; la sua PDF è implicita.
-- `Vector3 EvaluateDirect(toLight, toEye, normal, rec)` — valore della BRDF moltiplicato per cos(θ_L), senza albedo (l'albedo è applicato dal Renderer attraverso l'attenuation). Chiamato per ogni shadow ray da NEE.
-- Tripla simmetrica per MIS: `Evaluate(V, L, rec)` (BRDF senza cosine), `Pdf(V, L, rec)` (solid-angle PDF), `Sample(V, rec) -> BsdfSample?` (direzione + F + PDF + flag delta + medium-switch).
-- `Vector3 Emit(...)` — emissione (nero per non emissivi).
-- `NormalMapTexture? NormalMap` — normal map opzionale.
-
-Due flag booleani sostituiscono i vecchi campi Blinn-Phong (`DiffuseWeight`, `SpecularExponent`, `SpecularStrength`):
-
-- `bool NeedsDirectLighting` (default true). Lo override `false` su `Emissive` spegne la NEE per le sorgenti stesse — ricevono zero illuminazione esterna e contribuiscono solo via `Emit`.
-- `bool IsDeltaScatter` (default false). Lo override `true` su `Dielectric` (e su `Metal` con `Fuzz = 0`) marca il bounce come delta: il prossimo hit vede l'emissione a pieno peso invece che soppressa dalla convenzione legacy NEE.
-
-Il `DisneyBsdf` ignora entrambi i flag: usa sempre il path `Sample()` (che gestisce il caso delta via `BsdfSample.IsDelta` per la transmission) e partecipa al MIS tramite `Evaluate`/`Pdf`.
 
 ## Riferimenti
 
-- Codice sorgente: `src/RayTracer/Materials/DisneyBsdf.cs`, `src/RayTracer/Materials/IMaterial.cs`, `src/RayTracer/Rendering/Renderer.cs`.
-- Burley, B. (2012). *Physically Based Shading at Disney*. SIGGRAPH Course Notes.
-- Burley, B. (2015). *Extending the Disney BRDF to a BSDF with Integrated Subsurface Scattering*. SIGGRAPH Course Notes. — `diff_trans`, `flatness`, `thin_walled`, `subsurface_color`.
-- Walter et al. (2007). *Microfacet Models for Refraction through Rough Surfaces*. EGSR.
-- Heitz, E. (2018). *Sampling the GGX Distribution of Visible Normals*. JCGT. — VNDF sampling.
-- Kulla, C. & Conty, A. (2017). *Revisiting Physically Based Shading at Imageworks*. SIGGRAPH Course. — Multi-scatter compensation, Charlie sheen.
-- Estevez, A.C. & Kulla, C. (2017). *Production Friendly Microfacet Sheen BRDF*. SIGGRAPH. — Charlie sheen NDF.
-- Belcour, L. & Barla, P. (2017). *A Practical Extension to Microfacet Theory for the Modeling of Varying Iridescence*. SIGGRAPH. — Thin-film iridescence.
-- Veach, E. (1997). *Robust Monte Carlo Methods for Light Transport Simulation*. PhD Thesis. — MIS balance heuristic.
-- Burley, B. (2020). *Practical Hash-based Owen Scrambling*. JCGT. — Sampler Sobol.
+- Codice: `src/RayTracer/Materials/` (`OpenPbr.cs`, `DisneyMaterial.cs`, `Metal.cs`, `Dielectric.cs`, `Microfacet.cs`, `Eon.cs`, `FuzzLtc.cs`, tabelle `*Albedo*.cs`), `src/RayTracer/Rendering/Renderer.cs`.
+- Academy Software Foundation (2024-2026). *OpenPBR Surface* v1.1.
+- Walter, B. et al. (2007). *Microfacet Models for Refraction through Rough Surfaces*. EGSR.
+- Heitz, E. (2014). *Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs*. JCGT.
+- Heitz, E. (2018). *Sampling the GGX Distribution of Visible Normals*. JCGT.
+- Kulla, C. e Conty, A. (2017). *Revisiting Physically Based Shading at Imageworks*. SIGGRAPH Course.
+- Kutz, P., Hasan, M. e Edmondson, P. (2021). Il modello F82 del Fresnel dei metalli, white paper.
+- Portsmouth, J., Kutz, P. e Hill, S. (2024). *EON: A practical energy-preserving rough diffuse BRDF*.
+- Zeltner, T., Burley, B. e Chiang, M. J.-Y. (2022). *Practical Multiple-Scattering Sheen Using Linearly Transformed Cosines*. SIGGRAPH Talks.
+- Belcour, L. e Barla, P. (2017). *A Practical Extension to Microfacet Theory for the Modeling of Varying Iridescence*. SIGGRAPH.
+- Burley, B. (2012, 2015). *Physically Based Shading at Disney* e *Extending the Disney BRDF to a BSDF with Integrated Subsurface Scattering*. SIGGRAPH Course Notes.
+- Chiang, M. J.-Y., Li, Y. K. e Burley, B. (2019). *Taming the Shadow Terminator*. SIGGRAPH Talks.
+- Veach, E. (1997). *Robust Monte Carlo Methods for Light Transport Simulation*. Tesi di dottorato.

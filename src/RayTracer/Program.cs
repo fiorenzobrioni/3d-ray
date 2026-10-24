@@ -1,10 +1,12 @@
 using System.Diagnostics;
 using System.Numerics;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
 using RayTracer.Core.Sampling;
 using RayTracer.Denoising;
 using RayTracer.Rendering;
+using RayTracer.Rendering.Guiding;
 using RayTracer.Scene;
 using RayTracer.Volumetrics;
 
@@ -65,13 +67,23 @@ class Program
         bool hParsed = int.TryParse(GetArg(args, "--height",  "-H"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var height);
         bool sParsed = int.TryParse(GetArg(args, "--samples", "-s"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var samples);
         bool dParsed = int.TryParse(GetArg(args, "--depth",   "-d"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var depth);
+        // Per-kind bounce limits (PIANO-REVIEW.md Phase 7). Unset = the preset's,
+        // or the total when -d is explicit or in reference mode.
+        int? DepthArg(string name) =>
+            int.TryParse(GetArg(args, name, null), System.Globalization.NumberStyles.Integer,
+                         System.Globalization.CultureInfo.InvariantCulture, out var v) && v >= 0 ? v : null;
+        int? depthDiffuse = DepthArg("--depth-diffuse");
+        int? depthGlossy = DepthArg("--depth-glossy");
+        int? depthTransmission = DepthArg("--depth-transmission");
+        int? depthVolume = DepthArg("--depth-volume");
+        int? depthTransparent = DepthArg("--depth-transparent");
 
         // Shadow samples CLI override (null = use per-light YAML values)
         int? shadowSamplesOverride = null;
         if (int.TryParse(GetArg(args, "--shadow-samples", "-S"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var ssOverride) && ssOverride > 0)
             shadowSamplesOverride = ssOverride;
 
-        // Firefly clamp CLI override (null = use Renderer.DefaultMaxSampleRadiance)
+        // Firefly clamp, opt-in (null = no clamp; see Renderer.SuggestedMaxSampleRadiance)
         float? clampOverride = null;
         if (float.TryParse(GetArg(args, "--clamp", "-C"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cOverride) && cOverride > 0f)
             clampOverride = cOverride;
@@ -119,7 +131,7 @@ class Program
 
         // Light selection strategy. See LightSamplingStrategy. A quality preset
         // may set a default (standard → power); an explicit flag still wins.
-        LightSamplingStrategy lightSampling = quality?.LightSampling ?? LightSamplingStrategy.All;
+        LightSamplingStrategy lightSampling = quality?.LightSampling ?? LightSamplingStrategy.Auto;
         string? lightSamplingArg = GetArg(args, "--light-sampling", null);
         if (lightSamplingArg != null)
         {
@@ -128,8 +140,10 @@ class Program
                 case "all":     lightSampling = LightSamplingStrategy.All;     break;
                 case "power":   lightSampling = LightSamplingStrategy.Power;   break;
                 case "uniform": lightSampling = LightSamplingStrategy.Uniform; break;
+                case "bvh":     lightSampling = LightSamplingStrategy.Bvh;     break;
+                case "auto":    lightSampling = LightSamplingStrategy.Auto;    break;
                 default:
-                    Console.WriteLine($"Error: Unknown --light-sampling '{lightSamplingArg}'. Valid: all, power, uniform.");
+                    Console.WriteLine($"Error: Unknown --light-sampling '{lightSamplingArg}'. Valid: auto, all, power, uniform, bvh.");
                     return;
             }
         }
@@ -149,8 +163,8 @@ class Program
         // identity. Negative EV darkens (good for over-bright lighting setups
         // that ACES would otherwise squash into a near-saturated plateau);
         // positive EV brightens. The linear gain `2^EV` is applied to each
-        // pixel BEFORE the ACES tonemap so the artist slides the scene into
-        // the curve's linear sweet-spot. Mirrors Arnold `exposure`,
+        // pixel BEFORE the view transform so the artist slides the scene
+        // along the tone curve. Mirrors Arnold `exposure`,
         // Cycles "Film → Exposure", RenderMan display-filter `exposure`.
         float exposureEv = Renderer.DefaultExposureEv;
         if (float.TryParse(GetArg(args, "--exposure", null),
@@ -199,85 +213,54 @@ class Program
             }
         }
 
-        // Random-walk quality preset (Preview/Normal/High). Default is `normal`
-        // unless a top-level `--quality` preset implies a different SSS tier
-        // (draft* → preview, final*/ultra → high). Explicit `--sss-quality`
-        // always wins. Each preset configures MaxVolumeBounces, RrStartBounce
-        // and NeeInsideWalk in lockstep — see RandomWalkConfig.
-        RandomWalkConfig? walkConfig = null;
-        string? sssQualityArg = GetArg(args, "--sss-quality", null);
-        string? sssQualityLabel = null;
-        if (sssQualityArg != null)
-        {
-            switch (sssQualityArg.ToLowerInvariant())
-            {
-                case "preview": walkConfig = RandomWalkConfig.Preview; sssQualityLabel = "preview"; break;
-                case "normal":  walkConfig = RandomWalkConfig.Normal;  sssQualityLabel = "normal";  break;
-                case "high":    walkConfig = RandomWalkConfig.High;    sssQualityLabel = "high";    break;
-                default:
-                    Console.WriteLine($"Error: Unknown --sss-quality '{sssQualityArg}'. Valid: preview, normal, high.");
-                    return;
-            }
-        }
-        else if (quality != null && sssMode != SssMode.Off)
-        {
-            // Skipped when SSS is forced off (e.g. standard): the random-walk
-            // config is unused, so don't load it or print a misleading
-            // "SSS quality" line — the "SSS mode: off" line says it all.
-            walkConfig       = quality.WalkConfig;
-            sssQualityLabel  = quality.SssQualityName;
-        }
-
-        // Volume-bounce hard cap (defaults inherited from the resolved SSS quality
-        // preset; this flag is the per-render escape hatch over the preset value).
-        int? maxVolumeBouncesOverride = null;
-        if (int.TryParse(GetArg(args, "--max-volume-bounces", null),
-                         System.Globalization.NumberStyles.Integer,
-                         System.Globalization.CultureInfo.InvariantCulture,
-                         out var mvb) && mvb > 0)
-            maxVolumeBouncesOverride = mvb;
-        if (maxVolumeBouncesOverride.HasValue)
-        {
-            var baseCfg = walkConfig ?? RandomWalkConfig.Normal;
-            walkConfig = new RandomWalkConfig(
-                maxVolumeBounces: maxVolumeBouncesOverride.Value,
-                rrStartBounce:    baseCfg.RrStartBounce,
-                neeInsideWalk:    baseCfg.NeeInsideWalk,
-                neeMaxBounce:     baseCfg.NeeMaxBounce);
-        }
 
         // Verbose mode
-        // ── Caustics ─────────────────────────────────────────────────────────
-        // `--caustics on|off` toggles photon-mapped caustics; an explicit flag
-        // overrides the quality-preset default (FINAL/ULTRA enable it). When on,
-        // a photon pre-pass focuses light through every specular surface in the
-        // scene — no per-object flags. `--caustic-photons N` overrides the budget.
-        bool? causticsExplicit = null;
-        string? causticsArg = GetArg(args, "--caustics", null);
-        if (causticsArg != null)
+        // ── Path guiding ─────────────────────────────────────────────────────
+        // `--guiding on|off`: learn where the light comes from in training
+        // passes, then sample bounces from that as well as from the BSDF
+        // (unbiased, so allowed in --reference). `--guiding-training N` sets the
+        // training budget in samples per pixel, out of -s (default: half).
+        bool guiding = false;
+        string? guidingArg = GetArg(args, "--guiding", null);
+        if (guidingArg != null)
         {
-            switch (causticsArg.ToLowerInvariant())
+            switch (guidingArg.ToLowerInvariant())
             {
-                case "on":  causticsExplicit = true;  break;
-                case "off": causticsExplicit = false; break;
+                case "on":  guiding = true;  break;
+                case "off": guiding = false; break;
                 default:
-                    Console.WriteLine($"Error: Unknown --caustics '{causticsArg}'. Valid: on, off.");
+                    Console.WriteLine($"Error: Unknown --guiding '{guidingArg}'. Valid: on, off.");
                     return;
             }
         }
-        bool enableCaustics = causticsExplicit ?? (quality?.Caustics ?? false);
+        int? guidingTraining = int.TryParse(GetArg(args, "--guiding-training", null), out var gtArg) && gtArg > 0
+            ? gtArg : null;
 
-        // Caustic photon budget: preset default (final/ultra raise it), global
-        // fallback when on outside those presets, and an explicit --caustic-photons
-        // override. Zero when caustics are off.
-        int causticPhotons = 0;
-        if (enableCaustics)
+        // ── Integrator ───────────────────────────────────────────────────────
+        // `--integrator path|bdpt|vcm`: path tracing (default), bidirectional
+        // path tracing, or vertex connection and merging (BDPT + merging, for
+        // the caustics seen through glass and water).
+        IntegratorKind integrator = IntegratorKind.Path;
+        string? integratorArg = GetArg(args, "--integrator", null);
+        if (integratorArg != null)
         {
-            const int DefaultCausticPhotons = 2_000_000;
-            int presetBudget = quality?.CausticPhotons ?? 0;
-            causticPhotons = presetBudget > 0 ? presetBudget : DefaultCausticPhotons;
-            if (int.TryParse(GetArg(args, "--caustic-photons", null), out var cpArg) && cpArg > 0)
-                causticPhotons = cpArg;
+            switch (integratorArg.ToLowerInvariant())
+            {
+                case "path": integrator = IntegratorKind.Path; break;
+                case "bdpt": integrator = IntegratorKind.Bdpt; break;
+                case "vcm":  integrator = IntegratorKind.Vcm;  break;
+                default:
+                    Console.WriteLine($"Error: Unknown --integrator '{integratorArg}'. Valid: path, bdpt, vcm.");
+                    return;
+            }
+        }
+        float? vcmRadius = float.TryParse(GetArg(args, "--vcm-radius", null), System.Globalization.NumberStyles.Float,
+                                          System.Globalization.CultureInfo.InvariantCulture, out var vrArg) && vrArg > 0f
+            ? vrArg : null;
+        if (integrator != IntegratorKind.Path && guiding)
+        {
+            Console.WriteLine("Error: --guiding is a path tracing option (not with --integrator bdpt|vcm).");
+            return;
         }
 
         // ── Denoiser ─────────────────────────────────────────────────────────
@@ -353,6 +336,135 @@ class Program
         bool verbose = HasFlag(args, "--verbose", "-v");
         SceneLoader.SetVerbose(verbose);
 
+        // ── Reference mode ───────────────────────────────────────────────────
+        // `--reference` renders with the pure, unbiased estimator used to
+        // validate the engine (PIANO-REVIEW.md, Phase 0): no clamps, no
+        // straight-through transparent shadows, one depth for every kind of
+        // bounce.
+        // The denoiser and vertex merging are biased by construction, so they
+        // are refused rather than silently mixed into a reference image.
+        bool referenceMode = HasFlag(args, "--reference", null);
+        if (referenceMode)
+        {
+            if (integrator == IntegratorKind.Vcm)
+            {
+                Console.WriteLine("Error: --integrator vcm is biased (it merges nearby vertices): use bdpt with --reference.");
+                return;
+            }
+            if (denoiserArg != null && denoiserKind != DenoiserKind.None)
+                Console.WriteLine("Warning: --denoiser ignored in --reference mode.");
+            if (clampOverride.HasValue || indirectClampArg != null)
+                Console.WriteLine("Warning: --clamp / --indirect-clamp-factor ignored in --reference mode.");
+            denoiserKind = DenoiserKind.None;
+            clampOverride = null;
+            indirectClampFactor = Renderer.DefaultIndirectClampFactor;
+        }
+
+        // `--transparent-shadows on|off` (default off): straight-through shadows
+        // of glass as an artistic stand-in for the refracted light. Off renders
+        // the physical result (glass casts its shadow and its caustic).
+        bool transparentShadows = false;
+        string? transparentShadowsArg = GetArg(args, "--transparent-shadows", null);
+        if (transparentShadowsArg != null)
+        {
+            switch (transparentShadowsArg.ToLowerInvariant())
+            {
+                case "on":  transparentShadows = true;  break;
+                case "off": transparentShadows = false; break;
+                default:
+                    Console.WriteLine($"Error: Unknown --transparent-shadows '{transparentShadowsArg}'. Valid: on, off.");
+                    return;
+            }
+        }
+        if (referenceMode && transparentShadows)
+        {
+            Console.WriteLine("Warning: --transparent-shadows on ignored in --reference mode.");
+            transparentShadows = false;
+        }
+
+        // `--filter <box|gaussian|blackman-harris>` (default gaussian): pixel
+        // reconstruction filter, applied by filter importance sampling. The
+        // box is the sharpest and the most aliased.
+        var pixelFilterKind = PixelFilterKind.Gaussian;
+        string? filterArg = GetArg(args, "--filter", null);
+        if (filterArg != null && !PixelFilter.TryParse(filterArg, out pixelFilterKind))
+        {
+            Console.WriteLine($"Error: Unknown --filter '{filterArg}'. Valid: box, gaussian, blackman-harris.");
+            return;
+        }
+
+        // Colour management: `--view <agx|aces|standard|legacy>` (default agx)
+        // turns scene-linear radiance into the display image; `--look` picks
+        // an AgX look. `legacy` reproduces the pre-review curve.
+        var view = ViewTransform.AgX;
+        string? viewArg = GetArg(args, "--view", null);
+        if (viewArg != null && !DisplayTransform.TryParseView(viewArg, out view))
+        {
+            Console.WriteLine($"Error: Unknown --view '{viewArg}'. Valid: agx, aces, standard, legacy.");
+            return;
+        }
+        var look = ViewLook.None;
+        string? lookArg = GetArg(args, "--look", null);
+        if (lookArg != null && !DisplayTransform.TryParseLook(lookArg, out look))
+        {
+            Console.WriteLine($"Error: Unknown --look '{lookArg}'. Valid: none, punchy, golden.");
+            return;
+        }
+        if (look != ViewLook.None && view != ViewTransform.AgX)
+            Console.WriteLine($"Warning: --look {lookArg} applies to the agx view only; ignored.");
+
+        // `--white-balance <K>`: overrides the camera's `white_balance`.
+        float? whiteBalanceArg = null;
+        string? wbArg = GetArg(args, "--white-balance", null);
+        if (wbArg != null)
+        {
+            if (!float.TryParse(wbArg, System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture, out var wbK)
+                || wbK < WhiteBalance.MinKelvin || wbK > WhiteBalance.MaxKelvin)
+            {
+                Console.WriteLine($"Error: --white-balance '{wbArg}' must be a temperature in {WhiteBalance.MinKelvin}-{WhiteBalance.MaxKelvin} K.");
+                return;
+            }
+            whiteBalanceArg = wbK;
+        }
+
+        // `--bit-depth <8|16>` (16 for PNG only) and `--dither <on|off>` for 8-bit.
+        int bitDepth = 8;
+        string? bitDepthArg = GetArg(args, "--bit-depth", null);
+        if (bitDepthArg != null)
+        {
+            if (bitDepthArg is not ("8" or "16"))
+            {
+                Console.WriteLine($"Error: Unknown --bit-depth '{bitDepthArg}'. Valid: 8, 16.");
+                return;
+            }
+            bitDepth = int.Parse(bitDepthArg);
+        }
+        bool dither = true;
+        string? ditherArg = GetArg(args, "--dither", null);
+        if (ditherArg != null)
+        {
+            switch (ditherArg.ToLowerInvariant())
+            {
+                case "on":  dither = true;  break;
+                case "off": dither = false; break;
+                default:
+                    Console.WriteLine($"Error: Unknown --dither '{ditherArg}'. Valid: on, off.");
+                    return;
+            }
+        }
+
+        // `--seed <n>`: independent sample sequences for the same scene
+        // (0 = the default sequences, bit-identical to a render without it).
+        int seed = 0;
+        string? seedArg = GetArg(args, "--seed", null);
+        if (seedArg != null && !int.TryParse(seedArg, System.Globalization.NumberStyles.Integer,
+                                             System.Globalization.CultureInfo.InvariantCulture, out seed))
+        {
+            Console.WriteLine($"Error: Invalid --seed '{seedArg}' (integer expected).");
+            return;
+        }
+
         // Required argument check
         if (string.IsNullOrEmpty(inputPath))
         {
@@ -387,7 +499,8 @@ class Program
         if (!wParsed || width  <= 0) width   = quality?.Width   ?? 1200;
         if (!hParsed || height <= 0) height  = quality?.Height  ?? 800;
         if (!sParsed || samples <= 0) samples = quality?.Samples ?? 16;
-        if (!dParsed || depth  <= 0) depth   = quality?.Depth   ?? 8;
+        bool depthExplicit = dParsed && depth > 0;
+        if (!depthExplicit) depth = quality?.Depth ?? 8;
         if (!shadowSamplesOverride.HasValue && quality != null)
             shadowSamplesOverride = quality.ShadowSamples;
 
@@ -401,15 +514,36 @@ class Program
             Console.WriteLine($"  Quality:     {quality.Name}{(qualityIsDefault ? " (default)" : "")}");
         Console.WriteLine($"  Resolution:  {width} \u00d7 {height}");
         Console.WriteLine($"  Samples/px:  {samples}");
-        Console.WriteLine($"  Max depth:   {depth}");
+        // Per-kind limits: the preset's split, unless the total was given (or
+        // the render is a reference): then no kind is cut below the total.
+        PathDepths baseDepths = !depthExplicit && !referenceMode && quality?.Depths is PathDepths qd
+            ? qd
+            : PathDepths.Uniform(depth);
+        var depths = new PathDepths(
+            Math.Min(depthDiffuse ?? baseDepths.Diffuse, depth),
+            Math.Min(depthGlossy ?? baseDepths.Glossy, depth),
+            Math.Min(depthTransmission ?? baseDepths.Transmission, depth),
+            Math.Min(depthVolume ?? baseDepths.Volume, depth),
+            depthTransparent ?? baseDepths.Transparent);
+        Console.WriteLine($"  Max depth:   {depth} (diffuse {depths.Diffuse}, glossy {depths.Glossy}, " +
+                          $"transmission {depths.Transmission}, volume {depths.Volume}, cut-outs {depths.Transparent})");
         if (shadowSamplesOverride.HasValue)
             Console.WriteLine($"  Shadow smp:  {shadowSamplesOverride.Value} (override)");
+        if (referenceMode)
+            Console.WriteLine("  Reference:   on (no clamps, no transparent shadows, uniform depths, no denoiser)");
+        if (seed != 0)
+            Console.WriteLine($"  Seed:        {seed}");
+        if (integrator != IntegratorKind.Path)
+            Console.WriteLine($"  Integrator:  {integrator.ToString().ToLowerInvariant()}" +
+                              (integrator == IntegratorKind.Vcm ? $" (radius {vcmRadius ?? 0.003f:0.####} of the scene radius)" : ""));
+        if (guiding)
+            Console.WriteLine($"  Guiding:     on (training {guidingTraining ?? GuidingSettings.DefaultTraining(samples)} of the {samples} spp)");
+        if (transparentShadows)
+            Console.WriteLine("  Shadows:     transparent through glass (approximation, refracted caustics off)");
         if (clampOverride.HasValue)
-            Console.WriteLine($"  Clamp:       {clampOverride.Value} (override)");
-        if (indirectClampFactor != Renderer.DefaultIndirectClampFactor)
         {
-            float baseClamp = clampOverride ?? Renderer.DefaultMaxSampleRadiance;
-            Console.WriteLine($"  Indir.clamp: ×{indirectClampFactor:F2} ({baseClamp * indirectClampFactor:F1} effective)");
+            Console.WriteLine($"  Clamp:       {clampOverride.Value} (biased: caps every brighter sample)");
+            Console.WriteLine($"  Indir.clamp: ×{indirectClampFactor:F2} ({clampOverride.Value * indirectClampFactor:F1} effective)");
         }
         if (exposureEv != Renderer.DefaultExposureEv)
             Console.WriteLine($"  Exposure:    {exposureEv:+0.0;-0.0;0.0} EV (×{MathF.Pow(2f, exposureEv):F2})");
@@ -417,18 +551,10 @@ class Program
             Console.WriteLine($"  Camera:      {cameraSelector}");
         Console.WriteLine($"  Sampler:     {samplerKind.ToString().ToLowerInvariant()}");
         Console.WriteLine($"  MIS:         {misHeuristic.ToString().ToLowerInvariant()} heuristic");
-        if (lightSampling != LightSamplingStrategy.All)
+        if (lightSampling is not (LightSamplingStrategy.All or LightSamplingStrategy.Auto))
             Console.WriteLine($"  Light pick:  {lightSampling.ToString().ToLowerInvariant()}");
         if (sssMode != SssMode.Auto)
             Console.WriteLine($"  SSS mode:    {sssMode.ToString().ToLowerInvariant()}");
-        if (sssQualityLabel != null || maxVolumeBouncesOverride.HasValue)
-        {
-            var effective = walkConfig ?? RandomWalkConfig.Normal;
-            string label = sssQualityLabel ?? "normal";
-            Console.WriteLine(
-                $"  SSS quality: {label} (vol-bounces={effective.MaxVolumeBounces}, " +
-                $"rr-start={effective.RrStartBounce}, nee-in-walk={(effective.NeeInsideWalk ? "on" : "off")})");
-        }
         if (denoiserKind != DenoiserKind.None)
             Console.WriteLine($"  Denoiser:    {denoiserKind.ToString().ToLowerInvariant()} ({denoiseQuality.ToString().ToLowerInvariant()})");
 
@@ -462,6 +588,7 @@ class Program
                 {
                     RayTracer.Rendering.Sky.NishitaSky  => "physical (nishita)" + (sky.HasSun ? " + sun disk" : ""),
                     RayTracer.Rendering.Sky.PreethamSky => "physical (preetham)" + (sky.HasSun ? " + sun disk" : ""),
+                    RayTracer.Rendering.Sky.HosekWilkieSky => "physical (hosek-wilkie)" + (sky.HasSun ? " + sun disk" : ""),
                     _                                   => "physical" + (sky.HasSun ? " + sun disk" : "")
                 },
                 _                            => "flat"
@@ -469,15 +596,32 @@ class Program
             Console.WriteLine($"  Sky:         {skyDesc}");
             if (motionBlur.Active)
                 Console.WriteLine($"  Motion blur: shutter [{motionBlur.ShutterOpen:0.##}, {motionBlur.ShutterClose:0.##}]");
+            float? whiteBalanceKelvin = whiteBalanceArg ?? camera.WhiteBalanceKelvin;
+            // The camera's physical exposure (ISO, shutter, f-number) adds to --exposure.
+            if (camera.PhysicalExposureEv is float physicalEv) exposureEv += physicalEv;
+            Console.WriteLine($"  View:        {view.ToString().ToLowerInvariant()}{(look != ViewLook.None ? $" ({look.ToString().ToLowerInvariant()})" : "")}, filter {pixelFilterKind.ToString().ToLowerInvariant()}" +
+                              (whiteBalanceKelvin is float k ? $", white balance {k:0} K" : ""));
 
             // Render (constructor may print scene analysis info before the blank line)
             var renderer = new Renderer(
                 world, camera, lights, sky, samples, depth, globalMedium,
                 clampOverride, verbose, misHeuristic, lightSampling,
                 indirectClampFactor, textureFiltering, exposureEv,
-                sssMode, walkConfig,
-                enableCaustics: enableCaustics, causticPhotons: causticPhotons,
-                motionBlur: motionBlur);
+                sssMode,
+                motionBlur: motionBlur,
+                referenceMode: referenceMode, seed: seed,
+                transparentShadows: transparentShadows,
+                pixelFilter: PixelFilter.Create(pixelFilterKind),
+                displayTransform: new DisplayTransform(view, look,
+                    whiteBalanceKelvin is float wbk ? WhiteBalance.Matrix(wbk) : null),
+                depths: depths);
+            renderer.Integrator = integrator;
+            if (vcmRadius is float vr) renderer.VcmRadiusFactor = vr;
+            if (guiding)
+                renderer.EnableGuiding(new GuidingSettings
+                {
+                    TrainingSpp = guidingTraining ?? GuidingSettings.DefaultTraining(samples),
+                });
             Console.WriteLine();
 
             var captureOptions = denoiserKind != DenoiserKind.None || aovs.Count > 0
@@ -491,6 +635,8 @@ class Program
             var pixels = result.Pixels;
             var elapsed = sw.Elapsed;
             Console.WriteLine($"  Render time: {FormatElapsed(elapsed)}");
+            if (renderer.LastRenderNonFiniteCount > 0)
+                Console.WriteLine($"  Warning:     {renderer.LastRenderNonFiniteCount:N0} NaN/Inf radiance values were zeroed (engine bug)");
 
             // Denoise the linear HDR beauty, then re-apply the identical
             // display transform (exposure \u2192 ACES \u2192 gamma).
@@ -521,7 +667,13 @@ class Program
             }
             else
             {
-                SaveImage(pixels, width, height, outputPath);
+                string ext = Path.GetExtension(outputPath).ToLowerInvariant();
+                if (bitDepth == 16 && ext is not (".png" or ""))
+                {
+                    Console.WriteLine($"  Warning: --bit-depth 16 needs a .png output; writing 8-bit {ext}.");
+                    bitDepth = 8;
+                }
+                SaveImage(pixels, width, height, outputPath, bitDepth, dither);
                 Console.WriteLine();
                 Console.WriteLine($"  \u2713 Saved: {Path.GetFullPath(outputPath)}");
             }
@@ -556,25 +708,36 @@ class Program
         Console.WriteLine("                                          final-tiny, final-small, final,");
         Console.WriteLine("                                          ultra (4K).");
         Console.WriteLine("                                standard = final-class quality for classic scenes");
-        Console.WriteLine("                                (no caustics/SSS, 512 spp, power NEE, denoiser).");
+        Console.WriteLine("                                (no SSS, 512 spp, denoiser).");
         Console.WriteLine("                                pre-final = faithful preview of final (full feature");
         Console.WriteLine("                                set, 256 spp + denoiser, ~4-6x faster than final).");
         Console.WriteLine("  -w, --width <px>             Image width  (default: 960 via draft-small preset)");
         Console.WriteLine("  -H, --height <px>            Image height (default: 540 via draft-small preset)");
         Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16 via draft-small preset)");
-        Console.WriteLine("  -d, --depth <n>              Max ray depth (default: 4 via draft-small; use 8 for quality, 16+ for stacked glass)");
+        Console.WriteLine("  -d, --depth <n>              Max path vertices (default: 8 via draft-small; 12 standard, 16 final, 32 ultra).");
+        Console.WriteLine("                                Explicit -d lifts the per-kind limits below to the same value");
+        Console.WriteLine("      --depth-diffuse <n>      Max diffuse bounces (presets: 3 draft, 4 standard, 8 final, 16 ultra)");
+        Console.WriteLine("      --depth-glossy <n>       Max glossy/specular reflections (4, 6, 8, 16)");
+        Console.WriteLine("      --depth-transmission <n> Max refractions/transmissions (8, 12, 16, 32)");
+        Console.WriteLine("      --depth-volume <n>       Max scatters in a medium (3, 4, 8, 16)");
+        Console.WriteLine("      --depth-transparent <n>  Max cut-outs crossed, outside the total (16; 32 ultra)");
         Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override (default 4; perfect squares work best)");
-        Console.WriteLine("  -C, --clamp <n>              Max per-sample radiance / firefly clamp (default: 10)");
-        Console.WriteLine("      --indirect-clamp-factor  Clamp factor for indirect bounces (default: 0.25 = on; 1.0 = off)");
-        Console.WriteLine("      --exposure <EV>          Photographic exposure compensation in stops applied pre-ACES");
+        Console.WriteLine("  -C, --clamp <n>              Firefly clamp: max per-sample radiance (default: off).");
+        Console.WriteLine("                                Biased: cuts every sample brighter than n (try 10)");
+        Console.WriteLine("      --indirect-clamp-factor  Indirect clamp = -C x factor, only with -C (default: 0.25; 1.0 = off)");
+        Console.WriteLine("      --exposure <EV>          Exposure compensation in stops, applied before the view transform");
         Console.WriteLine("                                (default: 0 = identity; -1 darkens 2×, +1 brightens 2×)");
         Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
         Console.WriteLine("      --sampler <prng|sobol>   Per-pixel sampler (default: sobol — Burley 2020)");
         Console.WriteLine("      --mis <balance|power>    MIS combination heuristic (default: balance)");
-        Console.WriteLine("      --light-sampling <all|power|uniform>  NEE light strategy (default: all)");
+        Console.WriteLine("      --light-sampling <auto|all|power|uniform|bvh>  NEE light strategy (default: auto = all up to 16 lights, bvh above)");
         Console.WriteLine("      --texture-filtering <auto|on|off>     Analytic anti-aliasing via ray differentials (default: auto)");
-        Console.WriteLine("      --caustics <on|off>      Photon-mapped caustics (default: off, on for final/ultra)");
-        Console.WriteLine("      --caustic-photons <n>    Caustic photon budget when --caustics on (default: 2-4M by preset)");
+        Console.WriteLine("      --integrator <path|bdpt|vcm>  Light transport: path tracing (default), bidirectional path tracing,");
+        Console.WriteLine("                               or vertex connection and merging (bdpt + merging: caustics through glass/water)");
+        Console.WriteLine("      --vcm-radius <f>         VCM merging radius at the first iteration, fraction of the scene radius (default: 0.003)");
+        Console.WriteLine("      --guiding <on|off>       Path guiding: learn the incident light in training passes,");
+        Console.WriteLine("                                then sample bounces from it too (unbiased; default: off)");
+        Console.WriteLine("      --guiding-training <n>   Training spp out of -s, passes of 1, 2, 4, ... that join the image (default: -s / 2)");
         Console.WriteLine("      --denoiser <none|nlm|nfor>  Feature-guided denoiser on the linear HDR beauty");
         Console.WriteLine("                                (default: none; draft/standard/pre-final presets use nfor)");
         Console.WriteLine("      --denoise-quality <fast|high>  Denoiser speed/quality trade-off (default: high)");
@@ -584,8 +747,21 @@ class Program
         Console.WriteLine("      --aov-format <pfm|exr>   Force one file per AOV in the given format, even when");
         Console.WriteLine("                                -o is .exr (default: embed in .exr output, else pfm)");
         Console.WriteLine("      --sss-mode <auto|off>    Subsurface-scattering dispatch (default: auto = follow scene)");
-        Console.WriteLine("      --sss-quality <preview|normal|high>   Random-walk preset; inherits from -q when omitted");
-        Console.WriteLine("      --max-volume-bounces <n> Hard cap on random-walk bounces inside one entity");
+        Console.WriteLine("      --transparent-shadows <on|off>  Glass lets shadow rays through, tinted, instead of");
+        Console.WriteLine("                                casting its physical shadow and caustic (default: off)");
+        Console.WriteLine("      --filter <box|gaussian|blackman-harris>  Pixel reconstruction filter (default: gaussian,");
+        Console.WriteLine("                                sigma 0.5 px; blackman-harris is a little sharper, box the sharpest)");
+        Console.WriteLine("      --view <agx|aces|standard|legacy>  View transform from scene-linear to display");
+        Console.WriteLine("                                (default: agx; aces = ACES 1.x SDR; standard = sRGB curve,");
+        Console.WriteLine("                                no tone mapping; legacy = the pre-2026-10 curve)");
+        Console.WriteLine("      --look <none|punchy|golden>  Creative look for the agx view (default: none)");
+        Console.WriteLine("      --white-balance <K>      White balance in kelvin: a light of this temperature renders");
+        Console.WriteLine("                                neutral (default: the camera's white_balance, else none)");
+        Console.WriteLine("      --bit-depth <8|16>       Bits per channel of a .png output (default: 8)");
+        Console.WriteLine("      --dither <on|off>        Dither 8-bit output against banding (default: on)");
+        Console.WriteLine("      --reference              Unbiased reference estimator for validation: no clamps,");
+        Console.WriteLine("                                no transparent shadows, uniform depths, no denoiser");
+        Console.WriteLine("      --seed <n>               Independent sample sequence (default 0 = standard sequence)");
         Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
         Console.WriteLine("  -v, --verbose                Show detailed loading and scene analysis info");
         Console.WriteLine("  -h, --help                   Show this help");
@@ -720,26 +896,35 @@ class Program
         };
     }
 
-    static void SaveImage(Vector3[,] pixels, int width, int height, string path)
+    static void SaveImage(Vector3[,] pixels, int width, int height, string path, int bitDepth, bool dither)
     {
+        string ext = Path.GetExtension(path).ToLowerInvariant();
+        using var stream = File.Create(path);
+        if (bitDepth == 16)
+        {
+            // 16-bit PNG: no dithering needed, 65536 levels do not band.
+            using var image16 = new Image<Rgba64>(width, height);
+            for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
+                {
+                    var c = pixels[y, x];
+                    image16[x, y] = new Rgba64(DisplayQuantizer.To16Bit(c.X), DisplayQuantizer.To16Bit(c.Y),
+                                               DisplayQuantizer.To16Bit(c.Z), ushort.MaxValue);
+                }
+            image16.SaveAsPng(stream, new PngEncoder { BitDepth = PngBitDepth.Bit16, ColorType = PngColorType.Rgb });
+            return;
+        }
+
         using var image = new Image<Rgba32>(width, height);
         for (int y = 0; y < height; y++)
-        {
             for (int x = 0; x < width; x++)
             {
                 var c = pixels[y, x];
-                // BUG-04 fix: cast via int with clamp avoids the silent byte-overflow
-                // edge case that 255.99f could theoretically cause with Inf/NaN inputs.
-                byte r = (byte)Math.Clamp((int)(Math.Clamp(c.X, 0f, 1f) * 256f), 0, 255);
-                byte g = (byte)Math.Clamp((int)(Math.Clamp(c.Y, 0f, 1f) * 256f), 0, 255);
-                byte b = (byte)Math.Clamp((int)(Math.Clamp(c.Z, 0f, 1f) * 256f), 0, 255);
-                image[x, y] = new Rgba32(r, g, b, 255);
+                image[x, y] = new Rgba32(DisplayQuantizer.To8Bit(c.X, x, y, 0, dither),
+                                         DisplayQuantizer.To8Bit(c.Y, x, y, 1, dither),
+                                         DisplayQuantizer.To8Bit(c.Z, x, y, 2, dither), 255);
             }
-        }
 
-        // Determine format from extension
-        string ext = Path.GetExtension(path).ToLowerInvariant();
-        using var stream = File.Create(path);
         switch (ext)
         {
             case ".jpg":
@@ -797,28 +982,16 @@ class Program
         public int Height { get; }
         public int Samples { get; }
         public int Depth { get; }
+        /// <summary>The tier's split of <see cref="Depth"/> by kind of bounce.</summary>
+        public PathDepths? Depths { get; }
         public int ShadowSamples { get; }
-        /// <summary>SSS random-walk preset matched to this quality tier.
-        /// draft → preview (cheap), pre-final/final/ultra → high (standard
-        /// forces SSS off, so its value is unused).</summary>
-        public RandomWalkConfig WalkConfig { get; }
-        public string SssQualityName { get; }
-        /// <summary>Whether this tier turns caustics on by default. FINAL/ULTRA
-        /// presets enable them: harmless on scenes without flagged entities (the
-        /// caster registry is empty → zero cost), and exactly what a final render
-        /// of a caustic-marked scene wants. An explicit <c>--caustics</c> overrides.</summary>
-        public bool Caustics { get; }
-        /// <summary>Caustic photon budget for this tier when caustics are on
-        /// (0 → use the global default). FINAL/ULTRA raise it for cleaner maps.</summary>
-        public int CausticPhotons { get; }
         /// <summary>When non-null, the tier forces a <c>--sss-mode</c> value
         /// (the FINAL-FAST tiers force <see cref="SssMode.Off"/>). An explicit
         /// <c>--sss-mode</c> flag still wins.</summary>
         public SssMode? SssModeOverride { get; }
         /// <summary>When non-null, the tier's default <c>--light-sampling</c>
-        /// strategy (FINAL-FAST uses <see cref="LightSamplingStrategy.Power"/>,
-        /// which scales better than the global <c>all</c> default). An explicit
-        /// <c>--light-sampling</c> flag still wins.</summary>
+        /// strategy (none sets one today: <c>auto</c> fits every tier). An
+        /// explicit <c>--light-sampling</c> flag still wins.</summary>
         public LightSamplingStrategy? LightSampling { get; }
         /// <summary>When non-null, the tier's default <c>--indirect-clamp-factor</c>.
         /// An explicit flag still wins.</summary>
@@ -834,17 +1007,15 @@ class Program
         public DenoiseQuality DenoiseQuality { get; }
 
         private QualityPreset(string name, int w, int h, int s, int d, int ss,
-                              RandomWalkConfig walk, string walkName,
-                              bool caustics = false, int causticPhotons = 0,
                               SssMode? sssModeOverride = null,
                               LightSamplingStrategy? lightSampling = null,
                               float? indirectClampFactor = null,
                               DenoiserKind denoiser = DenoiserKind.None,
-                              DenoiseQuality denoiseQuality = DenoiseQuality.High)
+                              DenoiseQuality denoiseQuality = DenoiseQuality.High,
+                              PathDepths? depths = null)
         {
             Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
-            WalkConfig = walk; SssQualityName = walkName;
-            Caustics = caustics; CausticPhotons = causticPhotons;
+            Depths = depths;
             SssModeOverride = sssModeOverride;
             LightSampling = lightSampling;
             IndirectClampFactor = indirectClampFactor;
@@ -852,51 +1023,55 @@ class Program
             DenoiseQuality = denoiseQuality;
         }
 
-        public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 4, 1, RandomWalkConfig.Preview, "preview",
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast);
-        public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 4, 1, RandomWalkConfig.Preview, "preview",
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast);
-        public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 4, 1, RandomWalkConfig.Preview, "preview",
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast);
+        // Bounce budgets by kind (total, then diffuse, glossy, transmission,
+        // volume, cut-outs): glass needs many transmission bounces, diffuse
+        // interreflection few. Russian roulette ends most paths far earlier.
+        private static readonly PathDepths DraftDepths    = new(3, 4, 8, 3, 16);
+        private static readonly PathDepths StandardDepths = new(4, 6, 12, 4, 16);
+        private static readonly PathDepths FinalDepths    = new(8, 8, 16, 8, 16);
+        private static readonly PathDepths UltraDepths    = new(16, 16, 32, 16, 32);
+
+        public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 8, 1,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
+        public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 8, 1,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
+        public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 8, 1,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
 
         // STANDARD: the day-to-day quality render. Final-class image quality
         // on a *classic* scene — Lambertian/Disney, non-nested glass,
         // procedural marble — with the expensive global-illumination extras
         // stripped:
-        // photon caustics OFF, volumetric SSS OFF, single shadow sample
-        // (512 spp already anti-aliases), power-weighted single-light NEE,
-        // relaxed indirect clamp, and the NFOR denoiser absorbing the faint
-        // residual grain 512 spp can leave.
-        public static readonly QualityPreset StandardTiny  = new("standard-tiny",  480, 270,  512, 8, 1, RandomWalkConfig.High, "high",
-            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
-        public static readonly QualityPreset StandardSmall = new("standard-small", 960, 540,  512, 8, 1, RandomWalkConfig.High, "high",
-            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
-        public static readonly QualityPreset Standard      = new("standard",      1920, 1080, 512, 8, 1, RandomWalkConfig.High, "high",
-            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
+        // volumetric SSS OFF, single shadow sample
+        // (512 spp already anti-aliases), relaxed indirect clamp, and the
+        // NFOR denoiser absorbing the faint residual grain 512 spp can leave.
+        public static readonly QualityPreset StandardTiny  = new("standard-tiny",  480, 270,  512, 12, 1,
+            sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
+        public static readonly QualityPreset StandardSmall = new("standard-small", 960, 540,  512, 12, 1,
+            sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
+        public static readonly QualityPreset Standard      = new("standard",      1920, 1080, 512, 12, 1,
+            sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
 
         // PRE-FINAL: a faithful preview of `final` — the FULL final feature
-        // set (caustics on, SSS high, depth 8, all-lights NEE, default
+        // set (SSS high, final bounce budgets, default
         // indirect clamp) with the sampling budgets cut where the denoiser
         // compensates best: ¼ of the pixel samples and a single shadow
         // sample (penumbra noise is exactly what feature-guided filtering
         // removes cleanest). Roughly 4-6× faster than `final`.
-        public static readonly QualityPreset PreFinalTiny  = new("pre-final-tiny",  480, 270,  256, 8, 1, RandomWalkConfig.High, "high",
-            caustics: true, causticPhotons: 2_000_000,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
-        public static readonly QualityPreset PreFinalSmall = new("pre-final-small", 960, 540,  256, 8, 1, RandomWalkConfig.High, "high",
-            caustics: true, causticPhotons: 2_000_000,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
-        public static readonly QualityPreset PreFinal      = new("pre-final",      1920, 1080, 256, 8, 1, RandomWalkConfig.High, "high",
-            caustics: true, causticPhotons: 2_000_000,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
+        public static readonly QualityPreset PreFinalTiny  = new("pre-final-tiny",  480, 270,  256, 16, 1,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
+        public static readonly QualityPreset PreFinalSmall = new("pre-final-small", 960, 540,  256, 16, 1,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
+        public static readonly QualityPreset PreFinal      = new("pre-final",      1920, 1080, 256, 16, 1,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
 
-        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 2_000_000);
-        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 2_000_000);
-        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 3_000_000);
-        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 4_000_000);
+        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 16, 4, depths: FinalDepths);
+        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 16, 4, depths: FinalDepths);
+        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 16, 4, depths: FinalDepths);
+        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 32, 4, depths: UltraDepths);
 
         public const string NamesCsv =
             "draft-tiny, draft-small, draft, standard-tiny, standard-small, standard, " +

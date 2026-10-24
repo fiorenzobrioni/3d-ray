@@ -28,10 +28,13 @@ internal interface ILatheSegment
     /// Ray-surface intersection in lathe-local space. When a hit occurs in
     /// <c>(tMin, tMax]</c>, writes the parametric distance, outward surface
     /// normal, and segment-local arc-length parameter <c>v ∈ [0, 1]</c>
-    /// (used by the caller to compute the UV V coordinate).
+    /// (used by the caller to compute the UV V coordinate), plus
+    /// <c>∂(r, y)/∂v</c>, the meridian's rate per unit of that same <c>v</c>,
+    /// from which the caller builds ∂P/∂v.
     /// </summary>
     bool Hit(in Ray ray, float tMin, float tMax,
-             out float tHit, out Vector3 outwardNormal, out float vSegment);
+             out float tHit, out Vector3 outwardNormal, out float vSegment,
+             out Vector2 meridianDv);
 
     /// <summary>
     /// Uniform-area sampling of the lateral surface. Returns a local-space
@@ -99,11 +102,14 @@ internal sealed class AnnulusSegment : ILatheSegment
     public float LateralArea { get; }
 
     public bool Hit(in Ray ray, float tMin, float tMax,
-                    out float tHit, out Vector3 outwardNormal, out float vSegment)
+                    out float tHit, out Vector3 outwardNormal, out float vSegment,
+                    out Vector2 meridianDv)
     {
         tHit = 0f;
         outwardNormal = default;
         vSegment = 0f;
+        // v runs radially from the inner to the outer edge at constant y.
+        meridianDv = new Vector2(_rOuter - _rInner, 0f);
 
         float dy = ray.Direction.Y;
         if (MathF.Abs(dy) < 1e-8f) return false;
@@ -185,11 +191,14 @@ internal sealed class FrustumSegment : ILatheSegment
     public float LateralArea { get; }
 
     public bool Hit(in Ray ray, float tMin, float tMax,
-                    out float tHit, out Vector3 outwardNormal, out float vSegment)
+                    out float tHit, out Vector3 outwardNormal, out float vSegment,
+                    out Vector2 meridianDv)
     {
         tHit = 0f;
         outwardNormal = default;
         vSegment = 0f;
+        // v is linear in y, and so is r: the whole segment per unit of v.
+        meridianDv = new Vector2(_rTop - _rBase, _yTop - _yBase);
 
         float dx = ray.Direction.X;
         float dy = ray.Direction.Y;
@@ -382,11 +391,13 @@ internal sealed class SplineSegment : ILatheSegment
     // ── Hit (main path + horizontal-ray fallback) ────────────────────────────
 
     public bool Hit(in Ray ray, float tMin, float tMax,
-                    out float tHit, out Vector3 outwardNormal, out float vSegment)
+                    out float tHit, out Vector3 outwardNormal, out float vSegment,
+                    out Vector2 meridianDv)
     {
         tHit = 0f;
         outwardNormal = default;
         vSegment = 0f;
+        meridianDv = default;
 
         // Cheap cylindrical reject before building the degree-6 polynomial.
         // The segment lives inside x²+z² ≤ rMax² ∧ y ∈ [yMin, yMax]; if the
@@ -406,12 +417,12 @@ internal sealed class SplineSegment : ILatheSegment
         if (System.Math.Abs(dy) > DyEps)
         {
             hit = HitMainPath(ray, ox, oy, oz, dx, dy, dz, tMin, tMax,
-                              out tHit, out outwardNormal, out vSegment);
+                              out tHit, out outwardNormal, out vSegment, out meridianDv);
         }
         else
         {
             hit = HitHorizontalRay(ray, ox, oy, oz, dx, dz, tMin, tMax,
-                                   out tHit, out outwardNormal, out vSegment);
+                                   out tHit, out outwardNormal, out vSegment, out meridianDv);
         }
         return hit;
     }
@@ -462,11 +473,13 @@ internal sealed class SplineSegment : ILatheSegment
     /// </summary>
     private bool HitMainPath(
         Ray ray, double ox, double oy, double oz, double dx, double dy, double dz,
-        float tMin, float tMax, out float tHit, out Vector3 outwardNormal, out float vSegment)
+        float tMin, float tMax, out float tHit, out Vector3 outwardNormal, out float vSegment,
+        out Vector2 meridianDv)
     {
         tHit = 0f;
         outwardNormal = default;
         vSegment = 0f;
+        meridianDv = default;
 
         // Build F(u) = U(u)² + V(u)² − dy²·R(u)²  with
         //   U(u) = α + dx·Y(u),  α = ox·dy − dx·oy
@@ -542,10 +555,28 @@ internal sealed class SplineSegment : ILatheSegment
             float nR = (float)yp;
             float nY = (float)(-rp);
             outwardNormal = Vector3.Normalize(new Vector3(nR * cosT, nY, nR * sinT));
+            meridianDv = MeridianPerArcFraction(uParam, rp, yp);
             found = true;
         }
 
         return found;
+    }
+
+    /// <summary>
+    /// ∂(r, y)/∂v for v = <see cref="ArcFractionAt"/>(u): the curve's
+    /// derivative (R'(u), Y'(u)) divided by dv/du, the slope of the table
+    /// interval that <see cref="ArcFractionAt"/> interpolates in, so the rate
+    /// matches the v the hit reports exactly.
+    /// </summary>
+    private Vector2 MeridianPerArcFraction(double u, double rp, double yp)
+    {
+        if (_arcLength <= 1e-12f) return Vector2.Zero;
+        int lo = (int)System.Math.Floor(System.Math.Clamp(u, 0.0, 1.0) * TableSize);
+        if (lo >= TableSize) lo = TableSize - 1;
+        if (lo < 0) lo = 0;
+        double dvdu = (_arcTable[lo + 1] - _arcTable[lo]) * TableSize / (double)_arcLength;
+        if (dvdu <= 1e-12) return Vector2.Zero;
+        return new Vector2((float)(rp / dvdu), (float)(yp / dvdu));
     }
 
     /// <summary>
@@ -574,11 +605,13 @@ internal sealed class SplineSegment : ILatheSegment
     /// </summary>
     private bool HitHorizontalRay(
         Ray ray, double ox, double oy, double oz, double dx, double dz,
-        float tMin, float tMax, out float tHit, out Vector3 outwardNormal, out float vSegment)
+        float tMin, float tMax, out float tHit, out Vector3 outwardNormal, out float vSegment,
+        out Vector2 meridianDv)
     {
         tHit = 0f;
         outwardNormal = default;
         vSegment = 0f;
+        meridianDv = default;
 
         // Y(u) − oy = 0 → cubic in u solved via QuarticSolver.SolveCubic.
         // Coefficients in QuarticSolver are leading-first (a t³ + b t² + c t + d).
@@ -623,6 +656,7 @@ internal sealed class SplineSegment : ILatheSegment
                 float nR = (float)yp;
                 float nY = (float)(-rp);
                 outwardNormal = Vector3.Normalize(new Vector3(nR * cosT, nY, nR * sinT));
+                meridianDv = MeridianPerArcFraction(uParam, rp, yp);
                 found = true;
             }
         }

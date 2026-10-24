@@ -61,6 +61,15 @@ RenderBuffers ──► depth normalisation ──► feature prefiltering ─�
          + unfiltered mean ──► per-pixel MSE selection ─────► linear beauty
 ```
 
+**Extreme highlights.** Before the variance is estimated, what the
+brightest pixels hold above 32 times the image's 99th-percentile luminance
+is set aside (`NforDenoiser.SplitHighlights`, per half, scaling the colour
+by luminance so the hue stays): the filter sees them clamped, and the excess
+is added back unfiltered at the end. The image keeps its energy and a
+highlight its size. Without it, a pixel thousands of times brighter than
+its neighbours (the sun in a mirror, a small light) dominated every
+regression window that held it and came out as a square with a dark rim.
+
 Depth is normalised to a resolution- and scene-scale-independent [0,1]
 feature: distances clamp to a far plane at 1.05 × the 99th percentile of
 finite depth; sky pixels sit exactly at the far plane.
@@ -142,7 +151,11 @@ candidates a fraction of the variance when the Sobol sampler is active,
 compensating the anti-correlation bias of §1 — calibrated so near-converged
 Sobol renders never regress while low-spp renders keep their full gains.
 The per-pixel argmin maps are box-softened before blending, avoiding hard
-selection seams. Regression output is clamped non-negative (radiance).
+selection seams. A filtered candidate that overshoots below zero in any
+channel at a pixel (regression extrapolated across an HDR edge) is out of
+the running there, and a pixel whose blend still overshoots keeps its
+unfiltered mean: clamping the negative channel alone tinted it, a blue seam
+along a sunlit silhouette.
 
 The denoised buffer then goes through the *identical* display transform as
 the unfiltered path (`Renderer.ToneMapToDisplay`), and replaces the beauty
@@ -171,3 +184,8 @@ default no-capture path is bit-identical to the pre-denoiser renderer.
   selection margin.
 - Media regions commit featureless guides; denoising there falls back to
   pure colour similarity.
+- **HDR edges.** Along a sunlit edge against a much darker background a
+  thin seam of slightly tinted pixels can remain, and small very bright
+  out-of-focus lights can get a darker halo: the first-order regression
+  still overshoots there. The two guards above reduce it; a learned
+  denoiser is the planned fix.

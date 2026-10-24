@@ -56,6 +56,7 @@ public class Transform : IHittable, ISamplable
     // rec.LocalPoint so 3D procedural textures sample in metric object space.
     // See the class summary.
     private readonly Vector3 _localScale;
+    private readonly Quaternion _rotation;
 
     /// <summary>
     /// The wrapped IHittable (in object space). Used by SceneLoader.IsInfinitePlane()
@@ -101,8 +102,9 @@ public class Transform : IHittable, ISamplable
         // Extract the scale (for the metric-object-space LocalPoint). Decompose
         // handles any proper TRS; the fallback covers sheared/degenerate
         // matrices by taking the row-vector basis lengths of the 3×3 block.
-        if (!Matrix4x4.Decompose(_transform, out Vector3 scale, out _, out _))
+        if (!Matrix4x4.Decompose(_transform, out Vector3 scale, out _rotation, out _))
         {
+            _rotation = Quaternion.Identity;
             scale = new Vector3(
                 new Vector3(_transform.M11, _transform.M12, _transform.M13).Length(),
                 new Vector3(_transform.M21, _transform.M22, _transform.M23).Length(),
@@ -124,7 +126,7 @@ public class Transform : IHittable, ISamplable
         if (!_object.Hit(localRay, tMin, tMax, ref rec))
             return false;
 
-        MapHitToWorld(ref rec, _transform, _normalMatrix, _localScale);
+        MapHitToWorld(ref rec, _transform, _normalMatrix, _localScale, _rotation);
         return true;
     }
 
@@ -160,8 +162,17 @@ public class Transform : IHittable, ISamplable
     /// (matrix interpolated at the ray's time) so the two never drift.
     /// </summary>
     internal static void MapHitToWorld(ref HitRecord rec, in Matrix4x4 transform,
-                                       in Matrix4x4 normalMatrix, Vector3 localScale)
+                                       in Matrix4x4 normalMatrix, Vector3 localScale,
+                                       Quaternion rotation)
     {
+        // LocalPoint keeps the scale and drops the rotation (below): record the
+        // rotation, inner transforms first, so a world direction can be taken
+        // back into LocalPoint's space.
+        rec.LocalToWorld = rec.HasLocalFrame
+            ? Quaternion.Concatenate(rec.LocalToWorld, rotation)
+            : rotation;
+        rec.HasLocalFrame = true;
+
         // Metric object-space texture coordinate: apply ONLY this transform's
         // scale to the child's local point. Rotation and translation are
         // deliberately excluded so a 3D procedural texture stays attached to the
@@ -293,12 +304,12 @@ public class Transform : IHittable, ISamplable
     }
 
     /// <inheritdoc/>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
         if (_object is not ISamplable inner)
             return (Vector3.Zero, Vector3.UnitY, new Vector2(0.5f, 0.5f), 0f);
 
-        var (pointObj, normalObj, uvObj, areaObj) = inner.SampleStratified(sampleIndex, sqrtSamples);
+        var (pointObj, normalObj, uvObj, areaObj) = inner.SampleStratified(sampleIndex, sampleCount);
         return TransformSample(pointObj, normalObj, uvObj, areaObj);
     }
 

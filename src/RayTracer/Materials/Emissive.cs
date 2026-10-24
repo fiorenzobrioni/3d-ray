@@ -63,20 +63,8 @@ public sealed class Emissive : IMaterial
     public BumpMapTexture? BumpMap { get; set; }
     public MaterialDisplacement? Displacement { get; set; }
 
-    /// <summary>
-    /// Emissive materials do not scatter incoming rays.
-    /// Returning false tells the path tracer to stop bouncing and use
-    /// only the emitted + direct light contribution for this hit.
-    /// </summary>
-    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
-    {
-        attenuation = Vector3.Zero;
-        scattered = default;
-        return false;
-    }
-
-    // Default EvaluateDirect from IMaterial returns Vector3.Zero. ComputeDirectLighting
-    // does not call it at all for emissives because NeedsDirectLighting is false.
+    // No BSDF (Evaluate is zero): direct lighting is skipped altogether
+    // because NeedsDirectLighting is false.
 
     /// <summary>
     /// Returns the emitted radiance at the given surface point.

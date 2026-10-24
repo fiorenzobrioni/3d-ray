@@ -24,7 +24,8 @@ namespace RayTracer.Geometry;
 ///
 /// <b>TBN basis:</b>
 ///   Tangent = azimuthal direction (∂P/∂θ), same formula everywhere.
-///   Bitangent = cross(Normal, Tangent) — points in the direction of increasing V.
+///   Bitangent = cross(Tangent, Normal) — points in the direction of increasing V.
+///   Like Cylinder's, the frame is left-handed (T × B = −N).
 ///
 /// Implements ISamplable for use as an emissive area light with NEE.
 /// </summary>
@@ -98,6 +99,9 @@ public class Capsule : IHittable, ISamplable
                         rec.V = 0.25f + 0.5f * (y - _yMin) / Height;
 
                         SetTBN(ref rec, outwardNormal);
+                        // ∂P/∂u = 2πR·T; the body's height spans half of V.
+                        rec.DpDu = rec.Tangent * (2f * MathF.PI * Radius);
+                        rec.DpDv = new Vector3(0f, 2f * Height, 0f);
                         hitAnything = true;
                         tMax = t;
                     }
@@ -179,6 +183,17 @@ public class Capsule : IHittable, ISamplable
                 }
 
                 SetTBN(ref rec, outwardNormal);
+
+                // P = c + (ρ cos θ, R·y', ρ sin θ) with y' = localY,
+                // ρ = R√(1 − y'²) and dV/dy' = 0.25 on both hemispheres:
+                //   ∂P/∂u  = 2π·(−(z − cz), 0, x − cx)
+                //   ∂P/∂y' = R·(Y − y'·N) / (1 − y'²)
+                // V is linear in height, so ∂P/∂v grows without bound toward
+                // the pole (where ρ → 0); the floor only keeps it finite.
+                Vector3 rel = point - hemiCenter;
+                rec.DpDu = new Vector3(-rel.Z, 0f, rel.X) * (2f * MathF.PI);
+                float sin2 = MathF.Max(1f - localY * localY, 1e-6f);
+                rec.DpDv = (Vector3.UnitY - localY * outwardNormal) * (4f * Radius / sin2);
                 hitAnything = true;
                 tMax = t;
             }
@@ -186,15 +201,18 @@ public class Capsule : IHittable, ISamplable
     }
 
     /// <summary>
-    /// Sets the TBN basis using the same azimuthal tangent convention as Sphere/Cylinder.
+    /// Sets the TBN basis using the same azimuthal tangent convention as Cylinder.
     /// </summary>
     private void SetTBN(ref HitRecord rec, Vector3 outwardNormal)
     {
-        // Tangent = azimuthal direction (cross Y × normal)
-        Vector3 tDir = Vector3.Cross(Vector3.UnitY, outwardNormal);
+        // Tangent = azimuthal direction of increasing U. U follows
+        // atan2(z, x) like Cylinder, so the tangent is Cylinder's N × Y;
+        // Sphere's Y × N belongs to its atan2(−z, x) and points against U here.
+        Vector3 tDir = Vector3.Cross(outwardNormal, Vector3.UnitY);
         if (tDir.LengthSquared() < 1e-4f) tDir = Vector3.UnitX;
         rec.Tangent = Vector3.Normalize(tDir);
-        rec.Bitangent = Vector3.Normalize(Vector3.Cross(outwardNormal, rec.Tangent));
+        // T × N points toward increasing V (up the capsule) on every part.
+        rec.Bitangent = Vector3.Normalize(Vector3.Cross(rec.Tangent, outwardNormal));
         rec.ObjectSeed = Seed;
         rec.Material = Material;
     }
@@ -207,7 +225,11 @@ public class Capsule : IHittable, ISamplable
     // ═════════════════════════════════════════════════════════════════════════
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
-        => SampleImpl(MathUtils.RandomFloat(), MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        float part = MathUtils.RandomFloat();
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleImpl(part, r2u, r2v);
+    }
 
     /// <inheritdoc/>
     // Cylinder lateral (2πRH) + full sphere (4πR²)
@@ -218,14 +240,12 @@ public class Capsule : IHittable, ISamplable
     /// <c>sqrtSamples × sqrtSamples</c> grid. The body/hemisphere selection
     /// stays uniform to preserve area weighting.
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
         float xiPart = MathUtils.RandomFloat();
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleImpl(xiPart, xi1, xi2);
     }
 

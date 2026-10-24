@@ -1,0 +1,144 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  material-openpbr.yaml - il materiale OpenPBR Surface, un lobo per sfera
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Fila davanti (da sinistra): plastica ruvida (EON), oro (F82 con tinta al
+#  bordo), vetro ruvido, giada (subsurface), vernice auto (coat con
+#  assorbimento sopra una base metallica), velluto (fuzz).
+#  Fila dietro: bolla iridescente (film sottile), metallo spazzolato
+#  (anisotropia), foglio di carta (thin-walled subsurface), plastica smaltata
+#  con coat rugoso, gomma emissiva sotto coat.
+#
+#  Render consigliati:
+#    Preview:  -q draft-small
+#    Final:    -q final
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.10, 0.15, 0.30]
+    horizon_color: [0.55, 0.58, 0.65]
+    ground_color:  [0.12, 0.11, 0.10]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0
+
+camera:
+  position: [0, 4.2, -11]
+  look_at: [0, 1.0, 1.0]
+  fov: 42
+
+lights:
+  - type: "area"
+    corner: [-3, 7, -5]
+    u: [6, 0, 0]
+    v: [0, 0, 3]
+    color: [1.0, 0.96, 0.9]
+    intensity: 5.0
+    shadow_samples: 4
+
+materials:
+  - id: "floor"
+    type: "openpbr"
+    base_color: [0.35, 0.34, 0.32]
+    specular_roughness: 0.6
+    base_diffuse_roughness: 0.5
+
+  - id: "plastic"
+    type: "openpbr"
+    base_color: [0.80, 0.18, 0.12]
+    base_diffuse_roughness: 0.6
+    specular_roughness: 0.35
+
+  - id: "gold"
+    type: "openpbr"
+    base_metalness: 1
+    base_color: [1.0, 0.78, 0.34]
+    specular_color: [1.0, 0.92, 0.75]
+    specular_roughness: 0.25
+
+  - id: "frosted"
+    type: "openpbr"
+    transmission_weight: 1
+    transmission_color: [0.85, 0.95, 0.9]
+    transmission_depth: 1.0
+    specular_roughness: 0.2
+
+  - id: "jade"
+    type: "openpbr"
+    subsurface_weight: 1
+    subsurface_color: [0.45, 0.80, 0.50]
+    subsurface_radius: 0.3
+    specular_roughness: 0.15
+
+  - id: "car_paint"
+    type: "openpbr"
+    base_metalness: 0.8
+    base_color: [0.55, 0.05, 0.08]
+    specular_roughness: 0.4
+    coat_weight: 1
+    coat_roughness: 0.03
+    coat_color: [0.95, 0.85, 0.85]
+
+  - id: "velvet"
+    type: "openpbr"
+    base_color: [0.10, 0.05, 0.30]
+    base_diffuse_roughness: 0.8
+    specular_weight: 0.3
+    specular_roughness: 0.6
+    fuzz_weight: 1
+    fuzz_color: [0.65, 0.55, 1.0]
+    fuzz_roughness: 0.35
+
+  - id: "bubble"
+    type: "openpbr"
+    base_color: [0.05, 0.05, 0.06]
+    specular_roughness: 0.05
+    thin_film_weight: 1
+    thin_film_thickness: 0.45
+    thin_film_ior: 1.33
+
+  - id: "brushed"
+    type: "openpbr"
+    base_metalness: 1
+    base_color: [0.91, 0.92, 0.92]
+    specular_roughness: 0.35
+    specular_roughness_anisotropy: 0.8
+
+  - id: "paper"
+    type: "openpbr"
+    geometry_thin_walled: true
+    subsurface_weight: 1
+    subsurface_color: [0.95, 0.93, 0.88]
+    specular_roughness: 0.5
+
+  - id: "enamel"
+    type: "openpbr"
+    base_color: [0.10, 0.35, 0.75]
+    coat_weight: 1
+    coat_roughness: 0.25
+    coat_ior: 1.5
+
+  - id: "glow"
+    type: "openpbr"
+    base_color: [0.05, 0.05, 0.05]
+    emission_luminance: 4
+    emission_color: [0.2, 1.0, 0.4]
+    coat_weight: 1
+    coat_roughness: 0.02
+
+entities:
+  - { name: "plastic",   type: "sphere", center: [  5.0, 0.8, 0.0], radius: 0.8, material: "plastic" }
+  - { name: "gold",      type: "sphere", center: [  3.0, 0.8, 0.0], radius: 0.8, material: "gold" }
+  - { name: "frosted",   type: "sphere", center: [  1.0, 0.8, 0.0], radius: 0.8, material: "frosted" }
+  - { name: "jade",      type: "sphere", center: [ -1.0, 0.8, 0.0], radius: 0.8, material: "jade" }
+  - { name: "car_paint", type: "sphere", center: [ -3.0, 0.8, 0.0], radius: 0.8, material: "car_paint" }
+  - { name: "velvet",    type: "sphere", center: [ -5.0, 0.8, 0.0], radius: 0.8, material: "velvet" }
+
+  - { name: "bubble",    type: "sphere", center: [  4.0, 0.8, 2.6], radius: 0.8, material: "bubble" }
+  - { name: "brushed",   type: "sphere", center: [  2.0, 0.8, 2.6], radius: 0.8, material: "brushed" }
+  - { name: "paper",     type: "sphere", center: [ -0.0, 0.8, 2.6], radius: 0.8, material: "paper" }
+  - { name: "enamel",    type: "sphere", center: [ -2.0, 0.8, 2.6], radius: 0.8, material: "enamel" }
+  - { name: "glow",      type: "sphere", center: [ -4.0, 0.8, 2.6], radius: 0.8, material: "glow" }

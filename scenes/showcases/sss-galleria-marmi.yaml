@@ -24,9 +24,9 @@
 #    (-d >= 12). I preset -q forzano -d basso (draft=4, medium=6, final=8) e
 #    lascerebbero le capsule nere (cammini interni al vetro troncati). Usare
 #    quindi i flag espliciti qui sotto invece di -q:
-#    Preview  (~2-3 min):   -w 480 -H 320 -s 48   -d 12 -S 1 --sss-quality preview -C 25
-#    Standard (~15 min):    -w 960 -H 540 -s 256  -d 14 -S 2 --sss-quality normal  -C 25
-#    Final    (~1-2 h):     -w 1920 -H 1080 -s 1024 -d 16 -S 4 --sss-quality high  -C 25
+#    Preview  (~2-3 min):   -w 480 -H 320 -s 48   -d 12 -S 1 -C 25
+#    Standard (~15 min):    -w 960 -H 540 -s 256  -d 14 -S 2 -C 25
+#    Final    (~1-2 h):     -w 1920 -H 1080 -s 1024 -d 16 -S 4 -C 25
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:

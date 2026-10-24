@@ -138,6 +138,7 @@ public class AnimatedTransform : IHittable
     {
         Matrix4x4 transform, inverse, normalMatrix;
         Vector3 scale;
+        Quaternion rotation;
 
         if (_isStatic)
         {
@@ -145,6 +146,7 @@ public class AnimatedTransform : IHittable
             inverse = _staticInverse;
             normalMatrix = _staticNormalMatrix;
             scale = _keys[0].Scale;
+            rotation = Quaternion.Normalize(_keys[0].Rotate);
         }
         else
         {
@@ -154,6 +156,7 @@ public class AnimatedTransform : IHittable
                 inverse = Matrix4x4.Identity;
             normalMatrix = Matrix4x4.Transpose(inverse);
             scale = pose.Scale;
+            rotation = Quaternion.Normalize(pose.Rotate);
         }
 
         Ray localRay = Transform.ToLocalRay(ray, inverse);
@@ -161,7 +164,7 @@ public class AnimatedTransform : IHittable
         if (!_object.Hit(localRay, tMin, tMax, ref rec))
             return false;
 
-        Transform.MapHitToWorld(ref rec, transform, normalMatrix, Vector3.Abs(scale));
+        Transform.MapHitToWorld(ref rec, transform, normalMatrix, Vector3.Abs(scale), rotation);
         return true;
     }
 

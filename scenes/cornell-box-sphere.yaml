@@ -2,15 +2,15 @@
 #  CORNELL BOX — Variante a 3 SFERE con CAUSTICHE
 #
 #  Variante di cornell-box.yaml con la VARIANTE E (tre sfere: opaca, cromo,
-#  vetro) ATTIVA al posto dei due blocchi classici, e le CAUSTICHE abilitate:
+#  vetro) ATTIVA al posto dei due blocchi classici, per le CAUSTICHE:
 #    • Sfera di vetro  → caustica rifrattiva focalizzata sul pavimento
 #    • Sfera cromata   → caustica riflessa (alone luminoso)
-#    • Pavimento e pareti ricevono le caustiche (nessun flag: basta --caustics on).
+#    • Pavimento e pareti ricevono le caustiche (nessun flag per-oggetto).
 #
-#  Render (final/ultra abilitano --caustics da soli):
+#  Render (path tracing bidirezionale: le caustiche convergono pulite):
 #    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
 #      -i scenes/cornell-box-sphere.yaml -o renders/cornell-sphere.png \
-#      -q final --caustics on -w 1024 -H 1024
+#      -q final --integrator bdpt -w 1024 -H 1024
 #
 #  Replica della Cornell Box originale (Goral, Torrance et al. 1984).
 #  Scatola 2×2×2 unità, aperta sul lato frontale, con pannello luminoso

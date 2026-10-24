@@ -1,0 +1,72 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  texture-frames.yaml - frame tangente di normal map e bump
+#  (PIANO-REVIEW.md, Fase 4)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Fila dietro: tre cubi con la stessa normal map di piastrelle, ruotati
+#    di 0°, 90° e 45° attorno a Y. Le fughe devono essere incavate su ogni
+#    faccia visibile, con l'ombra dalla stessa parte (luce in alto a
+#    sinistra). Prima della revisione tre facce del cubo (+X, +Y, -Z)
+#    avevano il canale verde capovolto: lì le fughe orizzontali sembravano
+#    in rilievo.
+#
+#  Fila davanti: tre sfere con lo stesso bump procedurale (noise), la prima
+#    ferma, la seconda ruotata di 90° attorno a Z, la terza di raggio 0.3
+#    scalata 2×. Devono avere lo stesso rilievo, alto uguale: la seconda
+#    ruotato con l'oggetto, la terza identico alla prima (il punto della
+#    texture porta la scala, l'altezza del bump è in unità di scena).
+#    Prima della revisione la sfera ruotata prendeva la pendenza del
+#    rumore lungo l'asse sbagliato: il rilievo era più debole e stirato.
+#
+#  Render consigliato:
+#    -s 128 -w 960 -H 540 --denoiser none
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.20, 0.28, 0.45]
+    horizon_color: [0.75, 0.78, 0.82]
+    ground_color:  [0.20, 0.19, 0.18]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0
+
+camera:
+  position: [0, 3.4, -9]
+  look_at: [0, 0.9, 1.2]
+  fov: 40
+
+lights:
+  - type: "area"
+    corner: [-7, 7, -6]
+    u: [2, 0, 0]
+    v: [0, 0, 2]
+    color: [1.0, 0.96, 0.9]
+    intensity: 30.0
+    shadow_samples: 4
+
+materials:
+  - { id: "floor", type: "lambertian", color: [0.4, 0.4, 0.4] }
+  - id: "tiles"
+    type: "lambertian"
+    color: [0.75, 0.72, 0.68]
+    normal_map:
+      path: "../assets/textures/tiles-normal.png"
+      strength: 1.5
+  - id: "bumpy"
+    type: "openpbr"
+    base_color: [0.55, 0.35, 0.25]
+    specular_roughness: 0.35
+    bump_map:
+      texture: { type: "noise", noise_type: "fbm", scale: 3, octaves: 4 }
+      strength: 0.15
+
+entities:
+  - { name: "tiles_0",  type: "box", material: "tiles", scale: [1.4, 1.4, 1.4], translate: [ 2.6, 0.7, 2.2] }
+  - { name: "tiles_90", type: "box", material: "tiles", scale: [1.4, 1.4, 1.4], rotate: [0, 90, 0], translate: [ 0.0, 0.7, 2.2] }
+  - { name: "tiles_45", type: "box", material: "tiles", scale: [1.4, 1.4, 1.4], rotate: [0, 45, 0], translate: [-2.6, 0.7, 2.2] }
+  - { name: "bump_0",      type: "sphere", center: [0, 0, 0], radius: 0.6, material: "bumpy", translate: [ 2.2, 0.6, -1.2] }
+  - { name: "bump_rot",    type: "sphere", center: [0, 0, 0], radius: 0.6, material: "bumpy", rotate: [0, 0, 90], translate: [ 0.0, 0.6, -1.2] }
+  - { name: "bump_scaled", type: "sphere", center: [0, 0, 0], radius: 0.3, material: "bumpy", scale: [2, 2, 2], translate: [-2.2, 0.6, -1.2] }

@@ -108,7 +108,10 @@ public class Triangle : IHittable, ISamplable
     public float SurfaceArea => _area;
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
-        => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleAt(r2u, r2v);
+    }
 
     /// <summary>
     /// Stratified sampling on the triangle via the unit-square → triangle
@@ -117,13 +120,11 @@ public class Triangle : IHittable, ISamplable
     /// of approximately equal area on the triangle, so jittered samples
     /// remain evenly distributed after the warp.
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleAt(xi1, xi2);
     }
 

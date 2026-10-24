@@ -188,10 +188,8 @@ public class MaterialDisplacementTests
         var b = new BumpMapTexture(new UGradient(), strength: 5.0f, scale: 1f);
         var mix = new MixBumpMapTexture(a, b, mask: null, blend: 0f);
 
-        Vector3 nA = a.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero,
-            Vector3.UnitX, Vector3.UnitY, 0);
-        Vector3 nMix = mix.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero,
-            Vector3.UnitX, Vector3.UnitY, 0);
+        Vector3 nA = a.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
+        Vector3 nMix = mix.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
 
         Assert.Equal(nA.X, nMix.X, precision: 5);
         Assert.Equal(nA.Y, nMix.Y, precision: 5);
@@ -205,10 +203,8 @@ public class MaterialDisplacementTests
         var b = new BumpMapTexture(new UGradient(), strength: 5.0f, scale: 1f);
         var mix = new MixBumpMapTexture(a, b, mask: null, blend: 1f);
 
-        Vector3 nB = b.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero,
-            Vector3.UnitX, Vector3.UnitY, 0);
-        Vector3 nMix = mix.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero,
-            Vector3.UnitX, Vector3.UnitY, 0);
+        Vector3 nB = b.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
+        Vector3 nMix = mix.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
 
         Assert.Equal(nB.X, nMix.X, precision: 5);
         Assert.Equal(nB.Y, nMix.Y, precision: 5);
@@ -222,8 +218,7 @@ public class MaterialDisplacementTests
         var b = new BumpMapTexture(new UGradient(), strength: 2.0f, scale: 1f);
         var mix = new MixBumpMapTexture(a, b, mask: null, blend: 0.5f);
 
-        Vector3 n = mix.SampleTangentNormal(0.7f, 0.3f, Vector3.Zero,
-            Vector3.UnitX, Vector3.UnitY, 0);
+        Vector3 n = mix.SampleTangentNormal(0.7f, 0.3f, Vector3.Zero, BumpFrame.Unit, 0);
         Assert.Equal(1f, n.Length(), precision: 4);
     }
 

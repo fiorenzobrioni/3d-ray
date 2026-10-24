@@ -102,7 +102,7 @@ public class VolumetricsTests
         float maxBeta = 0f;
         for (int i = 0; i < N; i++)
         {
-            medium.Sample(ray, tMax, out _, out Vector3 beta, out _);
+            Vector3 beta = medium.Sample(ray, tMax, Vector3.One).Weight;
             float lum = MathUtils.Luminance(beta);
             if (lum > maxBeta) maxBeta = lum;
         }
@@ -121,7 +121,7 @@ public class VolumetricsTests
         var ray = new Ray(Vector3.Zero, Vector3.UnitY);
         for (int i = 0; i < 200; i++)
         {
-            bool scattered = medium.Sample(ray, 100f, out _, out _, out _);
+            bool scattered = medium.Sample(ray, 100f, Vector3.One).Scattered;
             Assert.False(scattered, "Vacuum medium must never scatter");
         }
     }
@@ -304,7 +304,7 @@ public class VolumetricsTests
         // No scatter expected in 200 samples through zero-density grid.
         for (int i = 0; i < 200; i++)
         {
-            bool scattered = medium.Sample(ray, 10f, out _, out _, out _);
+            bool scattered = medium.Sample(ray, 10f, Vector3.One).Scattered;
             Assert.False(scattered, "Zero-density grid must never scatter");
         }
 

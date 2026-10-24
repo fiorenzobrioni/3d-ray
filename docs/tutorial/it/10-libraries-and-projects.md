@@ -221,10 +221,11 @@ entities:
     material: "emi_tungsteno"
 ```
 
-Suggerimento: le luci geometriche partecipano automaticamente alla NEE
-pesata per potenza. Per scene con molte luci geometriche,
-`--light-sampling power` riduce la varianza quando le intensità delle
-luci differiscono notevolmente.
+Suggerimento: le luci geometriche partecipano automaticamente alla NEE.
+Con più di 16 luci il default `--light-sampling auto` sceglie una luce
+per punto attraverso un BVH delle luci (per potenza, distanza e
+orientamento), che tiene veloci e poco rumorose le scene con molti
+oggetti emissivi.
 
 ### Light hardening: ridurre i firefly senza alzare gli spp
 
@@ -250,10 +251,10 @@ Per le scene volumetriche pesanti (mezzi `procedural`/`grid`, oppure
 `height_fog` denso) considera anche da CLI:
 
 ```
---indirect-clamp-factor 0.25   # clamp dei rimbalzi indiretti a 1/4 di -C
---light-sampling power         # campiona una luce per evento NEE in
-                               # proporzione alla potenza (riduce varianza
-                               # con molte luci di brillanza mista)
+-C 10 --indirect-clamp-factor 0.25   # firefly clamp opzionale (introduce bias): rimbalzi indiretti a 1/4 di -C
+--light-sampling bvh           # una luce per evento NEE, per potenza,
+                               # distanza e orientamento (il default
+                               # `auto` lo usa oltre le 16 luci)
 ```
 
 In sintesi: prima di alzare `-s` per togliere il rumore, controlla se
@@ -434,17 +435,18 @@ L'insieme completo dei parametri della riga di comando:
 | `-w` | `--width`           | `960` (draft-small)           | Larghezza dell'immagine in pixel                             |
 | `-H` | `--height`          | `540` (draft-small)           | Altezza dell'immagine in pixel                               |
 | `-s` | `--samples`         | `16` (draft-small)            | Campioni per pixel (Sobol: conteggio esatto; PRNG: arrotondato al quadrato perfetto superiore) |
-| `-d` | `--depth`           | `4` (draft-small; `8` nei preset di qualità — alza a 16+ per vetri impilati) | Numero massimo di rimbalzi dei raggi |
+| `-d` | `--depth`           | `8` (draft-small; `12` standard, `16` final) | Numero massimo di vertici del percorso, diviso per tipo di rimbalzo (`--depth-diffuse`, `--depth-glossy`, `--depth-transmission`, `--depth-volume`) |
 | `-S` | `--shadow-samples`  | *(per luce)*                  | Sovrascrive i campioni d'ombra per tutte le luci area/sphere (quadrati perfetti) |
-| `-C` | `--clamp`           | `10`                          | Firefly clamp: radianza massima per-campione prima del tone mapping |
+| `-C` | `--clamp`           | spento                        | Firefly clamp opzionale: radianza massima per-campione prima del tone mapping (introduce bias; prova `10`) |
 | `-c` | `--camera`          | `0`                           | Seleziona la fotocamera per nome o indice base zero          |
 |      | `--sampler`         | `sobol`                       | Sampler per-pixel: `sobol` (Owen-scrambled) o `prng`         |
 |      | `--mis`             | `balance`                     | Heuristica MIS: `balance` o `power`                          |
-|      | `--light-sampling`  | `all`                         | Strategia NEE: `all`, `power`, `uniform`                     |
-|      | `--indirect-clamp-factor` | `0.25`                  | Fattore di clamp del contributo indiretto, applicato una volta relativo alla camera (`0.25` → clamp indiretto = ¼ di `-C`; `1.0` = disattivato) |
+|      | `--light-sampling`  | `auto`                        | Strategia NEE: `auto`, `all`, `power`, `uniform`, `bvh`      |
+|      | `--indirect-clamp-factor` | `0.25`                  | Fattore di clamp del contributo indiretto, applicato una volta relativo alla camera (`0.25` → clamp indiretto = ¼ di `-C`; `1.0` = disattivato), solo con `-C` |
+|      | `--transparent-shadows` | `off`                     | `on`: il vetro lascia passare i raggi d'ombra, tinti (niente ombra né caustica; approssimazione artistica) |
 |      | `--texture-filtering` | `auto`                      | Anti-aliasing analitico delle texture procedurali / image via ray differentials: `auto` / `on` (filtering attivo) o `off` (point-sampled, per benchmark) |
 |      | `--list-cameras`    |                               | Elenca le fotocamere disponibili ed esce                     |
-| `-v` | `--verbose`         |                               | Output dettagliato di scene-load e tuning Russian Roulette   |
+| `-v` | `--verbose`         |                               | Output dettagliato di scene-load                             |
 | `-h` | `--help`            |                               | Mostra l'aiuto                                               |
 
 ### Formato di output
@@ -553,7 +555,7 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 ```
 
 Per la spiegazione completa di ciascun parametro, il comportamento della
-Russian Roulette, l'eccezione dei vetri impilati che impone `-d 16+` e la
+Russian Roulette, i limiti di rimbalzo per tipo (i vetri impilati chiedono un `--depth-transmission` più alto) e la
 manopola `-C`/`--clamp` del firefly clamp, consulta
 **[Profili di Rendering](../../reference/profili-di-rendering.md)**.
 

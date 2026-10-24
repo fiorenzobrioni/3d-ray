@@ -17,10 +17,7 @@ public class MediumStackTests
     {
         public IPhaseFunction Phase { get; } = new IsotropicPhase();
         public Vector3 Transmittance(Ray ray, float tMax) => Vector3.One;
-        public bool Sample(Ray ray, float tMax, out float t, out Vector3 beta, out bool scattered)
-        {
-            t = tMax; beta = Vector3.One; scattered = false; return false;
-        }
+        public MediumEvent Sample(Ray ray, float tMax, Vector3 throughput) => new(false, tMax, Vector3.One, Phase);
     }
 
     [Fact]
@@ -142,10 +139,7 @@ public class MediumBoundHittableTests
     {
         public IPhaseFunction Phase { get; } = new IsotropicPhase();
         public Vector3 Transmittance(Ray ray, float tMax) => Vector3.One;
-        public bool Sample(Ray ray, float tMax, out float t, out Vector3 beta, out bool scattered)
-        {
-            t = tMax; beta = Vector3.One; scattered = false; return false;
-        }
+        public MediumEvent Sample(Ray ray, float tMax, Vector3 throughput) => new(false, tMax, Vector3.One, Phase);
     }
 
     [Fact]

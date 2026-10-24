@@ -111,9 +111,10 @@ public class IorStackTests
         // produced (direction crosses to the far side of the shading normal).
         for (int i = 0; i < 1000; i++)
         {
-            Assert.True(mat.Scatter(new Ray(rec.Point, dir), rec, out _, out Ray scattered));
-            if (Vector3.Dot(scattered.Direction, rec.Normal) < 0f)
-                return scattered.Direction;
+            BsdfSample? s = mat.Sample(-Vector3.Normalize(dir), rec);
+            Assert.True(s.HasValue);
+            if (Vector3.Dot(s.Value.Wo, rec.Normal) < 0f)
+                return s.Value.Wo;
         }
         throw new Xunit.Sdk.XunitException("no refraction sampled in 1000 tries");
     }

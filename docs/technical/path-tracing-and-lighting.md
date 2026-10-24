@@ -28,10 +28,10 @@ Per accelerare la convergenza (ridurre il rumore) su scene con sorgenti di luce 
 
 ### 2.1 Funzionamento
 Ad ogni "hit" del raggio sulla superficie, invece di aspettare che un rimbalzo casuale colpisca una luce per accumulare l'energia, il motore:
-1.  **Campiona ogni luce** nella scena (`ComputeDirectLighting`).
+1.  **Campiona le luci** (`ComputeDirectLighting`): tutte, oppure una sola scelta con probabilità nota (`--light-sampling`, §7.3).
 2.  Lancia un **raggio d'ombra (Shadow Ray)** verso un punto casuale della luce (per le Area Light) o verso la posizione della luce (Point/Spot).
-3.  Calcola il contributo BRDF della superficie per quella specifica direzione della luce.
-4.  Se la luce è visibile dal punto di hit, aggiunge il contributo (radiance × BRDF) all'accumulatore.
+3.  Se la luce è visibile dal punto di hit, valuta l'integrando in quella direzione: `material.Evaluate(V, L) × |N.L|` (`Renderer.DirectIntegrand`, la stessa BSDF che il rimbalzo indiretto campiona), moltiplicato per il fattore di shadow terminator sul lato della luce (`LightSideTerminator`, Chiang et al. 2019: attenua la luce che una normale perturbata vedrebbe sotto l'orizzonte vero; vale 1 dove la normale non è perturbata).
+4.  Aggiunge all'accumulatore il contributo (peso MIS × radiance della luce × integrando × trasmittanza del mezzo).
 
 ### 2.2 Separazione tra Luce Diretta e Indiretta — Multiple Importance Sampling
 Per evitare di contare due volte l'energia emessa (Double Counting) e per ridurre la varianza, il motore implementa il **Multiple Importance Sampling** di Veach (1997). Due strategie campionano lo stesso integrando dell'illuminazione diretta:
@@ -45,7 +45,7 @@ $$w_\text{balance}(p, q) = \frac{p}{p + q}, \qquad w_\text{power}(p, q) = \frac{
 
 La power heuristic riduce la varianza per coppie molto asimmetriche (es. luce piccola + materiale ruvido) sopprimendo più aggressivamente lo sampler peggio adattato.
 
-Tutti i materiali (Lambertian, Metal, MixMaterial, DisneyBsdf) implementano la tripla simmetrica `Sample` / `Pdf` / `Evaluate` su cui poggia la combinazione MIS; il `Renderer` propaga `prevBsdfPdf` e `prevIsDelta` lungo il path e li usa per pesare l'emissione al successivo hit (`WeightEmission`) e il sky miss (`SampleSky`). Lobi delta puri (specchio perfetto, rifrazione ideale, point/directional/spot light) sono riconosciuti dai flag `IsDeltaScatter` / `IsDelta` e ricevono peso 1 — non possono essere campionati dall'altra strategia.
+Tutti i materiali (Lambertian, Metal, Dielectric, OpenPbr, che serve anche il tipo `disney`, e MixMaterial) implementano la tripla simmetrica `Sample` / `Pdf` / `Evaluate` su cui poggia la combinazione MIS; `Emissive` non ha BSDF e il suo `Sample` nullo termina il cammino. Il campione BSDF non-delta pesa `F × |N.Wo| × terminator / pdf`, con lo stesso fattore di shadow terminator della NEE perché appartiene all'integrando; un campione delta pesa `F`. Il `Renderer` propaga `prevBsdfPdf` e `prevIsDelta` lungo il path e li usa per pesare l'emissione al successivo hit (`WeightEmission`) e il sky miss (`SampleSky`): dopo un lobo delta, o per un emettitore che la NEE non campiona, l'emissione passa a peso pieno; altrimenti riceve il peso MIS `prevBsdfPdf / (prevBsdfPdf + pLight)` (balance). Lobi delta puri (specchio perfetto, rifrazione ideale) e luci delta (point/directional/spot) sono riconosciuti da `BsdfSample.IsDelta` / `ILight.IsDelta` e ricevono peso 1: non possono essere campionati dall'altra strategia.
 
 L'estensione MIS copre anche il **bounce volumetrico**: la phase function espone `Pdf(wo, wi)` e il suo valore viene threadato come `prevBsdfPdf` quando il raggio prosegue dopo un evento di scattering nel medium globale. Combinato con la trasmittanza Beer-Lambert applicata già nelle shadow ray, questo dà MIS pieno fra phase-sampling e light-sampling per l'in-scattering.
 
@@ -53,7 +53,13 @@ L'estensione MIS copre anche il **bounce volumetrico**: la phase function espone
 
 ### 2.3 Transparent Shadow Rays
 
-Lo shadow ray del NEE non è un semplice test booleano di occlusione: attraversa le superfici trasmissive (vetro `dielectric`, Disney con `spec_trans > 0`, mix di entrambi) accumulando un fattore di trasmissione per canale. Senza questo passaggio, una lente o una bottiglia di vetro proietterebbe un'ombra dura identica a un occluder opaco — visivamente sbagliato.
+**Quando lo shadow ray attraversa una superficie.** Per default le superfici sono **opache** agli shadow ray, con un'eccezione esatta: la trasmissione **rettilinea** (`IMaterial.TransmitsStraight`), cioè un'interfaccia con indice adattato (`refraction_index: 1`, il guscio che delimita un volume di nebbia o acqua) o un foglio `thin_walled` liscio. Lì la luce non viene deviata, quindi attraversarla in linea retta è il trasporto vero. Il vetro che rifrange invece blocca lo shadow ray: la luce che lo attraversa arriva solo lungo i cammini BSDF che lo attraversano davvero (ombra fisica più caustica, rumorosa con pochi campioni in path tracing; gli integratori bidirezionali la risolvono, §2.5).
+
+Con `--transparent-shadows on` anche il vetro che rifrange lascia passare lo shadow ray, in linea retta e tinto dalla trasmittanza di Fresnel: un'approssimazione artistica senza rumore (mezz'ombra morbida al posto di ombra e caustica). Per non contare due volte la stessa luce, il renderer scarta l'emissione raggiunta da una catena speculare che parte da un vertice diffuso e attraversa solo superfici che lo shadow ray attraversa anch'esso (bit `ChainShadowPassable` dello stato di catena), e dà peso MIS pieno al campione di luce che ha attraversato una superficie (`ShadowRay.LastCrossedTransparent`): è l'unico stimatore rimasto di quel trasporto. La stessa regola vale per il cielo campionato dal NEE. Il random walk del subsurface scattering, che esce dal proprio oggetto senza rifrazione, vede il bordo della propria entità come interfaccia nulla anche per i suoi campioni di luce (`ShadowRay.PassThroughEntity`), coerente con la sua uscita.
+
+> Fino alla Fase 0 della review il vetro era trasparente agli shadow ray per default e i cammini rifratti non venivano scartati: la luce attraverso il vetro era contata due volte e l'ombra di una sfera di vetro spariva.
+
+Quando lo shadow ray attraversa una superficie, accumula un fattore di trasmissione per canale:
 
 **Algoritmo** (`Geometry/ShadowRay.Transmittance`)
 
@@ -66,9 +72,9 @@ Lo shadow ray del NEE non è un semplice test booleano di occlusione: attraversa
 **Modelli di trasmittanza per materiale**
 
 - **`Dielectric`**: $T = (1 - F_\text{dielectric}(\cos\theta, \eta)) \cdot \text{albedo}$, dove $F$ è la formula di Fresnel completa (`MathUtils.FresnelDielectric`). Una sfera di vetro accumula due fattori (entrata + uscita), riproducendo il rim più scuro a grazing angles. Nessun assorbimento volumetrico.
-- **`DisneyBsdf`** (solo se `spec_trans > 0`):
-  - Per-interfaccia: $T = \text{specTrans} \cdot (1 - F) \cdot \text{tint}$, con `tint` da `ResolveTransmission` (legacy `sqrt(baseColor)` se `transmission_color` non è impostato, oppure `transmission_color` puro per `transmission_depth = 0`, oppure $\mathbf{1}$ in modalità Beer-Lambert).
-  - Volumetrico Beer-Lambert: $\sigma_a = -\ln(\text{transmission\_color}) / \text{transmission\_depth}$ esposto via `IMaterial.ShadowAbsorption`. Il walker integra $\exp(-\sigma_a \cdot d)$ sul segmento interno fra il front-face hit (entrata) e il successivo back-face hit (uscita). Risultato: l'ombra di un rubino, smeraldo, ambra o zaffiro è correttamente colorata, in coerenza con la trasmissione del lobo BSDF che già usa lo stesso $\sigma_a$ via medium-switch.
+- **`OpenPbr`** (anche il tipo `disney`; solo con `transmission_weight` o `subsurface_weight` > 0):
+  - Per-interfaccia: $T = (1 - M) \cdot T' \cdot (1 - F) \cdot \text{tint}$, con $M$ la metalness e $T' = T + (1 - T) S$ la quota che attraversa l'interfaccia dielettrica (trasmissione più subsurface), attenuato dal coat (assorbimento e Fresnel del coat) e dal fuzz, poi miscelato con 1 secondo l'opacità (una superficie in parte ritagliata lascia passare il resto). `tint` è `transmission_color`, salvo quando c'è una `transmission_depth` (allora il colore è nel Beer-Lambert). Da dentro l'oggetto vale solo il Fresnel dell'interfaccia.
+  - Volumetrico Beer-Lambert: $\sigma_a = -\ln(\text{transmission\_color}) / \text{transmission\_depth}$ esposto via `IMaterial.ShadowAbsorption` (zero quando l'interno è un mezzo legato all'oggetto, che attenua per conto suo). Il walker integra $\exp(-\sigma_a \cdot d)$ sul segmento interno fra il front-face hit (entrata) e il successivo back-face hit (uscita). Risultato: l'ombra di un rubino, smeraldo, ambra o zaffiro è correttamente colorata, in coerenza con la trasmissione del lobo BSDF che già usa lo stesso $\sigma_a$ via medium-switch.
 - **`MixMaterial`**: blend lineare di `ShadowTransmittance` e `ShadowAbsorption` dei due child.
 - Default per tutti gli altri materiali: `Vector3.Zero` per entrambi (opaco).
 
@@ -78,31 +84,15 @@ Il raggio non viene rifratto né perturbato: viaggia in linea retta. Questo sign
 - ✅ Ombre del vetro ammorbidite dalla trasmissione Fresnel.
 - ✅ Vetri colorati con `transmission_depth` proiettano ombra tinta via Beer-Lambert.
 - ✅ Color bleeding diffuso attraverso uno specchio o un vetro tinto.
-- ✅ (con `--caustics on`) Caustiche focalizzate attraverso qualunque superficie speculare (vetro/specchio/acqua/metallo liscio), prodotte dal pre-pass di photon mapping: vedi §2.5. Senza caustiche attive lo spot focalizzato viene solo dal path tracing forward indiretto, con varianza alta.
+- ❌ Caustiche focalizzate: in path tracing vengono solo dai cammini campionati, con varianza alta; gli integratori bidirezionali le rendono pulite (§2.5).
 
-Il vetro/metallo **rough/frosted** e l'ambiente **HDRI** non sono ancora coperti dal pre-pass di fotoni e ricadono sul path tracing forward (più rumoroso) — vedi §2.5 e la sezione *Roadmap caustiche* del `PLANNING.md`.
+### 2.5 Caustiche Focalizzate
 
-### 2.5 Caustiche Focalizzate — Photon Mapping
+Lo shadow ray dritto di §2.3 non può riprodurre la **caustica focalizzata**: lo spot luminoso che una lente o una sfera di vetro concentra su una superficie, o il riflesso che uno specchio curvo proietta su un muro. Quei cammini attraversano una o più interfacce speculari prima di una superficie diffusa (`L S+ D`); il path tracing li trova solo quando il rimbalzo dalla superficie diffusa colpisce la luce attraverso la catena speculare, quindi le rende prive di bias ma rumorose, tanto più quanto la luce è piccola.
 
-Lo shadow ray dritto di §2.3 non può riprodurre la **caustica focalizzata** — lo spot luminoso che una lente o una sfera di vetro concentra su una superficie, o il riflesso che uno specchio curvo proietta su un muro. Quei cammini di luce attraversano una o più interfacce speculari prima di raggiungere una superficie diffusa (cammini della forma `L S+ D`), e il path tracing forward li campiona con varianza altissima. Con `--caustics on` il motore li ricostruisce con un **pre-pass di photon mapping** (Jensen): una passata di fotoni dalle luci, separata e precedente alla passata camera.
+Le rendono pulite gli integratori bidirezionali (`--integrator bdpt|vcm`, [Bidirectional Path Tracing and VCM](./bidirectional.md)): il BDPT le raggiunge tracciando la luce dalla sorgente e collegandola alla camera o ai vertici della camera, il VCM anche quando la caustica è vista attraverso un'altra superficie speculare (`L S+ D S+ E`, il fondo di una piscina), dove nessuna connessione è possibile e la luce si raccoglie fondendo i vertici vicini. Funzionano con qualunque geometria speculare, liscia o ruvida, ogni tipo di luce (sole e HDRI compresi) e l'assorbimento interno dei vetri colorati, senza alcuna chiave per-entità.
 
-**Attivazione.** Basta `--caustics on` (di default sui preset `final`/`ultra`); `--caustic-photons <N>` regola il budget di fotoni emessi (default ~2–4M a seconda del preset — più alto su `final`/`ultra`). Non c'è alcun flag YAML né alcuna chiave per-entità: il pre-pass è **globale e automatico** e scopre da solo ogni caster speculare e ogni receiver diffuso. Costo zero con `--caustics off` (l'output è bit-identico a prima e il pre-pass non viene eseguito).
-
-**Generalità.** A differenza del vecchio solver basato su manifold, questo approccio è **generale**: funziona per **qualunque** geometria speculare (specchio, vetro, acqua, metallo, primitive curve, mesh, CSG, piani) e per **tutti** i tipi di luce, comprese le sorgenti **direzionali/sole** — che il vecchio solver non poteva gestire.
-
-**Algoritmo.**
-1. **Emissione fotoni** — il pre-pass emette `--caustic-photons` fotoni di caustica dalle luci della scena, campionate secondo la loro potenza. Ogni tipo di luce contribuisce: area/geometrica (un punto e una direzione sulla superficie emittente), `sphere`, `point`/`spot` (la direzione iniziale tiene conto dell'attenuazione di cono dello spot), e **`directional`/sole** (raggi paralleli da una direzione fissa — impossibile con il solver manifold ad area).
-2. **Trasporto speculare** — ogni fotone viene tracciato in avanti. Quando colpisce una superficie **speculare** (rifrazione attraverso vetro/acqua, oppure riflessione su uno specchio/metallo liscio *mirror-like*) viene riflesso/rifratto secondo Fresnel e prosegue, eventualmente attraverso più interfacce (la catena `S+`). Quando colpisce una superficie **diffusa** il fotone viene **depositato** lì: il suo cammino è `L S+ D`, cioè una caustica. I fotoni che colpiscono una superficie diffusa per primi (cammino `L D`, illuminazione diretta) sono scartati — quella luce è già coperta dal NEE. **Una riflessione quasi-speculare su un substrato non-specchio NON è un caster di caustiche**: lo *specular* liscio di un dielettrico o un **clearcoat** liscio sopra una base diffusa/colorata (es. le bilie da biliardo in resina laccata, `metallic 0`) riflette solo una sottile frazione di Fresnel — seguirla deposita pochi fotoni sparsi che il gather renderebbe come dischi spuri. Quel riflesso glossy resta interamente catturato dal path tracer forward; il pre-pass di fotoni segue la riflessione solo se la superficie è *mirror-like* (predominantemente metallica). La rifrazione (vetro) è sempre un caster.
-3. **Gather con stima di densità** — i fotoni depositati sono organizzati in una struttura spaziale (es. k-d tree). Durante la passata camera, a ogni hit su una superficie diffusa il renderer raccoglie i **k fotoni più vicini** e ne ricava la radianza di caustica con una **stima di densità ai k-nearest** (l'energia dei fotoni divisa per l'area del disco che li racchiude). Più fotoni = stima più nitida e meno rumorosa; alza `--caustic-photons` per ripulire il rumore. Il gather usa un **filtro a cono** (PBRT §16.2): ogni fotone è pesato in base alla distanza dal punto di gather (1 al centro, → 0 al bordo del kernel), così la caustica ha un decadimento radiale morbido invece di un bordo netto a disco. La normalizzazione del cono conserva l'energia nel limite denso, quindi le caustiche focalizzate mantengono la loro luminosità. Quando il gather è **sotto-popolato** (meno di k fotoni nell'intero raggio di ricerca, cioè una regione sparsa di fotoni riflessi deboli e isolati) la stima viene sfumata via con uno *smoothstep* sull'occupazione: questo evita che un fotone isolato stampi un **disco piatto a raggio pieno** sul ricevitore — l'artefatto "anello di dischi" sotto caster glossy quasi-speculari (es. sfere con clearcoat). Le caustiche dense focalizzate (gather pieno, k fotoni) non sono toccate.
-
-**Conteggio singolo.** La stessa luce non viene contata due volte: il contributo `L S+ D` raccolto dalla mappa di fotoni è esattamente quello che il path tracer faticherebbe a campionare con il BSDF, perciò il cammino BSDF-sampled corrispondente (rimbalzo diffuso → catena speculare → emettitore) viene escluso dal contributo della passata camera. Diretta (`L D`, via NEE) e indiretta diffusa restano interamente sulla passata camera; solo le caustiche speculari passano dalla mappa di fotoni.
-
-**Limiti noti (in questa versione).**
-- Le caustiche da vetro/metallo **rough/frosted** (glossy, superficie microfacet con `roughness` non trascurabile) **non** sono prodotte dal pre-pass: ricadono sul path tracer forward (più rumoroso). Solo le interfacce speculari lisce depositano fotoni di caustica.
-- Le caustiche da ambiente **HDRI** non sono coperte dal pre-pass e ricadono anch'esse sul path tracer; le luci direzionali/sole **sono** invece supportate.
-- La tinta interna **Beer-Lambert** lungo il cammino dei fotoni non è applicata: l'assorbimento dentro un dielettrico colorato non attenua il fotone, quindi su vetro colorato spesso la caustica può avere una lieve differenza di colore.
-
-Caustiche multi-bounce/dispersive e i casi sopra restano per le fasi successive (vedi la sezione *Roadmap caustiche* del `PLANNING.md`).
+> Fino alla Fase 8b della review le caustiche venivano da una photon map costruita in un pre-pass (`--caustics on`): stima di densità ai k-nearest con raggio adattivo, distorta e non consistente, limitata alle interfacce lisce e alle luci analitiche. Il VCM la sostituisce con un merging progressivo (il raggio si riduce a ogni iterazione) pesato dal MIS contro tutte le altre strategie.
 
 ### 2.4 Conservazione dell'Area per Emissivi Trasformati (Jacobian)
 
@@ -132,22 +122,44 @@ La normale in world space si ottiene separatamente normalizzando $M^{-T} \cdot \
 
 Per gestire raggi che rimbalzano potenzialmente all'infinito e mantenere l'efficienza, il motore utilizza una tecnica di terminazione stocastica non polarizzata (unbiased) chiamata **Russian Roulette**.
 
-### 3.1 Adattività alla Scena
-3D-Ray implementa una variante **adattiva** della Russian Roulette:
-- Analizza la potenza totale delle luci durante la costruzione del renderer.
-- **Scene a illuminazione diretta (Normal)**: RR più aggressiva dopo 4 rimbalzi, poiché la maggior parte dell'energia proviene dai primi bounce.
-- **Scene a illuminazione indiretta (Low-light)**: RR conservativa (almeno 8 rimbalzi), per dare al raggio più possibilità di trovare una sorgente di luce emissiva o uscire verso il cielo.
+### 3.1 Roulette sul throughput
 
-La probabilità di sopravvivenza del raggio è legata alla sua riflettanza (luminanza): raggi "deboli" che trasportano poca energia vengono eliminati prima, concentrando il calcolo sui percorsi più luminosi.
+Il path è un loop iterativo con un throughput esplicito β (il prodotto dei pesi BSDF/pdf, delle trasmittanze dei mezzi e dell'assorbimento di Beer-Lambert lungo il percorso; `Rendering/PathIntegrator.cs`). Dal quinto rimbalzo in poi, dopo ogni campionamento, il path sopravvive con probabilità
+
+$$q = \min\left(1,\; \max_c \left(\beta_c \cdot \eta_\text{scale}\right)\right)$$
+
+e, se sopravvive, β viene diviso per q. Non ci sono soglie minime, tetti o classificazioni della scena: la roulette è non distorta per costruzione e scambia solo varianza con velocità. La partenza al quinto rimbalzo è misurata: con la partenza al secondo, in una stanza bianca un path che ha già rimbalzato due volte porta ancora gran parte della luce del pixel, e ucciderlo presto fa risparmiare poco tempo per molta varianza (efficienza del Cornell box da 254 a 395, di una stanza illuminata dal sole da 23 a 29).
+
+$\eta_\text{scale}$ è il prodotto di $\eta^2$ (con $\eta = \eta_t/\eta_i$) su ogni rifrazione: la radianza trasportata attraverso un'interfaccia è scalata di $(\eta_i/\eta_t)^2$, e senza questa correzione un raggio dentro il vetro avrebbe un β artificialmente basso e verrebbe ucciso per un effetto che si annulla all'uscita.
+
+### 3.2 Profondità per tipo di rimbalzo
+
+La profondità totale (`-d`) conta i vertici del path; sotto di essa il path conta i rimbalzi secondo il lobo che il materiale ha campionato (`BsdfSample.Lobe`): diffuse, glossy, transmission, più gli scattering nei volumi. Ogni tipo ha il suo limite (`--depth-diffuse`, `--depth-glossy`, `--depth-transmission`, `--depth-volume`): il vetro richiede molte rifrazioni, l'interriflessione diffusa poche. I cut-out (opacità geometrica 0) attraversati hanno un limite proprio (`--depth-transparent`, default 16) e non contano nel totale: non sono rimbalzi. Il lobo determina anche la categoria del raggio successivo per i flag di visibilità (`visibility.diffuse`, `visibility.glossy`, `visibility.transmission`).
 
 ---
+
+### 3.3 Ultimo segmento
+
+Quando un limite di profondità ferma il path, il rimbalzo campionato all'ultimo vertice viene comunque seguito fino al punto colpito successivo per sommare l'emissione o il cielo che incontra (pesati MIS), senza NEE né altri rimbalzi; uno scattering in un mezzo lungo il segmento lo chiude. Il motivo: la NEE di quel vertice pesa i suoi campioni contro la strategia della BSDF, e senza il rimbalzo la quota di luce assegnata alla BSDF andrebbe persa, in una misura che dipende dalla pdf della BSDF (con il path guiding l'immagine convergeva a un valore diverso, -0.3%).
+
+### 3.4 Path guiding
+
+Con `--guiding on` (`Rendering/PathGuiding.cs`, `Rendering/Guiding/`) i rimbalzi delle superfici ampie e dei mezzi sono campionati da una miscela della BSDF (o phase function) e di una distribuzione appresa della radianza incidente (Müller, Gross, Novák 2017; Müller 2019):
+
+- **SD-tree**: un albero binario sullo spazio della scena (diviso a metà lungo x, y, z a turno) le cui foglie contengono un quadtree direzionale sulla mappa cilindrica a area uguale (z = cos θ, φ). Le foglie si dividono dove arrivano molte registrazioni; le celle direzionali dove c'è più dell'1% dell'energia.
+- **Addestramento**: passate di 1, 2, 4, ... campioni per pixel (metà di `-s` per default) sui primi indici della sequenza Sobol del pixel, il render prosegue sugli indici successivi: la guida non pesa mai i punti da cui ha imparato e l'unione dei campioni resta la sequenza stratificata intera. Le registrazioni (radianza arrivata lungo il rimbalzo, sulla densità con cui è stato campionato) sono raccolte per tile e sommate foglia per foglia in ordine fisso: il risultato è deterministico. Un filtro a scatola stocastico sposta ogni registrazione dentro una scatola grande quanto la sua foglia.
+- **Miscela**: una sola coppia 2D stratificata decide la strategia con la prima coordinata e, riscalata, piazza la direzione (passata alla BSDF con `Sampler.Provide2D`): una scelta a moneta separata perdeva la stratificazione (fino al doppio dell'errore). La quota della BSDF è appresa per regione con Adam sulla divergenza KL (Müller 2019) entro [0.1, 0.99]. Il peso del rimbalzo divide per la densità della miscela, e la NEE usa la stessa densità nel MIS: non distorto.
+- **Solo superfici ampie** (`IMaterial.Guidable`): diffuse, metallo ruvido da α = 0.09 (roughness 0.3), nessuna trasmissione non delta.
+- **Composizione**: ogni passata è una stima non distorta dell'immagine e vi entra pesata dall'inverso della sua varianza per campione; nello stimatore di riferimento con peso uguale per campione.
+
+Validazione: tutte le scene canoniche coincidono con il renderer di riferimento anche guidate. Misure: nella stanza illuminata dal sole attraverso una finestra (`scenes/review/guiding-room.yaml`, 240 × 135, 256 spp) l'errore scende di circa il 20% a parità di campioni, ma il costo per campione sale di circa 1.4 volte: a parità di tempo il path tracing semplice resta avanti nelle scene provate. Spento per default.
 
 ## 4. Pipeline di Post-Processing
 
 Il risultato finale del Path Tracer è un'immagine HDR (High Dynamic Range), che viene trasformata per la visualizzazione tramite:
-1.  **ACES Filmic Tone Mapping**: Utilizziamo una curva cinematografica (Narkowicz approximation) che gestisce in modo naturale le sovraesposizioni e rende i gradienti di luce più ricchi.
-2.  **Gamma Correction (2.2)**: Rimappatura della luce lineare (fisica) allo spazio di colore sRGB del monitor.
-3.  **Firefly Guard**: Clamping adattivo dei campioni prima dell'accumulo per eliminare i pixel "caldi" causati da percorsi statistici ad altissima energia ma bassa probabilità.
+1.  **Firefly clamp (opzionale)**: con `-C <n>` ogni campione oltre la soglia di luminanza viene scalato prima dell'accumulo; spento per default perché toglie anche luce legittima. NaN e Inf sono sempre scartati.
+2.  **Esposizione e bilanciamento del bianco**: guadagno lineare `2^EV`, poi adattamento cromatico Bradford (`--white-balance` o `white_balance` della camera).
+3.  **View transform** (`--view agx|aces|standard|legacy`, default `agx`) e **codifica sRGB** a tratti (`Rendering/ColorManagement.cs`). Dettagli in [Pipeline di Rendering](./rendering-pipeline.md) §5.
 
 ---
 
@@ -192,7 +204,7 @@ Ogni volta che la NEE campiona l'environment light, vengono generate due coordin
 1. **Scelta della riga** — ricerca binaria su `margCdf` con $r_1$ → indice $y$
 2. **Scelta della colonna** — ricerca binaria su `condCdf[y]` con $r_2$ → indice $x$
 
-Il texel $(x, y)$ viene convertito in coordinate angolari $(φ, θ)$ e quindi in una direzione 3D nello spazio mondo. Viene lanciato un shadow ray in quella direzione; se non ci sono occlusioni, il contributo della luce viene accumulato.
+Il punto dentro il texel non è il centro: lo scarto di $r_1$ e $r_2$ dentro il proprio intervallo della CDF è a sua volta uniforme e dà la posizione continua $(x + f_x, y + f_y)$. Così le direzioni coprono tutto il texel (con il centro fisso le direzioni erano un insieme discreto: ombre a gradini e stima distorta con HDRI piccole). La posizione viene convertita in coordinate angolari $(φ, θ)$ e quindi in una direzione 3D nello spazio mondo. Viene lanciato un shadow ray in quella direzione; se non ci sono occlusioni, il contributo della luce viene accumulato.
 
 ### 5.4 Calcolo della PDF in Angolo Solido
 
@@ -204,7 +216,7 @@ Per usare questa probabilità nell'equazione di rendering, deve essere espressa 
 
 $$p_\Omega(\omega) = \frac{p_\text{pixel}}{\Delta\omega}, \quad \Delta\omega = \sin\theta_\text{colatitudine} \cdot \Delta\theta \cdot \Delta\phi$$
 
-dove $\Delta\theta = \pi/H$ e $\Delta\phi = 2\pi/W$ sono le dimensioni angolari di un texel. Il denominatore è l'angolo solido del singolo texel campionato.
+dove $\Delta\theta = \pi/H$ e $\Delta\phi = 2\pi/W$ sono le dimensioni angolari di un texel e $\theta$ è quello della direzione campionata (non del centro del texel): la densità è uniforme in $(u, v)$ dentro il texel, quindi in angolo solido varia come $1/\sin\theta_\text{colatitudine}$. `PdfDirection` usa la stessa formula, così i due lati del MIS vedono la stessa densità (verificato con un chi-quadro in `SamplingRoutineTests`).
 
 ### 5.5 Campionamento del Gradient Sky (Sun Disk)
 
@@ -218,9 +230,9 @@ Il corpo del gradiente (zenith / horizon / ground) **non** è campionato diretta
 
 Quando il cielo è di tipo `flat` con luminanza > 0, viene campionato uniformemente sulla sfera unitaria: PDF costante `1/(4π)` per tutte le direzioni. Il caller (`EnvironmentLight.IlluminateAndTest`) scarta automaticamente le direzioni nell'emisfero inferiore della normale (rifiuto via `n·l ≤ 0`), quindi metà dei sample sono "sprecati" su superfici planari ma il bias resta zero. Questa strategia fornisce una piccola riduzione di varianza per ogni bounce diffuso, irrilevante per riflessioni speculari (dove il BSDF è già focalizzato).
 
-### 5.6 Stima Deterministica della Luminanza (per la Russian Roulette)
+### 5.7 Stima Deterministica della Luminanza
 
-Il costruttore del renderer, prima di avviare `Parallel.For`, effettua un'analisi della scena per decidere i parametri della Russian Roulette (scene in luce diretta vs. indiretta). Questa analisi chiama `EnvironmentLight.ApproximatePower(sceneBounds)`, che deve essere **completamente deterministica** — senza chiamate a `RandomFloat()`.
+La scelta delle luci proporzionale alla potenza (`LightDistribution`, `LightBvh`) e la distribuzione dei fotoni delle caustiche chiamano `EnvironmentLight.ApproximatePower(sceneBounds)` nel costruttore, prima di avviare `Parallel.For`: il valore deve essere **completamente deterministico**, senza chiamate a `RandomFloat()`.
 
 Per l'HDRI, la luminanza stimata viene calcolata iterando una sola volta il buffer di pixel e calcolando la media pesata:
 
@@ -315,6 +327,29 @@ Per una sfera di raggio 0.3 a distanza 5 dal punto di shading, con 16 shadow sam
 Il vantaggio cresce proporzionalmente alla distanza: più la sfera è piccola/lontana, più il solid-angle sampling è superiore.
 
 ---
+
+## 7. Luci: stratificazione, unità, scelta, cielo (review Fase 6)
+
+### 7.1 Stratificazione esatta
+Gli `shadow_samples` di ogni luce sono stratificati su una griglia di esattamente N celle (`MathUtils.StratumGrid`/`Stratum2D`: righe = il più grande divisore di N non oltre √N), per qualunque N. Prima la griglia era √N × √N arrotondata: con 8 campioni ne copriva 9 celle e una restava vuota, con un errore sistematico dello 0.7-1.1%. Il box usa una striscia 6×1 (una faccia per stratum), le mesh e le primitive a CDF lo stratum lungo la CDF.
+
+### 7.2 Luci d'area rettangolari: angolo solido sferico
+Un rettangolo è campionato in modo uniforme nell'angolo solido che sottende (Ureña, Fajardo, King 2013, `Core/SphericalRectangle.cs`, in doppia precisione): la pdf è $1/\Omega$ e il peso di ogni campione è $L\,\Omega$, senza il termine $\cos/d^2$ che esplode vicino alla luce. Deviazione standard relativa di un campione a distanza 0.3, 1 e 4 volte il lato: 4.8%, 1.7%, 0.19% (per area: 27%, 6.1%, 0.71%). Sotto $10^{-3}$ sr e per i parallelogrammi resta il campionamento per area. La luce emette da una faccia sola e la pdf è 0 da dietro. Vale anche per i portali.
+
+### 7.3 Scelta della luce
+`--light-sampling all` somma tutte le luci; `power`/`uniform` ne scelgono una con una CDF globale; `bvh` con un BVH delle luci (`Lights/LightBvh.cs`, Conty e Kulla 2018): ogni nodo porta potenza, bounding box e cono delle normali, e l'importanza di un nodo per il punto è la potenza divisa per la distanza al quadrato, moltiplicata per il coseno del cono ridotto dell'angolo sotteso (senza la normale del ricevitore, che non serve alla correttezza). Le luci infinite (environment, sole) sono scelte per prime con probabilità $1/(n_\text{inf}+1)$. La probabilità di una luce si ricostruisce scendendo l'albero lungo i bit del suo percorso (`Pmf`), ed entra nei pesi MIS di entrambi i lati. Un nodo con importanza nulla in entrambi i figli restituisce −1 (nessun campione), che non introduce distorsione: lì nessuna luce del sottoalbero può contribuire. `auto` usa `all` fino a 16 luci e `bvh` oltre. Con 90 luci a griglia: stessa media di `all` (0.8372 contro 0.8345), deviazione standard per pixel 0.064 contro 0.275 di `uniform`.
+
+### 7.4 Unità fisiche
+L'unità di radianza della scena è il nit. `LightUnits` converte watt in lumen (683 lm/W), riduce il colore a una tinta di luminanza 1, dà il colore di un corpo nero (luogo di Planck); il loader traduce potenza, candele, luminanza e illuminamento nell'intensità di ogni tipo di luce (`SceneLoader.LightEmission`). Un profilo IES (`Lights/IesProfile.cs`, LM-63 tipo C) è tabulato in candele assolute, con i piani orizzontali mancanti ricostruiti dalla simmetria del file e il flusso integrato numericamente; `power` o `candela` lo riscalano. L'esposizione EV100 della camera vale $-\text{EV}_{100} - \log_2 1.2$ stop (convenzione basata sulla saturazione).
+
+### 7.5 Cieli fisici
+`Rendering/Sky/Atmosphere.cs` è l'atmosfera comune: scattering di Rayleigh e di Mie, assorbimento della polvere e dell'ozono (coefficienti di Bruneton 2017 a 680/550/440 nm), una tabella di trasmittanza. `AnalyticSky` è la base dei tre cieli fisici:
+
+- **Sole coerente con il cielo**: il disco vale l'illuminanza solare al limite dell'atmosfera (133.8 klux, Darula et al. 2005, oppure 20 nella scala relativa di Nishita) per la trasmittanza lungo il percorso del sole, divisa per l'angolo solido del disco. Prima ogni modello dava al disco come radianza il valore che usava come irradianza dello scattering: il sole era circa 15 000 volte troppo debole rispetto al suo cielo.
+- **Oscuramento al bordo** (`PhysicalSun.LimbFactor`): legge lineare con u = 0.6 sul coseno dell'angolo sulla superficie del sole, normalizzata così che la media sul disco valga 1. Prima la legge usava l'angolo nel cielo, che sul disco vero non scende mai sotto cos 0.265°: non faceva nulla.
+- **Terreno sotto l'orizzonte**: albedo × illuminanza a terra / π, con la stessa illuminanza integrata (48×96 direzioni) che dà anche la luminanza media.
+
+Hosek-Wilkie (`HosekWilkieSky.cs`) usa le tabelle RGB degli autori, generate da `validation/gen_hosek_wilkie_data.py` e verificate punto per punto contro il loro codice C di riferimento; la torbidità entra come torbidità di Linke anche nella polvere dell'atmosfera del sole. Preetham ha la funzione di Perez corretta $(1 + A e^{B/\cos\theta})(1 + C e^{D\gamma} + E \cos^2\gamma)$ normalizzata allo zenit. Nishita integra lo scattering singolo attraverso la stessa atmosfera.
 
 ## Riferimenti
 

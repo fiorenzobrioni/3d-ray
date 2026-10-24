@@ -1,0 +1,61 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  disney-to-openpbr.yaml - il materiale disney prima e dopo la traduzione
+#  su OpenPBR (PIANO-REVIEW.md, Fase 5, §3.2 §3.17 §3.38)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Le stesse sei sfere disney da confrontare fra due versioni del motore:
+#    fila davanti: plastica liscia (riflesso delta, §3.2), velluto (sheen,
+#                  §3.17), lacca (clearcoat: il vecchio lobo valeva 0.25)
+#    fila dietro:  vetro colorato senza profondità (tinta a ogni rifrazione),
+#                  metallo spazzolato (anisotropic 0.8), foglia (diff_trans)
+#
+#  Cosa aspettarsi dopo la traduzione: bordi dello sheen e del clearcoat non
+#  più luminosi oltre la fisica (prima creavano fino al 39% di energia a
+#  incidenza radente), riflesso della plastica liscia più forte del 9%
+#  (prima sottostimato), lacca col riflesso pieno e la base appena più scura.
+#
+#  Render consigliato:
+#    -s 256 -w 960 -H 540 --denoiser none
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.20, 0.28, 0.45]
+    horizon_color: [0.75, 0.78, 0.82]
+    ground_color:  [0.20, 0.19, 0.18]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0
+
+camera:
+  position: [0, 3.6, -9]
+  look_at: [0, 0.9, 1.0]
+  fov: 40
+
+lights:
+  - type: "area"
+    corner: [-2.5, 6, -4]
+    u: [5, 0, 0]
+    v: [0, 0, 2.5]
+    color: [1.0, 0.96, 0.9]
+    intensity: 6.0
+    shadow_samples: 4
+
+materials:
+  - { id: "floor", type: "lambertian", color: [0.4, 0.4, 0.4] }
+  - { id: "smooth_plastic", type: "disney", color: [0.75, 0.12, 0.10], roughness: 0.0 }
+  - { id: "velvet", type: "disney", color: [0.15, 0.10, 0.45], roughness: 0.8, sheen: 1.0, sheen_tint: 0.5 }
+  - { id: "lacquer", type: "disney", color: [0.10, 0.35, 0.15], roughness: 0.5, clearcoat: 1.0, clearcoat_gloss: 0.9 }
+  - { id: "tinted_glass", type: "disney", color: [1, 1, 1], roughness: 0.0, spec_trans: 1.0, ior: 1.5, transmission_color: [0.6, 0.85, 0.95] }
+  - { id: "brushed", type: "disney", color: [0.9, 0.9, 0.92], metallic: 1.0, roughness: 0.4, anisotropic: 0.8 }
+  - { id: "leaf", type: "disney", color: [0.25, 0.55, 0.12], roughness: 0.5, diff_trans: 0.6, thin_walled: true }
+
+entities:
+  - { name: "smooth_plastic", type: "sphere", center: [ 2.6, 0.8, 0.0], radius: 0.8, material: "smooth_plastic" }
+  - { name: "velvet",         type: "sphere", center: [ 0.0, 0.8, 0.0], radius: 0.8, material: "velvet" }
+  - { name: "lacquer",        type: "sphere", center: [-2.6, 0.8, 0.0], radius: 0.8, material: "lacquer" }
+  - { name: "tinted_glass",   type: "sphere", center: [ 2.6, 0.8, 2.6], radius: 0.8, material: "tinted_glass" }
+  - { name: "brushed",        type: "sphere", center: [ 0.0, 0.8, 2.6], radius: 0.8, material: "brushed" }
+  - { name: "leaf",           type: "sphere", center: [-2.6, 0.8, 2.6], radius: 0.8, material: "leaf" }

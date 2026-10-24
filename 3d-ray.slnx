@@ -9,5 +9,6 @@
     <Project Path="src/Tools/NormalMapGen/NormalMapGen.csproj" />
     <Project Path="src/Tools/TerrainGen/TerrainGen.csproj" />
     <Project Path="src/Tools/FontGen/FontGen.csproj" />
+    <Project Path="src/Tools/ImageCompare/ImageCompare.csproj" />
   </Folder>
 </Solution>

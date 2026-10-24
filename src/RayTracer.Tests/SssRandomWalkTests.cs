@@ -18,11 +18,11 @@ namespace RayTracer.Tests;
 ///
 /// <para>The tests exercise the full Renderer dispatch path so they catch
 /// regressions in any of the pieces that compose to produce SSS output:
-/// the entry refraction lobe in <see cref="DisneyBsdf"/>, the stack push in
-/// <see cref="Renderer.ShadeSampleBounce"/>, the <see cref="HitRecord.EntityRoot"/>
+/// the entry refraction lobe in <see cref="OpenPbr"/>, the stack push in
+/// the path loop's surface vertex, the <see cref="HitRecord.EntityRoot"/>
 /// stamping in <see cref="MediumBoundHittable"/>, the hero-wavelength MIS
 /// estimator in <see cref="Renderer.RandomWalkSubsurface"/>, and the exit
-/// path back into <see cref="Renderer.TraceRay"/>.</para>
+/// path back to the loop.</para>
 ///
 /// <para>Sampler is forced to PRNG so the expected values are deterministic
 /// across runs and not dependent on Sobol prefix layout.</para>
@@ -52,7 +52,7 @@ public class SssRandomWalkTests
     /// conservation test — without it the entry Fresnel would absorb some
     /// fraction of the input and the round-trip can't match unity.
     /// </summary>
-    private static DisneyBsdf MakeTransparentDisney() => new(
+    private static OpenPbr MakeTransparentDisney() => DisneyMaterial.Create(
         baseColor:    new SolidColor(Vector3.One),
         roughness:    new FloatTexture(0f),
         specular:     new FloatTexture(0f),
@@ -277,14 +277,12 @@ public class SssRandomWalkTests
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Stresses the walk on a very dense (σ_t up to 50) medium with a low
-    /// volume-bounce budget. The MaxVolumeBounces clamp combined with the
-    /// in-walk RR must terminate every path cleanly, producing finite
-    /// per-pixel values (no NaN / +Inf leaks through). This is the
-    /// guard-rail against the worst-case low-albedo path stall.
+    /// Stresses the walk on a very dense (σ_t up to 50) medium: the in-walk
+    /// roulette must terminate every path cleanly, producing finite
+    /// per-pixel values (no NaN / +Inf leaks through).
     /// </summary>
     [Fact]
-    public void DenseMedium_LowBudget_TerminatesCleanly()
+    public void DenseMedium_TerminatesCleanly()
     {
         Sampler.SetKind(SamplerKind.Prng);
 
@@ -304,11 +302,7 @@ public class SssRandomWalkTests
             lights:          new List<ILight>(),
             sky:             new SkySettings(Vector3.One),
             samplesPerPixel: 16, // keep test fast
-            maxDepth:        Depth,
-            walkConfig:      new RandomWalkConfig(maxVolumeBounces: 8,
-                                                   rrStartBounce: 1,
-                                                   neeInsideWalk: true,
-                                                   neeMaxBounce:  int.MaxValue));
+            maxDepth:        Depth);
         var pixels = renderer.Render(Width, Height);
 
         for (int y = 0; y < Height; y++)

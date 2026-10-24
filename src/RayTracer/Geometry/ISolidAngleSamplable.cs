@@ -61,12 +61,12 @@ public interface ISolidAngleSamplable
 
     /// <summary>
     /// Stratified variant: maps <paramref name="sampleIndex"/> ∈ [0, N) to a
-    /// jittered position inside its assigned cell on a <paramref name="sqrtSamples"/>
-    /// × <paramref name="sqrtSamples"/> grid laid out in (cos θ, φ) space on the
-    /// visibility cone.
+    /// jittered position inside its own cell of a grid of <paramref name="sampleCount"/>
+    /// cells (<see cref="Core.MathUtils.Stratum2D"/>) laid out in (cos θ, φ) space
+    /// on the visibility cone.
     /// </summary>
     (Vector3 Point, Vector3 Normal, Vector2 Uv, float SolidAnglePdf)
-        SampleSolidAngleStratified(Vector3 from, int sampleIndex, int sqrtSamples)
+        SampleSolidAngleStratified(Vector3 from, int sampleIndex, int sampleCount)
         => SampleSolidAngle(from);
 
     /// <summary>

@@ -130,6 +130,7 @@ public class SceneLoader
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .IgnoreUnmatchedProperties()
+            .WithTypeConverter(new MaterialParamConverter())
             .Build();
 
         var data = deserializer.Deserialize<SceneData>(yaml);
@@ -267,6 +268,11 @@ public class SceneLoader
             foreach (var m in data.Materials)
             {
                 if (m.Id == null) continue;
+                if (IsOpenPbr(m))
+                {
+                    if (BuildOpenPbrMedium(m) is { } opbMedium) embeddedSssMedium[m.Id] = opbMedium;
+                    continue;
+                }
                 if (m.SubsurfaceRadius == null) continue;
                 if (m.SubsurfaceRadius.Count == 0) continue;
 
@@ -326,6 +332,7 @@ public class SceneLoader
         // resolve those now and build the actual Camera.Camera object below
         // after all entities are created.
         var camDataEarly   = ResolveCamera(data, cameraSelector);
+        var apertureShape  = ApplyPhysicalCamera(camDataEarly, (float)imageWidth / imageHeight);
         var camPosEarly    = ToVector3(camDataEarly.Position) ?? new Vector3(0, 1, -5);
         var camLookAtEarly = ToVector3(camDataEarly.LookAt)   ?? Vector3.Zero;
         var camForwardEarly = camLookAtEarly - camPosEarly;
@@ -452,7 +459,7 @@ public class SceneLoader
         {
             foreach (var l in data.Lights)
             {
-                var light = CreateLight(l, shadowSamplesOverride, objects, sky);
+                var light = CreateLight(l, shadowSamplesOverride, objects, sky, sceneDir);
                 if (light != null) lights.Add(light);
             }
         }
@@ -509,7 +516,31 @@ public class SceneLoader
             camPos, camLookAt, camVup,
             camData.Fov, aspect,
             camData.Aperture, focusDist,
-            cameraMotion);
+            cameraMotion, apertureShape);
+        if (camData.WhiteBalance is float wb)
+        {
+            if (wb >= WhiteBalance.MinKelvin && wb <= WhiteBalance.MaxKelvin)
+                camera.WhiteBalanceKelvin = wb;
+            else
+                Warn($"Camera 'white_balance' must be within {WhiteBalance.MinKelvin}-{WhiteBalance.MaxKelvin} K (got {wb}); ignored.");
+        }
+
+        // Physical exposure (§3.34): EV100 directly, or from ISO, shutter and
+        // f-number, mapping scene radiance in nits to the display.
+        float? ev100 = camData.Ev100;
+        if (ev100 == null && (camData.Iso != null || camData.ShutterSpeed != null))
+        {
+            if (camData.Iso is float iso && camData.ShutterSpeed is float shutter && camData.FStop is float fStop
+                && iso > 0f && shutter > 0f && fStop > 0f)
+                ev100 = LightUnits.Ev100(fStop, shutter, iso);
+            else
+                Warn("Camera physical exposure needs 'iso', 'shutter_speed' and 'f_stop' (or 'ev100'); ignored.");
+        }
+        if (ev100 is float ev)
+        {
+            camera.PhysicalExposureEv = LightUnits.ExposureEvFromEv100(ev);
+            Info($"Exposure:    EV100 {ev:0.##} (scene in nits)");
+        }
 
         var motionBlur = ResolveMotionBlurSettings(camData.Shutter, sceneHasMotion);
 
@@ -692,6 +723,7 @@ public class SceneLoader
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .IgnoreUnmatchedProperties()
+            .WithTypeConverter(new MaterialParamConverter())
             .Build();
 
         var data = deserializer.Deserialize<SceneData>(yaml);
@@ -709,7 +741,12 @@ public class SceneLoader
         {
             var c     = data.Cameras[i];
             string label = c.Name != null ? $"  #{i}  \"{c.Name}\"" : $"  #{i}  (unnamed)";
-            Console.WriteLine($"{label}   fov={c.Fov}°  pos={FormatVec(c.Position)}");
+            // A physical lens is listed as written: its vertical fov depends on
+            // the image aspect, which is not known here.
+            string lens = c.FocalLength is float f
+                ? $"focal={f:0.#}mm/{c.SensorWidth:0.#}mm sensor" + (c.FStop is float n ? $" f/{n:0.##}" : "")
+                : $"fov={c.Fov}°";
+            Console.WriteLine($"{label}   {lens}  pos={FormatVec(c.Position)}");
         }
     }
 
@@ -870,7 +907,8 @@ public class SceneLoader
             // ── Leaf primitive: try to register it
             default:
             {
-                if (!TryGetSamplableEmissive(obj, out ISamplable? samplable, out Emissive? emissive))
+                if (!TryGetSamplableEmissive(obj, out ISamplable? samplable, out Emissive? emissive,
+                                             out IMaterial? surfaceMaterial))
                     return;
 
                 // Wrap in a Transform only when there is an accumulated outer transform.
@@ -880,7 +918,8 @@ public class SceneLoader
                     ? new Transform(obj, outerMatrix)
                     : samplable;
 
-                lights.Add(new GeometryLight(finalSamplable, emissive, shadowSamples));
+                lights.Add(new GeometryLight(finalSamplable, emissive, shadowSamples,
+                                             surfaceMaterial: surfaceMaterial));
                 break;
             }
         }
@@ -900,10 +939,12 @@ public class SceneLoader
     private static bool TryGetSamplableEmissive(
         IHittable obj,
         [NotNullWhen(true)] out ISamplable? samplable,
-        [NotNullWhen(true)] out Emissive? material)
+        [NotNullWhen(true)] out Emissive? material,
+        out IMaterial? surfaceMaterial)
     {
         samplable = null;
         material = null;
+        surfaceMaterial = null;
 
         if (obj is not ISamplable s)
             return false;
@@ -925,6 +966,7 @@ public class SceneLoader
             _ => null
         };
 
+        surfaceMaterial = mat;
         switch (mat)
         {
             // Proxy emissives back a sphere/area light's visible primitive —
@@ -1024,6 +1066,221 @@ public class SceneLoader
         };
     }
 
+    /// <summary>
+    /// Metal: a measured <c>preset</c> or an explicit complex IOR
+    /// (<c>eta</c> + <c>k</c>) gives the exact conductor Fresnel; otherwise
+    /// the F82 model from <c>color</c> (normal incidence) and
+    /// <c>edge_color</c> (grazing tint).
+    /// </summary>
+    private static Metal CreateMetal(MaterialData m, ITexture albedo)
+    {
+        ConductorIor? ior = null;
+        if (m.Preset != null)
+        {
+            if (ConductorIor.Presets.TryGetValue(m.Preset, out var preset))
+                ior = preset;
+            else
+                Warn($"Material '{m.Id}': unknown metal preset '{m.Preset}' " +
+                     $"(known: {string.Join(", ", ConductorIor.Presets.Keys)}); using 'color'.");
+        }
+        else if (m.Eta != null || m.K != null)
+        {
+            var eta = ToVector3(m.Eta);
+            var k = ToVector3(m.K);
+            if (eta is Vector3 e && k is Vector3 kk && e.X > 0f && e.Y > 0f && e.Z > 0f)
+                ior = new ConductorIor(e, Vector3.Max(kk, Vector3.Zero));
+            else
+                Warn($"Material '{m.Id}': 'eta' and 'k' need three components each, eta > 0; using 'color'.");
+        }
+        if (ior != null && (m.Color != null || m.Texture != null || m.EdgeColor != null))
+            Info($"Material '{m.Id}': the complex IOR sets the metal's colour; 'color' and 'edge_color' are ignored.");
+        ITexture? edge = ToVector3(m.EdgeColor) is Vector3 ec ? new SolidColor(ec) : null;
+        return new Metal(albedo, m.Fuzz ?? m.Roughness ?? 0f, edge, ior, m.MultipleScattering);
+    }
+
+    private static bool IsDisney(MaterialData m) => m.Type?.ToLowerInvariant() is "disney" or "disney_bsdf" or "pbr";
+
+    /// <summary>The <c>disney</c> type, translated onto OpenPBR (<see cref="DisneyMaterial"/>).</summary>
+    private static IMaterial CreateDisney(MaterialData m, ITexture albedo, string sceneDir)
+    {
+        bool sss = m.SubsurfaceRadius is { } r && r.Any(v => v > 0f) && !m.ThinWalled;
+        bool diffTrans = m.DiffTrans > 0f || m.DiffTransTexture != null;
+        if (diffTrans && !m.ThinWalled)
+            Info($"Material '{m.Id}': 'diff_trans' makes the surface thin-walled (a sheet with no interior).");
+        return DisneyMaterial.Create(
+            albedo,
+            metallic:            DisneyParam(m.Metallic,            m.MetallicTexture,            sceneDir),
+            roughness:           DisneyParam(m.Roughness ?? 0.5f,   m.RoughnessTexture,           sceneDir),
+            specular:            DisneyParam(m.Specular,            m.SpecularTexture,            sceneDir),
+            specularTint:        DisneyParam(m.SpecularTint,        m.SpecularTintTexture,        sceneDir),
+            sheen:               DisneyParam(m.Sheen,               m.SheenTexture,               sceneDir),
+            sheenTint:           DisneyParam(m.SheenTint,           m.SheenTintTexture,           sceneDir),
+            sheenRoughness:      DisneyParam(m.SheenRoughness,      m.SheenRoughnessTexture,      sceneDir),
+            clearcoat:           DisneyParam(m.Clearcoat,           m.ClearcoatTexture,           sceneDir),
+            clearcoatGloss:      DisneyParam(m.ClearcoatGloss,      m.ClearcoatGlossTexture,      sceneDir),
+            specTrans:           DisneyParam(m.SpecTrans ?? 0f,     m.SpecTransTexture,           sceneDir),
+            ior:                 DisneyParam(m.DisneyIor,           m.IorTexture,                 sceneDir),
+            anisotropic:         DisneyParam(m.Anisotropic,         m.AnisotropicTexture,         sceneDir),
+            anisotropicRotation: DisneyParam(m.AnisotropicRotation, m.AnisotropicRotationTexture, sceneDir),
+            transmissionColor:   DisneyColorParam(m.TransmissionColor, m.TransmissionColorTexture, sceneDir),
+            transmissionDepth:   DisneyParam(m.TransmissionDepth,   m.TransmissionDepthTexture,   sceneDir),
+            diffTrans:           diffTrans ? DisneyParam(m.DiffTrans, m.DiffTransTexture, sceneDir) : null,
+            thinWalled:          m.ThinWalled,
+            coatIor:             DisneyParam(m.CoatIor ?? 1.5f,     m.CoatIorTexture,             sceneDir),
+            // coat_roughness only when written; otherwise clearcoat_gloss sets it.
+            coatRoughness:       (m.CoatRoughness >= 0f || m.CoatRoughnessTexture != null)
+                                    ? DisneyParam(MathF.Max(m.CoatRoughness, 0f), m.CoatRoughnessTexture, sceneDir)
+                                    : null,
+            thinFilmThickness:   DisneyParam(m.ThinFilmThickness ?? 0f, m.ThinFilmThicknessTexture, sceneDir),
+            thinFilmIor:         DisneyParam(m.ThinFilmIor ?? 1.5f, m.ThinFilmIorTexture,         sceneDir),
+            subsurfaceMedium:    sss,
+            coatNormal:          m.CoatNormalMap != null ? LoadNormalMap(m.CoatNormalMap, sceneDir) : null);
+    }
+
+    // ── OpenPBR Surface (PIANO-REVIEW.md, Phase 5) ──────────────────────────
+
+    private static bool IsOpenPbr(MaterialData m) =>
+        string.Equals(m.Type, "openpbr", StringComparison.OrdinalIgnoreCase);
+
+    private static FloatTexture PbrFloat(MaterialData m, MaterialParam? p, float def, string key, string sceneDir)
+    {
+        if (p == null) return def;
+        if (p.Texture != null) return new FloatTexture(CreateTexture(p.Texture, sceneDir, TextureRole.Data));
+        if (p.Values is { Count: > 0 } v)
+        {
+            if (v.Count > 1) Warn($"Material '{m.Id}': '{key}' takes one number; using the first.");
+            return v[0];
+        }
+        return def;
+    }
+
+    private static ITexture PbrColor(MaterialData m, MaterialParam? p, Vector3 def, string key, string sceneDir)
+    {
+        if (p == null) return new SolidColor(def);
+        if (p.Texture != null) return CreateTexture(p.Texture, sceneDir);
+        return new SolidColor(PbrVector(m, p.Values, def, key));
+    }
+
+    /// <summary>A colour written as [r, g, b] or as one grey number.</summary>
+    private static Vector3 PbrVector(MaterialData m, List<float>? v, Vector3 def, string key)
+    {
+        if (v == null || v.Count == 0) return def;
+        if (v.Count == 1) return new Vector3(v[0]);
+        if (v.Count == 3) return new Vector3(v[0], v[1], v[2]);
+        Warn($"Material '{m.Id}': '{key}' needs one or three numbers; using the default.");
+        return def;
+    }
+
+    /// <summary>The constant value of a scalar input, or null when textured.</summary>
+    private static float? PbrConstant(MaterialParam? p, float def) =>
+        p == null ? def : p.Texture != null ? null : p.Values is { Count: > 0 } v ? v[0] : def;
+
+    private static IMaterial CreateOpenPbr(MaterialData m, string sceneDir)
+    {
+        // base_color falls back on the common 'color' / 'texture' keys.
+        ITexture baseColor = m.BaseColor != null
+            ? PbrColor(m, m.BaseColor, new Vector3(0.8f), "base_color", sceneDir)
+            : m.Texture != null ? CreateTexture(m.Texture, sceneDir)
+            : new SolidColor(PbrVector(m, m.Color, new Vector3(0.8f), "color"));
+
+        // subsurface_radius: one number is the mean free path, three are a
+        // per-channel mean free path (radius 1 times that scale).
+        float radius = 1f;
+        Vector3 radiusScale = new(1f, 0.5f, 0.25f);
+        if (m.SubsurfaceRadius is { Count: 1 } r1) radius = r1[0];
+        else if (m.SubsurfaceRadius is { Count: 3 } r3) radiusScale = new Vector3(r3[0], r3[1], r3[2]);
+        if (m.SubsurfaceRadiusScale != null)
+            radiusScale = PbrVector(m, m.SubsurfaceRadiusScale.Values, radiusScale, "subsurface_radius_scale");
+
+        var p = new OpenPbrParameters
+        {
+            BaseWeight = PbrFloat(m, m.BaseWeight, 1f, "base_weight", sceneDir),
+            BaseColor = baseColor,
+            BaseMetalness = PbrFloat(m, m.BaseMetalness, 0f, "base_metalness", sceneDir),
+            BaseDiffuseRoughness = PbrFloat(m, m.BaseDiffuseRoughness, 0f, "base_diffuse_roughness", sceneDir),
+            SpecularWeight = PbrFloat(m, m.SpecularWeight, 1f, "specular_weight", sceneDir),
+            SpecularColor = PbrColor(m, m.SpecularColor, Vector3.One, "specular_color", sceneDir),
+            SpecularRoughness = PbrFloat(m, m.SpecularRoughness, 0.3f, "specular_roughness", sceneDir),
+            SpecularRoughnessAnisotropy = PbrFloat(m, m.SpecularRoughnessAnisotropy, 0f, "specular_roughness_anisotropy", sceneDir),
+            SpecularIor = PbrFloat(m, m.SpecularIor, 1.5f, "specular_ior", sceneDir),
+            TransmissionWeight = PbrFloat(m, m.TransmissionWeight, 0f, "transmission_weight", sceneDir),
+            TransmissionColor = m.TransmissionColorTexture != null ? CreateTexture(m.TransmissionColorTexture, sceneDir)
+                              : new SolidColor(PbrVector(m, m.TransmissionColor, Vector3.One, "transmission_color")),
+            TransmissionDepth = DisneyParam(m.TransmissionDepth, m.TransmissionDepthTexture, sceneDir),
+            TransmissionScatter = PbrColor(m, m.TransmissionScatter, Vector3.Zero, "transmission_scatter", sceneDir),
+            TransmissionScatterAnisotropy = PbrFloat(m, m.TransmissionScatterAnisotropy, 0f, "transmission_scatter_anisotropy", sceneDir),
+            SubsurfaceWeight = PbrFloat(m, m.SubsurfaceWeight, 0f, "subsurface_weight", sceneDir),
+            SubsurfaceColor = m.SubsurfaceColorTexture != null ? CreateTexture(m.SubsurfaceColorTexture, sceneDir)
+                            : new SolidColor(PbrVector(m, m.SubsurfaceColor, new Vector3(0.8f), "subsurface_color")),
+            SubsurfaceRadius = radius,
+            SubsurfaceRadiusScale = new SolidColor(radiusScale),
+            SubsurfaceScatterAnisotropy = PbrFloat(m, m.SubsurfaceScatterAnisotropy, 0f, "subsurface_scatter_anisotropy", sceneDir),
+            CoatWeight = PbrFloat(m, m.CoatWeight, 0f, "coat_weight", sceneDir),
+            CoatColor = PbrColor(m, m.CoatColor, Vector3.One, "coat_color", sceneDir),
+            CoatRoughness = DisneyParam(MathF.Max(m.CoatRoughness, 0f), m.CoatRoughnessTexture, sceneDir),
+            CoatRoughnessAnisotropy = PbrFloat(m, m.CoatRoughnessAnisotropy, 0f, "coat_roughness_anisotropy", sceneDir),
+            CoatIor = DisneyParam(m.CoatIor ?? 1.6f, m.CoatIorTexture, sceneDir),
+            CoatDarkening = PbrFloat(m, m.CoatDarkening, 1f, "coat_darkening", sceneDir),
+            FuzzWeight = PbrFloat(m, m.FuzzWeight, 0f, "fuzz_weight", sceneDir),
+            FuzzColor = PbrColor(m, m.FuzzColor, Vector3.One, "fuzz_color", sceneDir),
+            FuzzRoughness = PbrFloat(m, m.FuzzRoughness, 0.5f, "fuzz_roughness", sceneDir),
+            ThinFilmWeight = PbrFloat(m, m.ThinFilmWeight, 0f, "thin_film_weight", sceneDir),
+            ThinFilmThickness = DisneyParam(m.ThinFilmThickness ?? 0.5f, m.ThinFilmThicknessTexture, sceneDir),
+            ThinFilmIor = DisneyParam(m.ThinFilmIor ?? 1.4f, m.ThinFilmIorTexture, sceneDir),
+            EmissionLuminance = PbrFloat(m, m.EmissionLuminance, 0f, "emission_luminance", sceneDir),
+            EmissionColor = PbrColor(m, m.EmissionColor, Vector3.One, "emission_color", sceneDir),
+            GeometryOpacity = PbrFloat(m, m.GeometryOpacity, 1f, "geometry_opacity", sceneDir),
+            ThinWalled = m.GeometryThinWalled ?? m.ThinWalled,
+            CoatNormal = m.CoatNormalMap != null ? LoadNormalMap(m.CoatNormalMap, sceneDir) : null,
+        };
+        return new OpenPbr(p) { InteriorIsMedium = BuildOpenPbrMedium(m) != null };
+    }
+
+    /// <summary>
+    /// The participating medium inside an OpenPBR object, bound to every entity
+    /// that uses the material (an explicit <c>interior_medium</c> wins):
+    /// <list type="bullet">
+    /// <item>subsurface: extinction 1 / (radius · radius_scale) and the
+    /// single-scattering albedo that makes the multiple-scattering albedo
+    /// <c>subsurface_color</c> (the OpenPBR inversion, with the phase
+    /// function's g);</item>
+    /// <item>scattering transmission (<c>transmission_scatter</c> &gt; 0 with a
+    /// depth): μ_t = −ln(color) / depth, μ_s = scatter / depth, μ_a shifted to be
+    /// non-negative.</item>
+    /// </list>
+    /// Textured colours give a homogeneous medium of their default value.
+    /// </summary>
+    private static IMedium? BuildOpenPbrMedium(MaterialData m)
+    {
+        if (m.GeometryThinWalled ?? m.ThinWalled) return null;
+        float sw = PbrConstant(m.SubsurfaceWeight, 0f) ?? 1f;
+        if (sw > 0f)
+        {
+            float radius = m.SubsurfaceRadius is { Count: 1 } r1 ? r1[0] : 1f;
+            Vector3 scale = m.SubsurfaceRadius is { Count: 3 } r3 ? new Vector3(r3[0], r3[1], r3[2]) : new Vector3(1f, 0.5f, 0.25f);
+            if (m.SubsurfaceRadiusScale?.Values is { } rs) scale = PbrVector(m, rs, scale, "subsurface_radius_scale");
+            Vector3 mfp = Vector3.Max(radius * scale, new Vector3(1e-4f));
+            Vector3 color = Vector3.Clamp(PbrVector(m, m.SubsurfaceColor, new Vector3(0.8f), "subsurface_color"),
+                                          Vector3.Zero, Vector3.One);
+            float g = Math.Clamp(PbrConstant(m.SubsurfaceScatterAnisotropy, 0f) ?? 0f, -0.999f, 0.999f);
+            return SubsurfaceMedium(m.Id, color, mfp, g);
+        }
+
+        float tw = PbrConstant(m.TransmissionWeight, 0f) ?? 1f;
+        float depth = m.TransmissionDepth;
+        Vector3 scatter = m.TransmissionScatter?.Values is { } sv ? PbrVector(m, sv, Vector3.Zero, "transmission_scatter") : Vector3.Zero;
+        if (tw <= 0f || depth <= 0f || scatter == Vector3.Zero) return null;
+        Vector3 tc = Vector3.Clamp(PbrVector(m, m.TransmissionColor, Vector3.One, "transmission_color"), new Vector3(1e-4f), Vector3.One);
+        Vector3 mt = new Vector3(-MathF.Log(tc.X), -MathF.Log(tc.Y), -MathF.Log(tc.Z)) / depth;
+        Vector3 ms = Vector3.Max(scatter, Vector3.Zero) / depth;
+        Vector3 ma = mt - ms;
+        float shift = MathF.Min(0f, MathF.Min(ma.X, MathF.Min(ma.Y, ma.Z)));
+        ma -= new Vector3(shift);
+        float gt = Math.Clamp(PbrConstant(m.TransmissionScatterAnisotropy, 0f) ?? 0f, -0.999f, 0.999f);
+        IPhaseFunction tphase = MathF.Abs(gt) < 1e-4f ? new IsotropicPhase() : new HenyeyGreensteinPhase(gt);
+        return new HomogeneousMedium(ma, ms, tphase);
+    }
+
     private static IMaterial CreateMaterial(MaterialData m, string sceneDir)
     {
         ITexture albedo = m.Texture != null
@@ -1033,39 +1290,17 @@ public class SceneLoader
         IMaterial material = m.Type?.ToLowerInvariant() switch
         {
             "lambertian" => new Lambertian(albedo),
-            "metal"      => new Metal(albedo, m.Fuzz),
-            "dielectric" => new Dielectric(m.RefractionIndex, albedo),
-            "emissive"   => new Emissive(albedo, m.Intensity),
+            "metal"      => CreateMetal(m, albedo),
+            // Clear glass unless a colour is written (the shared default, grey
+            // 0.5, halved the light at every crossing of the interface).
+            "dielectric" => new Dielectric(m.RefractionIndex,
+                                m.Color != null || m.Texture != null ? albedo : new SolidColor(Vector3.One),
+                                m.Roughness ?? 0f),
+            // White unless a colour is written: 'intensity' is the radiance.
+            "emissive"   => CreateEmissive(m, albedo),
             "disney" or "disney_bsdf" or "pbr"
-                         => new DisneyBsdf(
-                                albedo,
-                                metallic:            DisneyParam(m.Metallic,            m.MetallicTexture,            sceneDir),
-                                roughness:           DisneyParam(m.Roughness,           m.RoughnessTexture,           sceneDir),
-                                specular:            DisneyParam(m.Specular,            m.SpecularTexture,            sceneDir),
-                                specularTint:        DisneyParam(m.SpecularTint,        m.SpecularTintTexture,        sceneDir),
-                                sheen:               DisneyParam(m.Sheen,               m.SheenTexture,               sceneDir),
-                                sheenTint:           DisneyParam(m.SheenTint,           m.SheenTintTexture,           sceneDir),
-                                sheenRoughness:      DisneyParam(m.SheenRoughness,      m.SheenRoughnessTexture,      sceneDir),
-                                clearcoat:           DisneyParam(m.Clearcoat,           m.ClearcoatTexture,           sceneDir),
-                                clearcoatGloss:      DisneyParam(m.ClearcoatGloss,      m.ClearcoatGlossTexture,      sceneDir),
-                                specTrans:           DisneyParam(m.SpecTrans ?? 0f,     m.SpecTransTexture,           sceneDir),
-                                ior:                 DisneyParam(m.DisneyIor,           m.IorTexture,                 sceneDir),
-                                anisotropic:         DisneyParam(m.Anisotropic,         m.AnisotropicTexture,         sceneDir),
-                                anisotropicRotation: DisneyParam(m.AnisotropicRotation, m.AnisotropicRotationTexture, sceneDir),
-                                transmissionColor:   DisneyColorParam(m.TransmissionColor, m.TransmissionColorTexture, sceneDir),
-                                transmissionDepth:   DisneyParam(m.TransmissionDepth,   m.TransmissionDepthTexture,   sceneDir),
-                                diffTrans:           DisneyParam(m.DiffTrans,           m.DiffTransTexture,           sceneDir),
-                                thinWalled:          m.ThinWalled,
-                                coatIor:             DisneyParam(m.CoatIor,             m.CoatIorTexture,             sceneDir),
-                                // coat_roughness: only forwarded when the user
-                                // explicitly set a non-negative value or a
-                                // texture; otherwise null selects the legacy
-                                // ClearcoatGloss path inside DisneyBsdf.
-                                coatRoughness:       (m.CoatRoughness >= 0f || m.CoatRoughnessTexture != null)
-                                                        ? DisneyParam(MathF.Max(m.CoatRoughness, 0f), m.CoatRoughnessTexture, sceneDir)
-                                                        : null,
-                                thinFilmThickness:   DisneyParam(m.ThinFilmThickness,   m.ThinFilmThicknessTexture, sceneDir),
-                                thinFilmIor:         DisneyParam(m.ThinFilmIor,         m.ThinFilmIorTexture,       sceneDir)),
+                         => CreateDisney(m, albedo, sceneDir),
+            "openpbr"    => CreateOpenPbr(m, sceneDir),
             _            => new Lambertian(albedo)
         };
 
@@ -1082,7 +1317,7 @@ public class SceneLoader
                     case Metal       met: met.NormalMap = normalMap; break;
                     case Dielectric  die: die.NormalMap = normalMap; break;
                     case Emissive    emi: emi.NormalMap = normalMap; break;
-                    case DisneyBsdf  dis: dis.NormalMap = normalMap; break;
+                    case OpenPbr     opb: opb.NormalMap = normalMap; break;
                     case MixMaterial mix: mix.NormalMap = normalMap; break;
                 }
             }
@@ -1100,19 +1335,13 @@ public class SceneLoader
                     case Metal       met: met.BumpMap = bumpMap; break;
                     case Dielectric  die: die.BumpMap = bumpMap; break;
                     case Emissive    emi: emi.BumpMap = bumpMap; break;
-                    case DisneyBsdf  dis: dis.BumpMap = bumpMap; break;
+                    case OpenPbr     opb: opb.BumpMap = bumpMap; break;
                     case MixMaterial mix: mix.BumpMap = bumpMap; break;
                 }
             }
         }
 
         // ── Coat normal map (Disney only — exclusive to the clearcoat lobe) ─
-        if (m.CoatNormalMap != null && material is DisneyBsdf disneyMat)
-        {
-            var coatNormal = LoadNormalMap(m.CoatNormalMap, sceneDir);
-            if (coatNormal != null)
-                disneyMat.CoatNormal = coatNormal;
-        }
 
         // ── Legacy "fake SSS" knobs (clean break) ───────────────────────────
         // The Hanrahan-Krueger flat-blend approximation that used to live on
@@ -1131,7 +1360,7 @@ public class SceneLoader
         // contribute nothing to the random-walk path. Warn only when these
         // are set WITHOUT subsurface_radius, so the artist knows they need to
         // migrate to one of the two real SSS paths.
-        if (material is DisneyBsdf
+        if (IsDisney(m)
             && m.SubsurfaceRadius == null
             && (m.Subsurface > 0f
                 || m.SubsurfaceColor != null
@@ -1161,7 +1390,7 @@ public class SceneLoader
                 case Metal      met: met.Displacement = leafDisp; break;
                 case Dielectric die: die.Displacement = leafDisp; break;
                 case Emissive   emi: emi.Displacement = leafDisp; break;
-                case DisneyBsdf dis: dis.Displacement = leafDisp; break;
+                    case OpenPbr     opb: opb.Displacement = leafDisp; break;
             }
         }
 
@@ -1181,7 +1410,7 @@ public class SceneLoader
         var matB = GetMaterial(materials, m.MaterialB);
  
         // Build mask texture (optional)
-        ITexture? mask = m.Mask != null ? CreateTexture(m.Mask, sceneDir) : null;
+        ITexture? mask = m.Mask != null ? CreateTexture(m.Mask, sceneDir, TextureRole.Data) : null;
  
         float blend = Math.Clamp(m.Blend, 0f, 1f);
         IMaterial material = new MixMaterial(matA, matB, blend, mask);
@@ -1285,7 +1514,7 @@ public class SceneLoader
         }
         try
         {
-            ITexture inner = CreateTexture(bm.Texture, sceneDir);
+            ITexture inner = CreateTexture(bm.Texture, sceneDir, TextureRole.Data);
             return new BumpMapTexture(inner, bm.Strength, bm.Scale);
         }
         catch (Exception ex)
@@ -1504,7 +1733,7 @@ public class SceneLoader
         }
         if (g.HeightTexture != null)
         {
-            ITexture tex = CreateTexture(g.HeightTexture, sceneDir);
+            ITexture tex = CreateTexture(g.HeightTexture, sceneDir, TextureRole.Data);
             int res = g.Resolution > 0 ? g.Resolution : 512;
             return HeightField.FromProceduralTexture(
                 xMin, zMin, xMax, zMax,
@@ -1546,7 +1775,7 @@ public class SceneLoader
             // Anonymous Disney BSDF — keeps physical correctness even when the
             // user only supplied a colour, matching Arnold's <c>standard_surface</c>
             // floor default.
-            return new DisneyBsdf(
+            return DisneyMaterial.Create(
                 baseColor:  new SolidColor(baseColor),
                 metallic:   new FloatTexture(metallic),
                 roughness:  new FloatTexture(roughness));
@@ -1587,8 +1816,9 @@ public class SceneLoader
 
     /// <summary>
     /// Builds a <see cref="SkySettings"/> from the YAML sky section.
-    /// Supported modes: <c>flat</c>, <c>gradient</c>, <c>hdri</c>,
-    /// <c>preetham</c>/<c>hosek_wilkie</c> (analytical physical sky). When the
+    /// Supported modes: <c>flat</c>, <c>gradient</c>, <c>hdri</c>, and the
+    /// physical skies <c>hosek_wilkie</c> (<c>physical</c>), <c>preetham</c>,
+    /// <c>nishita</c>. When the
     /// <c>world.sky</c> block is missing or its <c>type</c> is unrecognised,
     /// falls back to a flat sky using <see cref="DefaultSkyColor"/>.
     /// </summary>
@@ -1600,6 +1830,14 @@ public class SceneLoader
         string skyType = skyData.Type?.ToLowerInvariant() ?? "";
 
         ISkyModel lightingModel = BuildSkyModel(skyType, skyData, sceneDir);
+        if (lightingModel is AnalyticSky analytic)
+        {
+            // What the sky gives a horizontal plane on the ground: the scale to
+            // expose for (photometric: lux).
+            string unit = analytic.Units == SkyUnits.Photometric ? "lux" : "(relative)";
+            Info($"Sky light:   {analytic.SkyIlluminance * analytic.Intensity:0.###} {unit} on the ground, " +
+                 $"{analytic.SunIlluminance * analytic.Intensity:0.###} of it from the sun");
+        }
         ISkyModel? backgroundModel = null;
         if (skyData.Background != null)
         {
@@ -1623,8 +1861,9 @@ public class SceneLoader
             "flat" or "" => new FlatSky(ToVector3(skyData.Color) ?? DefaultSkyColor),
             "gradient"   => BuildGradientSkyModel(skyData),
             "hdri"       => BuildHdriSkyModel(skyData, sceneDir),
-            "preetham" or "hosek_wilkie" or "physical"
-                         => BuildPhysicalSkyModel(skyData),
+            "preetham"   => BuildPhysicalSkyModel(skyData, hosekWilkie: false),
+            "hosek_wilkie" or "physical"
+                         => BuildPhysicalSkyModel(skyData, hosekWilkie: true),
             "nishita"    => BuildNishitaSkyModel(skyData),
             _            => WarnUnknownSkyTypeModel(skyType),
         };
@@ -1696,32 +1935,41 @@ public class SceneLoader
             sunHalfAngleDeg: halfAngle);
     }
 
-    private static NishitaSky BuildNishitaSkyModel(SkyData skyData)
-    {
-        Vector3 dirToSun = skyData.Sun?.Direction is { Count: >= 3 }
+    private static Vector3 SkySunDirection(SkyData skyData)
+        => skyData.Sun?.Direction is { Count: >= 3 }
             ? Vector3.Normalize(ToVector3(skyData.Sun.Direction) ?? Vector3.UnitY)
-            : Vector3.Normalize(new Vector3(0.2f, 1f, 0.3f));
-        float intensity = skyData.Intensity > 0f ? skyData.Intensity : 1f;
-        // Reuse turbidity as a coarse haze knob: 1 → clean (dust=0.3), 10 → smoggy (dust=2.0).
-        float dust = MathF.Max(0.1f, (skyData.Turbidity - 1f) * 0.2f + 0.5f);
-        return new NishitaSky(dirToSun, airDensity: 1f, dustDensity: dust, intensity: intensity);
+            : Vector3.Normalize(new Vector3(0.2f, 1f, 0.3f)); // noon-ish, slightly south
+
+    private static SkyUnits ParseSkyUnits(SkyData skyData)
+    {
+        switch (skyData.Units?.Trim().ToLowerInvariant())
+        {
+            case null or "" or "relative": return SkyUnits.Relative;
+            case "photometric" or "nits": return SkyUnits.Photometric;
+            default:
+                Warn($"Unknown sky units '{skyData.Units}' (relative | photometric). Using relative.");
+                return SkyUnits.Relative;
+        }
     }
 
-    private static PreethamSky BuildPhysicalSkyModel(SkyData skyData)
+    private static NishitaSky BuildNishitaSkyModel(SkyData skyData)
     {
-        Vector3 dirToSun;
-        if (skyData.Sun?.Direction is { Count: >= 3 })
-        {
-            dirToSun = Vector3.Normalize(ToVector3(skyData.Sun.Direction) ?? Vector3.UnitY);
-        }
-        else
-        {
-            // Default: noon-ish sun pointing slightly south of overhead.
-            dirToSun = Vector3.Normalize(new Vector3(0.2f, 1f, 0.3f));
-        }
+        float intensity = skyData.Intensity > 0f ? skyData.Intensity : 1f;
+        return new NishitaSky(SkySunDirection(skyData), airDensity: 1f,
+                              dustDensity: NishitaSky.DustFromTurbidity(skyData.Turbidity),
+                              intensity: intensity,
+                              groundAlbedo: ToVector3(skyData.GroundAlbedo),
+                              units: ParseSkyUnits(skyData));
+    }
+
+    private static AnalyticSky BuildPhysicalSkyModel(SkyData skyData, bool hosekWilkie)
+    {
         var albedo = ToVector3(skyData.GroundAlbedo) ?? new Vector3(0.3f);
         float intensity = skyData.Intensity > 0f ? skyData.Intensity : 1f;
-        return new PreethamSky(dirToSun, skyData.Turbidity, albedo, intensity);
+        var units = ParseSkyUnits(skyData);
+        return hosekWilkie
+            ? new HosekWilkieSky(SkySunDirection(skyData), skyData.Turbidity, albedo, intensity, units)
+            : new PreethamSky(SkySunDirection(skyData), skyData.Turbidity, albedo, intensity, units);
     }
 
     private static ISkyModel BuildHdriSkyModel(SkyData skyData, string sceneDir)
@@ -1799,13 +2047,13 @@ public class SceneLoader
     /// the texture block when supplied, otherwise wraps the scalar value.
     /// </summary>
     private static FloatTexture DisneyParam(float scalar, TextureData? tex, string sceneDir)
-        => tex != null ? new FloatTexture(CreateTexture(tex, sceneDir)) : new FloatTexture(scalar);
+        => tex != null ? new FloatTexture(CreateTexture(tex, sceneDir, TextureRole.Data)) : new FloatTexture(scalar);
 
     /// <summary>
     /// Builds a nullable <see cref="ITexture"/> for a Disney colour parameter
     /// where "unset" is semantically meaningful — e.g. <c>transmission_color</c>,
     /// whose null value activates the legacy sqrt(baseColor) fallback in
-    /// <see cref="DisneyBsdf"/>. Prefers the texture block when supplied; else
+    /// the Disney translation. Prefers the texture block when supplied; else
     /// wraps the RGB triplet if the user provided one; else returns null.
     /// </summary>
     private static ITexture? DisneyColorParam(List<float>? scalar, TextureData? tex, string sceneDir)
@@ -1815,7 +2063,25 @@ public class SceneLoader
         return c.HasValue ? new SolidColor(c.Value) : null;
     }
 
-    private static ITexture CreateTexture(TextureData t, string sceneDir)
+    /// <summary>What a texture feeds: a colour (decoded from sRGB unless the
+    /// block says otherwise) or data, used as stored (PIANO-REVIEW.md §3.3).</summary>
+    private enum TextureRole { Color, Data }
+
+    private static TextureColorSpace ResolveColorSpace(TextureData t, TextureRole role)
+    {
+        switch (t.ColorSpace?.Trim().ToLowerInvariant())
+        {
+            case null or "": return role == TextureRole.Color ? TextureColorSpace.Srgb : TextureColorSpace.Linear;
+            case "srgb": return TextureColorSpace.Srgb;
+            case "linear" or "raw" or "non-color" or "data": return TextureColorSpace.Linear;
+            default:
+                Warn($"Texture '{t.Path ?? t.Type}': unknown color_space '{t.ColorSpace}' (srgb, linear, raw); " +
+                     $"using {(role == TextureRole.Color ? "srgb" : "raw")}.");
+                return role == TextureRole.Color ? TextureColorSpace.Srgb : TextureColorSpace.Linear;
+        }
+    }
+
+    private static ITexture CreateTexture(TextureData t, string sceneDir, TextureRole role = TextureRole.Color)
     {
         // `scale` may be a scalar (isotropic frequency) or a per-axis
         // [sx, sy, sz] vector (anisotropic stretch). Decompose into a dominant
@@ -1863,20 +2129,43 @@ public class SceneLoader
             "coordinate" or "coord" or "coords" or "texture_coord" or "tex_coord" or "st"
                 => new CoordinateTexture(),
 
-            "image" => CreateImageTexture(t, sceneDir),
+            "image" => CreateImageTexture(t, sceneDir, role),
 
             _ => new SolidColor(t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One : Vector3.One)
         };
 
         ApplyTextureParams(tex, t, sceneDir);
+        ApplyNoiseBasis(tex, t);
         return tex;
+    }
+
+    private static void ApplyNoiseBasis(ITexture tex, TextureData t)
+    {
+        PerlinBasis basis;
+        switch (t.NoiseBasis?.Trim().ToLowerInvariant())
+        {
+            case null or "" or "improved": basis = PerlinBasis.Improved; break;
+            case "classic" or "legacy": basis = PerlinBasis.Classic; break;
+            default:
+                Warn($"Texture '{t.Type}': unknown noise_basis '{t.NoiseBasis}' (improved, classic); using improved.");
+                basis = PerlinBasis.Improved;
+                break;
+        }
+        switch (tex)
+        {
+            case NoiseTexture n:   n.NoiseBasis = basis; break;
+            case MarbleTexture m:  m.NoiseBasis = basis; break;
+            case WoodTexture w:    w.NoiseBasis = basis; break;
+            case VoronoiTexture v: v.NoiseBasis = basis; break;
+            case BrickTexture b:   b.NoiseBasis = basis; break;
+        }
     }
 
     /// <summary>
     /// Creates an ImageTexture from a file path specified in the YAML.
     /// The path is resolved relative to the scene file's directory.
     /// </summary>
-    private static ITexture CreateImageTexture(TextureData t, string sceneDir)
+    private static ITexture CreateImageTexture(TextureData t, string sceneDir, TextureRole role)
     {
         if (string.IsNullOrWhiteSpace(t.Path))
         {
@@ -1899,7 +2188,7 @@ public class SceneLoader
         {
             float scaleU = t.UvScale is { Count: > 0 } ? t.UvScale[0] : 1f;
             float scaleV = t.UvScale is { Count: > 1 } ? t.UvScale[1] : scaleU;
-            return new ImageTexture(imagePath, scaleU, scaleV);
+            return new ImageTexture(imagePath, scaleU, scaleV, ResolveColorSpace(t, role));
         }
         catch (Exception ex)
         {
@@ -1984,7 +2273,7 @@ public class SceneLoader
             if (t.ImpuritiesScale.HasValue)   mt.ImpuritiesScale   = MathF.Max(t.ImpuritiesScale.Value, 1e-4f);
             if (t.ImpurityWeight.HasValue)    mt.ImpurityWeight    = t.ImpurityWeight.Value;
             if (t.ImpuritiesTexture is not null)
-                mt.ImpuritiesTexture = CreateTexture(t.ImpuritiesTexture, sceneDir);
+                mt.ImpuritiesTexture = CreateTexture(t.ImpuritiesTexture, sceneDir, TextureRole.Data);
 
             // Anisotropic space stretch (geological compression)
             if (t.SpaceStretch != null)
@@ -2420,7 +2709,7 @@ public class SceneLoader
         }
         else if (e.HeightTexture != null)
         {
-            ITexture tex = CreateTexture(e.HeightTexture, sceneDir);
+            ITexture tex = CreateTexture(e.HeightTexture, sceneDir, TextureRole.Data);
             int res = e.Resolution > 0 ? e.Resolution : 512;
             hf = HeightField.FromProceduralTexture(
                 xMin, zMin, xMax, zMax,
@@ -3073,7 +3362,7 @@ public class SceneLoader
         ITexture inner;
         try
         {
-            inner = CreateTexture(disp.Texture, sceneDir);
+            inner = CreateTexture(disp.Texture, sceneDir, TextureRole.Data);
         }
         catch (Exception ex)
         {
@@ -3461,27 +3750,41 @@ public class SceneLoader
     }
 
     private static ILight? CreateLight(LightData l, int? shadowSamplesOverride,
-                                        List<IHittable> objects, SkySettings sky)
+                                        List<IHittable> objects, SkySettings sky, string sceneDir = ".")
     {
         var color = ToVector3(l.Color) ?? Vector3.One;
 
         string? lightType = l.Type?.ToLowerInvariant();
+        switch (lightType)
+        {
+            case "point":
+            {
+                var ies = LoadIes(l, sceneDir);
+                var (c, i) = LightEmission(l, color, EmissionKind.Intensity, 0f, ies);
+                return new PointLight(ToVector3(l.Position) ?? new Vector3(0, 10, 0), c, i, l.SoftRadius,
+                                      ies, ToVector3(l.Direction));
+            }
+            case "directional" or "sun":
+            {
+                var (c, e) = LightEmission(l, color, EmissionKind.Irradiance, 0f);
+                return new DirectionalLight(ToVector3(l.Direction) ?? new Vector3(-1, -1, -1),
+                    c, e, l.AngularRadius,
+                    shadowSamplesOverride ?? 0);   // 0 → auto (1 if delta, 16 if disc)
+            }
+            case "spot" or "spotlight":
+            {
+                var ies = LoadIes(l, sceneDir);
+                var (c, i) = LightEmission(l, color, EmissionKind.Intensity, 0f, ies);
+                return new SpotLight(
+                    ToVector3(l.Position)  ?? new Vector3(0, 10, 0),
+                    ToVector3(l.Direction) ?? new Vector3(0, -1, 0),
+                    c, i, l.InnerAngle, l.OuterAngle, l.SoftRadius,
+                    shadowSamplesOverride ?? l.ShadowSamples, ies);
+            }
+        }
+
         return lightType switch
         {
-            "point" => new PointLight(
-                ToVector3(l.Position) ?? new Vector3(0, 10, 0),
-                color, l.Intensity, l.SoftRadius),
-
-            "directional" or "sun" => new DirectionalLight(
-                ToVector3(l.Direction) ?? new Vector3(-1, -1, -1),
-                color, l.Intensity, l.AngularRadius,
-                shadowSamplesOverride ?? 0),   // 0 → auto (1 if delta, 16 if disc)
-
-            "spot" or "spotlight" => new SpotLight(
-                ToVector3(l.Position)  ?? new Vector3(0, 10, 0),
-                ToVector3(l.Direction) ?? new Vector3(0, -1, 0),
-                color, l.Intensity, l.InnerAngle, l.OuterAngle, l.SoftRadius,
-                shadowSamplesOverride ?? l.ShadowSamples),
 
             // ── Portal light ─────────────────────────────────────────────────
             // Window/skylight onto the environment. Restricts NEE to directions
@@ -3519,6 +3822,133 @@ public class SceneLoader
 
             _ => null
         };
+    }
+
+    /// <summary>The quantity a light type's amount is: what <c>intensity</c> means for it.</summary>
+    private enum EmissionKind
+    {
+        /// <summary>Radiant intensity (per steradian): point, spot. Photometric: candela.</summary>
+        Intensity,
+        /// <summary>Radiance of the emitting surface: area, sphere. Photometric: nits.</summary>
+        Radiance,
+        /// <summary>Irradiance on a surface facing it: directional. Photometric: lux.</summary>
+        Irradiance,
+    }
+
+    /// <summary>
+    /// The colour and amount of a light (PIANO-REVIEW.md §3.14): the unitless
+    /// <c>intensity</c> as before, or a photometric quantity (<c>power</c>,
+    /// <c>candela</c>, <c>luminance</c>, <c>illuminance</c>) in nits-based
+    /// scene units, the colour then reduced to a tint of luminance 1.
+    /// <c>temperature</c> multiplies the colour by a black body, <c>normalize</c>
+    /// spreads <c>intensity</c> over the emitting area, <c>exposure</c> scales
+    /// by 2^stops. <paramref name="area"/> is the emitting area (radiance kinds).
+    /// </summary>
+    /// <summary>Loads a point or spot light's IES file (relative to the scene); null on none or failure.</summary>
+    private static IesProfile? LoadIes(LightData l, string sceneDir)
+    {
+        if (string.IsNullOrWhiteSpace(l.Ies)) return null;
+        string path = Path.IsPathRooted(l.Ies) ? l.Ies : Path.Combine(sceneDir, l.Ies);
+        try
+        {
+            var ies = IesProfile.Load(path);
+            if (ies.TiltIgnored) Warn($"IES '{l.Ies}': TILT data ignored (the lamp is taken as mounted).");
+            if (ies.Flux <= 0f) { Warn($"IES '{l.Ies}': the distribution emits nothing; ignored."); return null; }
+            return ies;
+        }
+        catch (Exception ex)
+        {
+            Warn($"IES '{l.Ies}' could not be read ({ex.Message}); the light is isotropic.");
+            return null;
+        }
+    }
+
+    private static (Vector3 Color, float Amount) LightEmission(LightData l, Vector3 color, EmissionKind kind, float area,
+                                                                IesProfile? ies = null)
+    {
+        string name = l.Type ?? "light";
+        float? lumens = null;
+        if (l.Power is float p)
+        {
+            string unit = (l.PowerUnit ?? "watt").Trim().ToLowerInvariant();
+            if (unit is "lumen" or "lumens" or "lm") lumens = p;
+            else
+            {
+                if (unit is not ("watt" or "watts" or "w"))
+                    Warn($"Light '{name}': unknown power_unit '{l.PowerUnit}' (watt, lumen); using watts.");
+                lumens = p * LightUnits.LumensPerWatt;
+            }
+        }
+
+        // An IES profile is photometric on its own (absolute candela): the
+        // light's amount scales it, to a flux or a peak when given.
+        if (ies != null)
+        {
+            float scale = l.Candela is float peak ? peak / ies.MaxCandela
+                        : lumens is float flux ? flux / ies.Flux
+                        : l.Intensity;
+            if (l.Exposure != 0f) scale *= MathF.Pow(2f, l.Exposure);
+            return (LightUnits.UnitTint(color, l.Temperature), scale);
+        }
+
+        float? photometric = kind switch
+        {
+            // A spot's power is that of the point light it would be: the cone
+            // cuts the light, it does not concentrate it.
+            EmissionKind.Intensity => l.Candela ?? (lumens / (4f * MathF.PI)),
+            EmissionKind.Radiance  => l.Luminance ?? (lumens is float lm && area > 0f ? lm / (MathF.PI * area) : (float?)null),
+            _                      => l.Illuminance,
+        };
+
+        string?[] candidates = kind switch
+        {
+            EmissionKind.Intensity  => new[] { l.Luminance != null ? "luminance" : null, l.Illuminance != null ? "illuminance" : null },
+            EmissionKind.Radiance   => new[] { l.Candela != null ? "candela" : null, l.Illuminance != null ? "illuminance" : null },
+            _                       => new[] { l.Candela != null ? "candela" : null, l.Luminance != null ? "luminance" : null, l.Power != null ? "power" : null },
+        };
+        var unused = candidates.Where(k => k != null).ToArray();
+        if (unused.Length > 0)
+            Warn($"Light '{name}': {string.Join(", ", unused)} does not apply to this light type; ignored.");
+
+        float amount;
+        if (photometric is float q)
+        {
+            color = LightUnits.UnitTint(color, l.Temperature);
+            amount = q;
+        }
+        else
+        {
+            if (l.Temperature is float k) color *= LightUnits.Blackbody(k);
+            amount = l.Intensity;
+            if (l.Normalize)
+            {
+                if (kind == EmissionKind.Radiance && area > 0f) amount /= area;
+                else Warn($"Light '{name}': normalize applies to area and sphere lights only; ignored.");
+            }
+        }
+        if (l.Exposure != 0f) amount *= MathF.Pow(2f, l.Exposure);
+        return (color, amount);
+    }
+
+    /// <summary>
+    /// <c>emissive</c>: white unless a colour is written; <c>intensity</c> is the
+    /// radiance, or <c>luminance</c> in nits with the colour as a tint of
+    /// luminance 1 (a texture keeps its values); <c>temperature</c> multiplies
+    /// by a black body.
+    /// </summary>
+    private static Emissive CreateEmissive(MaterialData m, ITexture albedo)
+    {
+        bool textured = m.Texture != null;
+        Vector3 color = ToVector3(m.Color) ?? Vector3.One;
+        if (m.Luminance is float nits)
+        {
+            if (textured)
+                return new Emissive(m.Temperature is float k ? new DerivedTexture(albedo, c => c * LightUnits.Blackbody(k)) : albedo, nits);
+            return new Emissive(LightUnits.UnitTint(color, m.Temperature), nits);
+        }
+        if (textured)
+            return new Emissive(m.Temperature is float k ? new DerivedTexture(albedo, c => c * LightUnits.Blackbody(k)) : albedo, m.Intensity);
+        return new Emissive(m.Temperature is float t ? color * LightUnits.Blackbody(t) : color, m.Intensity);
     }
 
     private static PortalLight? CreatePortalLight(LightData l, int? shadowSamplesOverride,
@@ -3563,6 +3993,8 @@ public class SceneLoader
 
         // CLI override takes precedence over per-light YAML value
         int effectiveShadowSamples = shadowSamplesOverride ?? l.ShadowSamples;
+        (color, float radiance) = LightEmission(l, color, EmissionKind.Radiance,
+                                                Vector3.Cross(u.Value, v.Value).Length());
 
         // Visible emissive proxy — Quad with the light's emission as Lambertian
         // radiance. The proxy's radiance equals the light's `intensity * color`
@@ -3573,19 +4005,19 @@ public class SceneLoader
         // Wrap in BackFaceCulledHittable so the camera and specular rays see
         // through the dark (back) side of the panel — same pattern Arnold and
         // Cycles use for analytic single-sided quad lights.
-        var proxyMat = new Emissive(color, l.Intensity) { IsLightProxy = true };
+        var proxyMat = new Emissive(color, radiance) { IsLightProxy = true };
         IHittable proxy = new BackFaceCulledHittable(
             new Quad(corner.Value, u.Value, v.Value, proxyMat));
         // visible_to_camera: false → wrap so primary rays skip past the proxy
         // (mirror reflections, refractions and NEE continue to see it; see
-        // Renderer.TraceRay for the skip-loop). Default true is a no-op so
+        // Renderer.FindVisibleHit for the skip-loop). Default true is a no-op so
         // existing scenes produce bit-identical BVH content.
         if (!l.VisibleToCamera)
             proxy = new CameraInvisibleHittable(proxy);
         objects.Add(proxy);
 
         return new AreaLight(corner.Value, u.Value, v.Value, color,
-                             l.Intensity, effectiveShadowSamples, l.SoftRadius,
+                             radiance, effectiveShadowSamples, l.SoftRadius,
                              proxyMat);
     }
 
@@ -3609,6 +4041,8 @@ public class SceneLoader
 
         // CLI override takes precedence over per-light YAML value
         int effectiveShadowSamples = shadowSamplesOverride ?? l.ShadowSamples;
+        (color, float radiance) = LightEmission(l, color, EmissionKind.Radiance,
+                                                4f * MathF.PI * l.Radius * l.Radius);
 
         // Visible emissive proxy — Sphere with the light's emission as
         // Lambertian radiance. The existing solid-angle estimator
@@ -3618,18 +4052,18 @@ public class SceneLoader
         // from a uniform sphere of that radiance. Setting the proxy's
         // emission to `color × intensity` therefore gives BSDF-sampled hits
         // the same energy as NEE — required for MIS to be unbiased.
-        var proxyMat = new Emissive(color, l.Intensity) { IsLightProxy = true };
+        var proxyMat = new Emissive(color, radiance) { IsLightProxy = true };
         IHittable proxy = new Sphere(position.Value, l.Radius, proxyMat);
         // visible_to_camera: false → wrap so primary rays skip past the proxy
         // (mirror reflections, refractions and NEE continue to see it; see
-        // Renderer.TraceRay for the skip-loop). Default true is a no-op so
+        // Renderer.FindVisibleHit for the skip-loop). Default true is a no-op so
         // existing scenes produce bit-identical BVH content.
         if (!l.VisibleToCamera)
             proxy = new CameraInvisibleHittable(proxy);
         objects.Add(proxy);
 
         return new SphereLight(position.Value, l.Radius, color,
-                               l.Intensity, effectiveShadowSamples,
+                               radiance, effectiveShadowSamples,
                                proxyMat);
     }
 
@@ -3717,6 +4151,64 @@ public class SceneLoader
     {
         if (v == null || v.Count < 2) return null;
         return new System.Numerics.Vector2(v[0], v[1]);
+    }
+
+    /// <summary>
+    /// Converts the photographic camera keys into the thin-lens parameters the
+    /// camera uses: <c>focal_length</c> + <c>sensor_width</c> → vertical field
+    /// of view (the sensor width spans the image width, as on a still camera;
+    /// the lens is treated as focused at infinity, so no focus breathing), and
+    /// <c>f_stop</c> → aperture diameter = focal length / N, in scene units via
+    /// <c>meters_per_unit</c>. Without <c>focal_length</c>, <c>f_stop</c> uses
+    /// the focal length that gives the scene's <c>fov</c> on that sensor.
+    /// Returns the aperture shape (blades, rotation, ratio).
+    /// </summary>
+    public static Camera.ApertureShape ApplyPhysicalCamera(CameraData cam, float aspect)
+    {
+        float sensorWidth = cam.SensorWidth;
+        if (!(sensorWidth > 0f))
+        {
+            Warn($"Camera 'sensor_width' must be > 0 (got {sensorWidth}); using 36 mm.");
+            sensorWidth = 36f;
+        }
+        float sensorHeight = sensorWidth / aspect;
+
+        if (cam.FocalLength is float f)
+        {
+            if (f > 0f)
+                cam.Fov = 2f * MathF.Atan(sensorHeight / (2f * f)) * 180f / MathF.PI;
+            else
+                Warn($"Camera 'focal_length' must be > 0 mm (got {f}); keeping fov = {cam.Fov}.");
+        }
+
+        if (cam.FStop is float n)
+        {
+            if (n > 0f && cam.MetersPerUnit > 0f)
+            {
+                float focalMm = cam.FocalLength is > 0f
+                    ? cam.FocalLength.Value
+                    : sensorHeight / (2f * MathF.Tan(cam.Fov * MathF.PI / 360f));
+                if (cam.Aperture > 0f)
+                    Info($"Camera 'f_stop' {n} overrides 'aperture' {cam.Aperture}.");
+                cam.Aperture = focalMm / n / 1000f / cam.MetersPerUnit;
+            }
+            else
+                Warn($"Camera 'f_stop' and 'meters_per_unit' must be > 0 (got {n}, {cam.MetersPerUnit}); keeping aperture = {cam.Aperture}.");
+        }
+
+        int blades = cam.ApertureBlades;
+        if (blades is 1 or 2 || blades < 0)
+        {
+            Warn($"Camera 'aperture_blades' must be 0 (round) or at least 3 (got {blades}); using a round aperture.");
+            blades = 0;
+        }
+        float ratio = cam.ApertureRatio;
+        if (!(ratio > 0f))
+        {
+            Warn($"Camera 'aperture_ratio' must be > 0 (got {ratio}); using 1.");
+            ratio = 1f;
+        }
+        return new Camera.ApertureShape(blades, cam.ApertureRotation, ratio);
     }
 
     /// <summary>
@@ -4027,6 +4519,7 @@ public class SceneLoader
     /// </summary>
     private static void ApplyEmbeddedSssDefaults(MaterialData m)
     {
+        if (IsOpenPbr(m)) return;
         if (m.SubsurfaceRadius == null || m.SubsurfaceRadius.Count == 0) return;
         bool anyPositive = false;
         foreach (var v in m.SubsurfaceRadius) if (v > 0f) { anyPositive = true; break; }
@@ -4064,63 +4557,54 @@ public class SceneLoader
     }
 
     /// <summary>
-    /// Converts a material's <c>subsurface_radius</c> (mean free path per
-    /// RGB channel, in world units) + <c>subsurface_color</c> (volume
-    /// albedo) into a <see cref="HomogeneousMedium"/>. Mirrors the
-    /// Arnold <c>standard_surface</c> / Cycles <c>Principled BSDF</c>
-    /// random-walk SSS parameterization:
+    /// The medium of a subsurface material from its artistic parameters, the
+    /// OpenPBR parametrisation: <paramref name="color"/> is the albedo the
+    /// surface shows (the multiple-scattering albedo of a thick slab), and
+    /// <paramref name="mfp"/> the mean free path per channel:
     /// <code>
-    ///   r_eff = radius · scale         (effective MFP per channel)
-    ///   σ_t   = 1 / r_eff              (extinction coefficient)
-    ///   σ_s   = albedo · σ_t           (scattering coefficient)
-    ///   σ_a   = (1 − albedo) · σ_t     (absorption coefficient)
+    ///   σ_t = 1 / mfp
+    ///   s   = 4.09712 + 4.20863·A − √(9.59217 + 41.6808·A + 17.7126·A²)
+    ///   α   = (1 − s²) / (1 − g·s²)          (single-scattering albedo)
     /// </code>
-    /// Phase function: Henyey–Greenstein with g = <c>subsurface_anisotropy</c>
-    /// (0 by default → near-isotropic, typical for marble / wax / stone).
+    /// the inversion of Chiang, Kutz and Burley 2016 with the anisotropy term
+    /// of the OpenPBR specification. Taking the colour as the single-scattering
+    /// albedo, as the Disney path did before Phase 8, rendered a colour of 0.8
+    /// as 0.4 or so.
+    /// </summary>
+    internal static HomogeneousMedium SubsurfaceMedium(string? id, Vector3 color, Vector3 mfp, float g)
+    {
+        static float Single(float c, float g)
+        {
+            double s = 4.09712 + 4.20863 * c - Math.Sqrt(9.59217 + 41.6808 * c + 17.7126 * c * c);
+            return (float)Math.Clamp((1 - s * s) / (1 - g * s * s), 0.0, 1.0);
+        }
+        color = Vector3.Clamp(color, Vector3.Zero, Vector3.One);
+        mfp = Vector3.Max(mfp, new Vector3(1e-4f));
+        g = Math.Clamp(g, -0.999f, 0.999f);
+        Vector3 albedo = new(Single(color.X, g), Single(color.Y, g), Single(color.Z, g));
+        Vector3 sigmaT = Vector3.One / mfp;
+        IPhaseFunction phase = MathF.Abs(g) < 1e-4f ? new IsotropicPhase() : new HenyeyGreensteinPhase(g);
+        Verbose($"Subsurface medium: material '{id}', mfp [{mfp.X:0.###},{mfp.Y:0.###},{mfp.Z:0.###}], " +
+                $"single-scattering albedo [{albedo.X:0.###},{albedo.Y:0.###},{albedo.Z:0.###}]");
+        return new HomogeneousMedium(sigmaT * (Vector3.One - albedo), sigmaT * albedo, phase);
+    }
+
+    /// <summary>
+    /// The subsurface medium of a Disney material (<c>subsurface_radius</c>
+    /// × <c>subsurface_scale</c>, <c>subsurface_color</c> or else the base
+    /// colour, <c>subsurface_anisotropy</c>), with the OpenPBR parametrisation
+    /// the Disney material is translated onto (<see cref="SubsurfaceMedium"/>).
     /// </summary>
     private static IMedium? BuildEmbeddedSssMedium(MaterialData m)
     {
         if (m.SubsurfaceRadius == null || m.SubsurfaceRadius.Count == 0)
             return null;
-
-        // Volume albedo: subsurface_color when present, otherwise base_color
-        // (Cycles convention). Falls back to white if neither is set.
-        List<float>? albedoSrc = m.SubsurfaceColor ?? m.Color;
-        Vector3 albedo = albedoSrc != null && albedoSrc.Count >= 3
-            ? new Vector3(
-                MathF.Max(0f, MathF.Min(1f, albedoSrc[0])),
-                MathF.Max(0f, MathF.Min(1f, albedoSrc[1])),
-                MathF.Max(0f, MathF.Min(1f, albedoSrc[2])))
-            : Vector3.One;
-
-        // Radius: pad / clamp to 3 channels. Values ≤ 0 fall back to a
-        // sentinel large MFP so the channel is effectively transparent.
+        List<float>? colorSrc = m.SubsurfaceColor ?? m.Color;
+        Vector3 color = colorSrc is { Count: >= 3 } ? new Vector3(colorSrc[0], colorSrc[1], colorSrc[2]) : Vector3.One;
         var r = m.SubsurfaceRadius;
-        float rR = r.Count >= 1 ? r[0] : 1f;
-        float rG = r.Count >= 2 ? r[1] : rR;
-        float rB = r.Count >= 3 ? r[2] : rG;
-
+        float rR = r[0], rG = r.Count >= 2 ? r[1] : rR, rB = r.Count >= 3 ? r[2] : rG;
         float scale = m.SubsurfaceScale > 0f ? m.SubsurfaceScale : 1f;
-        rR = MathF.Max(1e-4f, rR * scale);
-        rG = MathF.Max(1e-4f, rG * scale);
-        rB = MathF.Max(1e-4f, rB * scale);
-
-        Vector3 sigmaT = new Vector3(1f / rR, 1f / rG, 1f / rB);
-        Vector3 sigmaS = sigmaT * albedo;
-        Vector3 sigmaA = sigmaT - sigmaS; // = σ_t · (1 − albedo), nonneg by clamp
-
-        float g = MathF.Max(-0.999f, MathF.Min(0.999f, m.SubsurfaceAnisotropy));
-        IPhaseFunction phase = MathF.Abs(g) < 1e-4f
-            ? new IsotropicPhase()
-            : new HenyeyGreensteinPhase(g);
-
-        Verbose($"SSS medium:  material '{m.Id}' → " +
-                $"r=[{rR:0.###},{rG:0.###},{rB:0.###}] α=[{albedo.X:0.##},{albedo.Y:0.##},{albedo.Z:0.##}] " +
-                $"σ_s=[{sigmaS.X:0.##},{sigmaS.Y:0.##},{sigmaS.Z:0.##}] " +
-                $"σ_a=[{sigmaA.X:0.###},{sigmaA.Y:0.###},{sigmaA.Z:0.###}] " +
-                $"phase={(MathF.Abs(g) < 1e-4f ? "isotropic" : $"hg(g={g:0.##})")}");
-
-        return new HomogeneousMedium(sigmaA, sigmaS, phase);
+        return SubsurfaceMedium(m.Id, color, new Vector3(rR, rG, rB) * scale, m.SubsurfaceAnisotropy);
     }
 
     /// <summary>
@@ -4159,25 +4643,17 @@ public class SceneLoader
 
     private static NishitaAtmosphereMedium BuildNishitaAtmosphere(MediumData md, IPhaseFunction phase)
     {
-        // The atmosphere medium reuses the Nishita physical constants; the
-        // YAML knobs are limited to the scene-mapping ones (sea level, world
-        // scale) and density multipliers. Default phase is HG g=0.76 (Mie
-        // forward scattering); the user can override via the `phase` key.
-        // When no phase is specified in YAML, BuildPhaseFunction returns
-        // IsotropicPhase by default — for atmosphere we substitute the
-        // Mie-typical HG g=0.76 if isotropic was the implicit choice.
-        IPhaseFunction effectivePhase = string.IsNullOrWhiteSpace(md.Phase)
-            ? new HenyeyGreensteinPhase(0.76f)
-            : phase;
-
-        Vector3 air     = ToVector3(md.AirDensity) ?? Vector3.One;
-        float seaLevel  = md.Y0;
-        Info($"Medium:      atmosphere (Nishita, sea_level={seaLevel}, world_scale={md.WorldScale} m/wu, {(string.IsNullOrWhiteSpace(md.Phase) ? "hg(0.76)" : md.Phase)} phase)");
-        return new NishitaAtmosphereMedium(effectivePhase,
-                                            airDensity: air,
-                                            dustDensity: md.DustDensity,
-                                            seaLevelY: seaLevel,
-                                            worldScale: md.WorldScale);
+        // Air scatters with the Rayleigh phase function; `phase` sets the
+        // dust's (Henyey-Greenstein g = 0.76 by default).
+        IPhaseFunction? dustPhase = string.IsNullOrWhiteSpace(md.Phase) ? null : phase;
+        Info($"Medium:      atmosphere (sea_level={md.Y0}, world_scale={md.WorldScale} m/wu, " +
+             $"air {md.AirDensity}, dust {md.DustDensity}, ozone {md.OzoneDensity}, dust phase {md.Phase ?? "hg(0.76)"})");
+        return new NishitaAtmosphereMedium(dustPhase,
+                                           airDensity: md.AirDensity,
+                                           dustDensity: md.DustDensity,
+                                           ozoneDensity: md.OzoneDensity,
+                                           seaLevelY: md.Y0,
+                                           worldScale: md.WorldScale);
     }
 
     private static IPhaseFunction BuildPhaseFunction(MediumData md)

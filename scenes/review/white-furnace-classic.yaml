@@ -1,0 +1,39 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  white-furnace-classic.yaml - fornace bianca dei materiali classici
+#  (PIANO-REVIEW.md, Fase 5)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Come openpbr-white-furnace.yaml, con lambertian, metal e dielectric: sotto
+#  un cielo bianco uniforme di radianza 1 ogni sfera bianca deve sparire
+#  (valore 1 nel buffer beauty lineare).
+#
+#  Render consigliato:
+#    -s 256 -d 32 --view standard --denoiser none -w 640 -H 360 --aov beauty
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [1, 1, 1]
+    horizon_color: [1, 1, 1]
+    ground_color:  [1, 1, 1]
+
+# Nessuna luce: senza questa riga il loader aggiunge due luci di default.
+lights: []
+
+camera:
+  position: [0, 0, -12]
+  look_at: [0, 0, 0]
+  fov: 40
+
+materials:
+  - { id: "lambert", type: "lambertian", color: [1, 1, 1] }
+  - { id: "metal",   type: "metal", color: [1, 1, 1], roughness: 0.6 }
+  - { id: "mirror",  type: "metal", color: [1, 1, 1], roughness: 0 }
+  - { id: "glass",   type: "dielectric", color: [1, 1, 1], refraction_index: 1.5, roughness: 0.3 }
+
+entities:
+  - { name: "lambert", type: "sphere", center: [ 3.0, 0, 0], radius: 0.8, material: "lambert" }
+  - { name: "metal",   type: "sphere", center: [ 1.0, 0, 0], radius: 0.8, material: "metal" }
+  - { name: "mirror",  type: "sphere", center: [-1.0, 0, 0], radius: 0.8, material: "mirror" }
+  - { name: "glass",   type: "sphere", center: [-3.0, 0, 0], radius: 0.8, material: "glass" }

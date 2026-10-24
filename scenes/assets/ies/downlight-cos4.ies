@@ -1,0 +1,11 @@
+IESNA:LM-63-2002
+[TEST] synthetic profile written for the 3D-Ray review (PIANO-REVIEW.md Phase 6)
+[MANUFAC] none
+[LUMCAT] downlight-cos4
+[LUMINAIRE] Downlight, rotationally symmetric, I(theta) = 1000 cd * cos^4(theta)
+TILT=NONE
+1 -1 1 13 1 1 2 0.0 0.0 0.0
+1.0 1.0 10
+0 5 10 15 20 25 30 35 40 45 50 60 90
+0
+1000.0 984.9 940.6 870.5 779.7 674.7 562.5 450.3 344.4 250.0 170.7 62.5 0.0

@@ -321,17 +321,18 @@ avvolgi il cilindro in un `Transform`. Cambia `color` per altri colori neon
 
 # Sezione E — Luci ottimizzate per caustiche
 
-Le caustiche focalizzate richiedono **un solo opt-in**: il flag CLI `--caustics on`
-(di default sui preset `final`/`ultra`). Con quello attivo il motore emette i fotoni
-e focalizza la luce attraverso ogni superficie speculare/trasmissiva sulle superfici
-diffuse — **senza flag YAML** (`caustic_caster`/`caustic_receiver` non esistono più).
-Guidano le caustiche **tutte** le luci finite — **`area`/geometriche**, **`sphere`**,
-**`point`/`spot`** — **e** le **`directional`/sole**; solo cielo/HDRI non contribuisce.
+Le caustiche focalizzate non richiedono **flag YAML** (`caustic_caster`/`caustic_receiver`
+non esistono più): ogni superficie speculare/trasmissiva focalizza la luce sulle
+superfici diffuse. Il path tracing le rende rumorose; si rendono pulite scegliendo al
+render `--integrator bdpt` (caustiche viste direttamente o in uno specchio) o
+`--integrator vcm` (anche attraverso vetro o acqua). Guidano le caustiche **tutte** le
+luci: **`area`/geometriche**, **`sphere`**, **`point`/`spot`**, **`directional`/sole**
+e il cielo/HDRI.
 Per la guida completa su geometrie e materiali vedi [`caustics.md`](caustics.md).
 
 La nitidezza della caustica dipende dalla **dimensione** della sorgente: piccola e
-intensa → spot netto; grande → alone morbido. La **pulizia** dipende dal budget fotoni
-(`--caustic-photons`): alzalo per caustiche meno rumorose.
+intensa → spot netto; grande → alone morbido. La **pulizia** dipende dalle iterazioni
+(`-s`): alzale per caustiche meno rumorose.
 
 ## E1. Area piccola per caustica netta — vetro liscio / specchio
 
@@ -366,7 +367,7 @@ lights:
 ```
 
 Una luce più grande (`2.0×2.0`) allarga il fuoco in un alone soffuso. Usa `-C 25`
-se il vetro genera spike e alza `--caustic-photons` per pulire l'alone. Intensità più
+se il vetro genera spike e alza `-s` per pulire l'alone. Intensità più
 bassa del preset E1 perché l'energia è distribuita su un'area maggiore.
 
 ## E3. Sole per caustiche outdoor
@@ -379,7 +380,7 @@ lights:
     intensity: 4.0
 ```
 
-La `directional`/sole **guida direttamente** le caustiche del photon map: i raggi
+La `directional`/sole **guida direttamente** le caustiche: i raggi
 paralleli convergono attraverso vetri e acqua in uno spot netto, esattamente la
 caustica solare di una piscina o di un bicchiere al sole. Per un tramonto tinta con
 `color: [1.0, 0.62, 0.28]`. (In passato il sole non castava: ora sì.)
@@ -421,9 +422,10 @@ lights:
     outer_angle: 40
 ```
 
-`point`/`spot` emettono fotoni in modo isotropo (lo `spot` entro il suo cono, con la
-falloff applicata): producono una caustica netta da una sorgente puntiforme. Sono più
-rumorosi di una luce d'area, quindi alza `--caustic-photons` per ripulire il fuoco.
+`point`/`spot` emettono in modo isotropo (lo `spot` entro il suo cono, con la
+falloff applicata): producono una caustica netta da una sorgente puntiforme. Una
+sorgente puntiforme non si può colpire per caso: senza `--integrator bdpt|vcm` la sua
+caustica non compare affatto.
 Lo `spot` applica la sua falloff di cono alla luce focalizzata — utile per isolare una
 singola caustica senza illuminare il resto della scena.
 
@@ -444,11 +446,11 @@ singola caustica senza illuminare il resto della scena.
 | Insegne neon, cyberpunk | C2 neon | `world.md` B4 · `-C 25` |
 | Pannello soffitto visibile | D1 emissiva quad | geometria + NEE automatico |
 | Tubo neon / LED visibile | D2 emissiva cylinder | raggio piccolo → penombra morbida |
-| Caustica netta (vetro / specchio) | E1 area piccola | `--caustics on` · studio nero |
-| Caustica morbida (area grande) | E2 area media | `--caustics on --caustic-photons 4000000` |
-| Caustica outdoor (sole) | E3 directional | `--caustics on` · sole diretto |
-| Caustica netta da sfera | E4 sphere light | `--caustics on` · `radius` piccolo |
-| Caustica da point/spot | E5 point/spot | `--caustics on --caustic-photons 4000000` |
+| Caustica netta (vetro / specchio) | E1 area piccola | `--integrator bdpt`, studio nero |
+| Caustica morbida (area grande) | E2 area media | `--integrator bdpt -s 1024` |
+| Caustica outdoor (sole) | E3 directional | `--integrator bdpt`, sole diretto |
+| Caustica netta da sfera | E4 sphere light | `--integrator bdpt`, `radius` piccolo |
+| Caustica da point/spot | E5 point/spot | `--integrator bdpt` (vista attraverso il vetro: `vcm`) |
 
 ## CLI tips
 
@@ -459,12 +461,12 @@ dotnet run --project src/RayTracer -- -i scena.yaml -S 12
 # Neon / emissive ad alta intensità: clampa i fireflies
 dotnet run --project src/RayTracer -- -i scena.yaml -C 25
 
-# Caustiche (vetro liscio / specchio): qualità standard
-dotnet run --project src/RayTracer -- -i scena.yaml -q final --caustics on
+# Caustiche (vetro liscio / specchio)
+dotnet run --project src/RayTracer -- -i scena.yaml -q final --integrator bdpt
 
-# Caustiche molto pulite: più fotoni + clamp firefly più severo
-dotnet run --project src/RayTracer -- -i scena.yaml -q final --caustics on --caustic-photons 8000000 -C 25
+# Caustiche viste attraverso vetro o acqua (piscina, bicchiere)
+dotnet run --project src/RayTracer -- -i scena.yaml -q final --integrator vcm
 
-# Preview rapida con caustiche attive (budget fotoni ridotto)
-dotnet run --project src/RayTracer -- -i scena.yaml -q standard-small --caustics on --caustic-photons 1000000
+# Preview rapida con caustiche
+dotnet run --project src/RayTracer -- -i scena.yaml -q standard-small --integrator bdpt
 ```

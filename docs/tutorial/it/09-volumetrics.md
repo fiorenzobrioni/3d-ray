@@ -141,7 +141,7 @@ La nebbia uniforme ha un limite: nel mondo reale la densità cambia con l'altitu
 
 ### 9.4.1 `height_fog` — foschia esponenziale in altezza
 
-Densità che cala esponenzialmente con la quota: `σ_T(y) = σ_T0 · exp(-(y - y0) / H)`. È il modello "atmosphere / aerial perspective" standard. L'integrale lungo il raggio ha forma chiusa → **costo quasi identico al medium omogeneo**, nessun delta tracking.
+Densità che cala esponenzialmente con la quota: `σ_T(y) = σ_T0 exp(-(y - y0) / H)`. È il modello "atmosphere / aerial perspective" standard. L'integrale lungo il raggio ha forma chiusa → **costo quasi identico al medium omogeneo**, e le distanze sono campionate esattamente.
 
 ```yaml
 world:
@@ -166,7 +166,7 @@ world:
 
 ### 9.4.2 `procedural` — Perlin fBm
 
-Densità guidata da **noise Perlin con fractal brownian motion** (fBm). Il free-path sampling usa **delta tracking (Woodcock)** e la trasmittanza è stimata via **ratio tracking**. Adatto a volumi procedurali con densità spazialmente variabile.
+Densità guidata da **noise Perlin con fractal brownian motion** (fBm). Il raggio è attraversato con **collisioni nulle** contro un majorant (la densità massima): lo **spectral tracking** campiona dove la luce si diffonde, il **ratio tracking** stima la trasmittanza dei raggi d'ombra. Entrambi senza distorsione in ogni canale di colore. Adatto a volumi procedurali con densità spazialmente variabile.
 
 ```yaml
 world:
@@ -191,7 +191,7 @@ world:
 
 **Uso tipico:** stanze con nebbia irregolare, scene horror, god-ray non omogenei, foreste nebbiose, superfici d'acqua con foschia a chiazze.
 
-**Tip:** delta tracking è più rumoroso → alza `-s` a 400 o 1024 per render finali.
+**Tip:** il tracking aggiunge rumore → alza `-s` a 400 o 1024 per render finali.
 
 ### 9.4.3 `grid` — densità da griglia 3D
 
@@ -241,7 +241,7 @@ Il formato `.vol` (VOL1) è: magic `"VOL1"` (4 byte) + `nx`, `ny`, `nz` (3 × in
 **Filtro di ricostruzione (`interpolation`).** Quando un sample cade tra i voxel, 3D-Ray interpola la densità in uno dei due modi:
 
 - **`trilinear`** (default, 8 taps, C⁰). Economico. A risoluzioni basse (≤ 16³) la derivata del campo di densità è discontinua ai confini delle celle → si vedono bande lineari nel render. In produzione si risolve usando griglie fitte (128³–1024³) dove i salti sono sub-pixel.
-- **`tricubic`** (64 taps, C¹, cardinal spline Catmull-Rom con τ = 0.5). ~8× il costo per sample, ma il campo di densità è derivabile con continuità → niente kink anche su griglie minuscole. Il risultato viene clampato in `[0,1]` per preservare l'invariante del majorant del delta tracking. Alias accettati: `cubic`, `catmull-rom`, `smooth`. Fornisce ricostruzione liscia della densità su VDB a costo di più tap.
+- **`tricubic`** (64 taps, C¹, cardinal spline Catmull-Rom con τ = 0.5). ~8× il costo per sample, ma il campo di densità è derivabile con continuità → niente kink anche su griglie minuscole. Il risultato viene clampato in `[0,1]` e la griglia di majorant tiene conto del superamento tra i voxel. Alias accettati: `cubic`, `catmull-rom`, `smooth`. Fornisce ricostruzione liscia della densità su VDB a costo di più tap.
 
 **Tip:** fuori dalla AABB il medium è vuoto → i raggi che non la intersecano sono gratis. Dimensiona bene i bounds per massimizzare le performance. Se usi `tricubic`, aspettati render ~5–10% più lenti sui raggi che attraversano la AABB.
 
@@ -339,11 +339,11 @@ Il rendering volumetrico è più impegnativo del rendering solo superficiale. Ti
 
 1. **Aumentare i campioni (samples).** Il mezzo aggiunge un'altra fonte di rumore (eventi di scattering casuali lungo ogni raggio). `homogeneous` e `height_fog` sono analitici e già a 64 SPP danno risultati decenti. `procedural` e `grid` usano delta tracking → servono 256+ SPP per risultati puliti, 1024+ per publication-ready.
 
-2. **Non esagerare con la profondità (depth).** Il path volumetrico è già gestito correttamente a `-d 6-8`. Russian Roulette termina automaticamente i path lunghi, quindi valori sopra `-d 10` raramente migliorano la qualità e costano sempre tempo.
+2. **Non esagerare con la profondità (depth).** Gli eventi di scattering in un mezzo hanno un limite proprio (`--depth-volume`: 3 in `draft`, 4 in `standard`, 8 in `final`). La Russian Roulette termina automaticamente i path lunghi; alza il limite solo per mezzi densi e luminosi di cui vedi lo scattering multiplo.
 
 3. **Firefly clamp con nebbia densa.** Mezzi con `sigma_s` alto + `-d 8+` talvolta producono spike luminosi rari. Abbassa `-C` a `25` o `15` senza timore: perdi poco dinamica, guadagni pulizia.
 
-4. **`soft_radius` su point/spot light dentro la nebbia.** L'attenuazione 1/d² delle luci point e spot diverge quando un evento di scattering nel mezzo cade vicino all'emettitore, producendo pixel-firefly isolati che nessun aumento di `-s` riesce a livellare. Imposta `soft_radius` su quelle luci a un valore vicino al raggio fisico del bulbo (es. `0.10`–`0.25`): il denominatore viene clampato a `max(d², r²)`, la singolarità sparisce, e a distanze `d ≥ r` il look è invariato. È di gran lunga il singolo cambio più efficace per scene di lampioni nella nebbia.
+4. **Point/spot light dentro la nebbia non richiedono accorgimenti.** La loro attenuazione 1/d² ha il picco dove il raggio della camera passa vicino all'emettitore; in `homogeneous`, `height_fog` e `atmosphere` il motore campiona la luce anche a distanze distribuite come l'angolo visto dalla luce (campionamento equiangolare) e lo combina per MIS con il volo libero, così gli aloni sono puliti già con pochi campioni. `soft_radius` (la dimensione fisica del bulbo) è una scelta di look, non più un rimedio ai firefly.
 
 5. **Le luci spot creano i fasci di luce (God Rays).** Una luce spot attraverso la nebbia produce un cono di luce visibile. Effetto spettacolare, specialmente con `procedural` (god-ray irregolari) o `height_fog` (god-ray che si rarefanno salendo).
 
@@ -355,7 +355,7 @@ Il rendering volumetrico è più impegnativo del rendering solo superficiale. Ti
 
 9. **Phase function con `g` → 1** (es. HG con `g = 0.95`) rende god-ray più stretti e drammatici ma **aumenta la varianza**: se vedi coni rumorosi, abbassa `g` a 0.7-0.85 oppure passa a `double_hg` con pesi più equilibrati.
 
-10. **`lights: []` + global medium → tendenza al nero.** Senza luci esplicite il classifier basato sul flusso considera la scena indirect-dominant e attiva la Russian Roulette conservativa (≥ 8 bounces, sopravvivenza minima 0.5). Con la nebbia che attenua ogni segmento, la luce dal solo gradient sky / HDRI fatica a raggiungere il sensore: il render esce molto scuro. Soluzione: aggiungi almeno una `directional` o `sphere` esplicita che dichiari il sole come ILight separato (l'HDRI/gradient resta come fill); il classifier passa a "direct-dominant" e i fasci di luce nella nebbia diventano visibili. Visto in pratica nella scena `scenes/foggy-hdri.yaml`.
+10. **`lights: []` + global medium → nebbia fioca e rumorosa.** Senza luci esplicite la nebbia è illuminata solo dal cielo, e in un mezzo che attenua ogni segmento la sua luce diffusa non crea fasci. Aggiungi almeno una `directional` o `sphere` esplicita per il sole (l'HDRI/gradient resta come fill): i fasci di luce nella nebbia richiedono una luce che il mezzo possa vedere. Visto in pratica nella scena `scenes/foggy-hdri.yaml`.
 
 ---
 
@@ -509,9 +509,9 @@ Ogni scena include un header descrittivo e i comandi pronti per i profili Previe
 
 - **sigma_a** controlla l'assorbimento (oscuramento della luce con la distanza).
 - **sigma_s** controlla lo scattering (densità della nebbia, fasci di luce).
-- 3D-Ray supporta **quattro tipi di mezzo**: `homogeneous` (uniforme, analitico), `height_fog` (esponenziale in altezza, analitico), `procedural` (Perlin fBm, delta tracking) e `grid` (griglia 3D da dati o file `.vol`, delta tracking).
+- 3D-Ray supporta **quattro tipi di mezzo**: `homogeneous` (uniforme, analitico), `height_fog` (esponenziale in altezza, analitico), `procedural` (Perlin fBm, tracking a collisioni nulle) e `grid` (griglia 3D da dati o file `.vol`, tracking su una griglia di majorant).
 - Cinque phase function: `isotropic`, `hg`, `rayleigh` (atmosfera), `double_hg` (nubi realistiche), `schlick` (fast-HG).
-- I mezzi analitici (`homogeneous`, `height_fog`) sono economici; quelli con delta tracking (`procedural`, `grid`) sono più rumorosi → più SPP.
+- I mezzi analitici (`homogeneous`, `height_fog`) sono economici; quelli attraversati con il tracking (`procedural`, `grid`) sono più rumorosi → più SPP.
 - Il mezzo è globale e influenza tutti i raggi, tranne `grid` che è confinato alla sua AABB.
 - Le scene volumetriche necessitano di più campioni rispetto a quelle solo-superficie; `-d 6-8` è sufficiente, non esagerare.
 - Le luci spot nella nebbia creano fasci di luce (god rays); le luci puntiformi creano aloni.

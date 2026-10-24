@@ -6,7 +6,7 @@ using Xunit;
 namespace RayTracer.Tests;
 
 /// <summary>
-/// Regression tests for <see cref="NishitaAtmosphereMedium"/>'s delta-tracking
+/// Regression tests for <see cref="NishitaAtmosphereMedium"/>'s free-flight
 /// <c>Sample()</c> estimator.
 ///
 /// <para>The medium samples the free-flight distance by delta tracking, so the
@@ -28,8 +28,8 @@ public class NishitaAtmosphereMediumTests
     // short test ray (the absolute physical scale is irrelevant to the
     // estimator-consistency invariant, only that both events occur often).
     private static NishitaAtmosphereMedium MakeMedium() => new(
-        phase:       new HenyeyGreensteinPhase(0f),
-        airDensity:  new Vector3(5e4f, 5e4f, 5e4f),
+        dustPhase:   new HenyeyGreensteinPhase(0f),
+        airDensity:  5e4f,
         dustDensity: 1f,
         seaLevelY:   0f,
         worldScale:  1f);
@@ -46,8 +46,8 @@ public class NishitaAtmosphereMediumTests
         Vector3 acc = Vector3.Zero;
         for (int i = 0; i < N; i++)
         {
-            bool scattered = medium.Sample(ray, tMax, out _, out Vector3 beta, out _);
-            if (!scattered) acc += beta;
+            var ev = medium.Sample(ray, tMax, Vector3.One);
+            if (!ev.Scattered) acc += ev.Weight;
         }
         Vector3 est = acc / N;
 
@@ -73,7 +73,9 @@ public class NishitaAtmosphereMediumTests
         int scatters = 0;
         for (int i = 0; i < N; i++)
         {
-            if (medium.Sample(ray, 2f, out _, out Vector3 beta, out _))
+            var ev = medium.Sample(ray, 2f, Vector3.One);
+            Vector3 beta = ev.Weight;
+            if (ev.Scattered)
             {
                 scatters++;
                 Assert.True(float.IsFinite(beta.X) && float.IsFinite(beta.Y) && float.IsFinite(beta.Z),
@@ -94,9 +96,9 @@ public class NishitaAtmosphereMediumTests
         var ray = new Ray(new Vector3(0f, 100_000f, 0f), Vector3.UnitX);
         for (int i = 0; i < 200; i++)
         {
-            bool scattered = medium.Sample(ray, 10f, out _, out Vector3 beta, out _);
-            Assert.False(scattered, "Above the atmosphere top the medium must not scatter.");
-            Assert.Equal(Vector3.One, beta);
+            var ev = medium.Sample(ray, 10f, Vector3.One);
+            Assert.False(ev.Scattered, "Above the atmosphere top the medium must not scatter.");
+            Assert.Equal(Vector3.One, ev.Weight);
         }
     }
 }

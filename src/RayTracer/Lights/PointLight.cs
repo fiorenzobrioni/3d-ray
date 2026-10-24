@@ -22,18 +22,34 @@ public class PointLight : ILight
     /// <inheritdoc/>
     public int ShadowSamples => 1;
 
-    public PointLight(Vector3 position, Vector3 color, float intensity = 1f, float softRadius = 0f)
+    /// <summary>
+    /// Optional luminaire distribution (IES): the intensity toward a direction
+    /// is <see cref="Intensity"/> times the profile's candela there, the
+    /// profile's nadir along <see cref="IesAxis"/>.
+    /// </summary>
+    public IesProfile? Ies { get; }
+    public Vector3 IesAxis { get; } = -Vector3.UnitY;
+    private readonly Vector3 _iesReference;
+
+    public PointLight(Vector3 position, Vector3 color, float intensity = 1f, float softRadius = 0f,
+                      IesProfile? ies = null, Vector3? iesAxis = null)
     {
         Position = position;
         Color = color;
         Intensity = intensity;
         SoftRadius = MathF.Max(0f, softRadius);
+        Ies = ies;
+        if (iesAxis is Vector3 a && a.LengthSquared() > 0f) IesAxis = Vector3.Normalize(a);
+        MathUtils.OrthonormalBasis(IesAxis, out _iesReference, out _);
     }
+
+    /// <summary>The profile's factor toward <paramref name="dirFromLight"/> (1 without a profile).</summary>
+    private float Profile(Vector3 dirFromLight) => Ies?.Candela(dirFromLight, IesAxis, _iesReference) ?? 1f;
 
     // Isotropic point emitter: Φ = 4π · I · Luminance(Color).
     // Integrating radiant intensity I (W/sr) over the full sphere.
     public float ApproximatePower(AABB sceneBounds) =>
-        4f * MathF.PI * MathUtils.Luminance(Color) * Intensity;
+        (Ies?.Flux ?? 4f * MathF.PI) * MathUtils.Luminance(Color) * Intensity;
 
     /// <summary>
     /// Inlined illumination + shadow test using normal-based shadow origin.
@@ -50,9 +66,9 @@ public class PointLight : ILight
         // Robust shadow origin: offset along the surface normal toward the light side.
         // This prevents self-intersection at grazing angles where the old method
         // (offset along ray direction) could fail.
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        Vector3 shadowOrigin = MathUtils.OffsetToward(hitPoint, surfaceNormal, dirToLight);
         var shadowRay = new Ray(shadowOrigin, dirToLight, time);
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, distance - MathUtils.OffsetDistance(Position));
 
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
@@ -63,7 +79,25 @@ public class PointLight : ILight
         // returned unchanged — only the attenuation denominator is clamped.
         float d2 = distance * distance;
         if (SoftRadius > 0f) d2 = MathF.Max(d2, SoftRadius * SoftRadius);
-        float attenuation = Intensity / d2;
+        float attenuation = Intensity * Profile(-dirToLight) / d2;
         return (false, Color * attenuation * trans, dirToLight, distance);
     }
+
+    // ── Emission (bidirectional integrators) ────────────────────────────────
+    // Uniform over the sphere of directions, weighted by the profile: the
+    // soft radius is an NEE floor, not part of the light, so it is left out.
+
+    public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        Vector3 dir = EmissionMath.UniformSphere(uDir);
+        e = new LightEmission
+        {
+            Position = Position, Direction = dir, Normal = Vector3.Zero,
+            Radiance = Color * (Intensity * Profile(dir)),
+            PdfPos = 1f, PdfDir = 1f / (4f * MathF.PI), Cos = 1f, DeltaPosition = true,
+        };
+        return e.Radiance != Vector3.Zero;
+    }
+
+    public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight) => 1f / (4f * MathF.PI);
 }

@@ -87,6 +87,10 @@ public class Cylinder : IHittable, ISamplable
                     rec.Tangent = Vector3.Normalize(tDir);
                     // Bitangent points in direction of increasing V (height Y).
                     rec.Bitangent = Vector3.UnitY;
+                    // P = (R cos θ, y, R sin θ) with θ = 2πU − π, y = yMin + V·H:
+                    // ∂P/∂u = 2πR·T, ∂P/∂v = H·Y.
+                    rec.DpDu = rec.Tangent * (2f * MathF.PI * Radius);
+                    rec.DpDv = new Vector3(0f, Height, 0f);
 
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;
@@ -125,6 +129,9 @@ public class Cylinder : IHittable, ISamplable
                     // For top/bottom caps, U increases with X, V increases with Z
                     rec.Tangent = Vector3.UnitX;
                     rec.Bitangent = Vector3.UnitZ;
+                    // The cap's diameter spans one unit of U and of V.
+                    rec.DpDu = new Vector3(2f * Radius, 0f, 0f);
+                    rec.DpDv = new Vector3(0f, 0f, 2f * Radius);
 
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;
@@ -148,7 +155,11 @@ public class Cylinder : IHittable, ISamplable
     // ═════════════════════════════════════════════════════════════════════════
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
-        => SampleImpl(MathUtils.RandomFloat(), MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        float part = MathUtils.RandomFloat();
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleImpl(part, r2u, r2v);
+    }
 
     /// <inheritdoc/>
     // Lateral surface (2πRH) + two circular caps (2 × πR²)
@@ -161,14 +172,12 @@ public class Cylinder : IHittable, ISamplable
     /// (lateral / bottom / top) is still chosen by a uniform random in [0, 1)
     /// so that the area-weighted ratio between parts is preserved.
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
         float xiPart = MathUtils.RandomFloat();
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleImpl(xiPart, xi1, xi2);
     }
 

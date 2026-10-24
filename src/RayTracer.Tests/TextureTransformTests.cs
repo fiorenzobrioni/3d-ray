@@ -325,7 +325,7 @@ public class TextureTransformTests
     {
         // The new ridged-multifractal pipeline anchors the vein pattern on the
         // object centre + a per-instance seed offset (only applied to the noise
-        // sampling input, never to the geometric warp). Two probes per seed
+        // sampling input, never to the geometric warp). Most probes per seed
         // must therefore yield distinct outputs across non-zero seeds — same
         // contract as the previous sin-carrier marble, expressed in a way that
         // makes no claim about the (now non-existent) directional carrier.
@@ -333,15 +333,25 @@ public class TextureTransformTests
         {
             RandomizeOffset = true,
         };
-        Vector3 p = new(0.13f, 0.27f, 0.41f);
-        var atZero = marble.Value(0f, 0f, p, 0);
+        // Marble saturates to 0 or 1 over much of space, so a single probe can
+        // agree by chance: compare the pattern over a grid of points. Two
+        // independent patterns still agree where both saturate the same way
+        // (about half the probes); without decorrelation none would differ.
         foreach (int seed in new[] { 17, 3001, -99 })
         {
-            var atSeed = marble.Value(0f, 0f, p, seed);
-            Assert.True(MathF.Abs(atSeed.X - atZero.X) > 1e-4f
-                     || MathF.Abs(atSeed.Y - atZero.Y) > 1e-4f
-                     || MathF.Abs(atSeed.Z - atZero.Z) > 1e-4f,
-                $"seed={seed}: per-instance offset failed to decorrelate the noise lookup");
+            int differ = 0, probes = 0;
+            for (int i = 0; i < 4; i++)
+                for (int j = 0; j < 4; j++)
+                    for (int k = 0; k < 4; k++)
+                    {
+                        var p = new Vector3(0.13f + 0.21f * i, 0.27f + 0.19f * j, 0.41f + 0.17f * k);
+                        var atZero = marble.Value(0f, 0f, p, 0);
+                        var atSeed = marble.Value(0f, 0f, p, seed);
+                        probes++;
+                        if (MathF.Abs(atSeed.X - atZero.X) > 1e-4f) differ++;
+                    }
+            Assert.True(differ >= probes / 4,
+                $"seed={seed}: per-instance offset failed to decorrelate the noise lookup ({differ}/{probes} probes differ)");
         }
     }
 }

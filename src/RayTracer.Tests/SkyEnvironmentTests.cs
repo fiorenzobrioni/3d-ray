@@ -259,7 +259,7 @@ public class SkyEnvironmentTests
     }
 
     [Fact]
-    public void PortalLight_pdf_matches_area_to_solid_angle_conversion()
+    public void PortalLight_pdf_is_uniform_in_solid_angle()
     {
         var sky = new SkySettings(new Vector3(1f));
         // Portal centred over the origin at y=5: rectangle [−1,1] × [−1,1] in XZ.
@@ -268,9 +268,13 @@ public class SkyEnvironmentTests
             anchor: new Vector3(-1, 5, -1),
             u: new Vector3(2, 0, 0),
             v: new Vector3(0, 0, 2));
-        // Area = 4, dist = 5, cos(|normal · dir|) = 1 ⇒ pdf = 25 / 4 = 6.25.
+        // The portal is sampled uniformly over the solid angle it subtends
+        // (a rectangle: Ureña 2013), so the density is 1 / Ω, with
+        // Ω = 4 asin(ab / √((a² + 4h²)(b² + 4h²))) for a 2 × 2 portal 5 above
+        // its centre: 6.50 (area sampling's density there was 25 / 4 = 6.25).
+        float omega = 4f * MathF.Asin(4f / MathF.Sqrt((4f + 100f) * (4f + 100f)));
         float pdf = portal.PdfSolidAngle(Vector3.Zero, Vector3.UnitY);
-        Assert.InRange(pdf, 6.20f, 6.30f);
+        Assert.Equal(1f / omega, pdf, 3);
     }
 
     // ────────────────────────────────────────────────────────────────────────

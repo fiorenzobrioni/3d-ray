@@ -86,6 +86,23 @@ public class AabbTests
     }
 
     [Fact]
+    public void Hit_RayInAFacePlane_IsConservative()
+    {
+        // Parallel to an axis with the origin exactly on a face plane: that
+        // slab gives 0 × ∞ = NaN, which must not reject the box (a BVH node
+        // would drop its whole subtree). Matches the reference oracle.
+        var box = new AABB(new Vector3(-1, 0, -1), new Vector3(1, 2, 1));
+        foreach (float y in new[] { 0f, 2f })
+        {
+            var ray = new Ray(new Vector3(-5, y, 0), Vector3.UnitX);
+            Assert.True(ReferenceHit(box, ray, 0f, 1e30f));
+            Assert.True(box.Hit(ray, 0f, 1e30f));
+        }
+        // Still a miss when the ray passes beside the box in that plane.
+        Assert.False(box.Hit(new Ray(new Vector3(-5, 0, 3), Vector3.UnitX), 0f, 1e30f));
+    }
+
+    [Fact]
     public void Hit_GeneralRays_BehaviourMatchesReference()
     {
         var rng = new Random(123);

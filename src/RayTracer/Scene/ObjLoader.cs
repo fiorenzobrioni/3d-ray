@@ -266,6 +266,9 @@ public static class ObjLoader
             return null;
         }
 
+        // Per-vertex tangents in the frame normal-map bakers use (MikkTSpace).
+        MeshTangents.Generate(triangles);
+
         // displacement_bound: pad each BVH leaf AABB by the artist-supplied
         // safety margin. The displaced positions are already baked into the
         // triangles, so the padding is a defensive measure — it absorbs
@@ -339,9 +342,7 @@ public static class ObjLoader
     {
         public static readonly IdentityBump Instance = new();
         public System.Numerics.Vector3 SampleTangentNormal(float u, float v,
-            System.Numerics.Vector3 p,
-            System.Numerics.Vector3 tangent, System.Numerics.Vector3 bitangent,
-            int seed) => System.Numerics.Vector3.UnitZ;
+            System.Numerics.Vector3 p, in BumpFrame frame, int seed) => System.Numerics.Vector3.UnitZ;
     }
 
     /// <summary>Backwards-compatible 4-arg overload (no subdivision).</summary>

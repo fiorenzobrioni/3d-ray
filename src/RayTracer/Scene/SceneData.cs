@@ -265,10 +265,9 @@ public class SkyData
 {
     /// <summary>
     /// Sky model: <c>flat</c> (uniform colour), <c>gradient</c> (zenith/horizon/ground
-    /// vertical lerp + optional analytical sun), <c>hdri</c> (equirect IBL), or
-    /// <c>preetham</c> / <c>hosek_wilkie</c> (analytical physical sky). The
-    /// <c>hosek_wilkie</c> alias currently routes to the Preetham implementation
-    /// — see <c>docs/technical/sky-environment.md</c>.
+    /// vertical lerp + optional analytical sun), <c>hdri</c> (equirect IBL), or a
+    /// physical sky: <c>hosek_wilkie</c> (alias <c>physical</c>), <c>preetham</c>,
+    /// <c>nishita</c>.
     /// </summary>
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
@@ -300,11 +299,19 @@ public class SkyData
 
     // ── Pro features (added with the sky/environment overhaul) ───────────────
 
-    /// <summary>Atmospheric turbidity for <c>preetham</c> / <c>hosek_wilkie</c>. 1 = pristine, 3 ≈ clear, 5 = haze, 10 = smog. Default 3.</summary>
+    /// <summary>Atmospheric turbidity for the physical skies (the dust of <c>nishita</c>). 1 = pristine, 3 ≈ clear, 5 = haze, 10 = smog. Default 3.</summary>
     [YamlMember(Alias = "turbidity")]
     public float Turbidity { get; set; } = 3f;
 
-    /// <summary>RGB ground albedo for the physical sky's ground-bounce term. Default 0.3.</summary>
+    /// <summary>
+    /// Units of a physical sky (<c>preetham</c>, <c>hosek_wilkie</c>, <c>nishita</c>):
+    /// <c>relative</c> (default, the sky body's historical scale) or
+    /// <c>photometric</c> (nits, to go with photometric lights and the camera's EV100).
+    /// </summary>
+    [YamlMember(Alias = "units")]
+    public string? Units { get; set; }
+
+    /// <summary>RGB albedo of the ground below the horizon, which also tints the Hosek-Wilkie sky. Default 0.3.</summary>
     [YamlMember(Alias = "ground_albedo")]
     public List<float>? GroundAlbedo { get; set; }
 
@@ -410,6 +417,63 @@ public class CameraData
     [YamlMember(Alias = "focal_dist")]
     public float FocalDist { get; set; } = 1f;
 
+    // ── Physical camera (PIANO-REVIEW.md, Phase 3) ──────────────────────────
+    // Photographic description of the same thin lens. When set, these win
+    // over `fov` and `aperture`; the loader converts them in
+    // SceneLoader.ApplyPhysicalCamera.
+
+    /// <summary>Focal length in millimetres: sets the field of view together
+    /// with <see cref="SensorWidth"/> (the sensor width spans the image width).</summary>
+    [YamlMember(Alias = "focal_length")]
+    public float? FocalLength { get; set; }
+
+    /// <summary>Sensor width in millimetres (default 36, full frame).</summary>
+    [YamlMember(Alias = "sensor_width")]
+    public float SensorWidth { get; set; } = 36f;
+
+    /// <summary>f-number N: aperture diameter = focal length / N.</summary>
+    [YamlMember(Alias = "f_stop")]
+    public float? FStop { get; set; }
+
+    /// <summary>Length of one scene unit in metres (default 1): converts the
+    /// millimetre aperture of <see cref="FStop"/> into scene units.</summary>
+    [YamlMember(Alias = "meters_per_unit")]
+    public float MetersPerUnit { get; set; } = 1f;
+
+    /// <summary>Number of straight aperture blades (polygonal bokeh); 0 = round.</summary>
+    [YamlMember(Alias = "aperture_blades")]
+    public int ApertureBlades { get; set; } = 0;
+
+    /// <summary>Rotation of the blade polygon, degrees.</summary>
+    [YamlMember(Alias = "aperture_rotation")]
+    public float ApertureRotation { get; set; } = 0f;
+
+    /// <summary>Aperture width / height (default 1). Below 1 the bokeh is a
+    /// tall oval, as with an anamorphic lens (0.5 for a 2x squeeze).</summary>
+    [YamlMember(Alias = "aperture_ratio")]
+    public float ApertureRatio { get; set; } = 1f;
+
+    /// <summary>ISO sensitivity of the physical exposure (with <c>shutter_speed</c>
+    /// and <c>f_stop</c>): scene radiance in nits maps to the display as on a
+    /// camera. See <see cref="Ev100"/>.</summary>
+    [YamlMember(Alias = "iso")]
+    public float? Iso { get; set; }
+
+    /// <summary>Exposure time in seconds (0.008 = 1/125 s).</summary>
+    [YamlMember(Alias = "shutter_speed")]
+    public float? ShutterSpeed { get; set; }
+
+    /// <summary>Exposure value at ISO 100, instead of ISO, shutter and
+    /// f-number (15 for a sunny day, 7 for a lit interior).</summary>
+    [YamlMember(Alias = "ev100")]
+    public float? Ev100 { get; set; }
+
+    /// <summary>White balance in kelvin: a light of this colour temperature
+    /// renders neutral (lower cools the image, higher warms it). Display only:
+    /// EXR output stays scene-linear. Unset = no white balance.</summary>
+    [YamlMember(Alias = "white_balance")]
+    public float? WhiteBalance { get; set; }
+
     /// <summary>
     /// World-space focal point: alternative to <see cref="FocalDist"/>. When
     /// set, the loader computes the focus distance as the projection of
@@ -478,14 +542,49 @@ public class MaterialData
     [YamlMember(Alias = "color")]
     public List<float>? Color { get; set; }
 
+    /// <summary>Metal roughness (α = fuzz²); <c>roughness</c> is accepted as an alias.</summary>
     [YamlMember(Alias = "fuzz")]
-    public float Fuzz { get; set; } = 0f;
+    public float? Fuzz { get; set; }
+
+    // ── Metal (conductor) Fresnel, PIANO-REVIEW.md Phase 5 ──────────────────
+
+    /// <summary>Measured metal (gold, silver, copper, aluminium, ...): its
+    /// complex IOR replaces <c>color</c> / <c>edge_color</c>.</summary>
+    [YamlMember(Alias = "preset")]
+    public string? Preset { get; set; }
+
+    /// <summary>F82 tint: the metal's colour near grazing incidence (default
+    /// white = Schlick from <c>color</c>).</summary>
+    [YamlMember(Alias = "edge_color")]
+    public List<float>? EdgeColor { get; set; }
+
+    /// <summary>Complex IOR, real part per RGB channel (with <see cref="K"/>).</summary>
+    [YamlMember(Alias = "eta")]
+    public List<float>? Eta { get; set; }
+
+    /// <summary>Complex IOR, extinction coefficient per RGB channel.</summary>
+    [YamlMember(Alias = "k")]
+    public List<float>? K { get; set; }
+
+    /// <summary>Kulla-Conty multiple scattering of a rough metal (default on).
+    /// Off only to compare with renderers that lack it.</summary>
+    [YamlMember(Alias = "multiple_scattering")]
+    public bool MultipleScattering { get; set; } = true;
 
     [YamlMember(Alias = "refraction_index")]
     public float RefractionIndex { get; set; } = 1.5f;
 
     [YamlMember(Alias = "intensity")]
     public float Intensity { get; set; } = 1f;
+
+    /// <summary><c>emissive</c>: luminance in nits (cd/m²) instead of the
+    /// unitless <c>intensity</c>; the colour then only tints (PIANO-REVIEW.md §3.14).</summary>
+    [YamlMember(Alias = "luminance")]
+    public float? Luminance { get; set; }
+
+    /// <summary><c>emissive</c>: colour temperature in kelvin (black body), multiplying <c>color</c>.</summary>
+    [YamlMember(Alias = "temperature")]
+    public float? Temperature { get; set; }
 
     [YamlMember(Alias = "texture")]
     public TextureData? Texture { get; set; }
@@ -500,8 +599,10 @@ public class MaterialData
     [YamlMember(Alias = "metallic")]
     public float Metallic { get; set; } = 0f;
 
+    /// <summary>Roughness: Disney (default 0.5), metal (alias of <c>fuzz</c>, default 0)
+    /// and dielectric (default 0, smooth). Null when not written.</summary>
     [YamlMember(Alias = "roughness")]
-    public float Roughness { get; set; } = 0.5f;
+    public float? Roughness { get; set; }
 
     [YamlMember(Alias = "subsurface")]
     public float Subsurface { get; set; } = 0f;
@@ -685,10 +786,11 @@ public class MaterialData
     //                 independently of the base NormalMap. Models scratches
     //                 or orange peel in the lacquer that sit on top of an
     //                 otherwise-different substrate normal.
+    /// <summary>Coat IOR: Disney default 1.5, OpenPBR default 1.6.</summary>
     [YamlMember(Alias = "coat_ior")]
-    public float CoatIor { get; set; } = 1.5f;
+    public float? CoatIor { get; set; }
 
-    // -1 sentinel matches the DisneyBsdf "use legacy gloss" path. Authors
+    // -1 sentinel: the Disney translation then derives the coat roughness from clearcoat_gloss. Authors
     // should set the value in [0, 1] to take the explicit-roughness branch.
     [YamlMember(Alias = "coat_roughness")]
     public float CoatRoughness { get; set; } = -1f;
@@ -710,17 +812,54 @@ public class MaterialData
     // thin_film_ior: refractive index of the film (default 1.5 — generic
     //   lacquer). Drives the contrast of the interference fringes; higher
     //   IOR with the same thickness yields more saturated colours.
+    /// <summary>Film thickness: nanometres for <c>disney</c> (default 0),
+    /// micrometres for <c>openpbr</c> (default 0.5), as each model defines it.</summary>
     [YamlMember(Alias = "thin_film_thickness")]
-    public float ThinFilmThickness { get; set; } = 0f;
+    public float? ThinFilmThickness { get; set; }
 
+    /// <summary>Film IOR: Disney default 1.5, OpenPBR default 1.4.</summary>
     [YamlMember(Alias = "thin_film_ior")]
-    public float ThinFilmIor { get; set; } = 1.5f;
+    public float? ThinFilmIor { get; set; }
 
     [YamlMember(Alias = "thin_film_thickness_texture")]
     public TextureData? ThinFilmThicknessTexture { get; set; }
 
     [YamlMember(Alias = "thin_film_ior_texture")]
     public TextureData? ThinFilmIorTexture { get; set; }
+
+    // ── OpenPBR Surface (type: openpbr) ─────────────────────────────────────
+    // The specification's names and defaults. Each takes a number, an RGB
+    // list or a texture block. Keys shared with the Disney schema
+    // (transmission_color/_depth, subsurface_color/_radius, coat_ior,
+    // coat_roughness, thin_film_*, thin_walled, coat_normal_map) are read from
+    // the properties above, with their *_texture companions.
+    [YamlMember(Alias = "base_weight")] public MaterialParam? BaseWeight { get; set; }
+    [YamlMember(Alias = "base_color")] public MaterialParam? BaseColor { get; set; }
+    [YamlMember(Alias = "base_metalness")] public MaterialParam? BaseMetalness { get; set; }
+    [YamlMember(Alias = "base_diffuse_roughness")] public MaterialParam? BaseDiffuseRoughness { get; set; }
+    [YamlMember(Alias = "specular_weight")] public MaterialParam? SpecularWeight { get; set; }
+    [YamlMember(Alias = "specular_color")] public MaterialParam? SpecularColor { get; set; }
+    [YamlMember(Alias = "specular_roughness")] public MaterialParam? SpecularRoughness { get; set; }
+    [YamlMember(Alias = "specular_roughness_anisotropy")] public MaterialParam? SpecularRoughnessAnisotropy { get; set; }
+    [YamlMember(Alias = "specular_ior")] public MaterialParam? SpecularIor { get; set; }
+    [YamlMember(Alias = "transmission_weight")] public MaterialParam? TransmissionWeight { get; set; }
+    [YamlMember(Alias = "transmission_scatter")] public MaterialParam? TransmissionScatter { get; set; }
+    [YamlMember(Alias = "transmission_scatter_anisotropy")] public MaterialParam? TransmissionScatterAnisotropy { get; set; }
+    [YamlMember(Alias = "subsurface_weight")] public MaterialParam? SubsurfaceWeight { get; set; }
+    [YamlMember(Alias = "subsurface_radius_scale")] public MaterialParam? SubsurfaceRadiusScale { get; set; }
+    [YamlMember(Alias = "subsurface_scatter_anisotropy")] public MaterialParam? SubsurfaceScatterAnisotropy { get; set; }
+    [YamlMember(Alias = "coat_weight")] public MaterialParam? CoatWeight { get; set; }
+    [YamlMember(Alias = "coat_color")] public MaterialParam? CoatColor { get; set; }
+    [YamlMember(Alias = "coat_roughness_anisotropy")] public MaterialParam? CoatRoughnessAnisotropy { get; set; }
+    [YamlMember(Alias = "coat_darkening")] public MaterialParam? CoatDarkening { get; set; }
+    [YamlMember(Alias = "fuzz_weight")] public MaterialParam? FuzzWeight { get; set; }
+    [YamlMember(Alias = "fuzz_color")] public MaterialParam? FuzzColor { get; set; }
+    [YamlMember(Alias = "fuzz_roughness")] public MaterialParam? FuzzRoughness { get; set; }
+    [YamlMember(Alias = "thin_film_weight")] public MaterialParam? ThinFilmWeight { get; set; }
+    [YamlMember(Alias = "emission_luminance")] public MaterialParam? EmissionLuminance { get; set; }
+    [YamlMember(Alias = "emission_color")] public MaterialParam? EmissionColor { get; set; }
+    [YamlMember(Alias = "geometry_opacity")] public MaterialParam? GeometryOpacity { get; set; }
+    [YamlMember(Alias = "geometry_thin_walled")] public bool? GeometryThinWalled { get; set; }
 
     // ── Mix Material parameters ─────────────────────────────────────────────
 
@@ -924,6 +1063,24 @@ public class TextureData
 
     [YamlMember(Alias = "uv_scale")]
     public List<float>? UvScale { get; set; }
+
+    /// <summary>
+    /// Image textures: how the stored values relate to linear light,
+    /// <c>srgb</c>, <c>linear</c> or <c>raw</c> (= linear, for data). Unset:
+    /// sRGB where the texture is a colour, raw where it is data (roughness,
+    /// metallic, masks, heights, displacement). PIANO-REVIEW.md §3.3.
+    /// </summary>
+    [YamlMember(Alias = "color_space")]
+    public string? ColorSpace { get; set; }
+
+    /// <summary>
+    /// Procedurals built on lattice noise (noise, marble, wood, voronoi's
+    /// warp, brick): <c>improved</c> (default, Perlin 2002) or <c>classic</c>
+    /// (the basis of earlier versions, for a scene that must keep its exact
+    /// pattern). PIANO-REVIEW.md §3.30.
+    /// </summary>
+    [YamlMember(Alias = "noise_basis")]
+    public string? NoiseBasis { get; set; }
 
     [YamlMember(Alias = "colors")]
     public List<List<float>>? Colors { get; set; }
@@ -1752,6 +1909,51 @@ public class LightData
     /// </summary>
     [YamlMember(Alias = "visible_to_camera")]
     public bool VisibleToCamera { get; set; } = true;
+
+    // ── Photometric units (PIANO-REVIEW.md §3.14) ───────────────────────────
+    // Any one of these replaces the unitless `intensity`; the colour then
+    // only tints (it is divided by its luminance). See Lights.LightUnits.
+
+    /// <summary>Emitted flux, in <see cref="PowerUnit"/> (watts by default):
+    /// point, spot (as the point light of that flux), area, sphere.</summary>
+    [YamlMember(Alias = "power")]
+    public float? Power { get; set; }
+
+    /// <summary><c>watt</c> (radiant, 683 lm/W) or <c>lumen</c>.</summary>
+    [YamlMember(Alias = "power_unit")]
+    public string? PowerUnit { get; set; }
+
+    /// <summary>Luminous intensity in candela: point, spot.</summary>
+    [YamlMember(Alias = "candela")]
+    public float? Candela { get; set; }
+
+    /// <summary>Luminance of the surface in nits (cd/m²): area, sphere.</summary>
+    [YamlMember(Alias = "luminance")]
+    public float? Luminance { get; set; }
+
+    /// <summary>Illuminance on a surface facing it, in lux: directional / sun.</summary>
+    [YamlMember(Alias = "illuminance")]
+    public float? Illuminance { get; set; }
+
+    /// <summary>Colour temperature in kelvin (black body), multiplying <c>color</c>.</summary>
+    [YamlMember(Alias = "temperature")]
+    public float? Temperature { get; set; }
+
+    /// <summary>Area and sphere lights: <c>intensity</c> is the total power
+    /// rather than the radiance, so resizing the light keeps its output.</summary>
+    [YamlMember(Alias = "normalize")]
+    public bool Normalize { get; set; }
+
+    /// <summary>Point and spot lights: an IES (LM-63) photometric file, relative
+    /// to the scene. The light emits its candela distribution (nadir down, or
+    /// along a spot's direction or a point light's <c>direction</c>);
+    /// <c>power</c> or <c>candela</c> rescale it to that flux or peak.</summary>
+    [YamlMember(Alias = "ies")]
+    public string? Ies { get; set; }
+
+    /// <summary>Scales the light by 2^exposure (stops).</summary>
+    [YamlMember(Alias = "exposure")]
+    public float Exposure { get; set; }
 }
 
 /// <summary>
@@ -1886,9 +2088,13 @@ public class MediumData
     public string Interpolation { get; set; } = "trilinear";
 
     // ── atmosphere (Nishita aerial perspective) ─────────────────────────────
-    /// <summary>RGB air-density multiplier (grey by default). Tints Rayleigh scattering.</summary>
+    /// <summary>Air density multiplier (Rayleigh), 1 = the standard atmosphere.</summary>
     [YamlMember(Alias = "air_density")]
-    public List<float>? AirDensity { get; set; }
+    public float AirDensity { get; set; } = 1f;
+
+    /// <summary>Ozone density multiplier (absorption around 25 km), 1 = the standard atmosphere.</summary>
+    [YamlMember(Alias = "ozone_density")]
+    public float OzoneDensity { get; set; } = 1f;
 
     /// <summary>Mie dust density (0 = pristine, 1 = clean, &gt;1 = polluted). Default 1.</summary>
     [YamlMember(Alias = "dust_density")]

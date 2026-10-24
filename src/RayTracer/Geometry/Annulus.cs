@@ -109,6 +109,9 @@ public class Annulus : IHittable, ISamplable
 
         rec.Tangent = _uAxis;
         rec.Bitangent = _vAxis;
+        // U and V each span the full diameter (2R) along their axis.
+        rec.DpDu = _uAxis * (2f * OuterRadius);
+        rec.DpDv = _vAxis * (2f * OuterRadius);
 
         return true;
     }
@@ -123,19 +126,20 @@ public class Annulus : IHittable, ISamplable
     // ═════════════════════════════════════════════════════════════════════════
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
-        => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleAt(r2u, r2v);
+    }
 
     /// <summary>
     /// Stratified version: jitters (r², θ) on a <c>sqrtSamples × sqrtSamples</c>
     /// grid. Using r² keeps the uniform-area property of the sampling.
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleAt(xi1, xi2);
     }
 

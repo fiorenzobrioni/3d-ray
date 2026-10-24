@@ -221,9 +221,10 @@ entities:
     material: "emi_tungsteno"
 ```
 
-Tip: geometry lights participate in power-weighted NEE automatically.
-For scenes with many geometry lights, `--light-sampling power` reduces
-variance when light intensities differ widely.
+Tip: geometry lights participate in NEE automatically. With more than
+16 lights the default `--light-sampling auto` picks one light per point
+through a light BVH (by power, distance and orientation), which keeps
+scenes with many emissive objects fast and quiet.
 
 ### Light Hardening: cut fireflies without raising spp
 
@@ -249,10 +250,10 @@ For heavy volumetric scenes (procedural/grid media, dense `height_fog`)
 also consider these CLI flags:
 
 ```
---indirect-clamp-factor 0.25   # clamp indirect bounces to 1/4 of -C
---light-sampling power         # power-weighted single-light NEE
-                               # (variance reduction with mixed-brightness
-                               # lights, e.g. 1 area + 10 dim points)
+-C 10 --indirect-clamp-factor 0.25   # opt-in firefly clamp (biased): indirect bounces at 1/4 of -C
+--light-sampling bvh           # one light per NEE event, by power,
+                               # distance and orientation (the default
+                               # `auto` uses it above 16 lights)
 ```
 
 In short: before raising `-s` to chase noise, check whether fireflies
@@ -431,17 +432,18 @@ The complete set of command-line parameters:
 | `-w` | `--width`          | `960` (draft-small)           | Image width in pixels                                    |
 | `-H` | `--height`         | `540` (draft-small)           | Image height in pixels                                   |
 | `-s` | `--samples`        | `16` (draft-small)            | Samples per pixel (Sobol: exact count; PRNG: rounded up to nearest perfect square) |
-| `-d` | `--depth`          | `4` (draft-small; `8` in quality presets — raise to 16+ for stacked glass) | Maximum ray bounces |
+| `-d` | `--depth`          | `8` (draft-small; `12` standard, `16` final) | Maximum path vertices, split by kind of bounce (`--depth-diffuse`, `--depth-glossy`, `--depth-transmission`, `--depth-volume`) |
 | `-S` | `--shadow-samples` | *(per light)*                 | Override shadow samples for all area/sphere lights (perfect squares) |
-| `-C` | `--clamp`          | `10`                          | Firefly clamp: max per-sample radiance before tone mapping |
+| `-C` | `--clamp`          | off                           | Opt-in firefly clamp: max per-sample radiance before tone mapping (biased; try `10`) |
 | `-c` | `--camera`         | `0`                           | Select camera by name or zero-based index                |
 |      | `--sampler`        | `sobol`                       | Per-pixel sampler: `sobol` (Owen-scrambled) or `prng`    |
 |      | `--mis`            | `balance`                     | MIS heuristic: `balance` or `power`                      |
-|      | `--light-sampling` | `all`                         | NEE strategy: `all`, `power`, `uniform`                  |
-|      | `--indirect-clamp-factor` | `0.25`                 | Indirect-contribution clamp factor, applied once camera-relative (`0.25` → indirect clamp = ¼ of `-C`; `1.0` = off) |
+|      | `--light-sampling` | `auto`                        | NEE strategy: `auto`, `all`, `power`, `uniform`, `bvh`   |
+|      | `--indirect-clamp-factor` | `0.25`                 | Indirect-contribution clamp factor, only with `-C`, applied once camera-relative (`0.25` → indirect clamp = ¼ of `-C`; `1.0` = off) |
+|      | `--transparent-shadows` | `off`                    | `on`: glass lets shadow rays through, tinted (no shadow or caustic; artistic approximation) |
 |      | `--texture-filtering` | `auto`                     | Analytic anti-aliasing of procedural / image textures via ray differentials: `auto` / `on` (filtering on) or `off` (point-sampled, for benchmarks) |
 |      | `--list-cameras`   |                               | List available cameras and exit                          |
-| `-v` | `--verbose`        |                               | Detailed scene-load and Russian-Roulette tuning output    |
+| `-v` | `--verbose`        |                               | Detailed scene-load output                                |
 | `-h` | `--help`           |                               | Show help                                                |
 
 ### Output Format
@@ -550,7 +552,7 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 ```
 
 For the full explanation of each parameter, Russian Roulette behavior, the
-glass-stacked exception that forces `-d 16+`, and the `-C`/`--clamp` firefly
+per-kind bounce limits (stacked glass needs a higher `--depth-transmission`), and the `-C`/`--clamp` firefly
 knob, see **[Rendering Profiles Reference](../../reference/rendering-profiles.md)**.
 
 ---

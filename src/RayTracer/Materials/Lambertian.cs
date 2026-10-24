@@ -25,34 +25,6 @@ public sealed class Lambertian : IMaterial
     /// <summary>Denoiser/AOV albedo guide: the diffuse albedo texture.</summary>
     public Vector3 AovAlbedo(in HitRecord rec) => Albedo.Value(in rec);
 
-    /// <summary>
-    /// Lambertian direct lighting (NEE integrand): full BRDF · cosθ.
-    ///   f(V, L) = albedo / π    (Lambertian BRDF)
-    ///   integrand = f · max(N·L, 0) = albedo · max(N·L, 0) / π
-    ///
-    /// Conforms to the PBRT/Arnold convention: the renderer adds this
-    /// contribution to the radiance estimator without multiplying by the
-    /// indirect scatter attenuation (which would over-count the albedo).
-    /// </summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
-    {
-        float NdotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
-        if (NdotL <= 0f) return Vector3.Zero;
-        Vector3 albedo = Albedo.Value(in rec);
-        return albedo * (NdotL / MathF.PI);
-    }
-
-    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
-    {
-        var scatterDirection = rec.Normal + MathUtils.RandomUnitVector();
-        if (MathUtils.NearZero(scatterDirection))
-            scatterDirection = rec.Normal;
-
-        scattered = new Ray(rec.Point, scatterDirection);
-        attenuation = Albedo.Value(in rec);
-        return true;
-    }
-
     // ─────────────────────────────────────────────────────────────────────────
     // Symmetric BSDF API (Evaluate / Pdf / Sample) — enables full MIS.
     //
@@ -60,8 +32,7 @@ public sealed class Lambertian : IMaterial
     // zero in the back hemisphere. Sampling is cosine-weighted, so the PDF is
     // max(N·L, 0) / π. With this contract the renderer's MIS path computes
     //   attenuation = F · NdotWo / Pdf = (albedo/π) · cosθ / (cosθ/π) = albedo
-    // which is energetically identical to Scatter() above — so the legacy
-    // path is preserved bit-for-bit while emission can now be weighted by the
+    // so emission reached by a Lambertian-sampled ray is weighted by the
     // balance/power heuristic when a Lambertian-sampled ray hits a registered
     // emitter.
     // ─────────────────────────────────────────────────────────────────────────
@@ -92,6 +63,6 @@ public sealed class Lambertian : IMaterial
         Vector3 albedo = Albedo.Value(in rec);
         Vector3 f = albedo * (1f / MathF.PI);
         float pdf = NdotWo * (1f / MathF.PI);
-        return new BsdfSample(wo, f, pdf, isDelta: false);
+        return new BsdfSample(wo, f, pdf, isDelta: false, lobe: BsdfLobe.Diffuse);
     }
 }

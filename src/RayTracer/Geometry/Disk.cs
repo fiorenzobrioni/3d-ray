@@ -64,12 +64,18 @@ public class Disk : IHittable, ISamplable
 
         rec.Tangent = _uAxis;
         rec.Bitangent = _vAxis;
+        // U and V each span the full diameter (2R) along their axis.
+        rec.DpDu = _uAxis * (2f * Radius);
+        rec.DpDv = _vAxis * (2f * Radius);
 
         return true;
     }
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
-        => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleAt(r2u, r2v);
+    }
 
     /// <inheritdoc/>
     public float SurfaceArea => MathF.PI * Radius * Radius;
@@ -79,13 +85,11 @@ public class Disk : IHittable, ISamplable
     /// <c>sqrtSamples × sqrtSamples</c> grid. Using r² rather than r
     /// preserves the uniform-area property of the sampling.
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleAt(xi1, xi2);
     }
 

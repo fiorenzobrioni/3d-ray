@@ -41,8 +41,12 @@ public readonly struct AABB
         Vector3 tSmall = Vector3.Min(t0, t1);
         Vector3 tLarge = Vector3.Max(t0, t1);
 
-        float tEnter = MathF.Max(tMin, MathF.Max(tSmall.X, MathF.Max(tSmall.Y, tSmall.Z)));
-        float tExit  = MathF.Min(tMax, MathF.Min(tLarge.X, MathF.Min(tLarge.Y, tLarge.Z)));
+        // A ray parallel to an axis whose origin lies exactly in a face plane
+        // gives 0 × ∞ = NaN on that axis. MaxNumber/MinNumber drop the NaN, so
+        // that slab puts no constraint on the ray (conservative, as PBRT):
+        // MathF.Max would propagate it and reject the whole BVH subtree.
+        float tEnter = float.MaxNumber(tMin, float.MaxNumber(tSmall.X, float.MaxNumber(tSmall.Y, tSmall.Z)));
+        float tExit  = float.MinNumber(tMax, float.MinNumber(tLarge.X, float.MinNumber(tLarge.Y, tLarge.Z)));
 
         // Inclusive comparison so a flat (zero-thickness) box — a quad/plane/disk
         // BVH leaf, or a ray grazing a face where tEnter == tExit — is reported

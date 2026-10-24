@@ -65,9 +65,6 @@ public class GeometryLight : ILight
     /// </summary>
     public float SoftRadius { get; }
 
-    // ── Stratified sampling grid ────────────────────────────────────────────
-    private readonly int _sqrtSamples;
-
     // Optional importance-sampling strategy. When non-null the light uses
     // solid-angle cone sampling instead of uniform area sampling.
     private readonly ISolidAngleSamplable? _solidAngleSampler;
@@ -82,13 +79,21 @@ public class GeometryLight : ILight
     // comparable soft-shadow quality without extra YAML tuning.
     public const int DefaultShadowSamples = 4;
 
-    public GeometryLight(ISamplable geometry, Emissive material, int shadowSamples = DefaultShadowSamples, float softRadius = 0f)
+    /// <summary>
+    /// The material the surface itself carries: <see cref="Material"/>, or the
+    /// <see cref="MixMaterial"/> it was extracted from. A BSDF ray that hits the
+    /// surface reports this one, and the renderer finds the light by it.
+    /// </summary>
+    public IMaterial SurfaceMaterial { get; }
+
+    public GeometryLight(ISamplable geometry, Emissive material, int shadowSamples = DefaultShadowSamples,
+                         float softRadius = 0f, IMaterial? surfaceMaterial = null)
     {
         Geometry = geometry;
         Material = material;
+        SurfaceMaterial = surfaceMaterial ?? material;
         ShadowSamples = Math.Max(1, shadowSamples);
         SoftRadius = MathF.Max(0f, softRadius);
-        _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
 
         // Opt-in to solid-angle cone sampling if the shape supports it.
         _solidAngleSampler = geometry as ISolidAngleSamplable;
@@ -134,8 +139,8 @@ public class GeometryLight : ILight
         IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
     {
         return _solidAngleSampler != null
-            ? ComputeSolidAngleSample(hitPoint, surfaceNormal, world, sampleIndex)
-            : ComputeAreaSample(hitPoint, surfaceNormal, world, sampleIndex);
+            ? ComputeSolidAngleSample(hitPoint, surfaceNormal, world, sampleIndex, time)
+            : ComputeAreaSample(hitPoint, surfaceNormal, world, sampleIndex, time);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -150,12 +155,12 @@ public class GeometryLight : ILight
         ComputeAreaSample(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
     {
         var (samplePoint, lightNormal, uv, area) = sampleIndex >= 0
-            ? Geometry.SampleStratified(sampleIndex, _sqrtSamples)
+            ? Geometry.SampleStratified(sampleIndex, ShadowSamples)
             : Geometry.Sample();
 
         Vector3 toLight = samplePoint - hitPoint;
         float distSq = toLight.LengthSquared();
-        if (distSq < MathUtils.Epsilon * MathUtils.Epsilon)
+        if (distSq < MathUtils.RayEpsilon * MathUtils.RayEpsilon)
             return (true, Vector3.Zero, Vector3.UnitY, 0f);
 
         float distance = MathF.Sqrt(distSq);
@@ -166,15 +171,7 @@ public class GeometryLight : ILight
         if (cosLight <= 0f)
             return (true, Vector3.Zero, dirToLight, distance);
 
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dirToLight, time);
-        // Compute tMax in shadow-ray parameter space (relative to shadowOrigin,
-        // not hitPoint). Using `distance - Epsilon` as tMax would cancel the
-        // OffsetOrigin shift whenever `dirToLight ≈ normal`, producing systematic
-        // self-intersection with the light's own surface and a black hole
-        // directly underneath small / close emitters.
-        float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
+        Vector3 trans = ShadowRay.TransmittanceToPoint(world, hitPoint, surfaceNormal, samplePoint, lightNormal, time);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 
@@ -204,7 +201,7 @@ public class GeometryLight : ILight
         ComputeSolidAngleSample(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
     {
         var (samplePoint, lightNormal, uv, pdf) = sampleIndex >= 0
-            ? _solidAngleSampler!.SampleSolidAngleStratified(hitPoint, sampleIndex, _sqrtSamples)
+            ? _solidAngleSampler!.SampleSolidAngleStratified(hitPoint, sampleIndex, ShadowSamples)
             : _solidAngleSampler!.SampleSolidAngle(hitPoint);
 
         if (pdf <= 0f)
@@ -212,7 +209,7 @@ public class GeometryLight : ILight
 
         Vector3 toLight = samplePoint - hitPoint;
         float distSq = toLight.LengthSquared();
-        if (distSq < MathUtils.Epsilon * MathUtils.Epsilon)
+        if (distSq < MathUtils.RayEpsilon * MathUtils.RayEpsilon)
             return (true, Vector3.Zero, Vector3.UnitY, 0f);
 
         float distance = MathF.Sqrt(distSq);
@@ -226,14 +223,7 @@ public class GeometryLight : ILight
         if (cosLight <= 0f)
             return (false, Vector3.Zero, dirToLight, distance);
 
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dirToLight, time);
-        // See ComputeAreaSample for the derivation of this tMax — this bug bites
-        // the cone-sampling path systematically: every sample of a floor point
-        // directly under a floating sphere has dirToLight ≈ normal, so every
-        // sample self-intersects the emitter under the naive `distance - Epsilon`.
-        float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
+        Vector3 trans = ShadowRay.TransmittanceToPoint(world, hitPoint, surfaceNormal, samplePoint, lightNormal, time);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 
@@ -263,7 +253,7 @@ public class GeometryLight : ILight
 
         var ray = new Ray(hitPoint, wi);
         var rec = new HitRecord();
-        if (!hittable.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec))
+        if (!hittable.Hit(ray, MathUtils.RayEpsilon, MathUtils.Infinity, ref rec))
             return 0f;
 
         float cosLight = MathF.Abs(Vector3.Dot(-wi, rec.Normal));
@@ -277,4 +267,24 @@ public class GeometryLight : ILight
 
         return distSq / (area * cosLight);
     }
+
+    // ── Emission (bidirectional integrators) ────────────────────────────────
+    // Uniform over the surface (by area), cosine-weighted from the front.
+
+    public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        e = default;
+        var (point, normal, uv, area) = Geometry.Sample();
+        if (!(area > 0f)) return false;
+        Vector3 dir = EmissionMath.CosineHemisphere(normal, uDir, out float cos);
+        e = new LightEmission
+        {
+            Position = point, Direction = dir, Normal = normal, Radiance = Material.EmissionAt(uv.X, uv.Y, point),
+            PdfPos = 1f / area, PdfDir = cos / MathF.PI, Cos = cos,
+        };
+        return cos > 0f && e.Radiance != Vector3.Zero;
+    }
+
+    public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight)
+        => _representativeArea > 0f ? 1f / (_representativeArea * MathF.PI) : 0f;
 }

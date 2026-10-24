@@ -291,7 +291,8 @@ public class MarbleTexture : ITexture
     /// </summary>
     public ColorRamp? ColorRamp { get; set; }
 
-    private readonly Perlin _noise;
+    /// <summary>Lattice-noise basis of the veins (<see cref="PerlinBasis"/>).</summary>
+    public PerlinBasis NoiseBasis { get; set; } = PerlinBasis.Improved;
     private readonly float _scale;
     private readonly Vector3 _baseColor;
     private readonly Vector3 _veinColor;
@@ -301,7 +302,6 @@ public class MarbleTexture : ITexture
 
     public MarbleTexture(float scale, Vector3 baseColor, Vector3 veinColor)
     {
-        _noise = Perlin.GetOrCreate(0);
         _scale = scale;
         _baseColor = baseColor;
         _veinColor = veinColor;
@@ -314,7 +314,7 @@ public class MarbleTexture : ITexture
             TextureTransform.ApplyManual(p, ScaleRatio, Offset, Rotation),
             objectSeed, RandomizeRotation);
         qGeom *= _scale;
-        Perlin noise = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
+        Perlin noise = Perlin.GetOrCreate(objectSeed, NoiseBasis);
 
         Vector3 qNoise = qGeom + TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
 

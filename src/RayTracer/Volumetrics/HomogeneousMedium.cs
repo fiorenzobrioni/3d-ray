@@ -3,75 +3,39 @@ using RayTracer.Core;
 
 namespace RayTracer.Volumetrics;
 
-public sealed class HomogeneousMedium : IMedium
+/// <summary>A medium with the same coefficients everywhere: Tr = exp(−σ_t d).</summary>
+public sealed class HomogeneousMedium : AnalyticMedium
 {
-    private readonly Vector3 _sigmaA;
-    private readonly Vector3 _sigmaS;
-    private readonly Vector3 _sigmaT;
-
     /// <summary>Absorption coefficient σ_a per RGB channel.</summary>
-    public Vector3 SigmaA => _sigmaA;
+    public Vector3 SigmaA { get; }
 
     /// <summary>Scattering coefficient σ_s per RGB channel. The random-walk
-    /// SSS integrator activates only when at least one channel is &gt; 0
-    /// (otherwise the medium is pure-absorption and Beer-Lambert applies
-    /// along the surface segment via the legacy volumetric path).</summary>
-    public Vector3 SigmaS => _sigmaS;
+    /// SSS integrator activates only when at least one channel is &gt; 0.</summary>
+    public Vector3 SigmaS { get; }
 
-    /// <summary>Extinction σ_t = σ_a + σ_s, cached at construction.</summary>
-    public Vector3 SigmaT => _sigmaT;
+    /// <summary>Extinction σ_t = σ_a + σ_s.</summary>
+    public Vector3 SigmaTotal { get; }
 
-    public IPhaseFunction Phase { get; }
-
-    public HomogeneousMedium(Vector3 sigmaA, Vector3 sigmaS, IPhaseFunction phase)
+    public HomogeneousMedium(Vector3 sigmaA, Vector3 sigmaS, IPhaseFunction phase) : base(phase)
     {
-        // Non-negative coefficients are a hard physical requirement: a negative σ
-        // would turn Beer-Lambert into exp(+…) and blow up the radiance estimate.
-        _sigmaA = Vector3.Max(sigmaA, Vector3.Zero);
-        _sigmaS = Vector3.Max(sigmaS, Vector3.Zero);
-        _sigmaT = _sigmaA + _sigmaS;
-        Phase = phase;
+        // A negative σ would turn Beer-Lambert into exp(+…).
+        SigmaA = Vector3.Max(sigmaA, Vector3.Zero);
+        SigmaS = Vector3.Max(sigmaS, Vector3.Zero);
+        SigmaTotal = SigmaA + SigmaS;
     }
 
-    public Vector3 Transmittance(Ray ray, float tMax)
+    public override Vector3 OpticalDepth(Ray ray, float t) => SigmaTotal * t;
+
+    public override Vector3 SigmaT(Ray ray, float t) => SigmaTotal;
+
+    protected override float DistanceAtDepth(Ray ray, int c, float tau, float tMax)
     {
-        // Clamp to a sane non-negative distance; tMax can be +∞ for sky rays.
-        float d = MathF.Min(MathF.Max(tMax, 0f), 1e30f);
-        return new Vector3(
-            MathF.Exp(-_sigmaT.X * d),
-            MathF.Exp(-_sigmaT.Y * d),
-            MathF.Exp(-_sigmaT.Z * d));
+        float s = MediumMath.Channel(SigmaTotal, c);
+        return s > 0f ? tau / s : float.PositiveInfinity;
     }
 
-    public bool Sample(Ray ray, float tMax, out float t, out Vector3 beta, out bool scattered)
-    {
-        // Spectral free-path sampling with uniform channel selection (PBRT §15.2).
-        // Picks one of the three σ_T channels uniformly to drive the exponential
-        // distance sample, then weights with a MIS-style average pdf so the
-        // estimator remains unbiased across channels.
-        int ch = (int)(MathUtils.RandomFloat() * 3f);
-        if (ch > 2) ch = 2; // guard against RandomFloat() returning exactly 1.0f
-        float sigmaT = ch == 0 ? _sigmaT.X : ch == 1 ? _sigmaT.Y : _sigmaT.Z;
+    public override Vector3 InScattering(Ray ray, float t, Vector3 wo, Vector3 wi) => SigmaS * Phase.Evaluate(wo, wi);
 
-        if (sigmaT <= 0f)
-        {
-            // Vacuum on the chosen channel → no scatter event possible.
-            t = tMax;
-            beta = Vector3.One;
-            scattered = false;
-            return false;
-        }
-
-        float dist = -MathF.Log(1f - MathUtils.RandomFloat()) / sigmaT;
-        scattered = dist < tMax;
-        t = scattered ? dist : tMax;
-
-        Vector3 Tr = Transmittance(ray, t);
-        Vector3 density = scattered ? _sigmaT * Tr : Tr;
-        float pdf = (density.X + density.Y + density.Z) / 3f;
-        if (pdf < 1e-20f) pdf = 1f;
-
-        beta = scattered ? (Tr * _sigmaS / pdf) : (Tr / pdf);
-        return scattered;
-    }
+    protected override (Vector3 SigmaS, IPhaseFunction Phase) Scattering(Ray ray, float t, Vector3 throughput)
+        => (SigmaS, Phase);
 }
