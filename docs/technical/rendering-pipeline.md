@@ -401,13 +401,14 @@ Il fattore di shadow terminator è lo stesso della NEE (§4.5), perché appartie
 ### 4.7 Limiti per tipo e Russian Roulette
 
 ```csharp
-if (!CountBounce(ref path, s.Lobe)) return false;          // limite del tipo (e totale, tranne i cut-out)
+if (!CountBounce(ref path, s.Lobe)) path.LastSegment = true;   // limite del tipo raggiunto
+bool last = path.LastSegment || path.Bounces >= _maxDepth;
 if (s.Lobe == BsdfLobe.Transmission) path.EtaScale *= s.Eta * s.Eta;
-if (!SurviveRoulette(ref path)) return false;
+if (!cutOut && !last && !SurviveRoulette(ref path)) return false;
 
 static bool SurviveRoulette(ref PathState path)
 {
-    if (path.Bounces < 2) return true;
+    if (path.Bounces < RouletteStartBounce) return true;   // 5
     Vector3 rr = path.Beta * path.EtaScale;
     float q = Max(rr.X, rr.Y, rr.Z);
     if (q >= 1f) return true;
@@ -419,7 +420,9 @@ static bool SurviveRoulette(ref PathState path)
 
 Ogni rimbalzo conta nel limite del suo tipo (`--depth-diffuse`, `--depth-glossy`, `--depth-transmission`, `--depth-volume`) e nel totale; un cut-out attraversato conta solo nel suo limite (`--depth-transparent`).
 
-Dal secondo rimbalzo, la probabilità di sopravvivenza è il canale massimo del throughput (PBRT-v4 §13.1.5), moltiplicato per `EtaScale`, il prodotto di $\eta^2$ sulle rifrazioni: la compressione di radianza $(\eta_i/\eta_t)^2$ di un'interfaccia non deve far morire un raggio dentro il vetro. I path sopravvissuti vengono divisi per q, così lo stimatore resta **unbiased**. Non ci sono floor, tetti o classificazioni della scena.
+**Ultimo segmento.** Quando un limite ferma il path, il rimbalzo campionato all'ultimo vertice viene comunque seguito fino al punto colpito successivo, solo per sommare l'emissione o il cielo che incontra (pesati MIS), senza NEE né altri rimbalzi. I campioni di luce di quel vertice sono pesati dal MIS contro questo rimbalzo: senza di esso la loro quota di luce andrebbe persa, e in una misura che dipende dalla pdf della BSDF (il Cornell a profondità 2 valeva 0.9981 contro il riferimento, ora 1.0000).
+
+Dal quinto rimbalzo, la probabilità di sopravvivenza è il canale massimo del throughput, moltiplicato per `EtaScale`, il prodotto di $\eta^2$ sulle rifrazioni: la compressione di radianza $(\eta_i/\eta_t)^2$ di un'interfaccia non deve far morire un raggio dentro il vetro. I path sopravvissuti vengono divisi per q, così lo stimatore resta **unbiased**. Non ci sono floor, tetti o classificazioni della scena. La partenza al quinto rimbalzo è misurata: nelle stanze illuminate di rimbalzo l'efficienza (1 / (errore × tempo)) sale del 25-55%.
 
 **Vedi:** [Path Tracing e Illuminazione §3](./path-tracing-and-lighting.md).
 

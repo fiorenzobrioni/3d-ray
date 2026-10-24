@@ -140,11 +140,11 @@ Per gestire raggi che rimbalzano potenzialmente all'infinito e mantenere l'effic
 
 ### 3.1 Roulette sul throughput
 
-Il path è un loop iterativo con un throughput esplicito β (il prodotto dei pesi BSDF/pdf, delle trasmittanze dei mezzi e dell'assorbimento di Beer-Lambert lungo il percorso; `Rendering/PathIntegrator.cs`). Dal secondo rimbalzo in poi, dopo ogni campionamento, il path sopravvive con probabilità
+Il path è un loop iterativo con un throughput esplicito β (il prodotto dei pesi BSDF/pdf, delle trasmittanze dei mezzi e dell'assorbimento di Beer-Lambert lungo il percorso; `Rendering/PathIntegrator.cs`). Dal quinto rimbalzo in poi, dopo ogni campionamento, il path sopravvive con probabilità
 
 $$q = \min\left(1,\; \max_c \left(\beta_c \cdot \eta_\text{scale}\right)\right)$$
 
-e, se sopravvive, β viene diviso per q. Non ci sono soglie minime, tetti o classificazioni della scena: la roulette è non distorta per costruzione e scambia solo varianza con velocità.
+e, se sopravvive, β viene diviso per q. Non ci sono soglie minime, tetti o classificazioni della scena: la roulette è non distorta per costruzione e scambia solo varianza con velocità. La partenza al quinto rimbalzo è misurata: con la partenza al secondo, in una stanza bianca un path che ha già rimbalzato due volte porta ancora gran parte della luce del pixel, e ucciderlo presto fa risparmiare poco tempo per molta varianza (efficienza del Cornell box da 254 a 395, di una stanza illuminata dal sole da 23 a 29).
 
 $\eta_\text{scale}$ è il prodotto di $\eta^2$ (con $\eta = \eta_t/\eta_i$) su ogni rifrazione: la radianza trasportata attraverso un'interfaccia è scalata di $(\eta_i/\eta_t)^2$, e senza questa correzione un raggio dentro il vetro avrebbe un β artificialmente basso e verrebbe ucciso per un effetto che si annulla all'uscita.
 
@@ -153,6 +153,22 @@ $\eta_\text{scale}$ è il prodotto di $\eta^2$ (con $\eta = \eta_t/\eta_i$) su o
 La profondità totale (`-d`) conta i vertici del path; sotto di essa il path conta i rimbalzi secondo il lobo che il materiale ha campionato (`BsdfSample.Lobe`): diffuse, glossy, transmission, più gli scattering nei volumi. Ogni tipo ha il suo limite (`--depth-diffuse`, `--depth-glossy`, `--depth-transmission`, `--depth-volume`): il vetro richiede molte rifrazioni, l'interriflessione diffusa poche. I cut-out (opacità geometrica 0) attraversati hanno un limite proprio (`--depth-transparent`, default 16) e non contano nel totale: non sono rimbalzi. Il lobo determina anche la categoria del raggio successivo per i flag di visibilità (`visibility.diffuse`, `visibility.glossy`, `visibility.transmission`).
 
 ---
+
+### 3.3 Ultimo segmento
+
+Quando un limite di profondità ferma il path, il rimbalzo campionato all'ultimo vertice viene comunque seguito fino al punto colpito successivo per sommare l'emissione o il cielo che incontra (pesati MIS), senza NEE né altri rimbalzi; uno scattering in un mezzo lungo il segmento lo chiude. Il motivo: la NEE di quel vertice pesa i suoi campioni contro la strategia della BSDF, e senza il rimbalzo la quota di luce assegnata alla BSDF andrebbe persa, in una misura che dipende dalla pdf della BSDF (con il path guiding l'immagine convergeva a un valore diverso, -0.3%).
+
+### 3.4 Path guiding
+
+Con `--guiding on` (`Rendering/PathGuiding.cs`, `Rendering/Guiding/`) i rimbalzi delle superfici ampie e dei mezzi sono campionati da una miscela della BSDF (o phase function) e di una distribuzione appresa della radianza incidente (Müller, Gross, Novák 2017; Müller 2019):
+
+- **SD-tree**: un albero binario sullo spazio della scena (diviso a metà lungo x, y, z a turno) le cui foglie contengono un quadtree direzionale sulla mappa cilindrica a area uguale (z = cos θ, φ). Le foglie si dividono dove arrivano molte registrazioni; le celle direzionali dove c'è più dell'1% dell'energia.
+- **Addestramento**: passate di 1, 2, 4, ... campioni per pixel (metà di `-s` per default) sui primi indici della sequenza Sobol del pixel, il render prosegue sugli indici successivi: la guida non pesa mai i punti da cui ha imparato e l'unione dei campioni resta la sequenza stratificata intera. Le registrazioni (radianza arrivata lungo il rimbalzo, sulla densità con cui è stato campionato) sono raccolte per tile e sommate foglia per foglia in ordine fisso: il risultato è deterministico. Un filtro a scatola stocastico sposta ogni registrazione dentro una scatola grande quanto la sua foglia.
+- **Miscela**: una sola coppia 2D stratificata decide la strategia con la prima coordinata e, riscalata, piazza la direzione (passata alla BSDF con `Sampler.Provide2D`): una scelta a moneta separata perdeva la stratificazione (fino al doppio dell'errore). La quota della BSDF è appresa per regione con Adam sulla divergenza KL (Müller 2019) entro [0.1, 0.99]. Il peso del rimbalzo divide per la densità della miscela, e la NEE usa la stessa densità nel MIS: non distorto.
+- **Solo superfici ampie** (`IMaterial.Guidable`): diffuse, metallo ruvido da α = 0.09 (roughness 0.3), nessuna trasmissione non delta.
+- **Composizione**: ogni passata è una stima non distorta dell'immagine e vi entra pesata dall'inverso della sua varianza per campione; nello stimatore di riferimento con peso uguale per campione.
+
+Validazione: tutte le scene canoniche coincidono con il renderer di riferimento anche guidate. Misure: nella stanza illuminata dal sole attraverso una finestra (`scenes/review/guiding-room.yaml`, 240 × 135, 256 spp) l'errore scende di circa il 20% a parità di campioni, ma il costo per campione sale di circa 1.4 volte: a parità di tempo il path tracing semplice resta avanti nelle scene provate. Spento per default.
 
 ## 4. Pipeline di Post-Processing
 

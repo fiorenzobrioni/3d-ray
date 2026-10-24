@@ -36,7 +36,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 4 | Texture e dati | ✅ Chiusa (2026-10-21), esito in §4 Fase 4 |
 | 5 | Materiali e BSDF | ✅ Chiusa (2026-10-21), esito in §4 Fase 5 |
 | 6 | Luci, cielo | ✅ Chiusa (2026-10-22), esito in §4 Fase 6 |
-| 7 | Integratore | ✅ Chiusa (2026-10-24), esito in §4 Fase 7 |
+| 7 | Integratore | ✅ Chiusa (2026-10-24), esito in §4 Fase 7; 7b (path guiding) fatta il 2026-10-24, MNEE/SMS in attesa di decisione del proprietario |
 | 8 | Volumi e SSS | ⬜ |
 | 9 | Post-processing e denoiser | ⬜ |
 | 10 | Formato scene v2 | ⬜ |
@@ -207,6 +207,8 @@ fase indicata.
 | 3.59 | **[BUG]**, da Fase 8 | `Volumetrics/` (height fog, atmosfera di Nishita) | NaN/Inf azzerati nei render con un mezzo: `showcases/ground-alpine-lake.yaml` 31 627 a draft-tiny (1.5% dei campioni, già al primo vertice, spariscono togliendo l'`height_fog`), `showcases/sky-aerial.yaml` 688. Presenti anche prima della Fase 6. Fase 8. |
 | 3.60 | **[BUG]**, da Fase 8 | `Volumetrics/NishitaAtmosphereMedium.cs` | In `showcases/sky-aerial.yaml` una banda di firefly nel cielo verso il sole, con netta separazione a un cerchio massimo, già a profondità 1 e con entrambi i sampler: la NEE del mezzo verso il sole. Invisibile prima della Fase 6 (sole 15 000 volte più debole). Sospetti: il rapporto cromatico `exp(τ̄ - τc)` senza limite e il tetto di 256 passi del delta tracking. Fase 8. |
 | 3.61 | ✅ **corretto** (2026-10-24, Fase 7), era **[BUG]** | `Rendering/Renderer.cs` (`ClassifyScatteredRay`, `SampleSky`, SSS e mezzi) | Categoria del raggio per i flag di visibilità sbagliata in cinque casi: i raggi usciti dal SSS e quelli diffusi da un mezzo restavano "camera" e saltavano le superfici `visible_to_camera: false` (marmo SSS senza la luce dei pannelli nascosti, -0.36%); un rimbalzo glossy non delta era "diffuse"; il cielo visto in uno specchio era letto come "camera" (lo sfondo riservato alla camera e i suoi flag comparivano nei riflessi); un raggio che attraversa un cut-out diventava "transmission" (dietro una foglia la camera vedeva ciò che le è nascosto). Ora la categoria viene dal lobo campionato (`BsdfLobe`) e un cut-out la lascia com'è. |
+| 3.62 | ✅ **corretto** (2026-10-24, Fase 7b), era **[BIAS]** | `Rendering/PathIntegrator.cs` (`LastSegment`) | All'ultimo vertice ammesso dalla profondità la NEE era pesata dal MIS ma il rimbalzo BSDF non veniva tracciato: la quota della BSDF andava persa (Cornell a profondità 2: 0.9981 contro Mitsuba dalla Fase 0) e in misura dipendente dalla pdf della BSDF. Ora il rimbalzo è seguito per l'emissione che incontra: 1.0000. |
+| 3.63 | ✅ **fatto** (2026-10-24, Fase 7b), era **[NON-STANDARD]** misurato | `Rendering/PathIntegrator.cs` (`RouletteStartBounce`) | La roulette dal secondo rimbalzo (Fase 7) dimezzava l'efficienza degli interni illuminati di rimbalzo. Ora dal quinto: Cornell 254 → 395, stanza al sole 23 → 29 in 1 / (errore × tempo). |
 
 ---
 
@@ -770,13 +772,83 @@ Cambiano i preset (più profondità totale, meno rimbalzi diffusi nel draft) e l
 scene con vetri annidati o cut-out impilati (prima scure per mancanza di profondità). Restano:
 path guiding e MNEE (Fase 7b), NaN e firefly nei mezzi (3.59, 3.60, Fase 8).
 
-### Fase 7b - Path guiding e caustiche non distorte (rinviata)
+### Fase 7b - Path guiding e caustiche non distorte
 
-- [ ] Path guiding spazio-direzionale (SD-tree, Müller 2017, con le migliorie di Rath 2020 per
-      il MIS fra BSDF e guida): passate progressive di addestramento, superfici e volumi.
+- [x] Path guiding spazio-direzionale (SD-tree, Müller 2017, con le migliorie di Müller 2019:
+      frazione BSDF appresa, filtro spaziale stocastico, passate pesate per varianza inversa):
+      passate progressive di addestramento, superfici e volumi. Opzionale (`--guiding on`).
 - [ ] MNEE / SMS (Hanika 2015, Zeltner 2020) per le caustiche da luci piccole attraverso
-      dielettrici lisci: derivate della normale per primitiva, catene di una o due interfacce.
-- [ ] Confronto con la photon map e con il riferimento su `glass-caustics`, acqua, finestra.
+      dielettrici lisci. **Non fatto, in attesa del proprietario**: il motore aveva già MNEE + SMS
+      (circa 3000 righe) e il proprietario li ha tolti a giugno 2026 perché fragili e peggiorativi
+      (devlog 2026-06-28, "rimozione MNEE/SMS"), sostituendoli con la photon map. Rifarli va
+      deciso da lui, con i numeri sotto.
+- [x] Confronto con la photon map e con il riferimento su `glass-caustics`, acqua, finestra.
+
+#### Esito Fase 7b (2026-10-24)
+
+Suite: 1079 test verdi, 0 skip.
+
+**Path guiding** (`Rendering/Guiding/DTree.cs`, `PathGuide.cs`, `Rendering/PathGuiding.cs`):
+SD-tree (albero binario spaziale, quadtree direzionale sulla mappa cilindrica a area uguale),
+addestramento in passate di 1, 2, 4, ... spp, splat deterministico per foglia (ordinamento per
+conteggio, ordine fisso), filtro spaziale stocastico (hash della registrazione), frazione BSDF
+appresa per regione con Adam, campionamento a miscela con una sola coppia 2D stratificata divisa
+fra le strategie (`Sampler.Provide2D`), densità della miscela anche nel MIS della NEE, solo
+superfici ampie (`IMaterial.Guidable`: diffuse, metallo ruvido da α 0.09). L'addestramento è
+parte di `-s` (metà per default), sui primi indici della sequenza Sobol del pixel; il render
+prosegue la sequenza; le passate entrano nell'immagine pesate per varianza inversa (peso uguale
+per campione in `--reference`). Test: `GuidingTests` (mappa, pdf che integra a 1, chi-quadro del
+campionamento, divisione spaziale, determinismo, convergenza all'immagine non guidata, la guida
+manda il 10.7% dei campioni verso la macchia di sole contro l'1.5% uniforme).
+
+Lezioni dalle misure (ognuna ha cambiato il codice):
+- una moneta separata per scegliere BSDF o guida perdeva la stratificazione Sobol: guidato fino
+  a 1.9 volte più rumoroso; una coppia sola divisa fra le strategie la conserva;
+- passate con sequenze proprie invece della sequenza unica del pixel: Veach guidato 4.8 volte
+  più rumoroso; con la sequenza unica uguale al non guidato (3.66e-4 contro 3.66e-4);
+- passate scartate (Müller 2017) sprecano il budget, passate con peso uguale danneggiano (le
+  prime sono quasi senza guida): varianza inversa (Müller 2019);
+- soglia spaziale 12 000 (Müller) troppo grossolana alle nostre risoluzioni: 3 000.
+
+**Validazione Mitsuba in modalità guidata** (`validation/run.py --mode guided="--guiding on"`):
+tutte le scene coincidono con Mitsuba come la modalità non guidata (cornell 0.9999 / 0.9999, lights
+0.9997, glass-shadow 0.9997, glass-rough 0.9996, metal-presets 0.9989, metal-rough 1.0032, null-shell
+1.0001, fornace 1.0000, Veach 0.9991): il guiding è non distorto.
+
+**Efficienza** (240 × 135, riferimento lungo):
+
+| Scena | errore guidato / non guidato a pari campioni | costo per campione | a pari tempo |
+|---|---|---|---|
+| stanza al sole, profondità 2 | 0.55-0.84 | 1.0-1.3 | meglio (fino a 0.84 dell'errore) |
+| stanza al sole, profondità 8, 256 spp | 0.81 | 1.4 | peggio (efficienza 36 contro 42) |
+| glass-caustics (luce ad area) | 1.2 relMSE, 0.72 SMAPE | 1.35 | peggio in relMSE |
+| acquario (luce ad area) | 1.07 | 1.06 | pari |
+
+Sotto circa 240 × 135 pixel la guida ha troppe poche registrazioni per imparare e peggiora.
+Spento per default; utile agli interni illuminati di rimbalzo ad alti campioni.
+
+**Caustiche: photon map, path tracing, guiding** (256 spp, stesso riferimento):
+
+| Scena | metodo | media / riferimento | relMSE | tempo |
+|---|---|---|---|---|
+| glass-caustics | path tracing | 0.996 | 0.0108 | 7.0 s |
+| | guiding | 0.995 | 0.0133 | 9.4 s |
+| | photon map | 0.999 | 0.0045 | 21.7 s |
+| acquario | path tracing | 0.999 | 0.0171 | 14.6 s |
+| | guiding | 1.000 | 0.0183 | 15.4 s |
+| | photon map | **0.983** | 0.0054 | 29.0 s |
+
+La photon map ha meno rumore ma è distorta (-1.7% nell'acquario); il guiding non risolve le
+caustiche da luci piccole (nessun path tracer le raggiunge). Resta la scelta su MNEE/SMS (sopra).
+
+**Emersi e corretti nel farla** (3.62, 3.63):
+- l'ultimo vertice ammesso dalla profondità pesava la sua NEE con il MIS ma il rimbalzo BSDF non
+  veniva tracciato: la quota di luce della BSDF andava persa (Cornell a profondità 2 0.9981
+  contro Mitsuba) e in misura dipendente dalla pdf (col guiding -0.3%). Ora il rimbalzo è
+  seguito per l'emissione che incontra: Cornell d2 1.0000;
+- la roulette dal secondo rimbalzo (scelta della Fase 7, come PBRT) dimezzava l'efficienza degli
+  interni illuminati di rimbalzo: dal quinto (come Mitsuba) Cornell 254 → 395, stanza 23 → 29 in
+  1 / (errore × tempo); scacchiera e vetri pari entro il rumore della misura.
 
 ### Fase 8 - Volumi e SSS (`Volumetrics/`, `Rendering/RandomWalkSss.cs`)
 

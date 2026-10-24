@@ -231,13 +231,15 @@ dal materiale:
 | `--depth-volume` | scattering dentro un mezzo (nebbia, fumo, il mezzo dentro un vetro) | un mezzo denso può diffondere centinaia di volte |
 | `--depth-transparent` | cut-out attraversati (opacità geometrica 0: foglie, recinzioni) | **fuori** dal totale: un cut-out non è un rimbalzo, attraversarlo non costa nulla |
 
-Un percorso si ferma al primo limite che raggiunge. I preset usano la
+Un percorso si ferma al primo limite che raggiunge; il rimbalzo campionato
+al suo ultimo vertice viene comunque seguito per la luce che incontra (senza
+altri rimbalzi), così la luce diretta di ogni vertice è completa. I preset usano la
 divisione della sezione 1a; un **`-d` esplicito porta ogni tipo a quel
 valore** (`-d 24` vuol dire "24 di qualunque cosa") e ogni flag
 `--depth-*` sovrascrive comunque il proprio tipo, entro il totale.
 
 La **Russian roulette** chiude la maggior parte dei percorsi molto prima di
-questi limiti: dal secondo rimbalzo in poi un percorso sopravvive con
+questi limiti: dal quinto rimbalzo in poi un percorso sopravvive con
 probabilità pari al canale più alto del suo throughput (corretto di `η²`
 attraverso le rifrazioni, così un raggio dentro il vetro non è penalizzato
 dalla compressione di radianza dell'interfaccia) e, se sopravvive, viene
@@ -252,6 +254,40 @@ molto: i percorsi luminosi proseguono, quelli fiochi si fermano.
 - **Mezzi partecipanti densi**: alza `--depth-volume`.
 - **Corridoi di specchi**: alza `--depth-glossy`.
 - **Fogliame fatto di molte card con cut-out**: alza `--depth-transparent`.
+
+---
+
+### 4b. **PATH GUIDING (`--guiding on`)**
+
+Il path guiding impara, prima del render, da dove arriva la luce in ogni
+parte della scena, e poi campiona una parte dei rimbalzi da quella
+conoscenza invece che dal solo materiale. È pensato per le scene in cui la
+luce arriva soprattutto di rimbalzo da regioni piccole: una stanza
+illuminata dal sole attraverso una finestra, la luce da una porta
+socchiusa, una macchia luminosa che illumina tutto un interno.
+
+- **L'addestramento fa parte di `-s`.** Passate di 1, 2, 4, ... campioni per
+  pixel (metà di `-s` per default, `--guiding-training <n>` per cambiarlo)
+  imparano la distribuzione; ogni passata è una stima valida dell'immagine e
+  vi entra, pesata dal suo rumore, quindi nessun campione va sprecato.
+- **Non distorto e deterministico.** Un rimbalzo guidato è pesato con la
+  densità della miscela BSDF/guida, e i campioni delle luci usano la stessa
+  densità nel loro multiple importance sampling: l'immagine converge allo
+  stesso risultato che senza guiding (verificato contro il renderer di
+  riferimento su tutte le scene di validazione). Lo stesso comando dà la
+  stessa immagine con qualunque numero di thread.
+- **Si guidano solo le superfici ampie** (diffuse, metallo ruvido da
+  roughness 0.3): un riflesso netto lo trova meglio la sua BSDF.
+- **La risoluzione conta.** La guida impara dai campioni dell'immagine
+  stessa: sotto circa 240 × 135 pixel ne ha troppo pochi e può aggiungere
+  rumore.
+
+Misurato su `scenes/review/guiding-room.yaml` (240 × 135, 256 spp): circa il
+20% di errore in meno a parità di campioni, ma ogni campione costa circa
+1.4 volte (apprendimento e ricerche nella guida), quindi a parità di tempo il
+path tracing semplice resta ancora leggermente avanti nelle scene provate.
+Il guiding è spento per default; provalo sugli interni difficili ad alti
+campioni.
 
 ---
 

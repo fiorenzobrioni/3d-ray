@@ -123,7 +123,7 @@ guide.
 Not all paths are equally useful. A ray that has bounced many times and
 carries very little energy is unlikely to contribute meaningfully to the
 final pixel color. Rather than always tracing to the maximum depth, the
-engine uses **Russian Roulette**: from the second bounce on, a path survives
+engine uses **Russian Roulette**: from the fifth bounce on, a path survives
 with a probability equal to the share of energy it still carries, so a dim
 path is likely to stop and a bright one to go on. The surviving paths are
 weighted up to compensate, so the result is unbiased.

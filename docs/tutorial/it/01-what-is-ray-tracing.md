@@ -119,7 +119,7 @@ per la guida completa.
 Non tutti i percorsi sono ugualmente utili. Un raggio che ha rimbalzato molte volte
 e trasporta pochissima energia difficilmente contribuirà in modo significativo al
 colore finale del pixel. Invece di tracciare sempre fino alla profondità massima, il
-motore usa la **Russian Roulette**: dal secondo rimbalzo in poi un percorso
+motore usa la **Russian Roulette**: dal quinto rimbalzo in poi un percorso
 sopravvive con probabilità pari alla quota di energia che ancora trasporta, così un
 percorso fioco tende a fermarsi e uno luminoso a proseguire. I percorsi sopravvissuti
 vengono pesati al rialzo per compensare, così il risultato rimane non polarizzato.

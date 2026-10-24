@@ -226,13 +226,15 @@ the kind of lobe the material sampled:
 | `--depth-volume` | scatters inside a medium (fog, smoke, the medium inside glass) | a dense medium can scatter hundreds of times |
 | `--depth-transparent` | cut-outs crossed (geometry opacity 0: leaves, fences) | **outside** the total: a cut-out is not a bounce, crossing it costs nothing |
 
-A path stops at whichever limit it reaches first. The presets set the split
+A path stops at whichever limit it reaches first; the bounce sampled at its
+last vertex is still followed for the light it meets (no further bounce), so
+the direct light of every vertex is complete. The presets set the split
 shown in section 1a; an **explicit `-d` lifts every kind to that value**
 (`-d 24` means "24 of anything"), and any `--depth-*` flag still overrides
 its own kind, capped by the total.
 
 **Russian roulette** ends most paths long before these limits: from the
-second bounce on, a path survives with probability equal to its largest
+fifth bounce on, a path survives with probability equal to its largest
 throughput channel (corrected by `η²` across refractions, so a ray inside
 glass is not penalised for the radiance compression of the interface) and
 is reweighted by 1/q when it does. It is unbiased, it only trades variance
@@ -246,6 +248,38 @@ therefore rarely costs much: the bright paths go on, the dim ones stop.
 - **Thick participating media**: raise `--depth-volume`.
 - **Mirror corridors**: raise `--depth-glossy`.
 - **Foliage made of many cut-out cards**: raise `--depth-transparent`.
+
+---
+
+### 4b. **PATH GUIDING (`--guiding on`)**
+
+Path guiding learns, before the render, where the light reaching each part
+of the scene comes from, and then draws part of the bounces from that
+knowledge instead of from the material alone. It targets scenes where most
+light arrives indirectly from small regions: a room lit by the sun through
+a window, light through a door left ajar, a bright patch that lights a whole
+interior.
+
+- **Training is part of `-s`.** Passes of 1, 2, 4, ... samples per pixel
+  (half of `-s` by default, `--guiding-training <n>` to change it) learn the
+  distribution; every pass is a valid estimate of the image and joins it,
+  weighted by its noise, so no sample is thrown away.
+- **Unbiased and deterministic.** A guided bounce is weighted by the density
+  of the BSDF/guide mixture, and light samples use the same density in their
+  multiple importance sampling: the image converges to the same result as
+  without guiding (checked against the reference renderer on every
+  validation scene). The same command gives the same image on any number of
+  threads.
+- **Only broad surfaces are guided** (diffuse, rough metal from roughness 0.3):
+  a sharp highlight is found best by its own BSDF.
+- **Resolution matters.** The guide learns from the image's own samples: below
+  roughly 240 × 135 pixels it has too few to learn from and can add noise.
+
+Measured on `scenes/review/guiding-room.yaml` (240 × 135, 256 spp): about 20%
+less error for the same number of samples, but each sample costs about 1.4×
+as much (learning and the guide lookups), so for the same render time plain
+path tracing is still slightly ahead in the scenes tested. Guiding is off by
+default; try it on hard interiors at high sample counts.
 
 ---
 
