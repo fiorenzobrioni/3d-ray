@@ -36,8 +36,9 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 4 | Texture e dati | ✅ Chiusa (2026-10-21), esito in §4 Fase 4 |
 | 5 | Materiali e BSDF | ✅ Chiusa (2026-10-21), esito in §4 Fase 5 |
 | 6 | Luci, cielo | ✅ Chiusa (2026-10-22), esito in §4 Fase 6 |
-| 7 | Integratore | ✅ Chiusa (2026-10-24), esito in §4 Fase 7; 7b (path guiding) fatta il 2026-10-24, MNEE/SMS in attesa di decisione del proprietario |
-| 8 | Volumi e SSS | ⬜ |
+| 7 | Integratore | ✅ Chiusa (2026-10-24), esito in §4 Fase 7; 7b (path guiding) ✅ 2026-10-24 |
+| 8 | Volumi e SSS (null-scattering) | 🔄 In corso (dal 2026-10-24) |
+| 8b | Integratori bidirezionali: BDPT, poi VCM per le caustiche | ⬜ (dopo la Fase 8) |
 | 9 | Post-processing e denoiser | ⬜ |
 | 10 | Formato scene v2 | ⬜ |
 | 11 | Architettura e performance | ⬜ |
@@ -777,11 +778,10 @@ path guiding e MNEE (Fase 7b), NaN e firefly nei mezzi (3.59, 3.60, Fase 8).
 - [x] Path guiding spazio-direzionale (SD-tree, Müller 2017, con le migliorie di Müller 2019:
       frazione BSDF appresa, filtro spaziale stocastico, passate pesate per varianza inversa):
       passate progressive di addestramento, superfici e volumi. Opzionale (`--guiding on`).
-- [ ] MNEE / SMS (Hanika 2015, Zeltner 2020) per le caustiche da luci piccole attraverso
-      dielettrici lisci. **Non fatto, in attesa del proprietario**: il motore aveva già MNEE + SMS
-      (circa 3000 righe) e il proprietario li ha tolti a giugno 2026 perché fragili e peggiorativi
-      (devlog 2026-06-28, "rimozione MNEE/SMS"), sostituendoli con la photon map. Rifarli va
-      deciso da lui, con i numeri sotto.
+- [x] MNEE / SMS (Hanika 2015, Zeltner 2020): **non si fanno** (decisione del proprietario,
+      2026-10-24). Il motore li aveva (circa 3000 righe) e sono stati tolti a giugno 2026 perché
+      fragili e peggiorativi; le caustiche passano a VCM (Fase 8b), che copre i loro casi in modo
+      generale, compresi quelli che nessuna tecnica a connessioni raggiunge.
 - [x] Confronto con la photon map e con il riferimento su `glass-caustics`, acqua, finestra.
 
 #### Esito Fase 7b (2026-10-24)
@@ -852,17 +852,45 @@ caustiche da luci piccole (nessun path tracer le raggiunge). Resta la scelta su 
 
 ### Fase 8 - Volumi e SSS (`Volumetrics/`, `Rendering/RandomWalkSss.cs`)
 
+Obiettivo (decisione del proprietario, 2026-10-24): nebbia e volumi "ottimali", nella formulazione
+null-scattering (Miller, Georgiev, Jarosz 2019), la stessa del `volpath` di Mitsuba, e confrontati
+con esso pixel per pixel.
+
 - [ ] Phase function (isotropica, HG, double HG, Rayleigh, Schlick): normalizzazione,
       campionamento, chi-quadro.
-- [ ] Mezzi omogenei cromatici: campionamento a canale "hero" con MIS spettrale (Wrenninge 2017 /
-      Miller 2019 null-scattering) invece del campionamento su un singolo canale.
-- [ ] Delta tracking e ratio tracking: non-polarizzazione, majorant corretti (mezzi grid e
-      procedurali), confronto con Mitsuba `volpath`.
-- [ ] Atmosfera Nishita: densità, coefficienti Rayleigh/Mie, assorbimento dell'ozono.
+- [ ] Trasporto null-scattering: delta tracking per le distanze, ratio tracking per la
+      trasmittanza dei raggi d'ombra, majorant corretti (omogeneo, height fog, grid, procedurale,
+      atmosfera), non distorsione verificata.
+- [ ] Mezzi cromatici: campionamento a canale "hero" con MIS spettrale (Wrenninge 2017 /
+      Miller 2019) invece del campionamento su un solo canale.
+- [ ] Campionamento equiangolare verso luci piccole nei mezzi (Kulla e Fajardo 2012), combinato
+      per MIS con il campionamento per distanza: coni di luce e god ray puliti.
+- [ ] Majorant per regione nei mezzi eterogenei (griglia di majorant), per non sprecare passi.
+- [ ] NaN e firefly dei mezzi (3.59, 3.60).
+- [ ] Atmosfera Nishita: densità, coefficienti Rayleigh/Mie, assorbimento dell'ozono, una sola
+      atmosfera condivisa con `Rendering/Sky/Atmosphere.cs`.
 - [ ] SSS random walk: parametrizzazione artistica (colore + mean free path) con inversione
       dell'albedo di Christensen-Burley 2015 o Chiang 2016, test energetici, confronto con
       Mitsuba.
+- [ ] Scene di validazione con mezzi in `validation/scenes/` (nebbia omogenea con luce sferica,
+      mezzo colorato, fumo eterogeneo, SSS) e confronto con `volpath`.
 - [ ] Estensioni premium: mezzi emissivi, VDB (NanoVDB), interfacce mezzo per entità.
+
+### Fase 8b - Integratori bidirezionali: BDPT, poi VCM
+
+Decisione del proprietario (2026-10-24): caustiche belle e non distorte con un integratore
+generale, al posto della photon map a raggio fisso (distorta: -1.7% nell'acquario) e di MNEE/SMS.
+Il path tracing resta l'integratore di default.
+
+- [ ] BDPT (Veach 1997, PBRT-v4) come integratore opzionale (`--integrator bdpt`), con MIS fra
+      tutte le strategie, superfici e mezzi; validazione contro Mitsuba `bdpt`. Dà le caustiche da
+      luci puntiformi e quelle viste direttamente.
+- [ ] VCM / UPS (Georgiev et al. 2012; Hachisuka et al. 2012): fusione progressiva dei vertici
+      aggiunta a BDPT, raggio che si restringe con i campioni (consistente). Copre le caustiche
+      viste attraverso vetro o acqua (cammini S D S), che nessuna tecnica a connessioni raggiunge.
+- [ ] Togliere la photon map attuale quando VCM la copre; preset in path tracing puro, VCM su
+      richiesta per le scene con caustiche.
+- [ ] Fuori portata iniziale: caustiche volumetriche (fotoni a fascio, UPBP).
 
 ### Fase 9 - Post-processing e denoiser (`Denoising/`)
 
@@ -964,7 +992,8 @@ Basato sulla sezione 3, aggiornato con le misure delle Fasi 0, 1 e 3: da conferm
 2. Fasi 1 e 3 insieme: campionamento e colore sono i due filtri attraverso cui si guarda tutto.
 3. Fase 5 (materiali) e Fase 6 (luci), che sono la gran parte del "non realistico".
 4. Fase 7 (integratore), con il nuovo loop iterativo costruito sui materiali già verificati.
-5. Fasi 2, 4, 8, 9 in parallelo dove serve.
+5. Fase 8 (volumi null-scattering), poi Fase 8b (BDPT, poi VCM per le caustiche); Fasi 2 e 9
+   dove serve.
 6. Fase 10 (formato v2) quando materiali, luci e camera nuovi sono stabili, così il formato
    descrive il motore definitivo e le scene si adeguano una volta sola.
 7. Fase 11.
