@@ -378,6 +378,7 @@ public partial class Renderer
         // The finite part of the scene (an infinite plane's sentinel box left
         // out): its radius scales the ray offsets and the caustic gather.
         AABB sceneBounds = ComputeFiniteSceneBounds(world);
+        _finiteSceneBounds = sceneBounds;
         Vector3 extent = sceneBounds.Max - sceneBounds.Min;
         float sceneRadius = MathF.Max(0.5f * extent.Length(), 1e-3f);
         _sceneScale = sceneRadius;
@@ -504,6 +505,9 @@ public partial class Renderer
     public RenderResult Render(int width, int height, RenderCaptureOptions options)
     {
         var pixels = new Vector3[height, width];
+        // Path guiding learns before the render, on its own sample sequences.
+        if (_guide is { CanSample: false })
+            TrainGuide(width, height);
         _captureAovs = options.CaptureAovs;
         Interlocked.Exchange(ref s_nonFiniteCount, 0);
 
@@ -536,13 +540,20 @@ public partial class Renderer
         //              than PRNG, the exact opposite of what shipping the
         //              sampler is supposed to buy.
         bool useSobol = Sampler.Kind == SamplerKind.Sobol;
-        int sqrtSpp = (int)MathF.Ceiling(MathF.Sqrt(_samplesPerPixel));
+        // With path guiding, the training passes are part of the budget.
+        int renderSpp = Math.Max(1, _samplesPerPixel - _guideTrainCount);
+        int sqrtSpp = (int)MathF.Ceiling(MathF.Sqrt(renderSpp));
         float invSqrtSpp = 1f / sqrtSpp;
-        int actualSamples = useSobol ? _samplesPerPixel : sqrtSpp * sqrtSpp;
+        int actualSamples = useSobol ? renderSpp : sqrtSpp * sqrtSpp;
 
+        // Path-guiding training passes are unbiased estimates of the same
+        // pixels: they join the render's (CombineGuidedPasses), with their own
+        // sample indices first. The render's own sums are kept per pixel for that.
+        int trained = _guideTrainCount;
         RenderBuffers? buffers = options.Any
-            ? new RenderBuffers(width, height, actualSamples, options.CaptureAovs)
+            ? new RenderBuffers(width, height, actualSamples + trained, options.CaptureAovs)
             : null;
+        GuidedPassSums? finalPass = trained > 0 ? new GuidedPassSums(width, height) : null;
         bool captureAovs = _captureAovs;
 
         // Progress is printed by a single dedicated reporter thread, so no worker
@@ -567,20 +578,14 @@ public partial class Renderer
 
         Parallel.For(0, totalTiles, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, tile =>
         {
-            // Per-worker switch: with photon caustics active, smooth specular
-            // transmissive surfaces are opaque to NEE shadow rays (the photon map
-            // owns that refracted light). Set on this worker before any shadow ray
-            // it casts; re-set every tile so it never leaks across renders.
-            ShadowRay.BlockSpecularTransmission = _causticsActive;
-            MathUtils.SceneScale = _sceneScale;
-            // Opaque shadow rays unless transparent shadows were asked for.
-            // Light through glass then arrives only along BSDF-sampled paths,
-            // the unbiased estimator. Photon caustics keep their own rule: the
-            // map owns smooth glass, rough glass stays a transparent shadow.
-            ShadowRay.BlockAllTransmission = _referenceMode
-                || (!_transparentShadows && !_causticsActive);
-            if (_seedMix != 0 && !useSobol)
-                MathUtils.ReseedThread(unchecked((int)(_seedMix ^ (uint)tile * 2654435761u)));
+            // Per-worker switches, set before any ray and every tile so they
+            // never leak across renders: with photon caustics active, smooth
+            // specular transmission is opaque to NEE shadow rays (the photon
+            // map owns that refracted light); otherwise shadow rays are opaque
+            // to glass unless transparent shadows were asked for, so light
+            // through glass arrives only along BSDF-sampled paths, the unbiased
+            // estimator (rough glass stays a transparent shadow under caustics).
+            PrepareWorker(tile, useSobol);
 
             int tileX = tile % tilesX;
             int tileY = tile / tilesX;
@@ -621,30 +626,17 @@ public partial class Renderer
                 {
                     for (int s = 0; s < actualSamples; s++)
                     {
-                        Sampler.BeginPixelSample(pixelSeed, (uint)s);
+                        // After the path-guiding training passes, if any (they
+                        // took the sequence's first samples).
+                        Sampler.BeginPixelSample(pixelSeed, (uint)(trained + s));
 
-                        // Let Sobol(2D) place the camera-jitter point natively.
-                        // The (0,2,2)-net property guarantees the full set of
-                        // spp points covers the pixel as a perfect stratified
-                        // grid at every power-of-two prefix; the filter maps
-                        // each axis monotonically, so the stratification holds.
-                        var (jitterU, jitterV) = MathUtils.Random2D();
-
-                        // Motion blur: one shutter-time dimension per camera
-                        // sample, drawn AFTER the pixel jitter and BEFORE the
-                        // lens so dims 0-1 keep their (0,2,2)-net pairing. Not
-                        // drawn at all when inactive — the dimension layout
-                        // (and therefore the output) stays bit-identical.
-                        float rayTime = _motionActive
-                            ? _shutterOpen + (_shutterClose - _shutterOpen) * MathUtils.RandomFloat()
-                            : 0f;
-
-                        float u = (i + _pixelFilter.SamplePosition(jitterU)) / width;
-                        float v = (height - j - 1 + _pixelFilter.SamplePosition(jitterV)) / height;
-
-                        var ray = _emitRayDifferentials
-                            ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy, rayTime)
-                            : _camera.GetRay(u, v, rayTime);
+                        // Sobol(2D) places the camera-jitter point natively:
+                        // the (0,2,2)-net property covers the pixel as a
+                        // stratified grid at every power-of-two prefix, and the
+                        // filter maps each axis monotonically. The shutter time
+                        // (motion blur only) comes after the jitter and before
+                        // the lens, so dims 0-1 keep their pairing.
+                        var ray = CameraSample(i, j, width, height, dsdx, dtdy);
                         if (captureAovs) (t_aovProbe ??= new AovProbe()).Reset();
                         Vector3 sample = TracePath(ray);
 
@@ -652,7 +644,8 @@ public partial class Renderer
 
                         sample = ClampRadiance(sample);
                         cumulativeColor += sample;
-                        if (buffers != null) capAcc.Add(sample, s, captureAovs);
+                        if (buffers != null) capAcc.Add(sample, trained + s, captureAovs);
+                        finalPass?.Add(i, j, trained + s, sample);
                     }
                 }
                 else
@@ -682,7 +675,8 @@ public partial class Renderer
 
                             sample = ClampRadiance(sample);
                             cumulativeColor += sample;
-                            if (buffers != null) capAcc.Add(sample, sy * sqrtSpp + sx, captureAovs);
+                            if (buffers != null) capAcc.Add(sample, trained + sy * sqrtSpp + sx, captureAovs);
+                            finalPass?.Add(i, j, trained + sy * sqrtSpp + sx, sample);
                         }
                     }
                 }
@@ -693,13 +687,12 @@ public partial class Renderer
                 // along the tone curve instead of rescaling display values.
                 pixels[j, i] = _display.Apply(linearColor * _exposureScale);
                 if (buffers != null)
-                    capAcc.Store(buffers, i, j, linearColor, actualSamples);
+                    capAcc.Store(buffers, i, j, linearColor, actualSamples + trained);
             }
 
             // Pool threads outlive the render: never leave reference mode or
             // this scene's ray offsets on for whatever else runs here next.
-            ShadowRay.BlockAllTransmission = false;
-            MathUtils.SceneScale = 0f;
+            ReleaseWorker();
             Interlocked.Increment(ref completedTiles);
         });
 
@@ -708,6 +701,8 @@ public partial class Renderer
         if (lastReported != totalTiles)
             Console.Write($"\r  Rendering: 100.0% ({totalTiles}/{totalTiles} tiles)   ");
         Console.WriteLine();
+        if (finalPass != null)
+            CombineGuidedPasses(finalPass, actualSamples, trained, pixels, buffers);
         _captureAovs = false;
         LastRenderNonFiniteCount = Interlocked.Read(ref s_nonFiniteCount);
         return new RenderResult { Pixels = pixels, Buffers = buffers };
@@ -806,12 +801,14 @@ public partial class Renderer
         private Vector3 _albA, _albB, _nrmA, _nrmB;
         private float _depA, _depB;
         private int _depCntA, _depCntB;
+        private int _aovCntA, _aovCntB;
 
         public void Add(Vector3 sample, int sampleIndex, bool aovs)
         {
             bool isA = (sampleIndex & 1) == 0;
             if (isA) _sumA += sample; else _sumB += sample;
             if (!aovs) return;
+            if (isA) _aovCntA++; else _aovCntB++;
 
             var p = t_aovProbe!;
             // Paths that ended without a non-delta vertex (RR kill, emissive
@@ -848,12 +845,15 @@ public partial class Renderer
             buffers.SampleCount[y * buffers.Width + x] = samples;
 
             if (!buffers.HasAovs) return;
-            Vector3 albA = _albA / nA;
-            Vector3 albB = nB > 0 ? _albB / nB : albA;
-            Vector3 nrmA = _nrmA / nA;
-            Vector3 nrmB = nB > 0 ? _nrmB / nB : nrmA;
+            // The guides come from the render's own samples only (training
+            // samples carry no guides), so they divide by their own counts.
+            int aA = Math.Max(_aovCntA, 1), aB = _aovCntB;
+            Vector3 albA = _albA / aA;
+            Vector3 albB = aB > 0 ? _albB / aB : albA;
+            Vector3 nrmA = _nrmA / aA;
+            Vector3 nrmB = aB > 0 ? _nrmB / aB : nrmA;
             float depA = _depCntA > 0 ? _depA / _depCntA : -1f;
-            float depB = nB > 0 ? (_depCntB > 0 ? _depB / _depCntB : -1f) : depA;
+            float depB = aB > 0 ? (_depCntB > 0 ? _depB / _depCntB : -1f) : depA;
             buffers.AlbedoA!.SetRgb(x, y, albA);
             buffers.AlbedoB!.SetRgb(x, y, albB);
             buffers.NormalA!.SetRgb(x, y, nrmA);
@@ -1422,7 +1422,7 @@ public partial class Renderer
 
                 // MIS: the NEE density carries the pick probability.
                 float wNee = material != null && _mis.PairsWithBsdf(light)
-                    ? LightSampleWeight(light, pPick, rec.Point, dirToLight, material.Pdf(viewDir, dirToLight, rec))
+                    ? LightSampleWeight(light, pPick, rec.Point, dirToLight, MisBsdfPdf(material, viewDir, dirToLight, in rec))
                     : 1f;
 
                 if (LightSampleOwnsTransport()) wNee = 1f;
@@ -1475,7 +1475,7 @@ public partial class Renderer
                     // Non-delta lights: if the material exposes Pdf() > 0, the
                     // weight reduces variance via Veach's combined estimator.
                     float wNee = material != null && _mis.PairsWithBsdf(light)
-                        ? LightSampleWeight(light, 1f, rec.Point, dirToLight, material.Pdf(viewDir, dirToLight, rec))
+                        ? LightSampleWeight(light, 1f, rec.Point, dirToLight, MisBsdfPdf(material, viewDir, dirToLight, in rec))
                         : 1f;
 
                     if (LightSampleOwnsTransport()) wNee = 1f;
@@ -1592,7 +1592,7 @@ public partial class Renderer
                 Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight, time), mediumDist);
 
                 float wNee = _mis.PairsWithBsdf(light)
-                    ? LightSampleWeight(light, pPick, p, dirToLight, medium.Phase.Pdf(wo, dirToLight))
+                    ? LightSampleWeight(light, pPick, p, dirToLight, MisPhasePdf(medium.Phase, wo, dirToLight))
                     : 1f;
 
                 if (LightSampleOwnsTransport()) wNee = 1f;
@@ -1636,7 +1636,7 @@ public partial class Renderer
                     // full weight. Otherwise pair the analytic phase PDF against
                     // the light PDF using the configured heuristic.
                     float wNee = _mis.PairsWithBsdf(light)
-                        ? LightSampleWeight(light, 1f, p, dirToLight, medium.Phase.Pdf(wo, dirToLight))
+                        ? LightSampleWeight(light, 1f, p, dirToLight, MisPhasePdf(medium.Phase, wo, dirToLight))
                         : 1f;
 
                     if (LightSampleOwnsTransport()) wNee = 1f;

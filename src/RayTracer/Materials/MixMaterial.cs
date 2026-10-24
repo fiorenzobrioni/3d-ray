@@ -129,6 +129,9 @@ public sealed class MixMaterial : IMaterial
     public bool HasTransmission(in HitRecord rec)
         => MaterialA.HasTransmission(in rec) || MaterialB.HasTransmission(in rec);
 
+    /// <inheritdoc/>
+    public bool Guidable(in HitRecord rec) => MaterialA.Guidable(in rec) && MaterialB.Guidable(in rec);
+
     public bool TransmitsStraight(in HitRecord rec)
         => MaterialA.TransmitsStraight(rec) && MaterialB.TransmitsStraight(rec);
 

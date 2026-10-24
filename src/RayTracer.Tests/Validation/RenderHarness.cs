@@ -2,6 +2,7 @@ using System.Numerics;
 using RayTracer.Geometry;
 using RayTracer.Lights;
 using RayTracer.Rendering;
+using RayTracer.Rendering.Guiding;
 
 namespace RayTracer.Tests.Validation;
 
@@ -20,13 +21,14 @@ internal static class RenderHarness
         int width, int height, int spp, int depth,
         bool reference = true, int seed = 0, float? clamp = null, PixelFilter? filter = null,
         LightSamplingStrategy lightSampling = LightSamplingStrategy.All,
-        PathDepths? depths = null)
+        PathDepths? depths = null, GuidingSettings? guiding = null)
     {
         var renderer = new Renderer(
             world, camera, lights, sky, spp, depth,
             maxSampleRadiance: clamp,
             lightSamplingStrategy: lightSampling,
             referenceMode: reference, seed: seed, pixelFilter: filter, depths: depths);
+        if (guiding != null) renderer.EnableGuiding(guiding);
         var result = renderer.Render(width, height, new RenderCaptureOptions { CaptureBeautyHalves = true });
         var beauty = result.Buffers!.Beauty;
         var img = new Vector3[height, width];

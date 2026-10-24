@@ -200,8 +200,13 @@ def validate(scene: Path, args) -> list[dict]:
         #   extra_modes: { transparent: ["--transparent-shadows", "on"] }
         modes = [("reference", True, []), ("default", False, [])]
         modes += [(name, False, list(flags)) for name, flags in (cfg.get("extra_modes") or {}).items()]
+        # --mode NAME="FLAGS": the reference estimator plus FLAGS, on every scene
+        # (e.g. --mode guided="--guiding on" checks that guiding stays unbiased).
+        for spec in args.mode:
+            name, _, flags = spec.partition("=")
+            modes.append((name, True, flags.split()))
         for mode, reference, flags in modes:
-            if mode != "reference" and args.skip_default:
+            if not reference and args.skip_default:
                 continue
             png = out / f"3dray-{mode}.png"
             t = render_3dray(scene, cfg, run, png, reference, extra=flags)
@@ -301,7 +306,9 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("scenes", nargs="*", help="scene stems (default: all)")
     p.add_argument("--force-reference", action="store_true", help="re-render the Mitsuba references")
-    p.add_argument("--skip-default", action="store_true", help="skip the default-mode 3D-Ray render")
+    p.add_argument("--skip-default", action="store_true", help="skip the default-mode and extra_modes renders")
+    p.add_argument("--mode", action="append", default=[], metavar='NAME="FLAGS"',
+                   help="extra reference-mode render with FLAGS on every scene")
     p.add_argument("--mitsuba-for-analytic", action="store_true",
                    help="also render Mitsuba for scenes with an analytic answer")
     p.add_argument("--variant", default="llvm_ad_rgb", help="Mitsuba variant (default llvm_ad_rgb)")

@@ -83,6 +83,20 @@ public sealed class OpenPbr : IMaterial
 
     public bool IsDeltaScatter => _allDelta;
 
+    /// <summary>
+    /// Guided where the surface is mostly diffuse, or its metal is rough; a
+    /// polished metal, glass or a translucent sheet keep their BSDF.
+    /// </summary>
+    public bool Guidable(in HitRecord rec)
+    {
+        if (_allDelta || HasTransmission(in rec)) return false;
+        var p = Parameters;
+        float metal = Clamp01(p.BaseMetalness.Value(in rec));
+        if (metal < 0.5f) return true;
+        float r = Clamp01(p.SpecularRoughness.Value(in rec));
+        return r * r >= IMaterial.GuidingMinAlpha;
+    }
+
     // ── Per-hit closure ──────────────────────────────────────────────────────
 
     private struct Hit

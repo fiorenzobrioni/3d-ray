@@ -30,6 +30,9 @@ public sealed class Metal : IMaterial
     public ITexture? EdgeColor { get; }
     public ConductorIor? Ior { get; }
     public float Fuzz { get; }
+
+    /// <inheritdoc/>
+    public bool Guidable(in HitRecord rec) => Fuzz * Fuzz >= IMaterial.GuidingMinAlpha;
     public bool MultipleScattering { get; }
 
     private readonly float _alpha;

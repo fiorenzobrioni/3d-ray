@@ -166,6 +166,11 @@ public static class Sampler
     /// </summary>
     public static (float u, float v) Sample2D()
     {
+        if (t_provided)
+        {
+            t_provided = false;
+            return (t_providedU, t_providedV);
+        }
         var c = LocalCtx;
         if (c.Active)
         {
@@ -184,4 +189,27 @@ public static class Sampler
         float v = Sample1D();
         return (u, v);
     }
+
+    // A pair handed to the next Sample2D (see Provide2D).
+    [ThreadStatic] private static bool t_provided;
+    [ThreadStatic] private static float t_providedU, t_providedV;
+
+    /// <summary>
+    /// Makes the next <see cref="Sample2D"/> on this thread return
+    /// (<paramref name="u"/>, <paramref name="v"/>) instead of drawing. A
+    /// caller that splits one stratified pair between strategies (path
+    /// guiding: the first coordinate picks the BSDF or the guide, the pair
+    /// rescaled then places the direction) hands the BSDF its share this way,
+    /// so the samples each strategy gets stay stratified. Cleared by
+    /// <see cref="ClearProvided"/> if the callee drew no pair.
+    /// </summary>
+    public static void Provide2D(float u, float v)
+    {
+        t_providedU = u;
+        t_providedV = v;
+        t_provided = true;
+    }
+
+    /// <summary>Drops a pair given to <see cref="Provide2D"/> and not drawn.</summary>
+    public static void ClearProvided() => t_provided = false;
 }

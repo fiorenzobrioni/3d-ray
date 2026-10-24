@@ -69,6 +69,19 @@ public interface IMaterial
     bool HasTransmission(in HitRecord rec) => false;
 
     /// <summary>
+    /// Whether path guiding may draw this surface's bounces (PIANO-REVIEW.md
+    /// Phase 7b): a broad reflection with no non-delta transmission. A sharp
+    /// lobe is left to its BSDF: a guided direction misses it, and halving
+    /// the BSDF's density would hand the MIS weight of its highlights to the
+    /// light samples, the noisy strategy there (Veach's plates: 15× the
+    /// error).
+    /// </summary>
+    bool Guidable(in HitRecord rec) => !IsDeltaScatter && !HasTransmission(in rec);
+
+    /// <summary>GGX α (roughness²) below which a lobe counts as too sharp to guide.</summary>
+    const float GuidingMinAlpha = 0.09f;
+
+    /// <summary>
     /// Approximate surface reflectance at the hit point, consumed ONLY by the
     /// AOV/denoiser albedo guide buffer — never by light transport. The value
     /// should be the material's dominant colour (base colour / albedo texture)

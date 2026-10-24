@@ -3,6 +3,7 @@ using RayTracer.Core;
 using RayTracer.Core.Sampling;
 using RayTracer.Geometry;
 using RayTracer.Materials;
+using RayTracer.Rendering.Guiding;
 using RayTracer.Volumetrics;
 
 namespace RayTracer.Rendering;
@@ -61,6 +62,13 @@ public partial class Renderer
         public Vector3 First, Rest;
         public bool PastFirstBounce;
 
+        // Bounces whose incident radiance a guide-training pass records.
+        public int GuideCount;
+
+        // A depth limit stopped the path at its last vertex: the bounce
+        // sampled there is still traced, for the emission it meets only.
+        public bool LastSegment;
+
         public void Add(Vector3 contribution)
         {
             contribution = SanitizeRadiance(contribution);
@@ -87,10 +95,19 @@ public partial class Renderer
             Iors = new IorStack(),
         };
 
-        while (path.Bounces < _maxDepth)
+        while (true)
         {
             // Each vertex has its own block of sampler dimensions.
             Sampler.BeginVertex();
+
+            // Past the last vertex the depth limits allow, the bounce sampled
+            // there is still followed to the next hit and the emission or sky
+            // it meets is added, MIS-weighted, but nothing more: that vertex's
+            // light samples were weighted against this bounce, and without it
+            // their share of the light would be lost (PBRT and Mitsuba trace
+            // it too). How much is lost depends on the BSDF's density, so a
+            // truncated path would not even converge to one image.
+            bool last = path.LastSegment || path.Bounces >= _maxDepth;
 
             float betaMax = MathF.Max(path.Beta.X, MathF.Max(path.Beta.Y, path.Beta.Z));
             if (float.IsNaN(betaMax) || float.IsInfinity(betaMax))
@@ -130,6 +147,9 @@ public partial class Renderer
                 path.Beta *= mediumBeta;
                 if (scattered)
                 {
+                    // A scatter would be one more vertex: the light the
+                    // last segment was after does not get through.
+                    if (last) break;
                     path.Beta *= BeerLambert(path.SigmaA, tMed);
                     if (!MediumVertex(ref path, medium, tMed)) break;
                     continue;
@@ -148,9 +168,17 @@ public partial class Renderer
 
             path.Beta *= BeerLambert(path.SigmaA, rec.T);
 
+            if (last)
+            {
+                AddEmission(ref path, ref rec);
+                break;
+            }
+
             // ── Surface vertex ──────────────────────────────────────────────
             if (!SurfaceVertex(ref path, ref rec)) break;
         }
+
+        if (path.GuideCount > 0) FlushGuideVertices(ref path);
 
         return float.IsPositiveInfinity(_indirectMaxSampleRadiance)
             ? path.First + path.Rest
@@ -210,18 +238,49 @@ public partial class Renderer
             medProbe.CommitAs(Vector3.One, Vector3.Zero);
         }
 
+        int guideLeaf = -1;
+        DTree? guideTree = null;
+        float guideA = 1f;
+        Vector3 guideLeafSize = default;
+        if (GuidingOn)
+        {
+            guideLeaf = _guide!.LeafAt(p, out guideLeafSize);
+            guideTree = _guide.SamplingTree(guideLeaf);
+            guideA = _guide.BsdfFraction(guideLeaf);
+        }
+
         IHittable? boundEntity = path.Mediums.Top != null ? path.Mediums.TopEntity : null;
+        t_guideMis = guideTree;
+        t_guideBsdfFraction = guideA;
         path.Add(path.Beta * ComputeDirectLightingMedium(p, ray.Direction, medium, boundEntity, ray.Time));
+        t_guideMis = null;
 
         path.PastFirstBounce = true;
-        if (++path.Volume > _depths.Volume) return false;
-        path.Bounces++;
-        if (!SurviveRoulette(ref path)) return false;
+        if (++path.Volume > _depths.Volume) path.LastSegment = true;
+        else path.Bounces++;
+        // The roulette before the scatter: a phase function sampled alone
+        // leaves β as it is (its weight is 1).
+        if (!path.LastSegment && path.Bounces < _maxDepth && !SurviveRoulette(ref path)) return false;
 
-        var (wi, phasePdf) = medium.Phase.Sample(ray.Direction);
-        float phaseVal = medium.Phase.Evaluate(ray.Direction, wi);
-        if (!(phasePdf > 1e-20f)) return false;
-        path.Beta *= phaseVal / phasePdf;
+        Vector3 wi;
+        float phasePdf, phaseOnly = 0f, guidePdf = 0f, phaseWeight = 1f;
+        if (guideTree != null)
+        {
+            if (!SamplePhaseGuided(medium.Phase, ray.Direction, guideTree, guideA, out wi, out phaseWeight, out phasePdf,
+                                   out phaseOnly, out guidePdf))
+                return false;
+            path.Beta *= phaseWeight;
+        }
+        else
+        {
+            (wi, phasePdf) = medium.Phase.Sample(ray.Direction);
+            float phaseVal = medium.Phase.Evaluate(ray.Direction, wi);
+            if (!(phasePdf > 1e-20f)) return false;
+            path.Beta *= phaseVal / phasePdf;
+        }
+        if (guideLeaf >= 0 && t_guideRecords != null)
+            PushGuideVertex(ref path, p, guideLeafSize, wi, phasePdf, guideTree != null, phaseOnly, guidePdf,
+                            new Vector3(phaseWeight * phasePdf));
 
         path.Ray = new Ray(p, wi, ray.Time);
         path.PrevPdf = phasePdf;
@@ -259,14 +318,7 @@ public partial class Renderer
             aovProbe.TentAlbedo = material != null ? Clamp01(material.AovAlbedo(in rec)) : Vector3.One;
         }
 
-        // Emission, MIS-weighted; dropped when another estimator already
-        // carries it (photon caustics, transparent shadows).
-        if (material != null && !SuppressChainEmission(path.CausticState))
-        {
-            Vector3 raw = material.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
-            if (raw.X > 0f || raw.Y > 0f || raw.Z > 0f)
-                path.Add(path.Beta * WeightEmission(raw, material, ray, rec.T, path.PrevPdf, path.PrevIsDelta));
-        }
+        AddEmission(ref path, ref rec);
 
         Vector3 viewDir = Vector3.Normalize(-ray.Direction);
 
@@ -275,13 +327,30 @@ public partial class Renderer
         if (material != null && material.TryGetDielectricIor(in rec, out float matIor) && matIor > 0f)
             rec.RelativeEta = rec.FrontFace ? (path.Iors.Top / matIor) : (matIor / path.Iors.Enclosing);
 
-        // Next-event estimation, with the medium the surface sits in.
+        // Path guiding: the region of the guide this vertex is in, and the
+        // distribution learned there (none yet in a first training pass).
+        int guideLeaf = -1;
+        DTree? guideTree = null;
+        float guideA = 1f;
+        Vector3 guideLeafSize = default;
+        if (GuidingOn && material != null && GuideEligible(material, in rec))
+        {
+            guideLeaf = _guide!.LeafAt(rec.Point, out guideLeafSize);
+            guideTree = _guide.SamplingTree(guideLeaf);
+            guideA = _guide.BsdfFraction(guideLeaf);
+        }
+
+        // Next-event estimation, with the medium the surface sits in. Its MIS
+        // weights use the density the bounce below is drawn with.
         bool needsLight = material?.NeedsDirectLighting ?? true;
         if (needsLight)
         {
             IMedium? shadowMedium = path.Mediums.Top ?? _globalMedium;
             IHittable? shadowEntity = path.Mediums.Top != null ? path.Mediums.TopEntity : null;
+            t_guideMis = guideTree;
+            t_guideBsdfFraction = guideA;
             Vector3 direct = DirectLightingAt(in rec, viewDir, material, shadowMedium, shadowEntity);
+            t_guideMis = null;
             if (_causticsActive && material != null && !material.IsDeltaScatter)
                 direct += GatherCaustics(in rec, viewDir, material);
             path.Add(path.Beta * direct);
@@ -290,20 +359,31 @@ public partial class Renderer
         if (material == null) return false;
 
         // ── Sampled bounce ──────────────────────────────────────────────────
-        BsdfSample? sampled = material.Sample(viewDir, rec);
-        if (!sampled.HasValue) return false;
-        BsdfSample s = sampled.Value;
-
+        BsdfSample s;
         Vector3 attenuation;
-        if (s.IsDelta)
-            attenuation = s.F;          // delta lobe: F carries the whole weight
+        float pdf, bsdfPdf = 0f, guidePdf = 0f;
+        if (guideTree != null)
+        {
+            if (!SampleGuided(material, in rec, viewDir, guideTree, guideA, out s, out attenuation, out pdf,
+                              out bsdfPdf, out guidePdf))
+                return false;
+        }
         else
         {
-            float absCos = MathF.Abs(Vector3.Dot(rec.Normal, s.Wo));
-            if (absCos <= 0f || s.Pdf <= 0f) return false;
-            // The shadow-terminator factor belongs to the integrand: the
-            // sampled bounce carries it as NEE does (§3.11).
-            attenuation = s.F * (absCos * LightSideTerminator(in rec, s.Wo) / s.Pdf);
+            BsdfSample? sampled = material.Sample(viewDir, rec);
+            if (!sampled.HasValue) return false;
+            s = sampled.Value;
+            pdf = s.IsDelta ? 0f : s.Pdf;
+            if (s.IsDelta)
+                attenuation = s.F;          // delta lobe: F carries the whole weight
+            else
+            {
+                float absCos = MathF.Abs(Vector3.Dot(rec.Normal, s.Wo));
+                if (absCos <= 0f || s.Pdf <= 0f) return false;
+                // The shadow-terminator factor belongs to the integrand: the
+                // sampled bounce carries it as NEE does (§3.11).
+                attenuation = s.F * (absCos * LightSideTerminator(in rec, s.Wo) / s.Pdf);
+            }
         }
 
         // AOV: delta lobes accumulate their tint, the first non-delta lobe
@@ -320,9 +400,13 @@ public partial class Renderer
         bool cutOut = s.Lobe == BsdfLobe.Transparent;
         path.Beta *= attenuation;
         if (!cutOut) path.PastFirstBounce = true;
-        if (!CountBounce(ref path, s.Lobe)) return false;
+        // A depth limit reached: this bounce is the last segment (see TracePath).
+        if (!CountBounce(ref path, s.Lobe)) path.LastSegment = true;
+        bool last = path.LastSegment || path.Bounces >= _maxDepth;
         if (s.Lobe == BsdfLobe.Transmission) path.EtaScale *= s.Eta * s.Eta;
-        if (!cutOut && !SurviveRoulette(ref path)) return false;
+        if (guideLeaf >= 0 && t_guideRecords != null && !s.IsDelta)
+            PushGuideVertex(ref path, rec.Point, guideLeafSize, s.Wo, pdf, guideTree != null, bsdfPdf, guidePdf, attenuation * pdf);
+        if (!cutOut && !last && !SurviveRoulette(ref path)) return false;
 
         // Origin on the side of the surface the bounce leaves from.
         Vector3 offsetDir = Vector3.Dot(s.Wo, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
@@ -330,7 +414,7 @@ public partial class Renderer
 
         int nextCaustic = NextCausticState(path.CausticState, s.IsDelta, ShadowPassable(material, in rec, s.Wo));
         path.Ray = next;
-        path.PrevPdf = s.IsDelta ? 0f : s.Pdf;
+        path.PrevPdf = pdf;
         path.PrevIsDelta = s.IsDelta;
         // A refraction switches the absorption tracked along the next segment.
         path.SigmaA = s.NextSegmentAbsorption ?? path.SigmaA;
@@ -363,7 +447,9 @@ public partial class Renderer
 
         // Entering a scattering medium bound to an entity: the random walk
         // takes over until the light leaves the entity again.
-        if (_sssMode == SssMode.Auto
+        // (Not on the last segment: a walk is more vertices; the medium's own
+        // free flight then decides whether the segment's light gets through.)
+        if (_sssMode == SssMode.Auto && !last
             && path.Mediums.Top is HomogeneousMedium interior
             && IsScatteringMedium(interior)
             && rec.EntityRoot is { } entityRoot)
@@ -384,9 +470,24 @@ public partial class Renderer
     }
 
     /// <summary>
+    /// The emission of the surface hit, MIS-weighted against the light
+    /// samples of the previous vertex; dropped when another estimator
+    /// already carries it (photon caustics, transparent shadows).
+    /// </summary>
+    private void AddEmission(ref PathState path, ref HitRecord rec)
+    {
+        IMaterial? material = rec.Material;
+        if (material == null || SuppressChainEmission(path.CausticState)) return;
+        Vector3 raw = material.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
+        if (raw.X > 0f || raw.Y > 0f || raw.Z > 0f)
+            path.Add(path.Beta * WeightEmission(raw, material, path.Ray, rec.T, path.PrevPdf, path.PrevIsDelta));
+    }
+
+    /// <summary>
     /// Counts a bounce of kind <paramref name="lobe"/>; false when its kind
     /// (or, for a cut-out, the cut-out limit) is used up. The total is
-    /// checked by the loop.
+    /// checked by the loop. Either way the bounce is still followed for the
+    /// emission it meets (<see cref="PathState.LastSegment"/>).
     /// </summary>
     private bool CountBounce(ref PathState path, BsdfLobe lobe)
     {
@@ -409,16 +510,26 @@ public partial class Renderer
     }
 
     /// <summary>
-    /// Russian roulette from the second bounce on (Veach 1997; PBRT-v4): the
-    /// path survives with probability q = max channel of β, with the η²
-    /// radiance factor of the refractions undone (light inside glass is not
-    /// dimmer for being there), and β is divided by q. Unbiased; no floor,
-    /// no cap, no reading of the scene: a path keeps going exactly as long as
-    /// what it can still carry is worth the cost.
+    /// Bounces taken before the roulette starts (Mitsuba's default). Measured
+    /// (PIANO-REVIEW.md Phase 7b): starting at the second bounce (PBRT) halved
+    /// the efficiency of interiors lit by bounced light, Cornell box 254 →
+    /// 395 and a sunlit room 23 → 29 in 1 / (error × time) when starting at
+    /// the fifth; a path that has bounced a few times in a white room still
+    /// carries most of the pixel's light, and killing it early buys little
+    /// time for a lot of variance.
+    /// </summary>
+    private const int RouletteStartBounce = 5;
+
+    /// <summary>
+    /// Russian roulette from the fifth bounce on (Veach 1997; PBRT-v4,
+    /// Mitsuba 3): the path survives with probability q = max channel of β,
+    /// with the η² radiance factor of the refractions undone (light inside
+    /// glass is not dimmer for being there), and β is divided by q. Unbiased;
+    /// no floor, no cap, no reading of the scene.
     /// </summary>
     private static bool SurviveRoulette(ref PathState path)
     {
-        if (path.Bounces < 2) return true;
+        if (path.Bounces < RouletteStartBounce) return true;
         Vector3 rr = path.Beta * path.EtaScale;
         float q = MathF.Max(rr.X, MathF.Max(rr.Y, rr.Z));
         if (q >= 1f) return true;

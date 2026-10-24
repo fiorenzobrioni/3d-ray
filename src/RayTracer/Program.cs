@@ -6,6 +6,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using RayTracer.Core.Sampling;
 using RayTracer.Denoising;
 using RayTracer.Rendering;
+using RayTracer.Rendering.Guiding;
 using RayTracer.Scene;
 using RayTracer.Volumetrics;
 
@@ -293,6 +294,27 @@ class Program
                 causticPhotons = cpArg;
         }
 
+        // ── Path guiding ─────────────────────────────────────────────────────
+        // `--guiding on|off`: learn where the light comes from in training
+        // passes, then sample bounces from that as well as from the BSDF
+        // (unbiased, so allowed in --reference). `--guiding-training N` sets the
+        // training budget in samples per pixel, out of -s (default: half).
+        bool guiding = false;
+        string? guidingArg = GetArg(args, "--guiding", null);
+        if (guidingArg != null)
+        {
+            switch (guidingArg.ToLowerInvariant())
+            {
+                case "on":  guiding = true;  break;
+                case "off": guiding = false; break;
+                default:
+                    Console.WriteLine($"Error: Unknown --guiding '{guidingArg}'. Valid: on, off.");
+                    return;
+            }
+        }
+        int? guidingTraining = int.TryParse(GetArg(args, "--guiding-training", null), out var gtArg) && gtArg > 0
+            ? gtArg : null;
+
         // ── Denoiser ─────────────────────────────────────────────────────────
         // `--denoiser none|nlm|nfor` runs the feature-guided denoiser on the
         // linear HDR beauty before tone mapping. Quality presets supply a
@@ -562,6 +584,8 @@ class Program
             Console.WriteLine("  Reference:   on (no clamps, no transparent shadows, uniform depths, no denoiser/caustics)");
         if (seed != 0)
             Console.WriteLine($"  Seed:        {seed}");
+        if (guiding)
+            Console.WriteLine($"  Guiding:     on (training {guidingTraining ?? GuidingSettings.DefaultTraining(samples)} of the {samples} spp)");
         if (transparentShadows)
             Console.WriteLine("  Shadows:     transparent through glass (approximation, refracted caustics off)");
         if (clampOverride.HasValue)
@@ -648,6 +672,11 @@ class Program
                 displayTransform: new DisplayTransform(view, look,
                     whiteBalanceKelvin is float wbk ? WhiteBalance.Matrix(wbk) : null),
                 depths: depths);
+            if (guiding)
+                renderer.EnableGuiding(new GuidingSettings
+                {
+                    TrainingSpp = guidingTraining ?? GuidingSettings.DefaultTraining(samples),
+                });
             Console.WriteLine();
 
             var captureOptions = denoiserKind != DenoiserKind.None || aovs.Count > 0
@@ -759,6 +788,9 @@ class Program
         Console.WriteLine("      --light-sampling <auto|all|power|uniform|bvh>  NEE light strategy (default: auto = all up to 16 lights, bvh above)");
         Console.WriteLine("      --texture-filtering <auto|on|off>     Analytic anti-aliasing via ray differentials (default: auto)");
         Console.WriteLine("      --caustics <on|off>      Photon-mapped caustics (default: off, on for final/ultra)");
+        Console.WriteLine("      --guiding <on|off>       Path guiding: learn the incident light in training passes,");
+        Console.WriteLine("                                then sample bounces from it too (unbiased; default: off)");
+        Console.WriteLine("      --guiding-training <n>   Training spp out of -s, passes of 1, 2, 4, ... that join the image (default: -s / 2)");
         Console.WriteLine("      --caustic-photons <n>    Caustic photon budget when --caustics on (default: 2-4M by preset)");
         Console.WriteLine("      --denoiser <none|nlm|nfor>  Feature-guided denoiser on the linear HDR beauty");
         Console.WriteLine("                                (default: none; draft/standard/pre-final presets use nfor)");
