@@ -5,52 +5,54 @@ vetro, una superficie d'acqua o uno specchio concentrano su una superficie. Sono
 la luce che gli shadow ray dritti non sanno produrre, perché richiede di seguire
 il cammino corretto secondo Snell (rifrazione) o la legge di riflessione.
 
-Il motore le risolve con il **photon mapping per caustiche**: un pre-pass emette
-fotoni dalle luci, li traccia attraverso le superfici speculari (vetro, acqua,
-metallo, specchio) e li deposita dove cadono sulle superfici diffuse; durante il
-rendering la camera li raccoglie con una stima di densità k-nearest. È **generale**:
-funziona con qualsiasi geometria speculare e con **tutte** le luci, sole/direzionali
-incluse.
+Il path tracing (l'integratore di default) le rende già, ma solo quando un
+rimbalzo colpisce per caso la luce attraverso il vetro: escono granulose,
+tanto più quanto la luce è piccola. Le rendono pulite gli **integratori
+bidirezionali**, che tracciano la luce anche dalle sorgenti: `--integrator bdpt`
+(path tracing bidirezionale) per le caustiche viste direttamente o in uno
+specchio, `--integrator vcm` (vertex connection and merging) anche per quelle
+viste **attraverso** un vetro o l'acqua, come il fondo di una piscina. Sono
+**generali**: qualsiasi geometria speculare, liscia o ruvida, e **tutte** le
+luci, sole e cielo HDRI compresi.
 
 Questo catalogo è un insieme di **oggetti pronti** (entità + materiale) da
 **copiare e incollare** nelle tue scene. Per il flusso d'uso generale vedi
 [`README.md`](README.md); per la teoria
 [`../../docs/technical/path-tracing-and-lighting.md`](../../docs/technical/path-tracing-and-lighting.md).
 
-> **Regola d'oro: le caustiche richiedono UN solo opt-in — il flag CLI
-> `--caustics on`** (di default sui preset `final` / `ultra`). Con quello attivo il
-> motore emette i fotoni e focalizza la luce attraverso **ogni** superficie
-> speculare/trasmissiva della scena, depositandoli sulle superfici diffuse.
-> **Non servono flag YAML**: niente `caustic_caster`, niente `caustic_receiver`,
-> nessuna marcatura per-oggetto. Basta avere in scena una geometria speculare (a
-> focalizzare) e una superficie diffusa (a ricevere).
->
-> Le luci che guidano le caustiche sono **tutte** le finite — `area`/geometriche,
-> `sphere`, `point`/`spot` — **e** le **`directional`/sole**. L'ambiente/HDRI non
-> contribuisce alle caustiche focalizzate in questa versione.
+> **Regola d'oro: nessun flag YAML.** Niente `caustic_caster`, niente
+> `caustic_receiver`, nessuna marcatura per-oggetto: basta avere in scena una
+> geometria speculare (a focalizzare) e una superficie diffusa (a ricevere), e
+> scegliere al render l'integratore (`--integrator bdpt` o `vcm`).
 
 ---
 
 ## Come si attivano
 
-**1 — Al render (CLI).**
+**1 - Al render (CLI).**
 
 ```bash
-# Attivazione esplicita + budget fotoni più alto per caustiche più pulite
+# Caustiche viste direttamente o in uno specchio: path tracing bidirezionale
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
   -i scenes/mia-scena.yaml -o renders/out.png \
-  -w 1280 -H 800 -s 512 -d 8 \
-  --caustics on --caustic-photons 4000000
+  -w 1280 -H 800 -s 512 -d 8 --integrator bdpt
+
+# Caustiche viste attraverso vetro o acqua: VCM
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+  -i scenes/mia-scena.yaml -o renders/out.png \
+  -w 1280 -H 800 -s 512 -d 8 --integrator vcm
 ```
 
-- `--caustics on|off` — default **off**; **on di default** sui preset quality
-  `final` / `final-tiny` / `final-small` / `ultra`. Un `--caustics` esplicito ha
-  sempre la precedenza sul preset.
-- `--caustic-photons <n>` — numero di fotoni del pre-pass (default **2M**, **3–4M**
-  su `final`/`ultra`). Più fotoni = caustiche **più pulite e più nitide**, pre-pass
-  più lento e più memoria. Nessun effetto con `--caustics off`.
+- `--integrator path|bdpt|vcm`: default `path` (anche in tutti i preset).
+  `bdpt` è privo di bias; `vcm` è consistente (il bias del merging si annulla
+  al crescere di `-s`).
+- `-s`: le iterazioni. Più iterazioni = caustiche più pulite (e, con `vcm`,
+  più nitide).
+- `--vcm-radius <f>`: il raggio di merging iniziale, frazione del raggio della
+  scena (default 0.003). Più grande = caustiche lisce prima, più sfocate con
+  pochi campioni.
 
-**2 — Niente flag YAML.** Con `--caustics on` non devi marcare niente: la sfera di
+**2 - Niente flag YAML.** Non devi marcare niente: la sfera di
 vetro qui sotto focalizza la luce sul pavimento senza alcuna chiave aggiuntiva.
 
 ```yaml
@@ -82,12 +84,9 @@ world:
   le `directional`/sole. Una luce piccola e intensa dà una caustica **netta**; una
   grande la diffonde in un **alone morbido**.
 
-> **Limiti noti (onesti).** Le caustiche da **vetro frosted/rough** (rifrazione
-> glossy) e da **environment/HDRI** in questa versione ricadono sul path tracer
-> ordinario (più rumorose, non focalizzate dal photon map); le caustiche da
-> **sole/`directional`** sono invece pienamente supportate. L'assorbimento interno
-> (tinta del vetro lungo lo spessore) non è applicato ai fotoni: vetri molto
-> colorati possono avere una caustica leggermente meno satura del previsto.
+> **Limiti noti (onesti).** Le caustiche viste attraverso la nebbia (un fascio
+> focalizzato dentro un volume) vengono solo dalle connessioni, senza merging:
+> restano più rumorose.
 
 ---
 
@@ -109,8 +108,8 @@ materials:
 ```
 
 La lente di riferimento: vetro liscio `ior 1.5`. Concentra la luce in uno spot
-luminoso sul pavimento sotto/dietro la sfera. Alza `--caustic-photons` per renderlo
-più definito.
+luminoso sul pavimento sotto/dietro la sfera. Con `--integrator bdpt` lo spot
+converge in fretta; alza `-s` per renderlo più pulito.
 
 ### A2. Cristallo ad alto IOR — fuoco stretto e intenso
 
@@ -203,8 +202,7 @@ lights:
     shadow_samples: 6
 ```
 
-Piccola e intensa = spot netto. Per una caustica solare usa una `directional` (è
-supportata dal photon map):
+Piccola e intensa = spot netto. Per una caustica solare usa una `directional`:
 
 ```yaml
 lights:
@@ -263,7 +261,7 @@ Salvala come `scenes/mia-caustica.yaml` e renderizza:
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
   -i scenes/mia-caustica.yaml -o renders/caustica.png \
-  -w 1280 -H 800 -s 512 -d 8 --caustics on --caustic-photons 4000000
+  -w 1280 -H 800 -s 512 -d 8 --integrator bdpt
 ```
 
 ---
@@ -271,23 +269,20 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
 ## Consigli CLI
 
 ```bash
-# Anteprima veloce (caustiche on, budget fotoni ridotto)
+# Anteprima veloce
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-  -i scenes/mia-caustica.yaml -q standard-small --caustics on --caustic-photons 1000000
+  -i scenes/mia-caustica.yaml -q standard-small --integrator bdpt
 
-# Final (i preset final/ultra abilitano già --caustics on con budget alto)
+# Final
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-  -i scenes/mia-caustica.yaml -o renders/final.png -q final
+  -i scenes/mia-caustica.yaml -o renders/final.png -q final --integrator bdpt
 
-# Caustiche molto pulite + clamp firefly più severo
+# Caustica vista attraverso l'acqua o un vetro (piscina, oggetto in un bicchiere)
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-  -i scenes/mia-caustica.yaml -q final --caustic-photons 8000000 -C 25
+  -i scenes/mia-caustica.yaml -o renders/final.png -q final --integrator vcm
 ```
 
-- `--caustic-photons` più alto = caustiche più pulite/nitide (più memoria e
-  pre-pass più lungo).
-- `-C` (firefly clamp) più basso (es. 25) smorza eventuali picchi residui da
-  vetri/dielettrici.
-- Caustiche **off** di default fuori dai preset `final`/`ultra`: usa
-  `--caustics on` per le anteprime o `--caustics off` per disattivarle anche in
-  `final`.
+- `-s` più alto = caustiche più pulite; con `vcm` anche più nitide.
+- `-C` (firefly clamp) basso (es. 25) smorza eventuali picchi residui da
+  vetri/dielettrici, a costo di un po' di bias.
+- Tutti i preset rendono in path tracing: l'integratore si sceglie a mano.

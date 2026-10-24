@@ -86,7 +86,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 ## 🌟 Caustiche ✅
 
-**Completate** - caustiche via **photon mapping** (un solo opt-in: `--caustics on`, zero flag YAML). Pre-pass di emissione fotoni da tutte le luci (area/geometriche, sphere, point/spot **e** directional/sole), trasporto attraverso le interfacce speculari e density estimate k-nearest al gather. Generale su qualsiasi geometria speculare. Dettagli, motivazioni e limiti residui in `devlog/devlog-2026-06-28.md` §Ciclo Caustiche - Photon Mapping.
+**Completate** - con gli integratori bidirezionali (review Fase 8b, 2026-10-24): `--integrator bdpt` (caustiche viste direttamente o in uno specchio, privo di bias) e `--integrator vcm` (anche viste attraverso vetro o acqua, consistente), su superfici e mezzi, zero flag YAML. La photon map (`--caustics on`, 2026-06) è stata tolta: stima di densità distorta e non consistente, solo interfacce lisce e luci analitiche. Dettagli in `PIANO-REVIEW.md` §4 Fase 8b e `docs/technical/bidirectional.md`. Resta fuori: il merging nei mezzi (caustiche volumetriche, fasci di fotoni).
 
 ---
 
@@ -107,7 +107,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 - [ ] Review completa dei tutorial (`tutorial/`): correttezza vs codice, omissioni, grammatica, esempi, indici.
 - [ ] Spezzare `SceneLoader.cs`.
 - [ ] **Texture, rimandati dalla Fase 4 della review**: clamp delle ottave sul footprint per `marble` e `wood` (oggi campionate in un punto); compressioni EXR PIZ, DWAA/DWAB, B44, PXR24 e file a tile (oggi errore esplicito); UDIM e cache di texture a tile per scene grandi; l'autobump di una mesh dentro un transform scalato usa l'altezza del displacement in unità oggetto mentre il bump è in unità di scena (e la texture 3D del displacement è letta nello spazio oggetto non scalato); sui gradini piatti del lathe V va dal raggio interno all'esterno qualunque sia il verso del profilo; `UvTransformedHittable` ruota T e B come +U e +V (corretto ora che tutte le primitive li allineano, da ricontrollare se cambia una convenzione).
-- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅, Fase 1 (fondamenta matematiche e sampler) ✅, Fase 3 (camera, film e colore) ✅, Fase 4 (texture e dati) ✅, Fase 5 (materiali e BSDF) ✅, Fase 6 (luci e cielo) ✅, Fase 7 (integratore) ✅, Fase 7b (path guiding) ✅, Fase 8 (volumi null-scattering) ✅, poi Fase 8b (BDPT, poi VCM al posto della photon map e di MNEE/SMS).
+- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅, Fase 1 (fondamenta matematiche e sampler) ✅, Fase 3 (camera, film e colore) ✅, Fase 4 (texture e dati) ✅, Fase 5 (materiali e BSDF) ✅, Fase 6 (luci e cielo) ✅, Fase 7 (integratore) ✅, Fase 7b (path guiding) ✅, Fase 8 (volumi null-scattering) ✅, Fase 8b (BDPT e VCM al posto della photon map) ✅.
 - [ ] **Luci e cielo, rimandati dalla Fase 6 della review**: scattering multiplo per il cielo di Nishita (Hillaire 2020, tabella di multi-scattering): oggi il suo cielo è circa metà di uno misurato rispetto al sole, e per questo la sua `turbidity` mappa su poca polvere invece che sulla torbidità di Linke; un falloff fisico del cono degli spot (oggi smoothstep artistica, la distribuzione fisica la dà l'IES); dati TILT dei file IES; modello Prague 2021 se servisse un cielo diurno sopra Hosek-Wilkie (crepuscolo, cieli torbidi).
 - [ ] **Scene da rivedere alla fine della review** (decisione del proprietario; nessun vincolo di compatibilità, `PIANO-REVIEW.md` §2.0: le scene si correggono, si riscrivono o si spostano in `scenes/obsolete/`): le otto scene con un cielo fisico ora hanno il sole alla luminosità vera rispetto al cielo (`3d-ray-logo`, `extrusion`, `ground-alpine-lake`, `ground-feature-overview`, `sky-aerial`, `sky-nishita`, `sky-portal`, `sky-preetham`; prima/dopo in `scenes/review/images/sky-before-after.jpg`), e quelle con `hosek_wilkie` un modello diverso da Preetham; valutare il passaggio a unità fotometriche con `ev100` dove la scena descrive una situazione reale.
 
@@ -191,22 +191,14 @@ Ottimizzazioni valutate nel ciclo Review e **rimandate** (da riprendere):
 - **`HitRecord` più snello** - spostare `FilterFootprint`/`MediumInterface`/autobump
   fuori dallo struct core e calcolarli pigramente dopo l'hit finale.
 
-Ottimizzazioni caustiche valutate nel ciclo fix mega-fotoni e **rimandate**:
-- **Projection map per l'emissione fotoni** (Jensen §5.1) - oggi l'emissione è
-  coseno-pesata sull'intero emisfero: in glass-caustics deposita solo il 2% del
-  budget (60k/3M), nel pendolo lo 0.08% (2.3k/3M) perché i caster speculari sono
-  bersagli piccoli. Campionare le direzioni verso le bounding box/sphere dei
-  caster speculari (riscalando il flusso per la frazione di angolo solido)
-  moltiplicherebbe di 10-100× i fotoni utili a parità di budget/tempo di build.
-- **Filtro normale/piano tangente al gather** - memorizzare la normale di
-  deposito nel `Photon` e scartare al gather i fotoni con normale discordante o
-  troppo fuori dal piano tangente del receiver: riduce i (lievi, ora che le
-  potenze sono uniformi) leak tra superfici vicine (es. oggetto → pavimento).
-  Costo: +12 byte/fotone.
-- **Gather solo al primo vertice diffuso** - oggi `GatherCaustics` gira a ogni
-  vertice diffuso del path; limitarlo al vertice primario taglierebbe il costo
-  per sample ma richiede di rivedere la macchina a stati `causticState`
-  (la soppressione del path BSDF `D S+ L` vale a ogni profondità).
+Ottimizzazioni degli integratori bidirezionali possibili (Fase 8b):
+- **Vertici di luce più leggeri** - oggi ogni vertice salva l'`HitRecord` completo
+  (232 byte), da cui i blocchi di 2^18 sottocammini: un record ridotto (punto,
+  normali, UV, materiale) permetterebbe di normalizzare il merging su tutti i
+  pixel e di ridurre la memoria.
+- **Light path per pixel del lato camera** - la connessione usa il sottocammino di
+  luce dello stesso indice; più connessioni per vertice (o un sottocammino scelto
+  a caso) ridurrebbero la correlazione fra pixel vicini.
 
 ---
 

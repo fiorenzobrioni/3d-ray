@@ -65,7 +65,8 @@ Aggiungi i seguenti flag **solo se pertinenti** alla scena o richiesti dall'uten
 | `-c <nome>` | l'utente ha passato `--camera <nome>` |
 | `-C <n>` | scena con dielectric annidato, media densi o volumetria pesante — firefly clamp 5–25 |
 | `--denoiser nfor` | già attivo per `draft`/`standard`/`pre-final`; aggiungere solo per override su `final`/`ultra` |
-| `--caustics on` | scene con superfici di vetro + luci puntuali (prismi, bicchieri, piscine) |
+| `--integrator bdpt` | caustiche viste direttamente (prismi, sfere di vetro, luci piccole dietro un vetro) |
+| `--integrator vcm` | caustiche viste attraverso vetro o acqua (piscine, oggetti in un bicchiere) |
 | `--sss-mode off` | scena senza materiali SSS, per saltare il dispatch |
 | `-v` | debug del caricamento scena o analisi delle luci |
 | `-d <n>` | override depth: 12+ per dielectric stratificato, 16–20 per liquidi in bicchieri |
@@ -108,8 +109,8 @@ Se il render fallisce, mostra l'errore dal motore e suggerisci:
 /render scenes/cristallo.yaml draft -C 10
   → draft-small con firefly clamp basso per dielectric stratificato
 
-/render scenes/cornell-box.yaml pre-final --caustics on
-  → pre-final con fotoni caustic per il vetro nel Cornell box
+/render scenes/cornell-box.yaml pre-final --integrator bdpt
+  → pre-final con il path tracing bidirezionale per le caustiche del vetro nel Cornell box
 ```
 
 ## Note

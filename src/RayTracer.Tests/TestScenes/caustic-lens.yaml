@@ -1,11 +1,9 @@
-# MNEE caustic regression scene (Phase 2).
+# Caustic regression scene (kept from the earlier caustic solvers).
 #
-# A solid glass sphere (caustic_caster) sits above a diffuse floor
-# (caustic_receiver), lit by a rectangular area light overhead. With
-# `--caustics on` the sphere focuses the light into a bright spot on the floor
-# beneath it — the focused refractive caustic that straight shadow rays cannot
-# produce. Used by MnEeRenderTests to assert the caustic emerges with caustics
-# on and is absent with them off.
+# A solid glass sphere sits above a diffuse floor, lit by a rectangular area
+# light overhead: the sphere focuses the light into a bright spot on the floor
+# beneath it, the focused refractive caustic that straight shadow rays cannot
+# produce. Render it with --integrator bdpt to see it converge.
 
 camera:
   position: [0, 4.5, 6]

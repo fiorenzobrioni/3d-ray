@@ -36,6 +36,13 @@ namespace RayTracer.Rendering;
 /// Light subpaths use the adjoint BSDF: the radiance factor (η_i/η_t)² of a
 /// refraction is left out of the importance they carry. Russian roulette is
 /// not part of the MIS densities (the weights still sum to one).</para>
+///
+/// <para><b>Media.</b> Scattering events are vertices whose BSDF is the
+/// phase function (cosines 1); they are connected but never merged, so the
+/// merging terms of the weights are dropped there. A subsurface entity
+/// behind a refraction is walked by camera subpaths with the path tracer's
+/// random walk, and light subpaths stop at it: the walk's last light sample
+/// is the only partner of the emission met by the ray that leaves it.</para>
 /// </summary>
 public partial class Renderer
 {

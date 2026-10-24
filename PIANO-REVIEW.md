@@ -38,7 +38,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 6 | Luci, cielo | ✅ Chiusa (2026-10-22), esito in §4 Fase 6 |
 | 7 | Integratore | ✅ Chiusa (2026-10-24), esito in §4 Fase 7; 7b (path guiding) ✅ 2026-10-24 |
 | 8 | Volumi e SSS (null-scattering) | ✅ Chiusa (2026-10-24), esito in §4 Fase 8 |
-| 8b | Integratori bidirezionali: BDPT, poi VCM per le caustiche | ⬜ (dopo la Fase 8) |
+| 8b | Integratori bidirezionali: BDPT, poi VCM per le caustiche | ✅ Chiusa (2026-10-24), esito in §4 Fase 8b |
 | 9 | Post-processing e denoiser | ⬜ |
 | 10 | Formato scene v2 | ⬜ |
 | 11 | Architettura e performance | ⬜ |
@@ -956,15 +956,68 @@ Decisione del proprietario (2026-10-24): caustiche belle e non distorte con un i
 generale, al posto della photon map a raggio fisso (distorta: -1.7% nell'acquario) e di MNEE/SMS.
 Il path tracing resta l'integratore di default.
 
-- [ ] BDPT (Veach 1997, PBRT-v4) come integratore opzionale (`--integrator bdpt`), con MIS fra
-      tutte le strategie, superfici e mezzi; validazione contro Mitsuba `bdpt`. Dà le caustiche da
-      luci puntiformi e quelle viste direttamente.
-- [ ] VCM / UPS (Georgiev et al. 2012; Hachisuka et al. 2012): fusione progressiva dei vertici
+- [x] BDPT (Veach 1997, PBRT-v4) come integratore opzionale (`--integrator bdpt`), con MIS fra
+      tutte le strategie, superfici e mezzi; validazione contro Mitsuba (Mitsuba 3 non ha `bdpt`:
+      confronto con il suo `path`/`volpath`, che a convergenza dà la stessa immagine). Dà le
+      caustiche da luci puntiformi e quelle viste direttamente.
+- [x] VCM / UPS (Georgiev et al. 2012; Hachisuka et al. 2012): fusione progressiva dei vertici
       aggiunta a BDPT, raggio che si restringe con i campioni (consistente). Copre le caustiche
       viste attraverso vetro o acqua (cammini S D S), che nessuna tecnica a connessioni raggiunge.
-- [ ] Togliere la photon map attuale quando VCM la copre; preset in path tracing puro, VCM su
+- [x] Togliere la photon map attuale quando VCM la copre; preset in path tracing puro, VCM su
       richiesta per le scene con caustiche.
 - [ ] Fuori portata iniziale: caustiche volumetriche (fotoni a fascio, UPBP).
+
+**Esito (2026-10-24).** `--integrator path|bdpt|vcm` (`Rendering/Bidirectional/`,
+`docs/technical/bidirectional.md`): un solo codice nella formulazione di Georgiev et al. 2012
+(quantità ricorsive dVCM/dVC/dVM, euristica di bilanciamento), BDPT è il VCM senza merging.
+
+- **Emissione e importanza della camera (8b.1).** Ogni luce campiona un raggio emesso con le sue
+  densità (`ILight.SampleEmission`, `EmissionPdfOverCos`): area, sfera, geometria emissiva
+  (punto uniforme, direzione coseno), point/spot con IES (direzione uniforme nel cono),
+  direzionale e sole (disco che copre la scena), cielo (il suo importance sampling). Portali
+  esclusi. La camera proietta un punto sul film attraverso la lente (`ConnectToFilm`) con la
+  densità per direzione (`FilmDirectionPdf`). `EmissionTests`: flusso emesso di 11 luci contro il
+  valore in forma chiusa (il sole entro lo 0.26% dell'oscuramento al bordo, la stessa funzione del
+  path tracer), densità coerenti, chi-quadro delle direzioni.
+- **BDPT su superfici (8b.2).** Sottocammini di luce per pixel a blocchi di 2^18 (memoria),
+  light tracing nel film con il filtro di ricostruzione normalizzato, connessioni al sottocammino
+  di luce dello stesso indice. dVCM di un sottocammino di luce fissato al primo vertice (le
+  densità della NEE di sfera, rettangolo e cielo dipendono dal ricevitore); BSDF aggiunta sui
+  sottocammini di luce (senza (η_i/η_t)²); superfici a trasmissione rettilinea come interfacce
+  nulle; AOV e metà A/B per il denoiser. Validazione: `LightTransportTests` rieseguita con BDPT
+  (ogni tipo di luce contro la quadratura, 40 casi), luce puntiforme specchiata raggiungibile solo
+  dal light tracing (0.07% dal valore esatto, pinhole e lente sottile), scene Mitsuba con
+  rapporti uguali a quelli del path tracing (Cornell d32 1.0000, d2 1.0001, glass-shadow 1.0001,
+  null-shell 1.0001, glass-rough 1.0007, metal-presets 0.9991, veach-mis 0.9972 contro 0.9992).
+  Costo per campione 2-3× il path tracing, errore per campione circa la metà sul Cornell.
+- **Mezzi (8b.3).** Vertici di scattering su entrambi i sottocammini (free flight dei mezzi della
+  Fase 8, phase function come BSDF, coseni 1), connessioni e light tracing nel contesto dei mezzi
+  del loro sottocammino, merging solo sulle superfici. Le entità subsurface dietro una rifrazione
+  usano il random walk del path tracer dal lato della camera (i sottocammini di luce si fermano lì);
+  dietro un'interfaccia a indice 1 il mezzo è un mezzo qualsiasi per entrambi. Trovato e corretto
+  nel farlo: un primo tentativo che passava al walk anche dietro i gusci a indice 1 contava due
+  volte la luce che attraversa il mezzo senza scatterare (+2.7% su `medium-chromatic`). Mitsuba:
+  `fog-sphere-light` 0.9996, `medium-chromatic` 1.0002, `smoke-grid` 1.0000; sfera subsurface con
+  bordo rifrattivo uguale al path tracing (1.0011); fornaci di ogni tipo di mezzo con il cielo come
+  luce e scattering singolo contro quadratura nei test.
+- **VCM (8b.4).** Raggio r_i = r_0 × i^((α−1)/2), α = 0.75, r_0 = `--vcm-radius` (0.003) × raggio
+  della scena; griglia hash di celle 2r. Coerente con Mitsuba sulle scene di superficie (Cornell
+  1.0000, glass-shadow 1.0002, lights 1.0000, veach-mis 0.9972) e con il path tracing su una
+  caustica vista attraverso una sfera di vetro (0.995, nuovo test). Rifiutato da `--reference`.
+  Scena `scenes/review/vcm-pool.yaml` (fondo di piscina sotto una luce piccola, 480 × 270, circa
+  40 s ciascuno): path tracing e BDPT solo firefly, VCM la rete di caustiche
+  (`images/vcm-pool.jpg`).
+- **Photon map tolta (8b.5).** Via `CausticPhotonTracer`, `PhotonMap`, `Photon`, `--caustics`,
+  `--caustic-photons`, le caustiche dei preset (pre-final/final/ultra), `BsdfSample.CausticCaster`,
+  `IMaterial.IsSpecularTransmissive`, `ShadowRay.BlockSpecularTransmission` e i loro test. Lo stato
+  della catena speculare serve ora solo alle ombre trasparenti (`ChainState`). Tutti i preset sono
+  path tracing puro; README, profili (nuova §4c), riferimento scene, tutorial, documenti tecnici,
+  preset e commenti delle scene aggiornati.
+
+Limiti documentati: le profondità per tipo e i flag di visibilità per categoria non valgono nei
+sottocammini bidirezionali; niente merging nei mezzi (fasci di fotoni, fuori portata); niente
+correzione della normale di shading per la BSDF aggiunta; `soft_radius` di point e spot non entra
+nel light tracing (il clamp di d² è un'alterazione non fisica della NEE).
 
 ### Fase 9 - Post-processing e denoiser (`Denoising/`)
 
