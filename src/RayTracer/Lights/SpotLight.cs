@@ -158,4 +158,42 @@ public class SpotLight : ILight
 
         return (false, Color * distanceAttenuation * spotAttenuation * trans, dirToLight, distance);
     }
+
+    // ── Emission (bidirectional integrators) ────────────────────────────────
+    // Uniform inside the outer cone; with a soft radius and several shadow
+    // samples the source is the same disc of points the light samples see.
+
+    private float ConeSolidAngle => 2f * MathF.PI * (1f - CosOuterAngle);
+
+    /// <summary>Radiant intensity toward <paramref name="dirFromLight"/>.</summary>
+    private Vector3 IntensityToward(Vector3 dirFromLight)
+    {
+        float cosAngle = Vector3.Dot(dirFromLight, Direction);
+        if (cosAngle < CosOuterAngle) return Vector3.Zero;
+        float a = Math.Clamp((cosAngle - CosOuterAngle) / (CosInnerAngle - CosOuterAngle), 0f, 1f);
+        float k = Intensity * a * a;
+        if (Ies != null) k *= Ies.Candela(dirFromLight, Direction, _tangentU);
+        return Color * k;
+    }
+
+    public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        Vector3 pos = Position;
+        if (SoftRadius > 0f && ShadowSamples > 1)
+        {
+            float r = SoftRadius * MathF.Sqrt(uPos.X);
+            float theta = 2f * MathF.PI * uPos.Y;
+            pos += r * (MathF.Cos(theta) * _tangentU + MathF.Sin(theta) * _tangentV);
+        }
+        Vector3 dir = EmissionMath.UniformCone(Direction, CosOuterAngle, uDir);
+        e = new LightEmission
+        {
+            Position = pos, Direction = dir, Normal = Vector3.Zero, Radiance = IntensityToward(dir),
+            PdfPos = 1f, PdfDir = 1f / ConeSolidAngle, Cos = 1f, DeltaPosition = true,
+        };
+        return e.Radiance != Vector3.Zero;
+    }
+
+    public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight)
+        => Vector3.Dot(dirFromLight, Direction) >= CosOuterAngle ? 1f / ConeSolidAngle : 0f;
 }

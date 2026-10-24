@@ -27,6 +27,10 @@ public class IesProfileTests
 
     private static readonly float[] V = Enumerable.Range(0, 181).Select(i => (float)i).ToArray();
 
+    /// <summary>A cosine downlight, normalised: for the emission tests.</summary>
+    internal static IesProfile ConeProfile()
+        => IesProfile.Parse(Ies(V, new[] { 0f }, (v, _) => v <= 90f ? 1000f * MathF.Cos(v * MathF.PI / 180f) : 0f, 2f));
+
     [Fact]
     public void CosineDownlight_HasFluxPiTimesPeak()
     {

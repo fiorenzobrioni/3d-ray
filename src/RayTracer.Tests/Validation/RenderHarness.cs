@@ -21,7 +21,8 @@ internal static class RenderHarness
         int width, int height, int spp, int depth,
         bool reference = true, int seed = 0, float? clamp = null, PixelFilter? filter = null,
         LightSamplingStrategy lightSampling = LightSamplingStrategy.All,
-        PathDepths? depths = null, GuidingSettings? guiding = null)
+        PathDepths? depths = null, GuidingSettings? guiding = null,
+        IntegratorKind integrator = IntegratorKind.Path)
     {
         var renderer = new Renderer(
             world, camera, lights, sky, spp, depth,
@@ -29,6 +30,7 @@ internal static class RenderHarness
             lightSamplingStrategy: lightSampling,
             referenceMode: reference, seed: seed, pixelFilter: filter, depths: depths);
         if (guiding != null) renderer.EnableGuiding(guiding);
+        renderer.Integrator = integrator;
         var result = renderer.Render(width, height, new RenderCaptureOptions { CaptureBeautyHalves = true });
         var beauty = result.Buffers!.Beauty;
         var img = new Vector3[height, width];

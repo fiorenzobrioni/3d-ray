@@ -455,6 +455,11 @@ public partial class Renderer
     /// </summary>
     public RenderResult Render(int width, int height, RenderCaptureOptions options)
     {
+        if (Integrator != IntegratorKind.Path)
+        {
+            Interlocked.Exchange(ref s_nonFiniteCount, 0);
+            return RenderBidirectional(width, height, options);
+        }
         var pixels = new Vector3[height, width];
         // Path guiding learns before the render, on its own sample sequences.
         if (_guide is { CanSample: false })

@@ -294,4 +294,22 @@ public class SphereLight : ILight
         float lenSq = result.LengthSquared();
         return lenSq > 1e-8f ? result / MathF.Sqrt(lenSq) : w;
     }
+
+    // ── Emission (bidirectional integrators) ────────────────────────────────
+    // Uniform over the sphere, cosine-weighted around the outward normal.
+
+    public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        Vector3 n = EmissionMath.UniformSphere(uPos);
+        Vector3 dir = EmissionMath.CosineHemisphere(n, uDir, out float cos);
+        e = new LightEmission
+        {
+            Position = Center + Radius * n, Direction = dir, Normal = n, Radiance = Color * Intensity,
+            PdfPos = 1f / (4f * MathF.PI * Radius * Radius), PdfDir = cos / MathF.PI, Cos = cos,
+        };
+        return cos > 0f && e.Radiance != Vector3.Zero;
+    }
+
+    public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight)
+        => Vector3.Dot(dirFromLight, point - Center) > 0f ? 1f / (4f * MathF.PI * MathF.PI * Radius * Radius) : 0f;
 }

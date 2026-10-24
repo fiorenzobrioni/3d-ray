@@ -23,6 +23,9 @@ namespace RayTracer.Tests.Validation;
 public class LightTransportTests
 {
     private readonly ITestOutputHelper _out;
+    /// <summary>The integrator under test (the bidirectional ones rerun the whole class).</summary>
+    protected virtual IntegratorKind Integrator => IntegratorKind.Path;
+
     public LightTransportTests(ITestOutputHelper output)
     {
         _out = output;
@@ -115,7 +118,7 @@ public class LightTransportTests
         var world = new HittableList(objects);
         var cam = RenderHarness.LookAt(Cam, Vector3.Zero, 0.01f, W, H);
         var img = RenderHarness.RenderLinear(world, lights, sky, cam, W, H, spp, depth: 2,
-                                             reference: true, lightSampling: strategy);
+                                             reference: true, lightSampling: strategy, integrator: Integrator);
         Vector3 mean = RenderHarness.Mean(img);
         Vector3 var = Vector3.Zero;
         foreach (var px in img) var += (px - mean) * (px - mean);
@@ -314,6 +317,7 @@ public class LightTransportTests
         var renderer = new Renderer(new HittableList(objects), cam, lights, sky, 1024, 2,
                                     lightSamplingStrategy: LightSamplingStrategy.All, referenceMode: true,
                                     transparentShadows: !compensation);
+        renderer.Integrator = Integrator;
         var result = renderer.Render(W, H, new RenderCaptureOptions { CaptureBeautyHalves = true });
         var img = new Vector3[H, W];
         for (int y = 0; y < H; y++) for (int x = 0; x < W; x++) img[y, x] = result.Buffers!.Beauty.GetRgb(x, y);

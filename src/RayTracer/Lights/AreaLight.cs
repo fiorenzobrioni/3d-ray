@@ -217,4 +217,21 @@ public class AreaLight : ILight
         // distance from hitPoint to the rect hit = t (since wi is unit).
         return (t * t) / (_area * cosLight);
     }
+
+    // ── Emission (bidirectional integrators) ────────────────────────────────
+    // Uniform over the rectangle, cosine-weighted from its front face.
+
+    public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        Vector3 dir = EmissionMath.CosineHemisphere(_normal, uDir, out float cos);
+        e = new LightEmission
+        {
+            Position = Corner + uPos.X * U + uPos.Y * V, Direction = dir, Normal = _normal,
+            Radiance = Color * Intensity, PdfPos = 1f / _area, PdfDir = cos / MathF.PI, Cos = cos,
+        };
+        return cos > 0f && e.Radiance != Vector3.Zero;
+    }
+
+    public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight)
+        => Vector3.Dot(dirFromLight, _normal) > 0f ? 1f / (_area * MathF.PI) : 0f;
 }

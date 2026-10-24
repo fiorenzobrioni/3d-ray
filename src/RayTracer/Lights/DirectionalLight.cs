@@ -184,4 +184,26 @@ public class DirectionalLight : ILight
         float lenSq = result.LengthSquared();
         return lenSq > 1e-8f ? result / MathF.Sqrt(lenSq) : w;
     }
+
+    // ── Emission (bidirectional integrators) ────────────────────────────────
+    // From the disc of the scene's cross-section; one direction, or uniform
+    // inside the angular disc (radiance = irradiance / solid angle).
+
+    public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        Vector3 toLight = AngularRadiusDeg > 0f ? EmissionMath.UniformCone(-Direction, _cosAngularRadius, uDir) : -Direction;
+        var (origin, pdfPos) = EmissionMath.InfiniteOrigin(ctx, toLight, uPos);
+        bool disc = AngularRadiusDeg > 0f;
+        e = new LightEmission
+        {
+            Position = origin, Direction = -toLight, Normal = Vector3.Zero,
+            Radiance = Color * (disc ? Intensity / _solidAngle : Intensity),
+            PdfPos = pdfPos, PdfDir = disc ? 1f / _solidAngle : 1f, Cos = 1f,
+            DeltaDirection = !disc, Infinite = true,
+        };
+        return e.Radiance != Vector3.Zero;
+    }
+
+    public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight)
+        => EmissionMath.InfiniteDiscPdf(ctx) * (AngularRadiusDeg > 0f ? PdfSolidAngle(point, -dirFromLight) : 1f);
 }

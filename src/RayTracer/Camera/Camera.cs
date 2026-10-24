@@ -179,6 +179,63 @@ public class Camera
         return new Ray(lensOrigin, dirMain, diffA, time);
     }
 
+    // ── Importance (bidirectional integrators, PIANO-REVIEW.md Phase 8b) ───
+
+    /// <summary>
+    /// A point seen from the camera: the lens point (the centre for a
+    /// pinhole), the unit direction from it to the point and the distance, the
+    /// film coordinates (s, t) of <see cref="GetRay"/> where that ray crosses
+    /// the plane of focus, and the cosine with the optical axis.
+    /// </summary>
+    public readonly record struct FilmConnection(Vector3 LensPoint, Vector3 Direction, float Distance,
+                                                 float S, float T, float CosAxis);
+
+    /// <summary>
+    /// Connects <paramref name="p"/> to the camera: samples the lens (a
+    /// pinhole has one point) and projects onto the film. False when the point
+    /// is behind the camera.
+    /// </summary>
+    public bool ConnectToFilm(Vector3 p, float time, out FilmConnection c)
+    {
+        Basis b = _motion == null ? _basis : BasisAt(time);
+        Vector3 lens = b.Origin;
+        if (_lensRadius > 0f)
+        {
+            Vector3 rd = _lensRadius * SampleAperture();
+            lens += b.U * rd.X + b.V * rd.Y;
+        }
+        c = default;
+        Vector3 d = p - lens;
+        float dist = d.Length();
+        if (!(dist > 0f)) return false;
+        d /= dist;
+        Vector3 forward = Vector3.Cross(b.V, b.U);     // −w: the optical axis
+        float cos = Vector3.Dot(d, forward);
+        if (cos <= 1e-6f) return false;
+        // Where the ray from the lens point crosses the plane of focus, which
+        // lies _focusDist along the axis from the lens plane.
+        Vector3 pf = lens + d * (_focusDist / cos);
+        Vector3 rel = pf - b.LowerLeftCorner;
+        float s = Vector3.Dot(rel, b.Horizontal) / b.Horizontal.LengthSquared();
+        float t = Vector3.Dot(rel, b.Vertical) / b.Vertical.LengthSquared();
+        c = new FilmConnection(lens, d, dist, s, t, cos);
+        return true;
+    }
+
+    /// <summary>
+    /// Density in solid angle, per unit area of the film coordinates (s, t),
+    /// with which <see cref="GetRay"/> produces a ray at cosine
+    /// <paramref name="cosAxis"/> from the axis: f² / (A cos³θ), with f the
+    /// focus distance and A the area of the plane of focus inside the frame
+    /// (per pixel multiply by the number of pixels).
+    /// </summary>
+    public float FilmDirectionPdf(float cosAxis, float time)
+    {
+        Basis b = _motion == null ? _basis : BasisAt(time);
+        float area = b.Horizontal.Length() * b.Vertical.Length();
+        return _focusDist * _focusDist / (area * cosAxis * cosAxis * cosAxis);
+    }
+
     /// <summary>
     /// Uniform point on the aperture, in units of the lens radius (x along the
     /// camera's U axis). One 2D decision: for a polygon the first coordinate

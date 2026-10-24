@@ -269,6 +269,33 @@ class Program
         int? guidingTraining = int.TryParse(GetArg(args, "--guiding-training", null), out var gtArg) && gtArg > 0
             ? gtArg : null;
 
+        // ── Integrator ───────────────────────────────────────────────────────
+        // `--integrator path|bdpt|vcm`: path tracing (default), bidirectional
+        // path tracing, or vertex connection and merging (BDPT + merging, for
+        // the caustics seen through glass and water).
+        IntegratorKind integrator = IntegratorKind.Path;
+        string? integratorArg = GetArg(args, "--integrator", null);
+        if (integratorArg != null)
+        {
+            switch (integratorArg.ToLowerInvariant())
+            {
+                case "path": integrator = IntegratorKind.Path; break;
+                case "bdpt": integrator = IntegratorKind.Bdpt; break;
+                case "vcm":  integrator = IntegratorKind.Vcm;  break;
+                default:
+                    Console.WriteLine($"Error: Unknown --integrator '{integratorArg}'. Valid: path, bdpt, vcm.");
+                    return;
+            }
+        }
+        float? vcmRadius = float.TryParse(GetArg(args, "--vcm-radius", null), System.Globalization.NumberStyles.Float,
+                                          System.Globalization.CultureInfo.InvariantCulture, out var vrArg) && vrArg > 0f
+            ? vrArg : null;
+        if (integrator != IntegratorKind.Path && guiding)
+        {
+            Console.WriteLine("Error: --guiding is a path tracing option (not with --integrator bdpt|vcm).");
+            return;
+        }
+
         // ── Denoiser ─────────────────────────────────────────────────────────
         // `--denoiser none|nlm|nfor` runs the feature-guided denoiser on the
         // linear HDR beauty before tone mapping. Quality presets supply a
@@ -538,6 +565,9 @@ class Program
             Console.WriteLine("  Reference:   on (no clamps, no transparent shadows, uniform depths, no denoiser/caustics)");
         if (seed != 0)
             Console.WriteLine($"  Seed:        {seed}");
+        if (integrator != IntegratorKind.Path)
+            Console.WriteLine($"  Integrator:  {integrator.ToString().ToLowerInvariant()}" +
+                              (integrator == IntegratorKind.Vcm ? $" (radius {vcmRadius ?? 0.003f:0.####} of the scene radius)" : ""));
         if (guiding)
             Console.WriteLine($"  Guiding:     on (training {guidingTraining ?? GuidingSettings.DefaultTraining(samples)} of the {samples} spp)");
         if (transparentShadows)
@@ -618,6 +648,8 @@ class Program
                 displayTransform: new DisplayTransform(view, look,
                     whiteBalanceKelvin is float wbk ? WhiteBalance.Matrix(wbk) : null),
                 depths: depths);
+            renderer.Integrator = integrator;
+            if (vcmRadius is float vr) renderer.VcmRadiusFactor = vr;
             if (guiding)
                 renderer.EnableGuiding(new GuidingSettings
                 {
@@ -734,6 +766,9 @@ class Program
         Console.WriteLine("      --light-sampling <auto|all|power|uniform|bvh>  NEE light strategy (default: auto = all up to 16 lights, bvh above)");
         Console.WriteLine("      --texture-filtering <auto|on|off>     Analytic anti-aliasing via ray differentials (default: auto)");
         Console.WriteLine("      --caustics <on|off>      Photon-mapped caustics (default: off, on for final/ultra)");
+        Console.WriteLine("      --integrator <path|bdpt|vcm>  Light transport: path tracing (default), bidirectional path tracing,");
+        Console.WriteLine("                               or vertex connection and merging (bdpt + merging: caustics through glass/water)");
+        Console.WriteLine("      --vcm-radius <f>         VCM merging radius at the first iteration, fraction of the scene radius (default: 0.003)");
         Console.WriteLine("      --guiding <on|off>       Path guiding: learn the incident light in training passes,");
         Console.WriteLine("                                then sample bounces from it too (unbiased; default: off)");
         Console.WriteLine("      --guiding-training <n>   Training spp out of -s, passes of 1, 2, 4, ... that join the image (default: -s / 2)");

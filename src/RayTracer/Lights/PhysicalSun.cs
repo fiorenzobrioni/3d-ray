@@ -174,4 +174,21 @@ public class PhysicalSun : ILight
         float lenSq = result.LengthSquared();
         return lenSq > 1e-8f ? result / MathF.Sqrt(lenSq) : w;
     }
+
+    // ── Emission (bidirectional integrators) ────────────────────────────────
+
+    public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        Vector3 toLight = EmissionMath.UniformCone(Direction, _cosHalfAngle, uDir);
+        var (origin, pdfPos) = EmissionMath.InfiniteOrigin(ctx, toLight, uPos);
+        e = new LightEmission
+        {
+            Position = origin, Direction = -toLight, Normal = Vector3.Zero, Radiance = RadianceToward(toLight),
+            PdfPos = pdfPos, PdfDir = 1f / _solidAngle, Cos = 1f, Infinite = true,
+        };
+        return e.Radiance != Vector3.Zero;
+    }
+
+    public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight)
+        => EmissionMath.InfiniteDiscPdf(ctx) * PdfSolidAngle(point, -dirFromLight);
 }

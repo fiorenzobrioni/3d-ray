@@ -82,4 +82,22 @@ public class PointLight : ILight
         float attenuation = Intensity * Profile(-dirToLight) / d2;
         return (false, Color * attenuation * trans, dirToLight, distance);
     }
+
+    // ── Emission (bidirectional integrators) ────────────────────────────────
+    // Uniform over the sphere of directions, weighted by the profile: the
+    // soft radius is an NEE floor, not part of the light, so it is left out.
+
+    public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        Vector3 dir = EmissionMath.UniformSphere(uDir);
+        e = new LightEmission
+        {
+            Position = Position, Direction = dir, Normal = Vector3.Zero,
+            Radiance = Color * (Intensity * Profile(dir)),
+            PdfPos = 1f, PdfDir = 1f / (4f * MathF.PI), Cos = 1f, DeltaPosition = true,
+        };
+        return e.Radiance != Vector3.Zero;
+    }
+
+    public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight) => 1f / (4f * MathF.PI);
 }

@@ -123,4 +123,26 @@ public interface ILight
     /// closing Veach's MIS estimator. Default = null (no visible proxy).
     /// </summary>
     Emissive? ProxyMaterial => null;
+
+    // ── Bidirectional integrators (PIANO-REVIEW.md Phase 8b) ───────────────
+
+    /// <summary>
+    /// Starts a light subpath: a point and a direction of emission, from two
+    /// stratified pairs. False when the light emits nothing.
+    /// </summary>
+    bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        e = default;
+        return false;
+    }
+
+    /// <summary>
+    /// The density <see cref="SampleEmission"/> gives the ray leaving
+    /// <paramref name="point"/> along <paramref name="dirFromLight"/>, over the
+    /// cosine at the light: <c>PdfPos · PdfDir / Cos</c> (for a light that
+    /// emits by the cosine this needs no normal, and it is what the MIS of a
+    /// light sample needs). For a light at infinity <paramref name="point"/>
+    /// is ignored.
+    /// </summary>
+    float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight) => 0f;
 }

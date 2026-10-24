@@ -267,4 +267,24 @@ public class GeometryLight : ILight
 
         return distSq / (area * cosLight);
     }
+
+    // ── Emission (bidirectional integrators) ────────────────────────────────
+    // Uniform over the surface (by area), cosine-weighted from the front.
+
+    public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        e = default;
+        var (point, normal, uv, area) = Geometry.Sample();
+        if (!(area > 0f)) return false;
+        Vector3 dir = EmissionMath.CosineHemisphere(normal, uDir, out float cos);
+        e = new LightEmission
+        {
+            Position = point, Direction = dir, Normal = normal, Radiance = Material.EmissionAt(uv.X, uv.Y, point),
+            PdfPos = 1f / area, PdfDir = cos / MathF.PI, Cos = cos,
+        };
+        return cos > 0f && e.Radiance != Vector3.Zero;
+    }
+
+    public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight)
+        => _representativeArea > 0f ? 1f / (_representativeArea * MathF.PI) : 0f;
 }
