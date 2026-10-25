@@ -133,6 +133,7 @@ The suite (~1270 tests) covers geometry, BVH, materials, lights, samplers, volum
 
 ## Conventions
 
+- Coordinates: right-handed, +Y up, as Mitsuba, glTF and OBJ (a camera at -Z looking at +Z sees +X on its left). `validation/yaml2mitsuba.py` passes positions and `look_at` through unchanged.
 - YAML keys use `underscore_case` (YamlDotNet `UnderscoredNamingConvention`).
 - CLI: lowercase short flags are the common overrides (`-s`, `-d`, `-c`, `-w`, `-o`, `-i`, `-v`); uppercase are "advanced overrides" (`-H` height because `-h` is help, `-S` shadow samples, `-C` clamp); behaviour-tuning flags are long-only. Full list in `ShowHelp()`.
 - Default output path when `-o` is omitted: `renders/render-<scene-stem>.png`.
@@ -149,6 +150,12 @@ When planning a change, include doc updates as explicit final steps so they don'
 ### Engine review in progress
 
 `PIANO-REVIEW.md` (Italian, internal like `PLANNING.md`) is the active plan for the full review of the engine's math, optics and physics, phase by phase (0 to 11). It stays in the repo until every phase is closed. **No compatibility constraints (owner's rule):** the review aims at premium engine quality and picks the best solution, never a worse one to keep existing scenes, keys, defaults or API working. The scenes in the repo are tests from before the review, not fixed points: at the end of the review they are fixed where the review changed something, rewritten, or moved to `scenes/obsolete/` to be redesigned or deleted (PIANO-REVIEW.md §2.0). The scenes the review itself creates (`scenes/review/`, `validation/scenes/`) are kept. When working on a phase: follow its checklist, tick the boxes, update the status table at the top and the phase's "Esito" section, and log the details in `devlog/devlog.md`. The validation tooling it relies on: `--reference` mode, the BSDF statistical test kit in `src/RayTracer.Tests/Validation/`, `src/Tools/ImageCompare`, and the Mitsuba 3 harness in `validation/` (see `validation/README.md`).
+
+**Practical notes for a review session** (each cloud session starts from a fresh container):
+- Mitsuba is installed on demand, only when a phase needs the reference renders: if `python3 -c "import mitsuba"` fails, run `pip install -r validation/requirements.txt` (pins mitsuba 3.9.1) before `validation/run.py`.
+- `validation/run.py` runs the Release build of `src/RayTracer` with `--no-build`: do not rebuild that project in Release while it runs. For ad-hoc renders build a separate copy (`dotnet build src/RayTracer/RayTracer.csproj -c Release -o <scratch>/rt` and run `dotnet <scratch>/rt/RayTracer.dll`).
+- Run the full test suite with the default output folder: with `-o` outside the repo, the tests that look for the repo root (`MaterialDisplacementTests`, `BumpDisplacementCombinationTests`) fail. A separate `-o` is fine for a filtered run while another suite is running.
+- Before closing a phase: full suite green, docs and scenes updated, commit and push; CI runs on Linux, Windows and macOS.
 
 ### No third-party renderer names in public docs
 
