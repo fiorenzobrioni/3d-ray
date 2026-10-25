@@ -2304,21 +2304,61 @@ Vedi `docs/technical/motion-blur.md` per l'algoritmo, e le scene
   material: "plastic"
 ```
 
-#### **7.12 Mesh (File OBJ)**
+#### **7.12 Mesh (file OBJ, glTF, PLY)**
 ```yaml
 - name: "model"
   type: "mesh"
-  path: "models/teapot.obj"               # Relativo allo YAML
+  path: "models/teapot.obj"               # .obj, .gltf, .glb o .ply, relativo allo YAML
   scale: [2.0, 2.0, 2.0]
   translate: [0, 1, 0]
-  material: "ceramic"
+  material: "ceramic"                     # opzionale: copre tutte le facce
 ```
-- Supporta il formato Wavefront OBJ
-- Costruisce automaticamente un BVH interno per intersezioni veloci
+- Formati, scelti dall'estensione:
+  - **Wavefront OBJ** con la sua libreria **MTL** (`mtllib`, `usemtl`):
+    poligoni di qualunque numero di lati (quelli concavi sono triangolati per
+    ear clipping, non a ventaglio), indici negativi, gruppi di smoothing
+    (`s`: una faccia senza normali prende le normali medie, pesate sugli
+    angoli, delle facce del suo gruppo; piatta con `s off`). Istruzioni MTL
+    lette: `Kd`/`map_Kd`, `Ks`, `Ns` (esponente di Phong, convertito in
+    roughness), `Pr`/`map_Pr`, `Pm`/`map_Pm`, `Ni`, `d`/`Tr`/`map_d`
+    (opacità; con `illum` 4, 6, 7 o 9 è la trasmissione del vetro), `Tf`,
+    `Ke`/`map_Ke`, `bump`/`map_Bump` (`-bm`), `norm`/`map_Kn`, `Pc`, `Pcr`,
+    `Ps`, `aniso`; opzione delle mappe `-s`.
+  - **glTF 2.0** (`.gltf` con buffer esterni o incorporati, `.glb`): i nodi
+    della scena di default (matrici o TRS; un nodo che specchia inverte il
+    verso delle facce), triangoli, strip e fan, normali, `TEXCOORD_0`,
+    accessor normalizzati e sparse. Materiali: metallic-roughness con base
+    color, alfa (`OPAQUE`, `MASK` come cut-out, `BLEND` come opacità
+    stocastica), normal map ed emissione, e `KHR_materials_emissive_strength`,
+    `_ior`, `_transmission`, `_volume` (senza, la trasmissione è a parete
+    sottile), `_clearcoat`, `_sheen`, `_specular`, `_iridescence`,
+    `_anisotropy`, `_unlit`, `KHR_texture_transform`, `EXT_texture_webp`.
+    Non letti: punti e linee, skin e morph target (posa di riposo), colori
+    per vertice, compressione Draco e meshopt, texture KTX2, mappe di
+    occlusione.
+  - **PLY** (ASCII, binario little e big endian): posizioni, normali
+    (`nx ny nz`), coordinate texture (`u v`, `s t`, `texture_u texture_v`),
+    facce di qualunque numero di lati. Nessun materiale.
+- **Materiali**: `material` sull'entità copre tutte le facce. Senza, valgono
+  i materiali del file (OBJ/MTL, glTF), tradotti in `openpbr`; le facce che
+  non ne hanno prendono il materiale di default (o quello del gruppo).
+  `material_overrides` sostituisce per nome i materiali del file:
+  ```yaml
+  - type: "mesh"
+    path: "models/car.glb"
+    material_overrides:
+      "Body": "red_paint"                 # nome nel file: id del materiale della scena
+  ```
+  Un modello con più materiali diventa una mesh per materiale, ciascuna
+  campionata come luce d'area a sé quando è emissiva.
+- Costruisce automaticamente un BVH interno; ombreggiatura liscia con le
+  normali e le UV del file (una faccia con UV e senza normali tiene le UV,
+  ombreggiata piatta).
+- Supporta `translate`, `rotate`, `scale`
 
 ##### **Superfici di suddivisione (Loop / Catmull-Clark)**
 
-Il loader può raffinare la mesh OBJ prima della costruzione del BVH
+Il loader può raffinare il modello prima della costruzione del BVH
 usando i due algoritmi standard di suddivisione:
 
 ```yaml
@@ -2328,6 +2368,8 @@ usando i due algoritmi standard di suddivisione:
   material: "ceramica"
   subdivision_scheme: "catmull_clark"     # loop | catmull_clark | auto | none
   subdivision_iterations: 3               # passi di raffinamento uniforme
+  subdivision_crease_angle: 45            # gli spigoli oltre 45° diventano pieghe
+  subdivision_crease_sharpness: 2         # vivi per 2 livelli, poi lisci
 ```
 
 | Campo                       | Tipo   | Default | Note |
@@ -2336,20 +2378,27 @@ usando i due algoritmi standard di suddivisione:
 | `subdivision_iterations`    | int    | `0`     | Numero di iterazioni uniformi. Ogni passo moltiplica il numero di facce per ≈ 4. |
 | `subdivision_pixel_error`   | float  | `0`     | Target screen-space adattivo. Il loader sceglie il numero di iterazioni che porta l'edge proiettato più lungo sotto questa soglia in pixel (usa la camera risolta della scena). Si combina con `subdivision_iterations` via `max(statico, adattivo)`. |
 | `subdivision_max_iterations`| int    | `6`     | Tetto rigido anche per la stima adattiva (limita l'esplosione 4^N delle facce). |
+| `subdivision_boundary`      | string | `edge_and_corner` | Bordi aperti: `edge_and_corner` tiene fermo un vertice di bordo con una sola faccia (l'angolo di un foglio); `edge_only` lo arrotonda lungo la curva del bordo. Gli spigoli di bordo sono sempre vivi. |
+| `subdivision_crease_angle`  | float  | `0`     | Gli spigoli le cui due facce si incontrano oltre questo angolo (gradi, tra le normali) diventano pieghe. `0` = nessuna. |
+| `subdivision_crease_sharpness` | float | infinito | Nitidezza di quelle pieghe: vive per questo numero di livelli, poi lisce, una frazione mescola le due (pieghe semi-vive). Omessa: sempre vive. |
 
-- **Loop** (Charles Loop, 1987) - maschere di bordo come in Hoppe et al.
-  1994. Solo triangoli; gli n-gon in input vengono pre-triangolati a ventaglio.
-- **Catmull-Clark** (Catmull & Clark, 1978) - maschere di bordo
-  Hoppe / DeRose. L'input misto è gestito alla prima iterazione, dopo la
-  quale la mesh è tutta a quadrati.
-- Le normali per-vertice sono **ricalcolate dalla topologia limite** con
-  la media pesata sugli angoli (Max 1999). Le normali del file OBJ vengono
-  propagate ma sostituite alla
-  triangolazione finale perché la superficie limite è più liscia
-  dell'input.
+- **Loop** (Charles Loop, 1987) e **Catmull-Clark** (Catmull & Clark,
+  1978), con le regole dei vertici di DeRose, Kass e Truong 1998: un vertice
+  con due spigoli vivi segue la curva della piega (1/8, 6/8, 1/8), tre o più
+  fanno un angolo (fermo), la nitidezza di uno spigolo di piega cala di uno
+  a ogni livello. Loop accetta solo triangoli (i poligoni sono triangolati
+  prima); Catmull-Clark accetta qualunque poligono alla prima iterazione,
+  poi solo quadrilateri.
+- Dopo l'ultimo livello i vertici sono **portati sulla superficie limite**
+  con le maschere limite, e ognuno prende la **normale della superficie
+  limite** dalle maschere tangenti (esatta nei vertici lisci di qualunque
+  valenza). Su una piega o un angolo ogni angolo di faccia prende la normale
+  del proprio lato (settore), così la piega resta viva anche
+  nell'ombreggiatura. Le normali del file non sono usate dopo la
+  suddivisione.
 - I canali UV passano attraverso la subdivision con maschere lineari
-  sul midpoint dell'edge (interpolazione vertex-varying come in OpenSubdiv).
-  Le cuciture UV che condividono la posizione ma non l'UV sono preservate.
+  sul midpoint dell'edge (interpolazione face-varying lineare). Le cuciture
+  UV che condividono la posizione ma non l'UV sono preservate.
 
 ##### **Surface displacement (material-level)**
 

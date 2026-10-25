@@ -64,7 +64,7 @@ For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.
 - ▰ **Quad** - parametric quadrilateral
 - 🔺 **Triangle / SmoothTriangle** - triangle with flat or per-vertex interpolated (Phong) shading
 - ▬ **Infinite Plane** - infinite plane for floors and backgrounds
-- 🏠 **Mesh (OBJ)** - 3D models from Wavefront OBJ files with smooth shading, artist UV mapping and a dedicated internal BVH
+- 🏠 **Mesh (OBJ, glTF 2.0, PLY)** - 3D models from Wavefront OBJ (with MTL materials), glTF 2.0 (`.gltf`/`.glb`, PBR materials and the main KHR extensions) and PLY files, with smooth shading, artist UV mapping, per-material meshes, `material_overrides` and a dedicated internal BVH. Watertight triangle intersection: no ray slips between the faces of a mesh, at any scale
 - 🏔️ **HeightField** - continuous terrain surface with analytic intersection. The heightmap can be a 16-bit PNG (output of `TerrainGen`) or synthesised from procedural noise at load time. Supports altitude/slope strata bands (sand/grass/rock/snow), an optional water plane and all engine materials.
 - 🔷 **CSG (Constructive Solid Geometry)** - boolean operations on solids: **Union** (A ∪ B), **Intersection** (A ∩ B) and **Subtraction** (A \ B), recursively nestable for arbitrarily complex shapes.
 - 🏺 **Lathe (Surface of Revolution)** - a 2D profile rotated around the Y axis to produce vases, goblets, columns and lamps without tessellation. Three profile modes: **linear** (segments with sharp edges, turned look), **Catmull-Rom** (smooth curve passing through every point) and **cubic Bézier** (manual control points).
@@ -119,7 +119,7 @@ All procedural textures support **offset**, **rotation** and **per-object random
 
 ### Surface Displacement Stack
 - 🟢 **Bump map** - surface detail achieved by perturbing the shading normal from any texture (procedural or image), without adding geometry. The height is in scene units, as a displacement's, whatever the object's size, scale or rotation. Available on every material and every primitive.
-- 🔺 **Mesh subdivision** - OBJ mesh refinement with Loop (triangle meshes) and Catmull-Clark (quad/mixed meshes) algorithms, in uniform or adaptive screen-space mode.
+- 🔺 **Mesh subdivision** - mesh refinement with Loop (triangle meshes) and Catmull-Clark (quad/mixed meshes) algorithms, in uniform or adaptive screen-space mode, with sharp and semi-sharp creases, corner-preserving boundaries, and vertices placed on the exact limit surface with its normals.
 - 🎯 **Material-level displacement** - displacement lives on the material: a single definition automatically drives all meshes that reference it, with no per-entity configuration. Tri-state mode (bump-only, displacement, or both) and per-instance override.
 - 🏔️ **Scalar displacement** - real mesh deformation along the normal of the subdivided mesh: changes the object's silhouette, not just shading.
 - 🗿 **Vector displacement** - 3D vertex offset read from the RGB triplet of the texture, in tangent space or object space. Allows overhangs, folds and details that fold back on themselves.

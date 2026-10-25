@@ -42,8 +42,13 @@ L'intersezione raggio-AABB usa l'algoritmo di **Kay-Kajiya** ("slab method") in 
 - Il raggio precomputa `InvDirection = 1 / Direction` una sola volta nel costruttore.
 - I tre slab vengono valutati in parallelo con `Vector3.Min`/`Vector3.Max` (`System.Numerics` SIMD).
 - Niente divisioni nel hot path, niente switch per asse.
+- **Conservativo** (PIANO-REVIEW.md, Fase 2): le distanze degli slab portano un errore di arrotondamento fino a γ₃ ciascuna, quindi `tExit` è allargato di 1 + 2γ₃ (Ericson 2004, "Real-Time Collision Detection"). Un raggio per lo spigolo di un box, o per il box di spessore zero di un triangolo piatto, non viene mai scartato per arrotondamento. Le primitive non allargano più i propri bound di un epsilon assoluto (i triangoli lo facevano di 1e-4: a scala piccola copriva la geometria, a scala grande cadeva sotto la spaziatura dei float).
 
 Questo è il test più frequente di tutto il renderer: un raggio primario ne esegue decine o centinaia per pixel.
+
+### 1.5 Qualità della costruzione
+
+`BvhNode.SahCost()` misura l'albero: il lavoro atteso di un raggio che colpisce il box radice, ogni nodo pesato dalla probabilità (rapporto delle aree) che lo attraversi anche lui, `TraversalCost` per nodo interno e uno per primitiva di una foglia. È indipendente dalla macchina. `BvhQualityTests` lo confronta con una costruzione top-down che prova ogni split di oggetti su ogni asse (sweep completo, il meglio che una costruzione top-down per oggetti può fare): con 16 bin il costo resta entro l'1% su teiera, icosfera, una zuppa di triangoli di dimensioni diverse e un prato di fili sottili. La velocità è della Fase 11.
 
 ## 2. Costanti di configurazione
 

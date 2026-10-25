@@ -26,7 +26,7 @@ namespace RayTracer.Textures;
 /// </summary>
 public class NormalMapTexture
 {
-    private readonly ImageTexture _image;
+    private readonly ITexture _image;
     private readonly float _strength;
     private readonly bool _flipY;
 
@@ -48,8 +48,9 @@ public class NormalMapTexture
                             float scaleU = 1f, float scaleV = 1f, bool flipY = false)
         : this(new ImageTexture(imagePath, scaleU, scaleV, TextureColorSpace.Linear), strength, flipY) { }
 
-    /// <summary>A normal map from an image already loaded (linear, not sRGB).</summary>
-    public NormalMapTexture(ImageTexture image, float strength = 1f, bool flipY = false)
+    /// <summary>A normal map from a texture already loaded (an image read
+    /// linearly, not sRGB, possibly with a UV transform).</summary>
+    public NormalMapTexture(ITexture image, float strength = 1f, bool flipY = false)
     {
         _strength = Math.Clamp(strength, 0f, 3f);
         _flipY = flipY;

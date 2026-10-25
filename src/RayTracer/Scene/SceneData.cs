@@ -1538,9 +1538,18 @@ public class EntityData
     [YamlMember(Alias = "inner_radius")]
     public float InnerRadius { get; set; } = 0f;
 
-    // Mesh (OBJ file)
+    // Mesh (model file: .obj, .gltf, .glb, .ply)
     [YamlMember(Alias = "path")]
     public string? Path { get; set; }
+
+    /// <summary>
+    /// Mesh only: scene material IDs for the model file's own materials, by
+    /// their name in the file (MTL <c>newmtl</c>, glTF material <c>name</c>).
+    /// Used when the entity has no <c>material</c>, which otherwise covers
+    /// every face.
+    /// </summary>
+    [YamlMember(Alias = "material_overrides")]
+    public Dictionary<string, string>? MaterialOverrides { get; set; }
 
     // ── Mesh subdivision (Loop / Catmull-Clark) ─────────────────────────────
 

@@ -1,0 +1,99 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  subdivision-creases.yaml - pieghe della suddivisione Catmull-Clark
+#  (PIANO-REVIEW.md, Fase 2)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Lo stesso cubo (models/subdivision-cube.obj) suddiviso quattro volte,
+#  con tutti i dodici spigoli marcati come pieghe (subdivision_crease_angle:
+#  45, le facce si incontrano a 90°) e una nitidezza diversa:
+#    - 0:   nessuna piega, la superficie limite liscia (una "saponetta");
+#    - 1:   lo spigolo resta vivo per un livello, poi si ammorbidisce;
+#    - 2:   due livelli: spigoli più stretti;
+#    - inf: (chiave omessa) pieghe sempre vive: il cubo resta un cubo, con
+#           facce piatte e ombreggiatura netta sugli spigoli.
+#  I vertici sono proiettati sulla superficie limite, con le sue normali.
+#
+#  Risultato atteso: da sinistra a destra spigoli sempre più vivi, l'ultimo
+#  cubo con facce perfettamente piatte (images/subdivision-creases.jpg).
+#
+#  Render: -q draft-small (circa 15 s)
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.35, 0.45, 0.6]
+    horizon_color: [0.8, 0.82, 0.85]
+    ground_color:  [0.2, 0.2, 0.2]
+
+camera:
+  position: [0, 2.6, -6.2]
+  look_at:  [0, 0.45, 0]
+  fov: 34
+
+lights:
+  - type: "point"
+    position: [3, 5, -4]
+    color: [1.0, 0.95, 0.9]
+    intensity: 120
+
+materials:
+  - id: "floor"
+    type: "openpbr"
+    base_color: [0.6, 0.6, 0.6]
+    specular_roughness: 0.6
+  - id: "clay"
+    type: "openpbr"
+    base_color: [0.75, 0.32, 0.22]
+    specular_roughness: 0.35
+
+entities:
+  - type: "infinite_plane"
+    point: [0, 0, 0]
+    normal: [0, 1, 0]
+    material: "floor"
+
+  - name: "sharpness-0"
+    type: "mesh"
+    path: "../models/subdivision-cube.obj"
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 4
+    scale: [0.45, 0.45, 0.45]
+    rotate: [0, 30, 0]
+    translate: [2.4, 0.45, 0]
+    material: "clay"
+
+  - name: "sharpness-1"
+    type: "mesh"
+    path: "../models/subdivision-cube.obj"
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 4
+    subdivision_crease_angle: 45
+    subdivision_crease_sharpness: 1
+    scale: [0.45, 0.45, 0.45]
+    rotate: [0, 30, 0]
+    translate: [0.8, 0.45, 0]
+    material: "clay"
+
+  - name: "sharpness-2"
+    type: "mesh"
+    path: "../models/subdivision-cube.obj"
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 4
+    subdivision_crease_angle: 45
+    subdivision_crease_sharpness: 2
+    scale: [0.45, 0.45, 0.45]
+    rotate: [0, 30, 0]
+    translate: [-0.8, 0.45, 0]
+    material: "clay"
+
+  - name: "sharpness-inf"
+    type: "mesh"
+    path: "../models/subdivision-cube.obj"
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 4
+    subdivision_crease_angle: 45
+    scale: [0.45, 0.45, 0.45]
+    rotate: [0, 30, 0]
+    translate: [-2.4, 0.45, 0]
+    material: "clay"

@@ -31,7 +31,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 |---|---|---|
 | 0 | Infrastruttura di verifica | ✅ Chiusa (2026-10-20), esito in §4 Fase 0 |
 | 1 | Fondamenta matematiche, sampler | ✅ Chiusa (2026-10-20), esito in §4 Fase 1 |
-| 2 | Geometria e intersezioni | ⬜ |
+| 2 | Geometria e intersezioni | ✅ Chiusa (2026-10-25), esito in §4 Fase 2 |
 | 3 | Camera, film e colore | ✅ Chiusa (2026-10-21), esito in §4 Fase 3 |
 | 4 | Texture e dati | ✅ Chiusa (2026-10-21), esito in §4 Fase 4 |
 | 5 | Materiali e BSDF | ✅ Chiusa (2026-10-21), esito in §4 Fase 5 |
@@ -398,20 +398,87 @@ rendering relativo alla camera.
 
 ### Fase 2 - Geometria e intersezioni (`Geometry/`, `Acceleration/`)
 
-- [ ] Per ogni primitiva (sphere, quad, box, disk, annulus, cylinder, cone, capsule, torus,
+- [x] Per ogni primitiva (sphere, quad, box, disk, annulus, cylinder, cone, capsule, torus,
       triangle, smooth triangle, mesh, lathe, extrusion, heightfield, infinite plane):
       hit corretto, normale geometrica vs di shading, `FrontFace`, UV, `dpdu/dpdv`, area e pdf di
       campionamento (`ISamplable`, `ISolidAngleSamplable`) che integrano a 1.
-- [ ] Triangoli: Möller-Trumbore vs intersezione **watertight** (Woop et al. 2013), standard in
+- [x] Triangoli: Möller-Trumbore vs intersezione **watertight** (Woop et al. 2013), standard in
       Embree/PBRT: niente "buchi" lungo gli spigoli delle mesh.
-- [ ] `Transform`: normali con inversa trasposta, scala non uniforme, scala negativa (inversione
+- [x] `Transform`: normali con inversa trasposta, scala non uniforme, scala negativa (inversione
       dell'orientamento), `AnimatedTransform` e bound dell'otturatore.
-- [ ] CSG: intervalli dentro/fuori, coplanarità, normali sulle facce sottratte.
-- [ ] Subdivision Loop/Catmull-Clark: confronto con le superfici limite di OpenSubdiv (bordi,
+- [x] CSG: intervalli dentro/fuori, coplanarità, normali sulle facce sottratte.
+- [x] Subdivision Loop/Catmull-Clark: confronto con le superfici limite di OpenSubdiv (bordi,
       creases, vertici straordinari). Displacement stack: ordine, normali dopo displacement.
-- [ ] BVH: correttezza (esiste già il test di equivalenza) e qualità SAH (costo medio per raggio);
+- [x] BVH: correttezza (esiste già il test di equivalenza) e qualità SAH (costo medio per raggio);
       performance rimandata alla Fase 11.
-- [ ] `ObjLoader`: n-gon, normali mancanti, MTL. Proposta: aggiungere glTF 2.0 e PLY.
+- [x] `ObjLoader`: n-gon, normali mancanti, MTL. Proposta: aggiungere glTF 2.0 e PLY.
+
+#### Esito Fase 2 (2026-10-25)
+
+Suite: 1272 test verdi. Strumenti nuovi in `src/RayTracer.Tests/Validation/`:
+`GeometryAuditTests`, `HeightFieldAuditTests`, `MeshWatertightTests`, `CsgAuditTests`,
+`SubdivisionLimitTests`, `BvhQualityTests`, `MeshImportTests`. Dettagli in
+`docs/technical/geometry-and-meshes.md`.
+
+**Primitive.** Kit di verifica per ogni primitiva, anche scalata non uniformemente, specchiata e
+inclinata: primo hit contro una funzione implicita (marcia e bisezione), da fuori e da dentro, con
+normale e `FrontFace`; area con Cauchy-Crofton (rette isotrope) contro la forma chiusa e
+`SurfaceArea`; campionamento d'area (densità, punti sulla superficie, normale, UV uguali a quelle di
+`Hit`, integrale come Crofton). Trovati e corretti: UV dei campioni di box, toro, cilindro, cono e
+tronco, capsula, anello e lathe diverse da quelle di `Hit` (un emettitore con texture mostrava alla
+camera e ai campioni di luce due texture diverse); normale campionata del tronco di cono; buchi del
+lathe a spline sui raggi quasi orizzontali (radice rifinita con Newton in doppia precisione);
+heightfield: hit persi o sbagliati nella cella (ora il raggio contro il patch bilineare è una
+quadratica risolta esattamente), `FrontFace` dalla normale smussata invece che dal patch,
+`dpdu/dpdv` senza la pendenza. `infinite_plane`: invariato e verificato.
+
+**Transform.** Normali con l'inversa trasposta e `FrontFace` sotto specchiatura verificati.
+Densità d'area vera di un emettitore scalato non uniformemente (`ISamplable.AreaPdf`): prima la
+densità usata nel MIS era uniforme (coerente fra le strategie, quindi senza bias nel path tracing,
+ma non la densità vera, che serve agli integratori bidirezionali). Test di trasporto con un
+ellissoide emissivo (anche in BDPT). Bound di `AnimatedTransform`: il padding era la sola sagitta
+della rotazione, ora l'errore di interpolazione max|p''|/8 con il termine incrociato di rotazione e
+scala.
+
+**Triangoli watertight.** Woop, Benthin e Wald 2013 per `Triangle` e `SmoothTriangle`, nessun
+epsilon sul determinante. Prima: raggi su spigoli e vertici di un'icosfera di raggio 1e-4 persi
+al 100% (soglia fissa 1e-7), 230 rette su 1280 con un numero dispari di attraversamenti a raggio 1.
+Dopo: zero a raggio 1e-4, 1 e 3000. Box dei triangoli esatti (prima +1e-4 assoluto) con lo slab
+test reso conservativo (tExit × (1 + 2γ₃)). Prestazioni invariate (teiera +1%, nel rumore).
+
+**CSG.** Riscritta la classificazione: attraversamenti dei due figli fusi in ordine di t e
+raggruppati entro una tolleranza misurata attraverso la superficie (lungo il raggio /|cos θ|), stato
+di ogni figlio dalla `FrontFace` (non dalla parità), superficie solo dove lo stato del risultato
+cambia. Contro gli intervalli esatti di sfere e box: prima falliva su facce interne visibili nelle
+unioni a contatto, sul "tappo" alla bocca di una tasca a filo, su A \ A non vuoto (fino al 93% dei
+raggi sbagliati in quel caso); ora nove casi, otto seed, zero errori. Normali delle facce sottratte:
+si inverte solo `FrontFace` (era già così, documentazione corretta).
+
+**Suddivisione.** Regole dei vertici comuni a Loop e Catmull-Clark (DeRose 1998): pieghe vive e
+semi-vive (`subdivision_crease_angle`, `subdivision_crease_sharpness`), angoli, bordi
+`edge_and_corner` (default, come dichiarato ma non implementato prima: gli angoli di un foglio si
+arrotondavano) o `edge_only` (`subdivision_boundary`). Dopo l'ultimo livello i vertici vanno sulla
+superficie limite con le maschere limite e prendono le normali limite dalle maschere tangenti
+(Hoppe 1994, Halstead 1993); su pieghe e angoli normali per settore. Verifica: punto e normale
+limite di ogni vertice invarianti suddividendo di più (1e-7, 1e-6) per valenze 3-6, bordi, angoli e
+pieghe; normali limite entro 0.25° dalla mesh fine; cubo tutto in piega resta un cubo. Displacement
+lungo le normali limite, poi normali ricostruite (ordine fisso: bump, suddivisione, displacement,
+autobump). Scena `scenes/review/subdivision-creases.yaml`.
+
+**BVH.** Equivalenza già coperta. Metrica `BvhNode.SahCost()`: il SAH a 16 bin è entro l'1% di uno
+sweep completo su teiera, icosfera, zuppa di triangoli e fili d'erba. Nessuna modifica al builder;
+spatial split e velocità alla Fase 11.
+
+**Loader.** Pipeline comune `MeshImporter`: OBJ riscritto (poligoni concavi per ear clipping invece
+del ventaglio, gruppi di smoothing, UV senza normali conservate, MTL con estensione PBR tradotto in
+OpenPBR), **glTF 2.0** (`.gltf`/`.glb`, nodi, accessor quantizzati e sparse, materiali
+metallic-roughness con alfa e le principali estensioni KHR) e **PLY** (ASCII e binario). Materiali
+del file per faccia, una mesh per materiale, `material_overrides` in YAML. Showcase
+`scenes/showcases/model-formats.yaml`.
+
+**Rimandato.** Emissione di un materiale `openpbr` (anche da glTF) trovata solo dal campionamento
+BSDF, non registrata come luce per la NEE (vale anche per lo YAML: limite esistente). Spatial split
+del BVH (Fase 11). Colori per vertice, skin e morph target del glTF (non supportati dal motore).
 
 ### Fase 3 - Camera, film e colore (`Camera/`, `Rendering/` output)
 

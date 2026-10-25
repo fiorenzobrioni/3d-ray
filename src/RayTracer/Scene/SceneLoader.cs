@@ -389,7 +389,7 @@ public class SceneLoader
                 else if (string.Equals(e.Type, "mesh", StringComparison.OrdinalIgnoreCase)
                       || string.Equals(e.Type, "obj", StringComparison.OrdinalIgnoreCase))
                 {
-                    hittable = CreateMeshEntity(e, mat, sceneDir, idx);
+                    hittable = CreateMeshEntity(e, mat, materials, sceneDir, idx);
                 }
                 else if (string.Equals(e.Type, "group", StringComparison.OrdinalIgnoreCase))
                 {
@@ -3109,108 +3109,93 @@ public class SceneLoader
     }
 
     /// <summary>
-    /// Creates a Mesh entity by loading an OBJ file. Resolves the path
-    /// relative to the scene YAML directory and forwards subdivision
-    /// options (Loop / Catmull-Clark, iterations, screen-space pixel error)
-    /// to <see cref="ObjLoader"/>.
+    /// Creates a mesh entity from a model file (.obj with its MTL, .gltf,
+    /// .glb, .ply; <see cref="MeshImporter"/>), resolved relative to the scene
+    /// YAML, with subdivision and the material's displacement. The entity's
+    /// <c>material</c>, when given, covers every face; otherwise the file's
+    /// own materials are used, renamed by <c>material_overrides</c>, and
+    /// <paramref name="mat"/> (the default, or a group's) covers faces with none.
     /// </summary>
-    private static IHittable? CreateMeshEntity(EntityData e, IMaterial mat, string sceneDir,
-        int entityIndex)
+    private static IHittable? CreateMeshEntity(EntityData e, IMaterial mat,
+        Dictionary<string, IMaterial> materials, string sceneDir, int entityIndex)
     {
         var screen = _currentScreenContext;
+        string label = e.Name ?? "(unnamed)";
         if (string.IsNullOrWhiteSpace(e.Path))
         {
-            Warn($"Mesh entity '{e.Name ?? "(unnamed)"}' requires a 'path' to an OBJ file. Skipping.");
+            Warn($"Mesh entity '{label}' requires a 'path' to a model file. Skipping.");
             return null;
         }
 
-        // Resolve the OBJ path relative to the YAML scene directory
-        string objPath = Path.IsPathRooted(e.Path)
-            ? e.Path
-            : Path.Combine(sceneDir, e.Path);
-
-        if (!File.Exists(objPath))
+        string modelPath = Path.IsPathRooted(e.Path) ? e.Path : Path.Combine(sceneDir, e.Path);
+        if (!File.Exists(modelPath))
         {
-            Warn($"Mesh entity '{e.Name ?? "(unnamed)"}': OBJ file not found at '{objPath}'. Skipping.");
+            Warn($"Mesh entity '{label}': model file not found at '{modelPath}'. Skipping.");
             return null;
         }
+        if (!MeshImporter.IsSupported(modelPath))
+        {
+            Warn($"Mesh entity '{label}': '{Path.GetExtension(modelPath)}' is not a supported model " +
+                 "format (.obj, .gltf, .glb, .ply). Skipping.");
+            return null;
+        }
+        string shown = e.Name ?? Path.GetFileName(modelPath);
 
-        // Build the subdivision request. The entity transform is folded
-        // into the screen-space context so the adaptive heuristic measures
-        // the *world-space* projected edge length of the mesh after
-        // translate/rotate/scale, not the unit-cube-local coordinates.
+        // The entity transform is folded into the screen-space context so the
+        // adaptive heuristic measures the world-space projected edge length.
         var subdivision = BuildSubdivisionOptions(e, screen);
 
-        // Resolve the displacement off the material (material-level model \u2014
-        // Cycles/RenderMan parity). The entity can suppress it for this
-        // single instance via 'displacement_enabled: false'.
+        // Displacement lives on the material; the entity can suppress it.
         int seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
         var matDisp = e.DisplacementEnabled ? mat.Displacement : null;
 
-        var warnings = new List<string>();
-        var mesh = ObjLoader.Load(objPath, mat, subdivision, matDisp, seed,
-            warnings,
-            out var appliedScheme, out var appliedIterations,
-            out var maxDisplacement);
-
-        foreach (var w in warnings)
-            Warn($"Mesh '{e.Name ?? Path.GetFileName(objPath)}': {w}");
-
-        if (mesh == null)
+        Dictionary<string, IMaterial>? overrides = null;
+        if (e.MaterialOverrides is { Count: > 0 })
         {
-            Warn($"Mesh entity '{e.Name ?? "(unnamed)"}': failed to load '{objPath}'. Skipping.");
-            return null;
+            overrides = new Dictionary<string, IMaterial>(StringComparer.Ordinal);
+            foreach (var (fileName, id) in e.MaterialOverrides)
+                overrides[fileName] = GetMaterial(materials, id);
         }
 
-        // Detect under-bounded displacement: if the material provided an
-        // explicit displacement bound but the texture pushed vertices past
-        // it, warn so the author can either raise the bound or clamp their
-        // texture. The eager-displaced AABBs are already correct, so this
-        // is purely a forward-compat hint for future lazy-displacement
-        // modes that would actually rely on the bound for correctness.
+        var warnings = new List<string>();
+        var imported = MeshImporter.Read(modelPath, warnings);
+        ImportResult? result = imported == null ? null
+            : MeshImporter.Build(imported, e.Material != null ? mat : null, overrides, mat,
+                                 subdivision, matDisp, seed, warnings);
+        foreach (var w in warnings)
+            Warn($"Mesh '{shown}': {w}");
+        if (result == null)
+        {
+            Warn($"Mesh entity '{label}': failed to load '{modelPath}'. Skipping.");
+            return null;
+        }
+        if (imported != null && e.MaterialOverrides != null)
+            foreach (var name in e.MaterialOverrides.Keys)
+                if (!imported.SlotNames.Contains(name))
+                    Warn($"Mesh '{shown}': material_overrides names '{name}', which the file does not have.");
+
+        // An explicit bound smaller than the displacement applied: a hint for
+        // the author (the displaced bounds are exact either way).
         float effectiveBound = matDisp?.Bound ?? 0f;
         if (matDisp != null && matDisp.RequestsGeometricDisplacement
-            && effectiveBound > 0f
-            && maxDisplacement > effectiveBound * 1.0001f)
+            && effectiveBound > 0f && result.MaxDisplacement > effectiveBound * 1.0001f)
         {
-            Warn($"Mesh '{e.Name ?? Path.GetFileName(objPath)}': " +
-                 $"material's displacement.bound={effectiveBound:F4} is smaller " +
-                 $"than the maximum applied displacement {maxDisplacement:F4}. " +
-                 $"Raise displacement.bound to {maxDisplacement:F4} or higher " +
+            Warn($"Mesh '{shown}': material's displacement.bound={effectiveBound:F4} is smaller " +
+                 $"than the maximum applied displacement {result.MaxDisplacement:F4}. " +
+                 $"Raise displacement.bound to {result.MaxDisplacement:F4} or higher " +
                  $"to fully enclose the displaced silhouette.");
         }
 
-        string dispTag = DescribeDisplacement(matDisp);
+        var details = new List<string>();
+        if (result.MaterialCount > 1) details.Add($"{result.MaterialCount} materials");
+        if (result.Iterations > 0) details.Add($"subdivision: {result.Scheme} \u00d7 {result.Iterations}");
+        if (matDisp != null && matDisp.RequestsGeometricDisplacement)
+            details.Add($"displacement: {DescribeDisplacement(matDisp)}, max={result.MaxDisplacement:F4}");
+        Info($"Mesh:        {shown} \u2014 {result.FaceCount:N0} faces, {result.VertexCount:N0} vertices" +
+             (details.Count > 0 ? $" ({string.Join(", ", details)})" : ""));
 
-        if (appliedIterations > 0 && matDisp != null && matDisp.RequestsGeometricDisplacement)
-        {
-            Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
-                 $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices " +
-                 $"(subdivision: {appliedScheme} \u00d7 {appliedIterations}, " +
-                 $"displacement: {dispTag}, max={maxDisplacement:F4})");
-        }
-        else if (appliedIterations > 0)
-        {
-            Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
-                 $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices " +
-                 $"(subdivision: {appliedScheme} \u00d7 {appliedIterations})");
-        }
-        else if (matDisp != null && matDisp.RequestsGeometricDisplacement)
-        {
-            Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
-                 $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices " +
-                 $"(displacement: {dispTag}, max={maxDisplacement:F4})");
-        }
-        else
-        {
-            Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
-                 $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices");
-        }
-
-        // Seed assignment (same logic as CreateEntity)
-        mesh.Seed = seed;
-
-        return mesh;
+        result.Hittable.Seed = seed;
+        return result.Hittable;
     }
 
     /// <summary>
@@ -3695,7 +3680,7 @@ public class SceneLoader
             else if (string.Equals(child.Type, "mesh", StringComparison.OrdinalIgnoreCase)
                   || string.Equals(child.Type, "obj", StringComparison.OrdinalIgnoreCase))
             {
-                hittable = CreateMeshEntity(child, mat, sceneDir, childIdx);
+                hittable = CreateMeshEntity(child, mat, materials, sceneDir, childIdx);
             }
             else if (string.Equals(child.Type, "group", StringComparison.OrdinalIgnoreCase))
             {

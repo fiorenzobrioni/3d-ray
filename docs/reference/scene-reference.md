@@ -2273,23 +2273,58 @@ See `docs/technical/motion-blur.md` for the algorithm, and the
   n2: [0.1, 0, 0.9]
   material: "plastic"
 ```
-#### **7.12 Mesh (OBJ Files)**
+#### **7.12 Mesh (OBJ, glTF, PLY files)**
 ```yaml
 - name: "model"
   type: "mesh"
-  path: "models/teapot.obj"               # Relative to YAML
+  path: "models/teapot.obj"               # .obj, .gltf, .glb or .ply, relative to the YAML
   scale: [2.0, 2.0, 2.0]
   translate: [0, 1, 0]
-  material: "ceramic"
+  material: "ceramic"                     # optional: covers every face
 ```
-- Supports Wavefront OBJ format
-- Auto-builds internal BVH for fast intersection
-- Smooth shading with artist UV mapping
+- Formats, picked by the extension:
+  - **Wavefront OBJ** with its **MTL** library (`mtllib`, `usemtl`): polygons
+    of any size (concave ones are ear-clipped, not fanned), negative indices,
+    smoothing groups (`s`: a face without normals is shaded with the
+    angle-weighted normals of its group, flat with `s off`). MTL statements
+    read: `Kd`/`map_Kd`, `Ks`, `Ns` (Phong exponent, turned into a roughness),
+    `Pr`/`map_Pr`, `Pm`/`map_Pm`, `Ni`, `d`/`Tr`/`map_d` (opacity; with
+    `illum` 4, 6, 7 or 9 it is the glass's transmission), `Tf`, `Ke`/`map_Ke`,
+    `bump`/`map_Bump` (`-bm`), `norm`/`map_Kn`, `Pc`, `Pcr`, `Ps`, `aniso`;
+    map option `-s`.
+  - **glTF 2.0** (`.gltf` with external or embedded buffers, `.glb`): the
+    default scene's nodes (matrices or TRS, a mirroring node reverses the
+    winding), triangles, strips and fans, normals, `TEXCOORD_0`, normalised
+    and sparse accessors. Materials: metallic-roughness with base colour,
+    alpha (`OPAQUE`, `MASK` as a cut-out, `BLEND` as stochastic opacity),
+    normal and emissive maps, and `KHR_materials_emissive_strength`, `_ior`,
+    `_transmission`, `_volume` (without it transmission is thin-walled),
+    `_clearcoat`, `_sheen`, `_specular`, `_iridescence`, `_anisotropy`,
+    `_unlit`, `KHR_texture_transform`, `EXT_texture_webp`. Not read: points
+    and lines, skins and morph targets (rest pose), vertex colours, Draco and
+    meshopt compression, KTX2 textures, occlusion maps.
+  - **PLY** (ASCII, binary little and big endian): positions, normals
+    (`nx ny nz`), texture coordinates (`u v`, `s t`, `texture_u texture_v`),
+    faces of any size. No materials.
+- **Materials**: `material` on the entity covers every face. Without it the
+  file's own materials are used (OBJ/MTL, glTF), translated into `openpbr`,
+  and faces without one take the default (or the enclosing group's)
+  material. `material_overrides` replaces file materials by name:
+  ```yaml
+  - type: "mesh"
+    path: "models/car.glb"
+    material_overrides:
+      "Body": "red_paint"                 # file material name: scene material id
+  ```
+  A model with several materials becomes one mesh per material, each sampled
+  as an area light on its own when emissive.
+- Auto-builds an internal BVH; smooth shading with the file's normals and UVs
+  (a face with UVs and no normals keeps its UVs, shaded flat).
 - Supports `translate`, `rotate`, `scale`
 
 ##### **Subdivision surfaces (Loop / Catmull-Clark)**
 
-The mesh loader can refine the OBJ before BVH construction using the
+The mesh loader can refine the model before BVH construction using the
 standard Loop and Catmull-Clark subdivision algorithms:
 
 ```yaml
@@ -2299,6 +2334,8 @@ standard Loop and Catmull-Clark subdivision algorithms:
   material: "ceramic"
   subdivision_scheme: "catmull_clark"     # loop | catmull_clark | auto | none
   subdivision_iterations: 3               # uniform refinement steps
+  subdivision_crease_angle: 45            # edges sharper than 45° become creases
+  subdivision_crease_sharpness: 2         # sharp for 2 levels, then smooth
 ```
 
 | Field                       | Type   | Default | Notes |
@@ -2307,19 +2344,25 @@ standard Loop and Catmull-Clark subdivision algorithms:
 | `subdivision_iterations`    | int    | `0`     | Uniform iteration count. Each iteration multiplies face count by ≈ 4. |
 | `subdivision_pixel_error`   | float  | `0`     | Adaptive screen-space target. The loader picks the iteration count that brings the longest projected edge below this many pixels (using the scene's resolved camera). Combined with `subdivision_iterations` by `max(static, adaptive)`. |
 | `subdivision_max_iterations`| int    | `6`     | Hard ceiling regardless of the adaptive estimate (caps the 4^N face explosion). |
+| `subdivision_boundary`      | string | `edge_and_corner` | Open boundaries: `edge_and_corner` keeps a boundary vertex with a single face in place (the corner of a sheet); `edge_only` rounds it along the boundary curve. Boundary edges are always sharp. |
+| `subdivision_crease_angle`  | float  | `0`     | Edges whose two faces meet at more than this angle (degrees, between their normals) become creases. `0` = none. |
+| `subdivision_crease_sharpness` | float | infinite | Sharpness of those creases: sharp for this many levels, then smooth, a fraction blending the two (semi-sharp creases). Omitted: always sharp. |
 
-- **Loop subdivision** (Charles Loop, 1987) - boundary mask per Hoppe et
-  al. 1994. Triangles only; n-gons in the source are fan-triangulated first.
-- **Catmull-Clark** (Catmull & Clark, 1978) - boundary mask per
-  Hoppe / DeRose. Mixed-arity input is handled in the first iteration,
-  after which the mesh is all-quads.
-- Per-vertex normals are **recomputed from the limit topology** using
-  Max 1999's angle-weighted average. Source
-  OBJ normals are propagated through subdivision but overridden at
-  triangulation time because the limit surface is smoother than the input.
-- UV channels carry through with linear mid-edge masks (vertex-varying
-  interpolation in OpenSubdiv terms). UV seams that share a position but
-  not a UV are preserved.
+- **Loop subdivision** (Charles Loop, 1987) and **Catmull-Clark** (Catmull
+  & Clark, 1978), with the vertex rules of DeRose, Kass and Truong 1998: a
+  vertex with two sharp edges follows the crease curve (1/8, 6/8, 1/8), three
+  or more make a corner (fixed), a crease edge's sharpness drops by one per
+  level. Loop takes triangles only (polygons are triangulated first);
+  Catmull-Clark takes any polygon in the first iteration, then all quads.
+- After the last level the vertices are **moved onto the limit surface**
+  with the limit masks, and each gets the **limit surface's normal** from the
+  tangent masks (exact at smooth vertices of any valence). On a crease or a
+  corner each face corner gets the normal of its own side (sector), so a
+  crease stays sharp in the shading. Normals given in the file are not used
+  after subdivision.
+- UV channels carry through with linear mid-edge masks (face-varying
+  linear interpolation). UV seams that share a position but not a UV are
+  preserved.
 
 ##### **Surface displacement (material-level)**
 
