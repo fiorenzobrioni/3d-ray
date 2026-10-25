@@ -17,11 +17,11 @@ Interpreta come `<path/to/scene.yaml> [profilo] [flag extra]`. Se manca il file,
 
 | Profilo | Flag `-q` | Dimensione | spp | Depth | Denoiser auto | Tempo tipico |
 |---------|-----------|-----------|-----|-------|--------------|--------------|
-| **draft** (default) | `draft-small` | 960×540 | 16 | 4 | nfor-fast | secondi |
-| **standard** | `standard` | 1920×1080 | 256 | 8 | nfor-fast | ~5–15 min |
-| **pre-final** | `pre-final` | 1920×1080 | 256 | 10 | nfor | ~10–20 min |
-| **final** | `final` | 1920×1080 | 1024 | 10 | nessuno | ore |
-| **ultra** | `ultra` | 3840×2160 | 1024 | 10 | nessuno | ore |
+| **draft** (default) | `draft-small` | 960×540 | 16 | 8 | oidn-fast | secondi |
+| **standard** | `standard` | 1920×1080 | 512 | 12 | oidn | ~5–15 min |
+| **pre-final** | `pre-final` | 1920×1080 | 256 | 16 | oidn | ~10–20 min |
+| **final** | `final` | 1920×1080 | 1024 | 16 | nessuno | ore |
+| **ultra** | `ultra` | 3840×2160 | 512 | 32 | nessuno | ore |
 
 Varianti dimensione disponibili per ogni livello (tranne `ultra`):
 - `-tiny` = 480×270 (es. `draft-tiny`) — smoke test velocissimo
@@ -64,7 +64,7 @@ Aggiungi i seguenti flag **solo se pertinenti** alla scena o richiesti dall'uten
 |------|--------------------|
 | `-c <nome>` | l'utente ha passato `--camera <nome>` |
 | `-C <n>` | scena con dielectric annidato, media densi o volumetria pesante — firefly clamp 5–25 |
-| `--denoiser nfor` | già attivo per `draft`/`standard`/`pre-final`; aggiungere solo per override su `final`/`ultra` |
+| `--denoiser oidn` | già attivo per `draft`/`standard`/`pre-final` (`nfor` dove OIDN non si carica); aggiungere solo per override su `final`/`ultra` |
 | `--integrator bdpt` | caustiche viste direttamente (prismi, sfere di vetro, luci piccole dietro un vetro) |
 | `--integrator vcm` | caustiche viste attraverso vetro o acqua (piscine, oggetti in un bicchiere) |
 | `--sss-mode off` | scena senza materiali SSS, per saltare il dispatch |
@@ -101,7 +101,7 @@ Se il render fallisce, mostra l'errore dal motore e suggerisci:
   → draft-small, output: renders/00-test-chess.png
 
 /render scenes/chess.yaml standard
-  → standard (1920×1080, 256 spp, nfor), output: renders/00-test-chess.png
+  → standard (1920×1080, 512 spp, oidn), output: renders/00-test-chess.png
 
 /render scenes/pendolo-newton.yaml final --camera macro
   → final con camera "macro", output: renders/00-test-pendolo-newton.png

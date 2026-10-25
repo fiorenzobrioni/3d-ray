@@ -3,9 +3,10 @@ using RayTracer.Rendering;
 namespace RayTracer.Denoising;
 
 /// <summary>
-/// Dual-buffer variance estimation. The render loop splits samples into
-/// even/odd halves A/B; for the full-buffer mean the unbiased per-pixel
-/// estimate is Var[mean] ≈ ((Ā−B̄)/2)². The raw estimate is χ²₁-distributed
+/// Dual-buffer variance estimation. The render loop splits each pixel's
+/// samples into halves A/B (the first and second half of its sequence, see
+/// <see cref="RenderBuffers"/>); for the full-buffer mean the per-pixel
+/// estimate is Var[mean] ≈ ((Ā−B̄)/2)², within 8-14% of the truth with Sobol. The raw estimate is χ²₁-distributed
 /// (wildly noisy), so it is stabilised with a 7×7 binomial smooth and floored
 /// at a small fraction of the squared local mean so downstream weight
 /// normalisations never divide by (near-)zero confidence.

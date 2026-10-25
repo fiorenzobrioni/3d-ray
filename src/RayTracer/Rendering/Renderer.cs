@@ -395,7 +395,7 @@ public partial class Renderer
 
     /// <summary>
     /// Render overload that can additionally capture linear-HDR beauty (with
-    /// even/odd half-sample splits) and first-non-delta-hit AOVs
+    /// dual-buffer half splits) and first-non-delta-hit AOVs
     /// (albedo/normal/depth) for the denoiser and PFM output.
     ///
     /// Invariant: the tone-mapped <see cref="RenderResult.Pixels"/> are
@@ -411,6 +411,9 @@ public partial class Renderer
             Interlocked.Exchange(ref s_nonFiniteCount, 0);
             return RenderBidirectional(width, height, options);
         }
+        LastRenderMeanSamples = 0;
+        if (AdaptiveActive)
+            return RenderAdaptive(width, height, options);
         var pixels = new Vector3[height, width];
         // Path guiding learns before the render, on its own sample sequences.
         if (_guide is { CanSample: false })
@@ -460,8 +463,12 @@ public partial class Renderer
         RenderBuffers? buffers = options.Any
             ? new RenderBuffers(width, height, actualSamples + trained, options.CaptureAovs)
             : null;
-        GuidedPassSums? finalPass = trained > 0 ? new GuidedPassSums(width, height) : null;
+        GuidedPassSums? finalPass = trained > 0 ? new GuidedPassSums(width, height, trained, actualSamples) : null;
         bool captureAovs = _captureAovs;
+        // Dual-buffer halves (RenderBuffers): with Sobol the first ⌈n/2⌉
+        // samples of the pass against the rest, with the PRNG's jittered grid
+        // the even cells against the odd ones.
+        int halfA = (actualSamples + 1) / 2;
 
         // Progress is printed by a single dedicated reporter thread, so no worker
         // ever touches the Console lock (which used to serialise the render
@@ -548,7 +555,7 @@ public partial class Renderer
 
                         sample = ClampRadiance(sample);
                         cumulativeColor += sample;
-                        if (buffers != null) capAcc.Add(sample, trained + s, captureAovs);
+                        if (buffers != null) capAcc.Add(sample, s < halfA, captureAovs);
                         finalPass?.Add(i, j, trained + s, sample);
                     }
                 }
@@ -579,7 +586,7 @@ public partial class Renderer
 
                             sample = ClampRadiance(sample);
                             cumulativeColor += sample;
-                            if (buffers != null) capAcc.Add(sample, trained + sy * sqrtSpp + sx, captureAovs);
+                            if (buffers != null) capAcc.Add(sample, ((sy * sqrtSpp + sx) & 1) == 0, captureAovs);
                             finalPass?.Add(i, j, trained + sy * sqrtSpp + sx, sample);
                         }
                     }
@@ -696,7 +703,7 @@ public partial class Renderer
 
     /// <summary>
     /// Per-pixel side accumulators for the optional capture: dual-buffer
-    /// (even/odd sample) beauty halves plus AOV halves. Lives on the worker's
+    /// beauty halves plus AOV halves (<see cref="RenderBuffers"/>). Lives on the worker's
     /// stack next to the legacy accumulator; zero allocations.
     /// </summary>
     private struct CaptureAccumulator
@@ -706,11 +713,17 @@ public partial class Renderer
         private float _depA, _depB;
         private int _depCntA, _depCntB;
         private int _aovCntA, _aovCntB;
+        private int _nA, _nB;
 
-        public void Add(Vector3 sample, int sampleIndex, bool aovs)
+        public readonly int CountA => _nA;
+        public readonly int CountB => _nB;
+        public readonly Vector3 SumA => _sumA;
+        public readonly Vector3 SumB => _sumB;
+
+        /// <summary>Adds one sample to half A (<paramref name="isA"/>) or B.</summary>
+        public void Add(Vector3 sample, bool isA, bool aovs)
         {
-            bool isA = (sampleIndex & 1) == 0;
-            if (isA) _sumA += sample; else _sumB += sample;
+            if (isA) { _sumA += sample; _nA++; } else { _sumB += sample; _nB++; }
             if (!aovs) return;
             if (isA) _aovCntA++; else _aovCntB++;
 
@@ -733,6 +746,22 @@ public partial class Renderer
         }
 
         /// <summary>
+        /// Adaptive sampling's doubling passes: the samples so far become half
+        /// A, the next pass fills B, so the halves stay the first and second
+        /// half of the pixel's sequence.
+        /// </summary>
+        public void Promote()
+        {
+            _sumA += _sumB; _sumB = Vector3.Zero;
+            _nA += _nB; _nB = 0;
+            _albA += _albB; _albB = Vector3.Zero;
+            _nrmA += _nrmB; _nrmB = Vector3.Zero;
+            _depA += _depB; _depB = 0f;
+            _depCntA += _depCntB; _depCntB = 0;
+            _aovCntA += _aovCntB; _aovCntB = 0;
+        }
+
+        /// <summary>
         /// Divides the half sums into means and writes one pixel of every
         /// captured plane. With a single sample (nB == 0) the B half mirrors
         /// A so downstream variance estimates read as zero.
@@ -740,13 +769,14 @@ public partial class Renderer
         public readonly void Store(RenderBuffers buffers, int x, int y,
                                    Vector3 linearColor, int samples)
         {
-            int nA = buffers.SamplesA, nB = buffers.SamplesB;
+            int nA = Math.Max(_nA, 1), nB = _nB;
             buffers.Beauty.SetRgb(x, y, linearColor);
             Vector3 meanA = _sumA / nA;
             Vector3 meanB = nB > 0 ? _sumB / nB : meanA;
             buffers.BeautyA.SetRgb(x, y, meanA);
             buffers.BeautyB.SetRgb(x, y, meanB);
             buffers.SampleCount[y * buffers.Width + x] = samples;
+            if (buffers.HalfCountA != null) buffers.HalfCountA[y * buffers.Width + x] = _nA;
 
             if (!buffers.HasAovs) return;
             // The guides come from the render's own samples only (training

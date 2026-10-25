@@ -39,7 +39,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 7 | Integratore | ✅ Chiusa (2026-10-24), esito in §4 Fase 7; 7b (path guiding) ✅ 2026-10-24 |
 | 8 | Volumi e SSS (null-scattering) | ✅ Chiusa (2026-10-24), esito in §4 Fase 8 |
 | 8b | Integratori bidirezionali: BDPT, poi VCM per le caustiche | ✅ Chiusa (2026-10-24), esito in §4 Fase 8b |
-| 9 | Post-processing e denoiser | ⬜ |
+| 9 | Post-processing e denoiser | ✅ Chiusa (2026-10-25), esito in §4 Fase 9 |
 | 10 | Formato scene v2 | ⬜ |
 | 11 | Architettura e performance | ⬜ |
 
@@ -179,7 +179,7 @@ fase indicata.
 | 3.30 | ✅ **corretto** (2026-10-21, Fase 4), era **[NON-STANDARD]** | `Core/Perlin.cs:109-111` | Interpolazione con il fade cubico `3t² - 2t³`: il valore e il gradiente sono continui ma la curvatura salta di 12.7 attraverso le facce del reticolo (visibile come pieghe sulla griglia nei bump map di rumore, che derivano due volte). Gradienti normalizzati sul cubo: anisotropia del 5.7% fra assi e diagonali. Improved Perlin (fade quintico, 12 gradienti) cambia l'aspetto di ogni texture procedurale: Fase 4, con un'opzione per l'aspetto attuale. Anche `MultiScaleRidgedField` e `DomainWarp` (costruiti su Perlin) vanno verificati lì. **Esito**: `PerlinBasis.Improved` (Perlin 2002: fade quintico, 16 gradienti sugli spigoli del cubo) è la base di default di noise, marble, wood, warp del voronoi e brick, riscalata a 0.67 per avere la deviazione standard della base classica (range e color ramp restano tarati); `noise_basis: classic` riproduce esattamente il disegno di prima. Salto di curvatura sulle facce del reticolo: da oltre 5 volte a circa 1 volta quello dentro la cella; anisotropia fra asse e diagonale sotto il 2%. Gli strata dell'heightfield restano sulla base classica (spostano solo bande di colore). `MultiScaleRidgedField` e `DomainWarp` verificati: usano `Noise`/`Ridged` senza assunzioni sulla base. Test `PerlinBasisTests`. |
 | 3.31 | ✅ **corretto** (2026-10-21, Fase 4), era **[NON-STANDARD]** piccolo | `Rendering/Renderer.cs:700` | I differenziali di raggio sono ridotti di `1/√spp` senza minimo: ad alti spp il filtro delle texture scende sotto il pixel (PBRT-v4 usa `max(1/8, 1/√spp)`), con aliasing e accessi di cache peggiori. Il footprint dei raggi di camera è verificato (§4 Fase 1); la propagazione dopo riflessione e rifrazione non è ancora testata. Fase 4. **Esito**: footprint `max(1/8, 1/√spp)` del pixel (`Renderer.DifferentialFloor`). La propagazione dopo riflessione e rifrazione non esiste per scelta: solo il primo hit del raggio di camera è filtrato, i rimbalzi sono campionati in un punto e l'antialias lo fa la media dei campioni (non distorto). Test `DifferentialFloorTests` (1, 16 e 1024 spp; nessun lookup filtrato oltre il primo hit). |
 | 3.32 | ✅ **corretto** (2026-10-21, Fase 5), era **[DEBITO]** | `Core/MathUtils.cs` (`Refract`) | Con la riflessione totale interna `Refract` prendeva `Abs(1 - sin²)` e restituiva una direzione senza significato. Ora restituisce il vettore nullo e i chiamanti ripiegano sulla riflessione (vicino all'angolo critico l'arrotondamento poteva sfuggire al controllo preventivo). |
-| 3.33 | **[BUG]** | `Denoising/` (NFOR) | Attorno a luci piccole e molto luminose sfocate (bokeh) il denoiser disegna un **alone scuro** più scuro dello sfondo: la regressione al primo ordine sbanda su valori HDR estremi. Senza denoiser l'alone non c'è (verificato con `scenes/showcases/camera-physical.yaml`). Colpisce i preset `draft*`, `standard*`, `pre-final*`. Fase 9. **Mitigato nella Fase 6**: il sole a piena luminosità in uno specchio diventava un quadrato bianco con il bordo scuro; ora le luci estreme (oltre 32 volte il 99° percentile) sono tolte dal filtro e riaggiunte intatte, e un candidato che scende sotto zero perde la selezione (test `DenoiserHighlightTests`). Resta una cucitura sottile e leggermente tinta lungo i bordi illuminati dal sole su sfondo scuro (`showcases/extrusion.yaml`): la soluzione vera è un denoiser appreso (OIDN, Fase 9). |
+| 3.33 | ✅ **corretto** (2026-10-25, Fase 9), era **[BUG]** | `Denoising/` (NFOR) | Attorno a luci piccole e molto luminose sfocate (bokeh) il denoiser disegna un **alone scuro** più scuro dello sfondo: la regressione al primo ordine sbanda su valori HDR estremi. Senza denoiser l'alone non c'è (verificato con `scenes/showcases/camera-physical.yaml`). Colpisce i preset `draft*`, `standard*`, `pre-final*`. Fase 9. **Mitigato nella Fase 6**: il sole a piena luminosità in uno specchio diventava un quadrato bianco con il bordo scuro; ora le luci estreme (oltre 32 volte il 99° percentile) sono tolte dal filtro e riaggiunte intatte, e un candidato che scende sotto zero perde la selezione (test `DenoiserHighlightTests`). Resta una cucitura sottile e leggermente tinta lungo i bordi illuminati dal sole su sfondo scuro (`showcases/extrusion.yaml`): la soluzione vera è un denoiser appreso (OIDN, Fase 9). **Esito**: i preset usano ora OIDN (`--denoiser oidn`), che ricostruisce il bokeh (relMSE 0.014 a 16 spp su `camera-physical`, rumore 0.055) e non lascia cuciture sui bordi al sole (`extrusion`: relMSE 0.0044 contro 0.19 di NFOR a 16 spp). In NFOR, che resta come ripiego senza librerie native, la soglia delle luci tolte dal filtro scende da 32 a 8 volte il 99° percentile: il bokeh usciva a quadrati (0.51 a 16 spp, peggio del rumore), ora 0.11; resta peggio del rumore lì, documentato. |
 | 3.34 | ✅ **corretto** (2026-10-22, Fase 6), era **[NON-STANDARD]** rimandato | camera | Esposizione fisica (ISO, tempo di posa, EV100) non implementata: senza unità fotometriche per le luci (3.14) un'esposizione in EV100 non ha un riferimento. Va fatta con le unità nella Fase 6. **Esito**: `ev100`, oppure `iso` + `shutter_speed` + `f_stop`; esposizione `-EV100 - log2(1.2)` (convenzione basata sulla saturazione). Regola del "sunny 16" verificata: con un cielo fotometrico e EV100 15 un grigio 18% al sole viene grigio medio (`scenes/review/daylight-units.yaml`). |
 | 3.35 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** | `Materials/Dielectric.cs`, `DisneyBsdf.cs` (trasmissione), `Rendering/CausticPhotonTracer.cs` | Alla rifrazione mancava il fattore `(η_i/η_t)²` della radianza (si conserva `L/n²`, Veach 1997 §5.2). Si compensa per un oggetto attraversato avanti e indietro, quindi non si vedeva, ma una camera dentro l'acqua o il vetro vedeva il fuori `n²` volte troppo scuro e una luce dentro il vetro usciva `n²` volte troppo forte. **Misurato**: camera al centro di una sfera di vetro n 1.33 in ambiente uniforme, 1.00 invece di 1.769 (Mitsuba 1.7689). Ora 1.769 per `dielectric` e per il vetro Disney; i fotoni, che portano potenza, tolgono il fattore. Test `InsideClearGlass_RadianceIsScaledByEtaSquared`. |
 | 3.36 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** | `Rendering/Renderer.cs` (`LightSideTerminator`, `DirectLightingAt`), `Lights/*`, `ShadowRay` | La NEE non raggiungeva mai una luce dietro una superficie che trasmette (vetro satinato, `diff_trans` del Disney): il fattore di shadow terminator valeva 0 sotto l'orizzonte geometrico, alcune luci scartavano quei campioni e l'origine del raggio d'ombra stava sempre dal lato della camera. Il MIS dava comunque al campionamento BSDF solo la sua quota, quindi luce persa. Ora `IMaterial.HasTransmission`, terminator dal lato della luce, origine dal lato della luce (`MathUtils.OffsetToward`). Misura: `glass-rough` (vetro satinato contro il `roughdielectric` di Mitsuba) da 0.948 a **1.0013**. |
@@ -215,6 +215,7 @@ fase indicata.
 | 3.66 | ✅ **corretto** (2026-10-24, Fase 8), era **[BIAS]** | `Rendering/RandomWalkSss.cs`, `RandomWalkConfig` | I preset del random walk tagliavano il walk a 16-256 rimbalzi e fermavano la NEE dopo 2-16 rimbalzi mentre il MIS dell'uscita contava su di essa: sfera cromatica 0.9648 contro Mitsuba. Ora NEE sempre, nessun tetto, roulette: 0.9981. |
 | 3.67 | ✅ **corretto** (2026-10-24, Fase 8), era **[NON-STANDARD]** | `Scene/SceneLoader.cs` (`BuildEmbeddedSssMedium`) | Il colore SSS dei materiali Disney era preso come albedo di singolo scattering (0.8 usciva circa 0.4), quello di OpenPBR come albedo visibile: ora entrambi con l'inversione di Chiang 2016 e il termine di anisotropia di OpenPBR. |
 | 3.68 | ✅ **corretto** (2026-10-24, Fase 8), era **[BIAS]** | `Volumetrics/*Medium.cs` | Campionamento per canale scelto a caso con peso 1 sul canale a estinzione nulla (omogeneo, height fog); tracking di un solo canale pesato con σ_s/σ_t di quel canale (procedurale, griglia); tetto di 4096 passi; majorant della griglia superabile dal tricubico; atmosfera con un canale medio e ricolorazione exp(τ̄ − τ_c) illimitata, una sola phase function per aria e polvere, e applicata anche ai raggi verso il cielo. Vedi l'esito della Fase 8. |
+| 3.69 | ✅ **corretto** (2026-10-25, Fase 9), era **[BIAS]** | `Rendering/RenderBuffers.cs`, `Renderer` (capture), `PathGuiding`, `VertexConnectionMerging` | Le metà del doppio buffer erano i campioni pari e dispari: con Sobol le due metà di una sequenza con lo scrambling di Owen si riempiono i buchi a vicenda (nella prima dimensione coprono le due metà del pixel), e la varianza stimata ((Ā − B̄)/2)² era 2.4-3 volte quella vera della media del pixel; con il PRNG (celle pari e dispari della griglia jittered) 1.24-1.44, non "indipendente" come diceva la documentazione. NFOR compensava con un margine di selezione tarato a mano. Ora le metà sono la prima e la seconda metà della sequenza del pixel (per passata con il guiding, per intervallo di iterazioni con BDPT/VCM): 1.08-1.14 (`DualBufferVarianceTests`), margine tolto. |
 
 ---
 
@@ -318,7 +319,7 @@ denoiser dei preset draft/standard/pre-final li assorbe; altrimenti `-C`).
 - [x] Offset dei raggi relativi alla scena (3.27); `AABB.Hit` con NaN (3.28) e raggi paralleli agli assi.
 - [x] Basi ortonormali di Duff et al. (3.26). Il frame tangente con normal map va alla Fase 4 (MikkTSpace).
 - [x] Routine di campionamento: chi-quadro e integrale della pdf di sfera, emisfero, cono, disco concentrico, phase function, HDRI (3.9).
-- [x] Sampler rifatto (3.10): stratificazione 2D, dimensioni per vertice, correlazioni. Blue-noise screen-space: valutato, rimandato alla Fase 9 (interagisce con il denoiser).
+- [x] Sampler rifatto (3.10): stratificazione 2D, dimensioni per vertice, correlazioni. Blue-noise screen-space: valutato, rimandato alla Fase 9 (interagisce con il denoiser); nella Fase 9 non fatto, vedi il suo esito.
 - [x] Solver: radici note, coppie vicine, toro contro un riferimento in doppia precisione (3.29).
 - [x] Perlin e Worley misurati; correzione del Perlin rimandata alla Fase 4 (3.30).
 - [x] Footprint dei differenziali di camera contro la differenza finita; dopo riflessione/rifrazione e minimo 1/8 alla Fase 4 (3.31).
@@ -1088,11 +1089,81 @@ nel light tracing (il clamp di d² è un'alterazione non fisica della NEE).
 
 ### Fase 9 - Post-processing e denoiser (`Denoising/`)
 
-- [ ] NFOR: stima della varianza dual-buffer, selezione MSE, nessuna perdita di dettaglio sulle
+- [x] NFOR: stima della varianza dual-buffer, selezione MSE, nessuna perdita di dettaglio sulle
       texture (test su scena con texture fini).
-- [ ] Integrare **OIDN** come opzione (`--denoiser oidn`): è lo standard di fatto in produzione
+- [x] Integrare **OIDN** come opzione (`--denoiser oidn`): è lo standard di fatto in produzione
       su CPU. Licenza Apache-2.0, libreria nativa.
-- [ ] Adaptive sampling (roadmap #14) sulla varianza dual-buffer già esistente.
+- [x] Adaptive sampling (roadmap #14) sulla varianza dual-buffer già esistente.
+- [x] Blue-noise screen-space (rimandato dalla Fase 1): valutato, non fatto (vedi l'esito).
+
+#### Esito Fase 9 (2026-10-25)
+
+Verdetto: il denoiser di default dei preset è ora Intel Open Image Denoise, con un errore da 1.2 a
+90 volte più basso di NFOR su cinque scene a 4-64 spp e 4 volte più veloce; NFOR resta come
+ripiego senza librerie native, con la stima della varianza corretta. Adaptive sampling attivo da
+`standard` in su. Documento tecnico riscritto: `docs/technical/denoising.md` (§1 varianza, §6
+OIDN, §7 confronto, §8 adaptive).
+
+**Varianza dual-buffer (3.69).** Misurata contro la varianza vera della media del pixel su 24 semi
+(`DualBufferVarianceTests`): con le metà pari e dispari la stima era 2.37 (16 spp) e 3.01 (64 spp)
+volte quella vera con Sobol, 1.24-1.44 con il PRNG. Le due metà di una sequenza Sobol con Owen
+scrambling si completano a vicenda (nella prima dimensione i campioni pari e dispari coprono le
+due metà del pixel). Ora la metà A è la prima metà della sequenza del pixel e B la seconda, ognuna
+una rete stratificata: 1.14, 1.13, 1.08 a 16, 64, 256 spp. Con il guiding ogni passata si divide
+così, con BDPT/VCM l'intervallo delle iterazioni; il PRNG tiene le celle pari e dispari della
+griglia. `CaptureAccumulator` conta le proprie metà.
+
+**NFOR.** Tolto il margine di selezione (0.5 della varianza addebitato ai candidati filtrati, per
+compensare la sovrastima): con la varianza corretta nessun margine è il migliore o pari sulle due
+scene misurate. guiding-room a 4 spp: relMSE da 0.0055 a 0.0024. Dettaglio delle texture
+(`DenoiserDetailTests`, scacchiera di celle di 3 pixel a 8 spp): contrasto conservato (1.005),
+errore 0.42 volte quello rumoroso. Bokeh (3.33): la regressione trasforma le luci sfocate in
+quadrati (relMSE 0.51 a 16 spp contro 0.055 del rumore): la soglia delle luci tolte dal filtro
+scende da 32 a 8 volte il 99° percentile, 0.11; resta peggio del rumore lì, ed è documentato.
+
+**OIDN** (`Denoising/Oidn.cs`, `OidnDenoiser.cs`). Binding minimo dell'API C di OIDN 2.2 con
+`DllImport`. GitHub è irraggiungibile da questo ambiente: le librerie native arrivano come asset
+nativi del pacchetto NuGet `SimpleImageIO` 1.13.0 (MIT, Pascal Grittmann), che contiene OIDN 2.2 e
+TBB per linux-x64, win-x64, osx-x64, osx-arm64; il suo codice è escluso dalla build (solo
+`IncludeAssets="native"` e un target che toglie `SimpleImageIOCore`). Funziona anche nel publish
+single-file. `OIDN_DIR` punta a un'altra installazione. Guide albedo e normale prefiltrate con le
+loro reti e `cleanAux`: senza, il marmo procedurale più fine del pixel di `texture-pro` usciva con
+il rumore dell'albedo tenuto come dettaglio (0.0053 contro 0.0014 a 64 spp); il prefiltro NL-means
+nostro al posto di quello di OIDN non è meglio. `fast` e `high` danno la stessa immagine (OIDN 2.2
+su CPU usa le stesse reti). Limiti misurati: toglie i firefly di caustica non ancora convergenti
+con la loro energia (`extrusion` −3/4% sulla media), e la copertura dei bordi di una texture di 3
+pixel, identica nell'albedo, resta come texture (errore pari al rumore, dove NFOR lo dimezza).
+Preset `draft*`, `standard*`, `pre-final*`: `oidn`, `nfor` con una nota dove la libreria non si
+carica (un `--denoiser oidn` esplicito lì è un errore). Test `OidnDenoiserTests` (la libreria
+deve caricarsi sulle piattaforme della CI).
+
+| scena (320×180) | spp | nessuno | nfor | oidn |
+|---|---|---|---|---|
+| guiding-room | 4 / 16 / 64 | 0.116 / 0.025 / 0.0048 | 0.0024 / 0.00053 / 0.00032 | 0.00085 / 0.00041 / 0.00027 |
+| cornell-lambert | 4 / 16 / 64 | 0.020 / 0.0040 / 0.00046 | 0.0062 / 0.0012 / 0.00017 | 0.00082 / 0.00047 / 0.00014 |
+| texture-pro | 4 / 16 / 64 | 0.160 / 0.037 / 0.0087 | 0.0068 / 0.0026 / 0.0019 | 0.0040 / 0.0020 / 0.0014 |
+| camera-physical | 4 / 16 / 64 | 0.172 / 0.055 / 0.012 | 0.144 / 0.108 / 0.133 | 0.013 / 0.014 / 0.0043 |
+| extrusion | 4 / 16 / 64 | 0.689 / 0.279 / 0.050 | 0.536 / 0.192 / 0.030 | 0.0057 / 0.0044 / 0.0037 |
+
+**Adaptive sampling** (`Rendering/AdaptiveSampling.cs`, `--adaptive`, `--adaptive-threshold`,
+`--adaptive-min-spp`). Prima passata di 4/√soglia campioni (potenza di due, 64 alla soglia 0.01),
+poi passate che raddoppiano i pixel ancora rumorosi fino a `-s`; errore Σσ/(1e-4 + √ΣI) dalle metà
+(con l'esposizione), un pixel si ferma con i suoi otto vicini; prima di ogni passata i campioni
+fatti diventano la metà A, così le metà restano le due metà della sequenza. Solo path tracing con
+Sobol: rifiutato con `--reference` (fermarsi sui propri campioni è un piccolo bias), `--guiding`,
+BDPT/VCM, PRNG. Misure a pari errore (160×90, budget 512, riferimenti a 4096 spp): Cornell 246 spp
+medi e −13% di tempo, texture-pro 471 e −6%, extrusion 327 e −2/−10%, guiding-room (rumorosa
+ovunque) 495 e nessuna differenza; `-q final-tiny` sulla Cornell 394 spp su 1024 e −9%, relMSE 2.3e-6
+dall'uniforme, stessa media. Il tempo cala meno dei campioni perché si fermano prima i pixel
+economici (sfondo, cielo). Attivo di default in `standard*`, `pre-final*`, `final*`, `ultra`.
+Test `AdaptiveSamplingTests`.
+
+**Blue noise in screen space** (dalla Fase 1): non fatto. Il campionatore ZSobol (Ahmed e Wonka
+2020) distribuisce l'errore come rumore blu, utile solo a pochi campioni senza denoiser; i preset
+a pochi campioni passano per OIDN, addestrato su rumore indipendente fra i pixel (come la varianza
+dual-buffer e NFOR), e l'indice Morton × spp richiede lo stesso numero di campioni per pixel, che
+l'adaptive sampling rompe. Annotato in PLANNING come `--sampler zsobol` per anteprime senza
+denoiser.
 
 ### Fase 10 - Formato scene YAML
 
@@ -1177,7 +1248,7 @@ Basato sulla sezione 3, aggiornato con le misure delle Fasi 0, 1 e 3: da conferm
 | Cielo | **rifare** | Preetham sbagliato, sole empirico |
 | Integratore | **rifatto** (Fase 7) | loop iterativo con throughput esplicito, roulette standard, profondità per tipo; uguale a Mitsuba su tutte le scene canoniche e su Veach. Restano path guiding e MNEE (Fase 7b) |
 | Volumi e SSS | verificare | da confrontare con Mitsuba prima di giudicare |
-| Denoiser | tenere + OIDN | NFOR va bene come opzione |
+| Denoiser | **fatto** (Fase 9): OIDN di default + NFOR | OIDN nei preset (errore da 1.2 a 90 volte più basso di NFOR); NFOR resta come ripiego senza librerie native, con la varianza corretta |
 | Formato scene | evolvere a v2 | semantica (unità, colore, render) più che sintassi |
 
 ## 7. Ordine di lavoro consigliato

@@ -34,23 +34,6 @@ internal static class NforRegression
     private const int MseSmoothRadius = 4;      // 9×9 candidate-MSE smoothing
     private const int SelectionSmoothRadius = 2;
 
-    /// <summary>Test/experiment override for the selection-bias margin
-    /// (see the candidate-MSE comment in <see cref="Run"/>).</summary>
-    internal static float? SelectionMarginOverride;
-
-    /// <summary>
-    /// Variance fraction charged to the filtered candidates in the MSE
-    /// selection. With independent halves (PRNG) the estimates are unbiased
-    /// and no margin is needed; with Sobol the even/odd halves of one
-    /// Owen-scrambled sequence are anti-correlated, the dual-buffer variance
-    /// is overstated, and the selection would systematically over-filter —
-    /// 0.5 calibrated so near-converged Sobol renders never regress while
-    /// low-spp renders keep their full gains.
-    /// </summary>
-    private static float SelectionMargin =>
-        SelectionMarginOverride
-        ?? (Core.Sampling.Sampler.Kind == Core.Sampling.SamplerKind.Sobol ? 0.5f : 0f);
-
     public static FrameBuffer Run(RenderBuffers buffers, FrameBuffer beautyA, FrameBuffer beautyB, FrameBuffer halfVar,
                                   FrameBuffer albedo, FrameBuffer normal, FrameBuffer depth,
                                   DenoiserOptions opts)
@@ -95,31 +78,26 @@ internal static class NforRegression
 
         float[] hvA = beautyA.Data, hvB = beautyB.Data;
         float[] hv = halfVar.Data;
-        float selMargin = SelectionMargin;
         for (int ki = 0; ki < ks.Length; ki++)
         {
             var fa = regA[ki].Data; var fb = regB[ki].Data;
             for (int i = 0; i < n; i++)
             {
                 float e = 0f;
-                float vSum = 0f;
                 for (int c = 0; c < 3; c++)
                 {
                     int p = c * n + i;
                     float dA = fa[p] - hvB[p];   // filtered A vs noisy half B
                     float dB = fb[p] - hvA[p];   // filtered B vs noisy half A
                     e += 0.5f * (dA * dA + dB * dB) - hv[p];
-                    vSum += 0.5f * hv[p];        // = varFull per channel
                 }
-                // Selection-bias margin: with low-discrepancy samplers the
-                // even/odd halves are anti-correlated, which overstates the
-                // estimated variance — that bias enters this estimate twice
-                // (inflating mse_noisy, deflating mse_k via the subtraction)
-                // and would systematically prefer the filtered candidates.
-                // Charging the filtered candidates a fraction of the variance
-                // restores a conservative decision boundary (calibrated so
-                // near-converged Sobol renders never regress).
-                tmp[i] = (e + selMargin * vSum) * (1f / 3f);
+                // The variance enters twice (the unfiltered candidate's MSE,
+                // and subtracted here), so an overstated one would favour the
+                // filtered candidates: the halves are the two halves of the
+                // pixel's sequence for that reason (within 8-14%, conservative;
+                // the even/odd split overstated it 2.4-3 times and needed a
+                // selection margin to compensate).
+                tmp[i] = e * (1f / 3f);
             }
             mse[ki + 1] = new float[n];
             PlaneOps.BoxSmooth(tmp, mse[ki + 1], w, h, MseSmoothRadius);

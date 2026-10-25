@@ -264,9 +264,9 @@ class Program
         }
 
         // ── Denoiser ─────────────────────────────────────────────────────────
-        // `--denoiser none|nlm|nfor` runs the feature-guided denoiser on the
+        // `--denoiser none|nlm|nfor|oidn` runs a feature-guided denoiser on the
         // linear HDR beauty before tone mapping. Quality presets supply a
-        // default (draft/standard/pre-final → nfor); an explicit flag wins.
+        // default (draft/standard/pre-final → oidn); an explicit flag wins.
         DenoiserKind denoiserKind = quality?.Denoiser ?? DenoiserKind.None;
         string? denoiserArg = GetArg(args, "--denoiser", null);
         if (denoiserArg != null)
@@ -276,10 +276,25 @@ class Program
                 case "none": denoiserKind = DenoiserKind.None; break;
                 case "nlm":  denoiserKind = DenoiserKind.Nlm;  break;
                 case "nfor": denoiserKind = DenoiserKind.Nfor; break;
+                case "oidn": denoiserKind = DenoiserKind.Oidn; break;
                 default:
-                    Console.WriteLine($"Error: Unknown --denoiser '{denoiserArg}'. Valid: none, nlm, nfor.");
+                    Console.WriteLine($"Error: Unknown --denoiser '{denoiserArg}'. Valid: none, nlm, nfor, oidn.");
                     return;
             }
+        }
+
+        // A preset's OIDN falls back to NFOR where the native library does not
+        // load (a platform the build does not ship it for); an explicit
+        // `--denoiser oidn` is an error there.
+        if (denoiserKind == DenoiserKind.Oidn && !Oidn.IsAvailable)
+        {
+            if (denoiserArg != null)
+            {
+                Console.WriteLine($"Error: --denoiser oidn: Open Image Denoise did not load ({Oidn.LoadError}).");
+                return;
+            }
+            Console.WriteLine($"Note: Open Image Denoise did not load ({Oidn.LoadError}): the preset uses nfor.");
+            denoiserKind = DenoiserKind.Nfor;
         }
 
         DenoiseQuality denoiseQuality = quality?.DenoiseQuality ?? DenoiseQuality.High;
@@ -358,6 +373,54 @@ class Program
             denoiserKind = DenoiserKind.None;
             clampOverride = null;
             indirectClampFactor = Renderer.DefaultIndirectClampFactor;
+        }
+
+        // ── Adaptive sampling ────────────────────────────────────────────────
+        // `--adaptive on|off`: pixels stop sampling once their dual-buffer
+        // error is below `--adaptive-threshold` (default 0.01), after
+        // `--adaptive-min-spp` samples (default from the threshold: 64).
+        // Path tracing with the Sobol sampler, without guiding or --reference.
+        bool adaptive = quality?.Adaptive ?? false;
+        string? adaptiveArg = GetArg(args, "--adaptive", null);
+        if (adaptiveArg != null)
+        {
+            switch (adaptiveArg.ToLowerInvariant())
+            {
+                case "on":  adaptive = true;  break;
+                case "off": adaptive = false; break;
+                default:
+                    Console.WriteLine($"Error: Unknown --adaptive '{adaptiveArg}'. Valid: on, off.");
+                    return;
+            }
+        }
+        float adaptiveThreshold = AdaptiveSettings.DefaultThreshold;
+        string? adaptiveThresholdArg = GetArg(args, "--adaptive-threshold", null);
+        if (adaptiveThresholdArg != null)
+        {
+            if (!float.TryParse(adaptiveThresholdArg, System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture, out adaptiveThreshold) || !(adaptiveThreshold > 0f))
+            {
+                Console.WriteLine($"Error: --adaptive-threshold '{adaptiveThresholdArg}' must be a positive number.");
+                return;
+            }
+        }
+        int adaptiveMinSpp = int.TryParse(GetArg(args, "--adaptive-min-spp", null), out var amArg) && amArg > 0 ? amArg : 0;
+        if (adaptive)
+        {
+            string? why = referenceMode ? "--reference (stopping on a pixel's own samples is biased)"
+                : integrator != IntegratorKind.Path ? "--integrator bdpt|vcm (light paths reach every pixel)"
+                : guiding ? "--guiding"
+                : samplerKind != SamplerKind.Sobol ? "--sampler prng"
+                : null;
+            if (why != null)
+            {
+                if (adaptiveArg != null)
+                {
+                    Console.WriteLine($"Error: --adaptive is not available with {why}.");
+                    return;
+                }
+                adaptive = false;   // the preset's default yields to the explicit choice
+            }
         }
 
         // `--transparent-shadows on|off` (default off): straight-through shadows
@@ -536,6 +599,9 @@ class Program
         if (integrator != IntegratorKind.Path)
             Console.WriteLine($"  Integrator:  {integrator.ToString().ToLowerInvariant()}" +
                               (integrator == IntegratorKind.Vcm ? $" (radius {vcmRadius ?? 0.003f:0.####} of the scene radius)" : ""));
+        if (adaptive)
+            Console.WriteLine($"  Adaptive:    threshold {adaptiveThreshold:0.####}, " +
+                              $"at least {new AdaptiveSettings { Threshold = adaptiveThreshold, MinSamples = adaptiveMinSpp }.ResolveMinSamples(samples)} spp");
         if (guiding)
             Console.WriteLine($"  Guiding:     on (training {guidingTraining ?? GuidingSettings.DefaultTraining(samples)} of the {samples} spp)");
         if (transparentShadows)
@@ -617,6 +683,8 @@ class Program
                 depths: depths);
             renderer.Integrator = integrator;
             if (vcmRadius is float vr) renderer.VcmRadiusFactor = vr;
+            if (adaptive)
+                renderer.EnableAdaptive(new AdaptiveSettings { Threshold = adaptiveThreshold, MinSamples = adaptiveMinSpp });
             if (guiding)
                 renderer.EnableGuiding(new GuidingSettings
                 {
@@ -635,6 +703,8 @@ class Program
             var pixels = result.Pixels;
             var elapsed = sw.Elapsed;
             Console.WriteLine($"  Render time: {FormatElapsed(elapsed)}");
+            if (renderer.LastRenderMeanSamples > 0)
+                Console.WriteLine($"  Samples:     {renderer.LastRenderMeanSamples:F1} spp on average (adaptive, budget {samples})");
             if (renderer.LastRenderNonFiniteCount > 0)
                 Console.WriteLine($"  Warning:     {renderer.LastRenderNonFiniteCount:N0} NaN/Inf radiance values were zeroed (engine bug)");
 
@@ -645,7 +715,7 @@ class Program
             {
                 var denoiseOptions = new DenoiserOptions { Kind = denoiserKind, Quality = denoiseQuality };
                 sw.Restart();
-                denoisedBeauty = NforDenoiser.Denoise(result.Buffers!, denoiseOptions);
+                denoisedBeauty = Denoiser.Denoise(result.Buffers!, denoiseOptions);
                 pixels = renderer.ToneMapToDisplay(denoisedBeauty);
                 Console.WriteLine($"  Denoise time: {FormatElapsed(sw.Elapsed)}");
             }
@@ -738,9 +808,13 @@ class Program
         Console.WriteLine("      --guiding <on|off>       Path guiding: learn the incident light in training passes,");
         Console.WriteLine("                                then sample bounces from it too (unbiased; default: off)");
         Console.WriteLine("      --guiding-training <n>   Training spp out of -s, passes of 1, 2, 4, ... that join the image (default: -s / 2)");
-        Console.WriteLine("      --denoiser <none|nlm|nfor>  Feature-guided denoiser on the linear HDR beauty");
-        Console.WriteLine("                                (default: none; draft/standard/pre-final presets use nfor)");
+        Console.WriteLine("      --denoiser <none|nlm|nfor|oidn>  Denoiser on the linear HDR beauty (oidn: Intel Open Image Denoise)");
+        Console.WriteLine("                                (default: none; draft/standard/pre-final presets use oidn)");
         Console.WriteLine("      --denoise-quality <fast|high>  Denoiser speed/quality trade-off (default: high)");
+        Console.WriteLine("      --adaptive <on|off>      Adaptive sampling: pixels stop once their noise is below the threshold");
+        Console.WriteLine("                                (path tracing with sobol, not with --guiding or --reference)");
+        Console.WriteLine("      --adaptive-threshold <f> Noise threshold, about the error of a display value (default: 0.01)");
+        Console.WriteLine("      --adaptive-min-spp <n>   Samples before a pixel may stop (default: 4/sqrt(threshold), power of two)");
         Console.WriteLine("      --aov <list>             Comma list of albedo,normal,depth,beauty,variance —");
         Console.WriteLine("                                writes linear HDR buffers next to the -o output (as layers");
         Console.WriteLine("                                of the main file when -o is .exr, else as .pfm files)");
@@ -997,14 +1071,16 @@ class Program
         /// An explicit flag still wins.</summary>
         public float? IndirectClampFactor { get; }
         /// <summary>The tier's default denoiser. DRAFT/STANDARD/PRE-FINAL run
-        /// NFOR (low/mid spp is where denoising pays most; standard's 512 spp
-        /// often leave faint residual noise that NFOR removes for a few extra
-        /// seconds, and pre-final leans on it to cut the final budgets 4×).
-        /// FINAL/ULTRA stay off — converged reference renders keep every
+        /// OIDN (NFOR where it does not load): low/mid spp is where denoising
+        /// pays most, standard's 512 spp often leave faint residual noise, and
+        /// pre-final leans on it to cut the final budgets 4×.
+        /// FINAL/ULTRA stay off: converged reference renders keep every
         /// unfiltered detail. An explicit <c>--denoiser</c> flag wins.</summary>
         public DenoiserKind Denoiser { get; }
         /// <summary>The tier's default <c>--denoise-quality</c>.</summary>
         public DenoiseQuality DenoiseQuality { get; }
+        /// <summary>The tier's default <c>--adaptive</c>. An explicit flag wins.</summary>
+        public bool Adaptive { get; }
 
         private QualityPreset(string name, int w, int h, int s, int d, int ss,
                               SssMode? sssModeOverride = null,
@@ -1012,7 +1088,8 @@ class Program
                               float? indirectClampFactor = null,
                               DenoiserKind denoiser = DenoiserKind.None,
                               DenoiseQuality denoiseQuality = DenoiseQuality.High,
-                              PathDepths? depths = null)
+                              PathDepths? depths = null,
+                              bool adaptive = false)
         {
             Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
             Depths = depths;
@@ -1021,6 +1098,7 @@ class Program
             IndirectClampFactor = indirectClampFactor;
             Denoiser = denoiser;
             DenoiseQuality = denoiseQuality;
+            Adaptive = adaptive;
         }
 
         // Bounce budgets by kind (total, then diffuse, glossy, transmission,
@@ -1031,12 +1109,18 @@ class Program
         private static readonly PathDepths FinalDepths    = new(8, 8, 16, 8, 16);
         private static readonly PathDepths UltraDepths    = new(16, 16, 32, 16, 32);
 
+        // Adaptive sampling (threshold 0.01) from standard up: the pixels that
+        // converge early stop, the budget is the cap (PIANO-REVIEW.md Phase 9:
+        // up to 60% fewer samples, 2-27% less time at the same error; the
+        // pixels that stop first are the cheap ones). The draft's 16 spp are
+        // below its first pass (64), so it would change nothing there.
+
         public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 8, 1,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
+            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
         public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 8, 1,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
+            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
         public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 8, 1,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
+            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
 
         // STANDARD: the day-to-day quality render. Final-class image quality
         // on a *classic* scene — Lambertian/Disney, non-nested glass,
@@ -1044,16 +1128,16 @@ class Program
         // stripped:
         // volumetric SSS OFF, single shadow sample
         // (512 spp already anti-aliases), relaxed indirect clamp, and the
-        // NFOR denoiser absorbing the faint residual grain 512 spp can leave.
+        // denoiser absorbing the faint residual grain 512 spp can leave.
         public static readonly QualityPreset StandardTiny  = new("standard-tiny",  480, 270,  512, 12, 1,
             sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
+            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.High, depths: StandardDepths, adaptive: true);
         public static readonly QualityPreset StandardSmall = new("standard-small", 960, 540,  512, 12, 1,
             sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
+            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.High, depths: StandardDepths, adaptive: true);
         public static readonly QualityPreset Standard      = new("standard",      1920, 1080, 512, 12, 1,
             sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: StandardDepths);
+            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.High, depths: StandardDepths, adaptive: true);
 
         // PRE-FINAL: a faithful preview of `final` — the FULL final feature
         // set (SSS high, final bounce budgets, default
@@ -1062,16 +1146,16 @@ class Program
         // sample (penumbra noise is exactly what feature-guided filtering
         // removes cleanest). Roughly 4-6× faster than `final`.
         public static readonly QualityPreset PreFinalTiny  = new("pre-final-tiny",  480, 270,  256, 16, 1,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
+            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.High, depths: FinalDepths, adaptive: true);
         public static readonly QualityPreset PreFinalSmall = new("pre-final-small", 960, 540,  256, 16, 1,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
+            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.High, depths: FinalDepths, adaptive: true);
         public static readonly QualityPreset PreFinal      = new("pre-final",      1920, 1080, 256, 16, 1,
-            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High, depths: FinalDepths);
+            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.High, depths: FinalDepths, adaptive: true);
 
-        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 16, 4, depths: FinalDepths);
-        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 16, 4, depths: FinalDepths);
-        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 16, 4, depths: FinalDepths);
-        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 32, 4, depths: UltraDepths);
+        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 16, 4, depths: FinalDepths, adaptive: true);
+        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 16, 4, depths: FinalDepths, adaptive: true);
+        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 16, 4, depths: FinalDepths, adaptive: true);
+        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 32, 4, depths: UltraDepths, adaptive: true);
 
         public const string NamesCsv =
             "draft-tiny, draft-small, draft, standard-tiny, standard-small, standard, " +

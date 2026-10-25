@@ -8,7 +8,7 @@ namespace RayTracer.Rendering;
 /// </summary>
 public readonly struct RenderCaptureOptions
 {
-    /// <summary>Capture linear-HDR beauty plus the even/odd half-sample
+    /// <summary>Capture linear-HDR beauty plus the half-sample
     /// (A/B) splits the denoiser's dual-buffer variance estimate needs.</summary>
     public bool CaptureBeautyHalves { get; init; }
 
@@ -36,14 +36,18 @@ public sealed class RenderResult
 /// Linear-HDR frame data captured during rendering for denoising, HDR (PFM)
 /// output, and — later — adaptive sampling.
 ///
-/// Dual-buffer convention: every captured quantity is split into two halves by
-/// sample-index parity (A = even samples, B = odd). The halves store MEANS,
-/// not sums; with n samples A holds ⌈n/2⌉ samples and B ⌊n/2⌋ (see
-/// <see cref="SamplesA"/>/<see cref="SamplesB"/>). The unbiased per-pixel
-/// variance of the full-buffer mean is then estimated as ((Ā−B̄)/2)².
-/// With the Sobol sampler the halves are mildly correlated (the even/odd
-/// subsequences of one Owen-scrambled sequence), making the estimate slightly
-/// optimistic; with <c>--sampler prng</c> they are independent.
+/// Dual-buffer convention: every captured quantity is split into two halves,
+/// which store MEANS, not sums; with n samples A holds ⌈n/2⌉ samples and B
+/// ⌊n/2⌋ (see <see cref="SamplesA"/>/<see cref="SamplesB"/>). The per-pixel
+/// variance of the full-buffer mean is then estimated as ((Ā−B̄)/2)². With
+/// the Sobol sampler A is the first half of the pixel's sequence and B the
+/// second: each is a stratified net, and the estimate is within 8-14% of the
+/// true variance, on the conservative side (DualBufferVarianceTests). The
+/// even and odd samples, the earlier split, fill each other's gaps and
+/// overstated it 2.4-3 times. With <c>--sampler prng</c> the halves are the
+/// even and odd cells of the jittered grid (overstated 1.2-1.4 times).
+/// Adaptive sampling stops pixels at different counts: <see cref="HalfCountA"/>
+/// then holds each pixel's A count (B = <see cref="SampleCount"/> − A).
 ///
 /// Depth uses world-space ray distance (camera rays are not normalised, so
 /// the capture multiplies rec.T by |direction|); pixels whose every sample
@@ -54,14 +58,20 @@ public sealed class RenderBuffers
     public int Width { get; }
     public int Height { get; }
 
-    /// <summary>Per-pixel sample count (uniform today; the adaptive-sampling
-    /// hook point).</summary>
+    /// <summary>Per-pixel sample count (uniform without adaptive sampling).</summary>
     public int[] SampleCount { get; }
 
-    /// <summary>Samples in the A (even-index) half: ⌈n/2⌉.</summary>
+    /// <summary>
+    /// Per-pixel samples in half A when the counts vary from pixel to pixel
+    /// (adaptive sampling), null when every pixel has
+    /// <see cref="SamplesA"/>/<see cref="SamplesB"/>.
+    /// </summary>
+    public int[]? HalfCountA { get; init; }
+
+    /// <summary>Samples in the A half (the first of the sequence): ⌈n/2⌉.</summary>
     public int SamplesA { get; }
 
-    /// <summary>Samples in the B (odd-index) half: ⌊n/2⌋. Zero when n == 1 —
+    /// <summary>Samples in the B half: ⌊n/2⌋. Zero when n == 1 —
     /// consumers must treat B as a copy of A in that case.</summary>
     public int SamplesB { get; }
 
@@ -108,6 +118,18 @@ public sealed class RenderBuffers
     public FrameBuffer CombineHalves(FrameBuffer a, FrameBuffer b)
     {
         var combined = new FrameBuffer(Width, Height, a.Channels);
+        if (HalfCountA != null)
+        {
+            int np = Width * Height;
+            for (int c = 0; c < a.Channels; c++)
+            for (int i = 0; i < np; i++)
+            {
+                var (ha, hb) = HalfWeights(i);
+                int p = c * np + i;
+                combined.Data[p] = ha * a.Data[p] + hb * b.Data[p];
+            }
+            return combined;
+        }
         int n = SamplesA + SamplesB;
         if (SamplesB == 0)
         {
@@ -122,6 +144,15 @@ public sealed class RenderBuffers
         return combined;
     }
 
+    /// <summary>Weights of the two half means in pixel <paramref name="i"/>'s full mean.</summary>
+    public (float A, float B) HalfWeights(int i)
+    {
+        int nA = HalfCountA?[i] ?? SamplesA;
+        int n = HalfCountA != null ? SampleCount[i] : SamplesA + SamplesB;
+        if (n <= nA) return (1f, 0f);
+        return ((float)nA / n, (float)(n - nA) / n);
+    }
+
     /// <summary>
     /// Sentinel-aware combination of the depth halves: a half that never hit
     /// geometry (−1) defers to the other; pixels where both halves missed keep
@@ -132,19 +163,17 @@ public sealed class RenderBuffers
         var a = DepthA ?? throw new InvalidOperationException("Depth AOV was not captured.");
         var b = DepthB!;
         var combined = new FrameBuffer(Width, Height, 1);
-        int n = SamplesA + SamplesB;
-        float wa = n > 0 ? (float)SamplesA / n : 1f;
-        float wb = 1f - wa;
         var da = a.Data; var db = b.Data; var dst = combined.Data;
         for (int i = 0; i < dst.Length; i++)
         {
             float va = da[i], vb = db[i];
+            var (wa, wb) = HalfWeights(i);
             dst[i] = (va < 0f, vb < 0f) switch
             {
                 (true, true)   => -1f,
                 (true, false)  => vb,
                 (false, true)  => va,
-                (false, false) => SamplesB == 0 ? va : wa * va + wb * vb,
+                (false, false) => wb == 0f ? va : wa * va + wb * vb,
             };
         }
         return combined;
@@ -152,17 +181,20 @@ public sealed class RenderBuffers
 
     /// <summary>
     /// Raw (unsmoothed) dual-buffer variance of the full beauty mean,
-    /// ((Ā−B̄)/2)² per channel. The denoiser smooths and floors this; the
+    /// ((Ā−B̄)/2)² per channel (weighted by the half counts when they differ). The denoiser smooths and floors this; the
     /// <c>--aov variance</c> output writes it as-is.
     /// </summary>
     public FrameBuffer RawBeautyVariance()
     {
         var variance = new FrameBuffer(Width, Height, 3);
         var da = BeautyA.Data; var db = BeautyB.Data; var dst = variance.Data;
+        int np = Width * Height;
         for (int i = 0; i < dst.Length; i++)
         {
-            float d = 0.5f * (da[i] - db[i]);
-            dst[i] = d * d;
+            // Var[full] = (Ā − B̄)² · nA·nB / n²: (Ā − B̄)²/4 for equal halves.
+            var (wa, wb) = HalfWeights(i % np);
+            float d = da[i] - db[i];
+            dst[i] = wa * wb * d * d;
         }
         return variance;
     }

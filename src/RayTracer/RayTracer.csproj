@@ -11,7 +11,21 @@
   <ItemGroup>
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
+    <!-- Intel Open Image Denoise 2.2 (Apache-2.0) native libraries for
+         linux-x64, win-x64, osx-x64 and osx-arm64: only the package's native
+         assets are used (Denoising/Oidn.cs is the binding). -->
+    <PackageReference Include="SimpleImageIO" Version="1.13.0" IncludeAssets="native" />
   </ItemGroup>
+
+  <!-- The package's own image library is not used: keep only OIDN and TBB. -->
+  <Target Name="DropSimpleImageIOCore" AfterTargets="ResolvePackageAssets">
+    <ItemGroup>
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)"
+                                    Condition="$([System.String]::Copy('%(Filename)').Contains('SimpleImageIOCore'))" />
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)"
+                            Condition="$([System.String]::Copy('%(Filename)').Contains('SimpleImageIOCore'))" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <InternalsVisibleTo Include="RayTracer.Tests" />

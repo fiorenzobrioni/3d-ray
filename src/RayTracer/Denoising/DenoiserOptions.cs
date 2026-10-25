@@ -1,3 +1,5 @@
+using RayTracer.Rendering;
+
 namespace RayTracer.Denoising;
 
 /// <summary>Denoiser backend selector (CLI <c>--denoiser</c>).</summary>
@@ -13,6 +15,9 @@ public enum DenoiserKind
     /// prefiltered features, reconstructing detail the plain weighted average
     /// blurs away. The production default.</summary>
     Nfor,
+    /// <summary>Intel Open Image Denoise: a learned filter (native library,
+    /// see <see cref="OidnDenoiser"/>).</summary>
+    Oidn,
 }
 
 /// <summary>Speed/quality trade-off (CLI <c>--denoise-quality</c>).</summary>
@@ -48,4 +53,15 @@ public sealed class DenoiserOptions
     /// splatted collaboratively over their full window (the overlapping
     /// predictions average out) — 4× fewer solves at no visible cost.</summary>
     internal const int RegressionStride = 2;
+}
+
+/// <summary>Runs the denoiser <see cref="DenoiserOptions.Kind"/> names.</summary>
+public static class Denoiser
+{
+    public static FrameBuffer Denoise(RenderBuffers buffers, DenoiserOptions opts) => opts.Kind switch
+    {
+        DenoiserKind.Oidn => OidnDenoiser.Denoise(buffers, opts),
+        DenoiserKind.Nlm or DenoiserKind.Nfor => NforDenoiser.Denoise(buffers, opts),
+        _ => throw new ArgumentOutOfRangeException(nameof(opts), $"Unexpected denoiser kind {opts.Kind}."),
+    };
 }

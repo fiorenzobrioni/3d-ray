@@ -155,9 +155,11 @@ public partial class Renderer
             // Radius schedule (Knaus and Zwicker 2011, as the paper).
             float radius = MathF.Max(VcmRadiusFactor * sceneRadius * MathF.Pow(it + 1, 0.5f * (VcmRadiusAlpha - 1f)), 1e-7f);
             _mergeRadius2 = radius * radius;
-            bool even = (it & 1) == 0;
-            float[] splat = even ? _splatA : _splatB;
-            Vector3[] sum = even ? sumA : sumB;
+            // Dual-buffer halves: the first ⌈spp/2⌉ iterations against the
+            // rest (RenderBuffers).
+            bool inA = it < (spp + 1) / 2;
+            float[] splat = inA ? _splatA : _splatB;
+            Vector3[] sum = inA ? sumA : sumB;
 
             for (int chunkStart = 0; chunkStart < pixels; chunkStart += MaxLightPathsPerChunk)
             {
@@ -199,7 +201,7 @@ public partial class Renderer
                         Vector3 c = SanitizeRadiance(TraceCameraPath(i, j, width, height, it, vertices, ranges[k], grid));
                         if (useSobol) Sampler.EndPixelSample();
                         sum[pixel] += c;
-                        if (capture != null) capture[pixel].Add(c, it, captureAovs);
+                        if (capture != null) capture[pixel].Add(c, inA, captureAovs);
                         return local;
                     },
                     _ => ReleaseWorker());
