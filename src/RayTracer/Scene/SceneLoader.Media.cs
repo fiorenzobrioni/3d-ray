@@ -30,7 +30,7 @@ public partial class SceneLoader
         string type = md.Type ?? "homogeneous";
         IPhaseFunction phase = BuildPhaseFunction(md);
 
-        switch (type.ToLowerInvariant())
+        switch (type)
         {
             case "homogeneous":
                 return BuildHomogeneous(md, phase);
@@ -41,8 +41,6 @@ public partial class SceneLoader
             case "grid":
                 return BuildGrid(md, phase, sceneDir);
             case "atmosphere":
-            case "nishita":
-            case "aerial_perspective":
                 return BuildNishitaAtmosphere(md, phase);
             default:
                 Warn($"{context}: unsupported medium type '{type}'. Supported: homogeneous, height_fog, procedural, grid, atmosphere. Ignoring.");
@@ -55,32 +53,30 @@ public partial class SceneLoader
         // Air scatters with the Rayleigh phase function; `phase` sets the
         // dust's (Henyey-Greenstein g = 0.76 by default).
         IPhaseFunction? dustPhase = string.IsNullOrWhiteSpace(md.Phase) ? null : phase;
-        Info($"Medium:      atmosphere (sea_level={md.Y0}, world_scale={md.WorldScale} m/wu, " +
+        Info($"Medium:      atmosphere (sea_level={md.Y0}, {_metersPerUnit} m per unit, " +
              $"air {md.AirDensity}, dust {md.DustDensity}, ozone {md.OzoneDensity}, dust phase {md.Phase ?? "hg(0.76)"})");
         return new NishitaAtmosphereMedium(dustPhase,
                                            airDensity: md.AirDensity,
                                            dustDensity: md.DustDensity,
                                            ozoneDensity: md.OzoneDensity,
                                            seaLevelY: md.Y0,
-                                           worldScale: md.WorldScale);
+                                           worldScale: _metersPerUnit);
     }
 
     private static IPhaseFunction BuildPhaseFunction(MediumData md)
     {
         if (string.IsNullOrWhiteSpace(md.Phase)) return new IsotropicPhase();
-        switch (md.Phase!.ToLowerInvariant())
+        switch (md.Phase)
         {
             case "isotropic":
                 return new IsotropicPhase();
             case "hg":
-            case "henyey_greenstein":
                 return new HenyeyGreensteinPhase(md.G);
             case "rayleigh":
                 return new RayleighPhase();
             case "schlick":
                 return new SchlickPhase(md.G);
             case "double_hg":
-            case "double_henyey_greenstein":
                 return new DoubleHenyeyGreensteinPhase(md.G1, md.G2, md.W);
             default:
                 Warn($"Unknown phase function '{md.Phase}'. Supported: isotropic, hg, rayleigh, schlick, double_hg. Falling back to isotropic.");
@@ -198,19 +194,12 @@ public partial class SceneLoader
         }
 
         GridInterpolation interp = GridInterpolation.Trilinear;
-        string interpKey = (md.Interpolation ?? "trilinear").Trim().ToLowerInvariant();
-        switch (interpKey)
+        switch (md.Interpolation ?? "trilinear")
         {
-            case "":
             case "trilinear":
-            case "linear":
                 interp = GridInterpolation.Trilinear;
                 break;
             case "tricubic":
-            case "cubic":
-            case "catmull-rom":
-            case "catmull_rom":
-            case "smooth":
                 interp = GridInterpolation.Tricubic;
                 break;
             default:

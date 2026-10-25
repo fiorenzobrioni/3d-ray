@@ -37,8 +37,8 @@ public sealed class PreethamSky : AnalyticSky
     }
 
     public PreethamSky(Vector3 sunDirToSun, float turbidity = 3f, Vector3? groundAlbedo = null,
-                       float intensity = 1f, SkyUnits units = SkyUnits.Relative)
-        : base(sunDirToSun, groundAlbedo ?? new Vector3(0.3f), intensity, units,
+                       float intensity = 1f)
+        : base(sunDirToSun, groundAlbedo ?? new Vector3(0.3f), intensity,
                new Atmosphere(dustDensity: Atmosphere.DustFromTurbidity(MathF.Max(1f, turbidity))))
     {
         Turbidity = MathF.Max(1f, turbidity);
@@ -69,8 +69,8 @@ public sealed class PreethamSky : AnalyticSky
         _zenithX /= _px.F(1f, ts, cs);
         _zenithYy /= _py.F(1f, ts, cs);
 
-        _scale = units == SkyUnits.Photometric ? 1000f : 1f;
-        Finish(units == SkyUnits.Photometric ? Atmosphere.SolarIlluminanceTop : Atmosphere.SolarIlluminanceTop / 1000f);
+        _scale = 1000f;
+        Finish(Atmosphere.SolarIlluminanceTop);
     }
 
     /// <summary>Luminance toward <paramref name="dir"/>, kcd/m² (relative scale).</summary>

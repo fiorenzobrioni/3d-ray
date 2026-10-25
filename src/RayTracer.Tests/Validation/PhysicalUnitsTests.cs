@@ -18,9 +18,10 @@ public class PhysicalUnitsTests
     private static List<ILight> LoadLights(string lightsYaml, string extra = "")
     {
         string yaml = $@"
-camera:
-  position: [0, 0, 5]
-  look_at: [0, 0, 0]
+format_version: 2
+cameras:
+  - position: [0, 0, 5]
+    look_at: [0, 0, 0]
 {extra}
 lights:
 {lightsYaml}
@@ -51,7 +52,7 @@ entities: []
         var lights = LoadLights(@"
   - { type: point, position: [0, 3, 0], power: 800, power_unit: lumen, color: [1, 0.5, 0.2] }
   - { type: point, position: [0, 3, 0], power: 10 }
-  - { type: point, position: [0, 3, 0], candela: 100, exposure: 1 }
+  - { type: point, position: [0, 3, 0], intensity: 100, exposure: 1 }
   - { type: spot, position: [0, 3, 0], power: 800, power_unit: lumen }");
         var p0 = (PointLight)lights[0];
         Assert.Equal(800f / (4f * MathF.PI), p0.Intensity, 3);
@@ -88,7 +89,8 @@ entities: []
     public void Emissive_Luminance_AndTemperature()
     {
         string yaml = @"
-camera: { position: [0, 0, 5], look_at: [0, 0, 0] }
+format_version: 2
+cameras: [{ position: [0, 0, 5], look_at: [0, 0, 0] }]
 lights: []
 materials:
   - { id: glow, type: emissive, color: [1, 0.5, 0.2], luminance: 3000 }
@@ -124,7 +126,8 @@ entities:
         Assert.InRange(L * exposure, 0.82f, 0.84f);
 
         string yaml = @"
-camera: { position: [0, 0, 5], look_at: [0, 0, 0], focal_length: 50, f_stop: 16, iso: 100, shutter_speed: 0.01 }
+format_version: 2
+cameras: [{ position: [0, 0, 5], look_at: [0, 0, 0], focal_length: 50, f_stop: 16, iso: 100, shutter_speed: 0.01 }]
 lights: []
 entities: []
 ";

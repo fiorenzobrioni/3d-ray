@@ -105,7 +105,6 @@ public class ColorManagementTests
     [InlineData(ViewTransform.AgX)]
     [InlineData(ViewTransform.Aces)]
     [InlineData(ViewTransform.Standard)]
-    [InlineData(ViewTransform.Legacy)]
     public void Greys_StayNeutral_AndMonotonic(ViewTransform view)
     {
         var t = new DisplayTransform(view);
@@ -118,17 +117,6 @@ public class ColorManagementTests
             Assert.InRange(o.X, 0f, 1f);
             Assert.True(o.X >= prev, $"{view}: not monotonic at {g}");
             prev = o.X;
-        }
-    }
-
-    [Fact]
-    public void Legacy_IsThePreReviewCurve()
-    {
-        var t = DisplayTransform.Legacy;
-        foreach (float x in new[] { 0f, 0.05f, 0.18f, 1f, 4f, 40f })
-        {
-            float m = x * (2.51f * x + 0.03f) / (x * (2.43f * x + 0.59f) + 0.14f);
-            Assert.Equal(MathF.Pow(Math.Clamp(m, 0f, 1f), 1f / 2.2f), t.Apply(new Vector3(x)).X, 6);
         }
     }
 

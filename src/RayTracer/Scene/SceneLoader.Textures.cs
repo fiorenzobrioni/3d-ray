@@ -16,44 +16,16 @@ using RayTracer.Volumetrics;
 namespace RayTracer.Scene;
 public partial class SceneLoader
 {
-    /// <summary>
-    /// Builds a <see cref="FloatTexture"/> for a Disney BSDF parameter: prefers
-    /// the texture block when supplied, otherwise wraps the scalar value.
-    /// </summary>
-    private static FloatTexture DisneyParam(float scalar, TextureData? tex, string sceneDir)
-        => tex != null ? new FloatTexture(CreateTexture(tex, sceneDir, TextureRole.Data)) : new FloatTexture(scalar);
-
-    /// <summary>
-    /// Builds a nullable <see cref="ITexture"/> for a Disney colour parameter
-    /// where "unset" is semantically meaningful — e.g. <c>transmission_color</c>,
-    /// whose null value activates the legacy sqrt(baseColor) fallback in
-    /// the Disney translation. Prefers the texture block when supplied; else
-    /// wraps the RGB triplet if the user provided one; else returns null.
-    /// </summary>
-    private static ITexture? DisneyColorParam(List<float>? scalar, TextureData? tex, string sceneDir)
-    {
-        if (tex != null) return CreateTexture(tex, sceneDir);
-        Vector3? c = ToVector3(scalar);
-        return c.HasValue ? new SolidColor(c.Value) : null;
-    }
-
     /// <summary>What a texture feeds: a colour (decoded from sRGB unless the
     /// block says otherwise) or data, used as stored (PIANO-REVIEW.md §3.3).</summary>
     private enum TextureRole { Color, Data }
 
-    private static TextureColorSpace ResolveColorSpace(TextureData t, TextureRole role)
+    private static TextureColorSpace ResolveColorSpace(TextureData t, TextureRole role) => t.ColorSpace switch
     {
-        switch (t.ColorSpace?.Trim().ToLowerInvariant())
-        {
-            case null or "": return role == TextureRole.Color ? TextureColorSpace.Srgb : TextureColorSpace.Linear;
-            case "srgb": return TextureColorSpace.Srgb;
-            case "linear" or "raw" or "non-color" or "data": return TextureColorSpace.Linear;
-            default:
-                Warn($"Texture '{t.Path ?? t.Type}': unknown color_space '{t.ColorSpace}' (srgb, linear, raw); " +
-                     $"using {(role == TextureRole.Color ? "srgb" : "raw")}.");
-                return role == TextureRole.Color ? TextureColorSpace.Srgb : TextureColorSpace.Linear;
-        }
-    }
+        "srgb"   => TextureColorSpace.Srgb,
+        "linear" => TextureColorSpace.Linear,
+        _        => role == TextureRole.Color ? TextureColorSpace.Srgb : TextureColorSpace.Linear,
+    };
 
     private static ITexture CreateTexture(TextureData t, string sceneDir, TextureRole role = TextureRole.Color)
     {
@@ -66,7 +38,7 @@ public partial class SceneLoader
         var (scaleScalar, srx, sry, srz) = t.ScaleScalarAndRatio();
         Vector3 scaleRatio = new Vector3(srx, sry, srz);
 
-        ITexture tex = t.Type?.ToLowerInvariant() switch
+        ITexture tex = t.Type switch
         {
             "checker" => new CheckerTexture(scaleScalar,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One  : Vector3.One,
@@ -80,59 +52,36 @@ public partial class SceneLoader
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.9f) : new Vector3(0.9f),
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.1f) : new Vector3(0.1f)),
 
-            "wood" => new WoodTexture(scaleScalar, t.GrainStrength ?? t.NoiseStrength ?? 1.5f,
+            "wood" => new WoodTexture(scaleScalar, t.NoiseStrength ?? 1.5f,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.85f, 0.65f, 0.40f) : new Vector3(0.85f, 0.65f, 0.40f),
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.45f, 0.28f, 0.14f) : new Vector3(0.45f, 0.28f, 0.14f)),
 
-            "voronoi" or "worley" or "cell" or "cellular"
+            "voronoi"
                 => new VoronoiTexture(scaleScalar,
                     t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.Zero : Vector3.Zero,
                     t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? Vector3.One  : Vector3.One),
 
-            "brick" or "bricks" or "tile"
+            "brick"
                 => new BrickTexture(
                     t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.65f, 0.27f, 0.20f) : new Vector3(0.65f, 0.27f, 0.20f),
                     t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.55f, 0.20f, 0.15f) : new Vector3(0.55f, 0.20f, 0.15f),
                     t.Colors is { Count: > 2 } ? ToVector3(t.Colors[2]) ?? new Vector3(0.85f, 0.83f, 0.78f) : new Vector3(0.85f, 0.83f, 0.78f)),
 
-            "gradient" or "ramp"
+            "gradient"
                 => new GradientTexture(
                     t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.Zero : Vector3.Zero,
                     t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? Vector3.One  : Vector3.One),
 
-            "coordinate" or "coord" or "coords" or "texture_coord" or "tex_coord" or "st"
+            "coordinate"
                 => new CoordinateTexture(),
 
             "image" => CreateImageTexture(t, sceneDir, role),
 
-            _ => new SolidColor(t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One : Vector3.One)
+            _ => new SolidColor(Vector3.One)
         };
 
         ApplyTextureParams(tex, t, sceneDir);
-        ApplyNoiseBasis(tex, t);
         return tex;
-    }
-
-    private static void ApplyNoiseBasis(ITexture tex, TextureData t)
-    {
-        PerlinBasis basis;
-        switch (t.NoiseBasis?.Trim().ToLowerInvariant())
-        {
-            case null or "" or "improved": basis = PerlinBasis.Improved; break;
-            case "classic" or "legacy": basis = PerlinBasis.Classic; break;
-            default:
-                Warn($"Texture '{t.Type}': unknown noise_basis '{t.NoiseBasis}' (improved, classic); using improved.");
-                basis = PerlinBasis.Improved;
-                break;
-        }
-        switch (tex)
-        {
-            case NoiseTexture n:   n.NoiseBasis = basis; break;
-            case MarbleTexture m:  m.NoiseBasis = basis; break;
-            case WoodTexture w:    w.NoiseBasis = basis; break;
-            case VoronoiTexture v: v.NoiseBasis = basis; break;
-            case BrickTexture b:   b.NoiseBasis = basis; break;
-        }
     }
 
     /// <summary>
@@ -274,10 +223,8 @@ public partial class SceneLoader
             wt.RandomizeOffset   = t.RandomizeOffset;
             wt.RandomizeRotation = t.RandomizeRotation;
 
-            // Grain amplitude — `grain_strength` is the canonical name; the
-            // legacy `noise_strength` is still accepted (last-write-wins).
+            // Grain amplitude.
             if (t.NoiseStrength.HasValue)    wt.GrainStrength    = t.NoiseStrength.Value;
-            if (t.GrainStrength.HasValue)    wt.GrainStrength    = t.GrainStrength.Value;
 
             // Geometry / ring layout
             if (t.RingAxis != null)          wt.RingAxis         = ToVector3(t.RingAxis) ?? Vector3.UnitY;
@@ -302,21 +249,12 @@ public partial class SceneLoader
             if (t.FigureStrength.HasValue)   wt.FigureStrength   = MathF.Max(t.FigureStrength.Value, 0f);
             if (t.FigureAspect.HasValue)     wt.FigureAspect     = MathF.Max(t.FigureAspect.Value, 1e-3f);
 
-            // Domain warp (recursive IQ + anisotropic fold). The legacy
-            // `distortion` knob is mapped to `warp_amplitude` so older scenes
-            // that still set it keep getting a non-trivial warp.
-            if (t.Distortion.HasValue)       wt.WarpAmplitude    = MathF.Max(t.Distortion.Value, 0f);
+            // Domain warp (recursive IQ + anisotropic fold).
             if (t.WarpAmplitude.HasValue)    wt.WarpAmplitude    = MathF.Max(t.WarpAmplitude.Value, 0f);
             if (t.WarpScale.HasValue)        wt.WarpScale        = MathF.Max(t.WarpScale.Value, 1e-4f);
             if (t.WarpIterations.HasValue)   wt.WarpIterations   = Math.Clamp(t.WarpIterations.Value, 0, 3);
             if (t.FoldAmplitude != null)     wt.FoldAmplitude    = ToVector3(t.FoldAmplitude) ?? wt.FoldAmplitude;
             if (t.FoldScale.HasValue)        wt.FoldScale        = MathF.Max(t.FoldScale.Value, 1e-4f);
-
-            // Global drama dial
-            if (t.NoiseStrength.HasValue && t.GrainStrength.HasValue)
-            {
-                // Already consumed above — no-op here, just for clarity.
-            }
 
             // Radial anisotropy
             if (t.RadialAnisotropy.HasValue) wt.RadialAnisotropy = MathF.Max(t.RadialAnisotropy.Value, 0f);
@@ -396,17 +334,15 @@ public partial class SceneLoader
     }
 
     private static NoiseTexture.NoiseKind ParseNoiseKind(string s) =>
-        s.Trim().ToLowerInvariant() switch
+        s switch
         {
-            "perlin"               => NoiseTexture.NoiseKind.Perlin,
-            "fbm" or "fractal"     => NoiseTexture.NoiseKind.Fbm,
-            "turbulence" or "turb" => NoiseTexture.NoiseKind.Turbulence,
-            "ridged" or "ridge"    => NoiseTexture.NoiseKind.Ridged,
-            "billow" or "billowed" => NoiseTexture.NoiseKind.Billow,
-            "hetero_terrain" or "heteroterrain" or "hetero" or "heterogeneous"
-                                   => NoiseTexture.NoiseKind.HeteroTerrain,
-            "hybrid_multifractal" or "hybridmultifractal" or "hybrid" or "multifractal"
-                                   => NoiseTexture.NoiseKind.HybridMultifractal,
+            "perlin"              => NoiseTexture.NoiseKind.Perlin,
+            "fbm"                 => NoiseTexture.NoiseKind.Fbm,
+            "turbulence"          => NoiseTexture.NoiseKind.Turbulence,
+            "ridged"              => NoiseTexture.NoiseKind.Ridged,
+            "billow"              => NoiseTexture.NoiseKind.Billow,
+            "hetero_terrain"      => NoiseTexture.NoiseKind.HeteroTerrain,
+            "hybrid_multifractal" => NoiseTexture.NoiseKind.HybridMultifractal,
             _                      => NoiseTexture.NoiseKind.Auto,
         };
 
@@ -436,17 +372,17 @@ public partial class SceneLoader
     }
 
     private static MarbleTexture.OutputMode ParseMarbleOutput(string s) =>
-        s.Trim().ToLowerInvariant() switch
+        s switch
         {
-            "mask" or "scalar" or "vein_mask" or "veinmask" => MarbleTexture.OutputMode.Mask,
-            _                                                => MarbleTexture.OutputMode.Color,
+            "mask" => MarbleTexture.OutputMode.Mask,
+            _      => MarbleTexture.OutputMode.Color,
         };
 
     private static WoodTexture.OutputMode ParseWoodOutput(string s) =>
-        s.Trim().ToLowerInvariant() switch
+        s switch
         {
-            "mask" or "scalar" or "latewood_mask" or "ringmask" => WoodTexture.OutputMode.Mask,
-            _                                                    => WoodTexture.OutputMode.Color,
+            "mask" => WoodTexture.OutputMode.Mask,
+            _      => WoodTexture.OutputMode.Color,
         };
 
     private static float[] ResizeWith(float[] src, int n, float fill)
@@ -460,55 +396,55 @@ public partial class SceneLoader
     }
 
     private static WorleyNoise.Metric ParseVoronoiMetric(string s) =>
-        s.Trim().ToLowerInvariant() switch
+        s switch
         {
-            "manhattan" or "l1" => WorleyNoise.Metric.Manhattan,
-            "chebyshev" or "linf" or "chess" => WorleyNoise.Metric.Chebyshev,
-            "euclidean_squared" or "euclidean2" or "sq" => WorleyNoise.Metric.EuclideanSquared,
+            "manhattan"         => WorleyNoise.Metric.Manhattan,
+            "chebyshev"         => WorleyNoise.Metric.Chebyshev,
+            "euclidean_squared" => WorleyNoise.Metric.EuclideanSquared,
             _ => WorleyNoise.Metric.Euclidean,
         };
 
     private static VoronoiTexture.OutputMode ParseVoronoiOutput(string s) =>
-        s.Trim().ToLowerInvariant() switch
+        s switch
         {
             "f1"            => VoronoiTexture.OutputMode.F1,
             "f2"            => VoronoiTexture.OutputMode.F2,
             "f3"            => VoronoiTexture.OutputMode.F3,
             "f4"            => VoronoiTexture.OutputMode.F4,
-            "f2_minus_f1" or "f2-f1" or "crackle" => VoronoiTexture.OutputMode.F2MinusF1,
-            "f3_minus_f1" or "f3-f1" or "wide_crackle" or "border" => VoronoiTexture.OutputMode.F3MinusF1,
-            "f1_plus_f2" or "f1+f2"               => VoronoiTexture.OutputMode.F1PlusF2,
-            "cell" or "color"                     => VoronoiTexture.OutputMode.Cell,
-            "random" or "rnd" or "id" or "scalar_random" or "per_cell" => VoronoiTexture.OutputMode.Random,
-            "position" or "feature_position" or "feature" or "p" => VoronoiTexture.OutputMode.Position,
+            "f2_minus_f1"   => VoronoiTexture.OutputMode.F2MinusF1,
+            "f3_minus_f1"   => VoronoiTexture.OutputMode.F3MinusF1,
+            "f1_plus_f2"    => VoronoiTexture.OutputMode.F1PlusF2,
+            "cell"          => VoronoiTexture.OutputMode.Cell,
+            "random"        => VoronoiTexture.OutputMode.Random,
+            "position"      => VoronoiTexture.OutputMode.Position,
             _ => VoronoiTexture.OutputMode.F1,
         };
 
     private static GradientTexture.GradientMode ParseGradientMode(string s) =>
-        s.Trim().ToLowerInvariant() switch
+        s switch
         {
-            "quadratic" or "quad"               => GradientTexture.GradientMode.Quadratic,
-            "easing" or "ease" or "smoothstep"  => GradientTexture.GradientMode.Easing,
-            "spherical" or "sphere"             => GradientTexture.GradientMode.Spherical,
-            "radial" or "cylinder" or "cylindrical" => GradientTexture.GradientMode.Radial,
+            "quadratic" => GradientTexture.GradientMode.Quadratic,
+            "easing"    => GradientTexture.GradientMode.Easing,
+            "spherical" => GradientTexture.GradientMode.Spherical,
+            "radial"    => GradientTexture.GradientMode.Radial,
             _                                   => GradientTexture.GradientMode.Linear,
         };
 
     private static CoordinateTexture.CoordMode ParseCoordinateMode(string s) =>
-        s.Trim().ToLowerInvariant() switch
+        s switch
         {
-            "uv" or "st" or "parametric"                => CoordinateTexture.CoordMode.UV,
-            "generated" or "gen" or "ref" or "pref"     => CoordinateTexture.CoordMode.Generated,
-            "world" or "pworld" or "world_space"        => CoordinateTexture.CoordMode.World,
+            "uv"        => CoordinateTexture.CoordMode.UV,
+            "generated" => CoordinateTexture.CoordMode.Generated,
+            "world"     => CoordinateTexture.CoordMode.World,
             _                                           => CoordinateTexture.CoordMode.Object,
         };
 
     private static ColorRamp.Interp ParseRampInterp(string? s) =>
-        s?.Trim().ToLowerInvariant() switch
+        s switch
         {
-            "smoothstep" or "smooth"         => ColorRamp.Interp.Smoothstep,
-            "constant" or "step" or "hold"   => ColorRamp.Interp.Constant,
-            "ease" or "easing" or "smoother" => ColorRamp.Interp.Ease,
+            "smoothstep" => ColorRamp.Interp.Smoothstep,
+            "constant"   => ColorRamp.Interp.Constant,
+            "ease"       => ColorRamp.Interp.Ease,
             _                                => ColorRamp.Interp.Linear,
         };
 

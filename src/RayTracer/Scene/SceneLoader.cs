@@ -25,7 +25,7 @@ public partial class SceneLoader
 
     /// <summary>
     /// Per-Load camera context used by the adaptive subdivision heuristic.
-    /// Set once at the top of <see cref="Load"/>; read by
+    /// Set once at the top of a load; read by
     /// <see cref="CreateMeshEntity"/> regardless of nesting depth (groups,
     /// templates, instances). Cleared by the next Load.
     /// </summary>
@@ -103,110 +103,105 @@ public partial class SceneLoader
     }
 
     /// <summary>
-    /// Loads a scene from a YAML file.
+    /// Length of one scene unit in metres (<c>units.length</c>), for the
+    /// quantities that carry metres: f-stop apertures, candela, light power,
+    /// the atmosphere. Set at the start of <see cref="Load(ParsedScene, int, int, int?, string?)"/>.
     /// </summary>
+    private static float _metersPerUnit = 1f;
+
+    /// <summary>A scene file read and validated, its imports merged in.</summary>
+    public sealed record ParsedScene(SceneData Data, string Path, string Directory);
+
+    private static IDeserializer NewDeserializer() => new DeserializerBuilder()
+        .WithNamingConvention(UnderscoredNamingConvention.Instance)
+        .WithTypeConverter(new MaterialParamConverter())
+        .Build();
+
+    /// <summary>
+    /// Reads a scene file of format 2: validates it (every error at once,
+    /// <see cref="SceneFormatException"/>; warnings are queued), deserialises it
+    /// and merges its imports. Clears the deferred messages of a previous load.
+    /// </summary>
+    public static ParsedScene Parse(string yamlPath)
+    {
+        _deferredMessages.Clear();
+        var data = ReadValidated(yamlPath);
+        var sceneDir = Path.GetDirectoryName(Path.GetFullPath(yamlPath)) ?? ".";
+        if (data.Imports is { Count: > 0 })
+        {
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { Path.GetFullPath(yamlPath) };
+            ProcessImports(data, sceneDir, visited);
+        }
+        return new ParsedScene(data, yamlPath, sceneDir);
+    }
+
+    private static SceneData ReadValidated(string yamlPath)
+    {
+        var yaml = File.ReadAllText(yamlPath);
+        var issues = SceneValidator.Validate(yaml);
+        var errors = issues.Where(i => i.IsError).Select(i => i.Format(yamlPath)).ToList();
+        if (errors.Count > 0) throw new SceneFormatException(yamlPath, errors);
+        foreach (var w in issues) Warn(w.Format(yamlPath));
+        try
+        {
+            return NewDeserializer().Deserialize<SceneData>(yaml)
+                   ?? throw new SceneFormatException(yamlPath, ["the file is empty"]);
+        }
+        catch (YamlDotNet.Core.YamlException ex)
+        {
+            throw new SceneFormatException(yamlPath,
+                [$"{Path.GetFileName(yamlPath)}:{ex.Start.Line}:{ex.Start.Column}: {ex.InnerException?.Message ?? ex.Message}"]);
+        }
+    }
+
+    /// <summary>Reads, validates and builds a scene (see <see cref="Parse"/>).</summary>
     /// <param name="yamlPath">Path to the YAML scene file.</param>
     /// <param name="imageWidth">Target image width (for aspect ratio).</param>
     /// <param name="imageHeight">Target image height (for aspect ratio).</param>
-    /// <param name="shadowSamplesOverride">
-    /// When non-null, overrides the <c>shadow_samples</c> value of every area light
-    /// in the scene. This allows quick quality iteration from the CLI without editing
-    /// the scene file (e.g. <c>-S 4</c> for preview, <c>-S 32</c> for production).
-    /// When null, each area light uses its own YAML-defined value.
-    /// </param>
-    /// <param name="cameraSelector">
-    /// When non-null, selects which camera to use from a <c>cameras:</c> list by
-    /// name (case-insensitive) or zero-based index. Ignored when the scene uses
-    /// the legacy single <c>camera:</c> syntax.
-    /// </param>
+    /// <param name="shadowSamplesOverride">When non-null, the shadow samples of every light (CLI <c>-S</c>).</param>
+    /// <param name="cameraSelector">A camera of <c>cameras:</c> by name (case-insensitive) or index.</param>
     public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, SkySettings Sky, IMedium? GlobalMedium, MotionBlurSettings MotionBlur)
         Load(string yamlPath, int imageWidth, int imageHeight,
              int? shadowSamplesOverride = null, string? cameraSelector = null)
+        => Load(Parse(yamlPath), imageWidth, imageHeight, shadowSamplesOverride, cameraSelector);
+
+    /// <summary>Builds a parsed scene for an image of the given size.</summary>
+    public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, SkySettings Sky, IMedium? GlobalMedium, MotionBlurSettings MotionBlur)
+        Load(ParsedScene scene, int imageWidth, int imageHeight,
+             int? shadowSamplesOverride = null, string? cameraSelector = null)
     {
-        // Clear any leftover messages from a previous Load() call
-        _deferredMessages.Clear();
+        var data = scene.Data;
+        var sceneDir = scene.Directory;
+        _metersPerUnit = ParseLengthUnit(data.Units?.Length);
+        _csgEmissiveWarningEmitted = false;
 
-        var yaml = File.ReadAllText(yamlPath);
-        var deserializer = new DeserializerBuilder()
-            .WithNamingConvention(UnderscoredNamingConvention.Instance)
-            .IgnoreUnmatchedProperties()
-            .WithTypeConverter(new MaterialParamConverter())
-            .Build();
-
-        var data = deserializer.Deserialize<SceneData>(yaml);
-        if (data == null) throw new InvalidOperationException("Failed to parse YAML scene.");
-
-        // Scene directory for resolving relative paths (image textures, etc.)
-        var sceneDir = Path.GetDirectoryName(Path.GetFullPath(yamlPath)) ?? ".";
-
-        // ── YAML Imports ─────────────────────────────────────────────────────
-        // Process imports before local definitions. Imported materials, entities,
-        // lights, and templates are merged into the current SceneData. Local
-        // definitions with the same ID/name override imported ones.
-        if (data.Imports is { Count: > 0 })
-        {
-            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                Path.GetFullPath(yamlPath)
-            };
-            ProcessImports(data, sceneDir, deserializer, visited);
-        }
-
-        // Materials dictionary — two-pass loading to resolve MixMaterial references.
-        // Pass 1: create all non-mix materials so their IDs are available.
-        // Pass 2: create mix materials that reference other materials by ID.
+        // Materials, in two passes so a mix can reference any material by id
+        // (including another mix). Unresolved or cyclic references fall back
+        // to a grey Lambertian with a warning.
         var materials = new Dictionary<string, IMaterial>();
         var deferredMix = new List<MaterialData>();
- 
         if (data.Materials != null)
         {
-            // ── Pass 1: non-mix materials ────────────────────────────────────
             foreach (var m in data.Materials)
             {
-                if (m.Id == null) continue;
-                if (string.Equals(m.Type, "mix", StringComparison.OrdinalIgnoreCase)
-                 || string.Equals(m.Type, "blend", StringComparison.OrdinalIgnoreCase))
-                {
-                    deferredMix.Add(m);
-                    continue;
-                }
-                // Material-embedded SSS auto-defaults: when subsurface_radius
-                // is set, the loader silently fills in the refractive plumbing
-                // needed by the Disney BSDF transmission lobe (which is what
-                // actually triggers MediumTransition.Enter / Exit and the
-                // Random Walk Phase 3 integrator). Mirrors Arnold's
-                // standard_surface convention: an artist who only sets
-                // subsurface_* parameters gets working volumetric SSS without
-                // boilerplate. Explicit values authored by the user are
-                // always preserved.
-                ApplyEmbeddedSssDefaults(m);
+                if (m.Id == null) { Warn("Material without an 'id'. Skipping."); continue; }
+                if (m.Type == "mix") { deferredMix.Add(m); continue; }
                 materials[m.Id] = CreateMaterial(m, sceneDir);
             }
- 
-            // ── Pass 2: mix materials ────────────────────────────────────────
-            // Supports mix-of-mix by iterating until no more can be resolved.
-            // Prevents infinite loops via progress check (remaining count must shrink).
+
             var remaining = deferredMix;
-            int maxPasses = remaining.Count + 1; // safety bound
-            while (remaining.Count > 0 && maxPasses-- > 0)
+            while (remaining.Count > 0)
             {
                 var stillRemaining = new List<MaterialData>();
                 foreach (var m in remaining)
                 {
                     bool canResolveA = m.MaterialA == null || materials.ContainsKey(m.MaterialA);
                     bool canResolveB = m.MaterialB == null || materials.ContainsKey(m.MaterialB);
- 
                     if (canResolveA && canResolveB)
-                    {
                         materials[m.Id!] = CreateMixMaterial(m, materials, sceneDir);
-                    }
                     else
-                    {
                         stillRemaining.Add(m);
-                    }
                 }
- 
-                // No progress — remaining mix materials have circular or missing refs
                 if (stillRemaining.Count == remaining.Count)
                 {
                     foreach (var m in stillRemaining)
@@ -215,26 +210,18 @@ public partial class SceneLoader
                              $"Using default grey Lambertian.");
                     break;
                 }
- 
                 remaining = stillRemaining;
             }
         }
 
         var sky = BuildSkySettings(data.World?.Sky, sceneDir);
 
-        // ── Global participating medium (opt-in) ─────────────────────────────────
-        // Default null = surface-only path, bit-identical to pre-volumetric output.
+        // The medium filling the scene; none = surface-only rendering.
         IMedium? globalMedium = null;
         if (data.World?.Medium is { } md)
-        {
             globalMedium = BuildMedium(md, sceneDir, "world.medium");
-        }
 
-        // ── Medium library (per-entity binding via interior_medium / exterior_medium) ───
-        // Built before entities are created so CreateEntity / its callers can
-        // resolve a binding directly. Duplicate ids: last-write-wins matches
-        // `materials:`. Mediums without an id are skipped with a warning —
-        // unreferenceable.
+        // Medium library, bound per entity by interior_medium / exterior_medium.
         var mediumLibrary = new Dictionary<string, IMedium>(StringComparer.OrdinalIgnoreCase);
         if (data.Mediums != null)
         {
@@ -256,30 +243,15 @@ public partial class SceneLoader
                      $"({string.Join(", ", mediumLibrary.Keys)})");
         }
 
-        // ── Material-embedded SSS mediums (Arnold standard_surface parity) ──
-        // When a material declares `subsurface_radius`, build an anonymous
-        // HomogeneousMedium derived from that MFP + subsurface_color (volume
-        // albedo). The medium is later auto-injected on every entity that
-        // references the material AND lacks an explicit `interior_medium`
-        // (explicit binding always wins — Arnold/Cycles convention).
+        // The medium inside an OpenPBR object with subsurface or scattering
+        // transmission, bound to every entity that uses the material (an
+        // explicit interior_medium wins).
         var embeddedSssMedium = new Dictionary<string, IMedium>(StringComparer.OrdinalIgnoreCase);
         if (data.Materials != null)
         {
             foreach (var m in data.Materials)
-            {
-                if (m.Id == null) continue;
-                if (IsOpenPbr(m))
-                {
-                    if (BuildOpenPbrMedium(m) is { } opbMedium) embeddedSssMedium[m.Id] = opbMedium;
-                    continue;
-                }
-                if (m.SubsurfaceRadius == null) continue;
-                if (m.SubsurfaceRadius.Count == 0) continue;
-
-                var med = BuildEmbeddedSssMedium(m);
-                if (med != null)
-                    embeddedSssMedium[m.Id] = med;
-            }
+                if (m.Id != null && m.Type == "openpbr" && BuildOpenPbrMedium(m) is { } opbMedium)
+                    embeddedSssMedium[m.Id] = opbMedium;
             if (embeddedSssMedium.Count > 0)
                 Info($"SSS embedded: {embeddedSssMedium.Count} material(s) with auto-built medium " +
                      $"({string.Join(", ", embeddedSssMedium.Keys)})");
@@ -287,17 +259,10 @@ public partial class SceneLoader
 
         var objects = new List<IHittable>();
 
-        // Ground plane — see BuildGround for the full type/material/UV/visibility dispatch.
-        if (data.World?.Ground != null)
-        {
-            var groundHittable = BuildGround(data.World.Ground, data.World.Sky, materials, sceneDir);
-            if (groundHittable != null)
-            {
-                objects.Add(groundHittable);
-            }
-        }
+        if (data.World?.Ground != null && BuildGround(data.World.Ground, data.World.Sky, materials) is { } groundHittable)
+            objects.Add(groundHittable);
 
-        // Templates
+        // Templates (last definition of a name wins: local over imported)
         var templates = new Dictionary<string, EntityData>(StringComparer.OrdinalIgnoreCase);
         if (data.Templates != null)
         {
@@ -313,7 +278,6 @@ public partial class SceneLoader
                     Warn($"Template '{t.Name}' has no 'children'. Skipping.");
                     continue;
                 }
-                // Last-write-wins: local templates override imported ones
                 templates[t.Name] = t;
             }
             if (templates.Count > 0)
@@ -328,51 +292,32 @@ public partial class SceneLoader
 
         // ── Pre-resolve camera for adaptive subdivision ───────────────────
         // The screen-space pixel-error heuristic needs the resolved camera
-        // origin / forward axis / FOV before the mesh loader runs. We
-        // resolve those now and build the actual Camera.Camera object below
-        // after all entities are created.
-        var camDataEarly   = ResolveCamera(data, cameraSelector);
-        var apertureShape  = ApplyPhysicalCamera(camDataEarly, (float)imageWidth / imageHeight);
-        var camPosEarly    = ToVector3(camDataEarly.Position) ?? new Vector3(0, 1, -5);
-        var camLookAtEarly = ToVector3(camDataEarly.LookAt)   ?? Vector3.Zero;
-        var camForwardEarly = camLookAtEarly - camPosEarly;
-        if (camForwardEarly.LengthSquared() < 1e-8f) camForwardEarly = -Vector3.UnitZ;
-        camForwardEarly = Vector3.Normalize(camForwardEarly);
-        float camFovEarlyRad = MathUtils.DegreesToRadians(camDataEarly.Fov);
+        // origin / forward axis / FOV before the mesh loader runs.
+        var camData        = ResolveCamera(data, cameraSelector);
+        var apertureShape  = ApplyPhysicalCamera(camData, (float)imageWidth / imageHeight);
+        var camPos         = ToVector3(camData.Position) ?? new Vector3(0, 1, -5);
+        var camLookAt      = ToVector3(camData.LookAt)   ?? Vector3.Zero;
+        var camForward     = camLookAt - camPos;
+        if (camForward.LengthSquared() < 1e-8f) camForward = -Vector3.UnitZ;
         _currentScreenContext = new SubdivisionScreenContext
         {
-            CameraOrigin       = camPosEarly,
-            CameraForward      = camForwardEarly,
-            VerticalFovRadians = camFovEarlyRad,
+            CameraOrigin       = camPos,
+            CameraForward      = Vector3.Normalize(camForward),
+            VerticalFovRadians = MathUtils.DegreesToRadians(camData.Fov),
             ImageHeight        = imageHeight,
         };
 
-        // Entities
         bool sceneHasMotion = false;
         if (data.Entities != null)
         {
             for (int idx = 0; idx < data.Entities.Count; idx++)
             {
                 var e   = data.Entities[idx];
-
-                // Hard error on legacy entity-level displacement YAML. The
-                // model has moved to material-level (Cycles/RenderMan parity)
-                // and silent acceptance would let stale scenes render with no
-                // displacement at all. Fail fast and point the author at the
-                // migration.
-                CheckLegacyEntityDisplacement(e);
-
                 var mat = GetMaterial(materials, e.Material);
 
-                // Warn (don't fail) when a non-mesh entity uses a material
-                // that carries a displacement: the loader has no subdivided
-                // limit topology to displace and silently ignores it. CSG
-                // children are checked recursively inside CreateCsgEntity.
-                if (mat.Displacement != null
-                    && !string.Equals(e.Type, "mesh", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(e.Type, "obj",  StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(e.Type, "group", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(e.Type, "instance", StringComparison.OrdinalIgnoreCase))
+                // Displacement needs a polygonal mesh (groups and instances
+                // check their children).
+                if (mat.Displacement != null && e.Type is not ("mesh" or "group" or "instance"))
                 {
                     Warn($"Entity '{e.Name ?? e.Type ?? "(unnamed)"}' (type='{e.Type}') " +
                          $"uses material '{e.Material}' which has a displacement, " +
@@ -381,42 +326,22 @@ public partial class SceneLoader
                          $"to the material instead.");
                 }
 
-                IHittable? hittable;
-                if (string.Equals(e.Type, "csg", StringComparison.OrdinalIgnoreCase))
+                IHittable? hittable = e.Type switch
                 {
-                    hittable = CreateCsgEntity(e, mat, materials, idx);
-                }
-                else if (string.Equals(e.Type, "mesh", StringComparison.OrdinalIgnoreCase)
-                      || string.Equals(e.Type, "obj", StringComparison.OrdinalIgnoreCase))
-                {
-                    hittable = CreateMeshEntity(e, mat, materials, sceneDir, idx);
-                }
-                else if (string.Equals(e.Type, "group", StringComparison.OrdinalIgnoreCase))
-                {
-                    // The group's own entity transform is the world transform of its
-                    // (group-local) children; pass it so flagged children register in
-                    // world space. It is re-applied as the rendered outer Transform below.
-                    hittable = CreateGroupEntity(e, mat, materials, sceneDir, idx, ComputeTransformMatrix(e));
-                }
-                else if (string.Equals(e.Type, "instance", StringComparison.OrdinalIgnoreCase))
-                {
-                    hittable = CreateInstanceEntity(e, materials, templates, templateCache, sceneDir, idx);
-                }
-                else if (IsHeightFieldType(e.Type))
-                {
-                    hittable = CreateHeightFieldEntity(e, mat, materials, sceneDir, idx);
-                }
-                else
-                {
-                    hittable = CreateEntity(e, mat, idx);
-                }
- 
+                    "csg"         => CreateCsgEntity(e, mat, materials, idx),
+                    "mesh"        => CreateMeshEntity(e, mat, materials, sceneDir, idx),
+                    // The group's own transform is the world transform of its
+                    // children; passed so flagged children register in world space.
+                    "group"       => CreateGroupEntity(e, mat, materials, sceneDir, idx, ComputeTransformMatrix(e)),
+                    "instance"    => CreateInstanceEntity(e, materials, templates, templateCache, sceneDir, idx),
+                    "heightfield" => CreateHeightFieldEntity(e, mat, materials, sceneDir, idx),
+                    _             => CreateEntity(e, mat, idx),
+                };
+
                 if (hittable != null)
                 {
-                    // Motion blur: a non-empty `motion:` block promotes the static
-                    // Transform to an AnimatedTransform whose keyframe 0 is the
-                    // entity's base scale/rotate/translate pose. The wrapper order
-                    // below (camera visibility, medium binding) is unchanged.
+                    // A motion block makes the transform an AnimatedTransform whose
+                    // key 0 is the entity's base pose.
                     if (e.Motion is { Count: > 0 })
                     {
                         hittable = new AnimatedTransform(hittable, BuildMotionKeys(e));
@@ -428,20 +353,10 @@ public partial class SceneLoader
                         if (transform != Matrix4x4.Identity)
                             hittable = new Transform(hittable, transform);
                     }
-                    // Per-entity Arnold/Cycles "camera" visibility flag. Wrap
-                    // after Transform so the BVH still partitions by the
-                    // entity's world-space AABB; the flag only annotates the
-                    // resulting HitRecord (see CameraInvisibleHittable).
-                    if (!e.VisibleToCamera)
-                        hittable = new CameraInvisibleHittable(hittable);
-                    // Per-entity participating-media binding (interior /
-                    // exterior). Wrap last so MediumInterface rides on every
-                    // hit forwarded by inner wrappers — the renderer needs
-                    // it during refraction to push/pop the medium stack.
-                    // When the entity has no explicit interior_medium but the
-                    // referenced material carries `subsurface_radius`, inject
-                    // the material-embedded medium (Arnold standard_surface
-                    // parity). Explicit binding on the entity always wins.
+                    // Visibility wraps the transformed entity, so the BVH still
+                    // partitions by its world-space box; the medium binding wraps
+                    // last so its interface rides on every hit.
+                    hittable = ApplyVisibility(hittable, e.Visibility);
                     var mi = ResolveEntityMediumInterface(e, mediumLibrary, embeddedSssMedium);
                     if (mi.Interior != null || mi.Exterior != null)
                         hittable = new MediumBoundHittable(hittable, mi);
@@ -466,9 +381,9 @@ public partial class SceneLoader
 
         Info($"Objects:     {objects.Count:N0}");
 
-        // Build BVH — separate infinite planes (no finite AABB) from finite objects.
-        // BVH is only beneficial above BvhThreshold objects; below that the tree
-        // construction overhead exceeds the traversal savings.
+        // BVH over the finite objects; infinite planes stay in a linear list
+        // (their unbounded box would poison the tree). Below BvhThreshold
+        // objects a linear list is faster.
         IHittable world;
         if (objects.Count > BvhThreshold)
         {
@@ -493,27 +408,17 @@ public partial class SceneLoader
             world = new HittableList(objects);
         }
 
-        // Camera (re-uses the pre-resolved descriptor; see camDataEarly)
         float aspect  = (float)imageWidth / imageHeight;
-        var camData   = camDataEarly;
-        var camPos    = camPosEarly;
-        var camLookAt = camLookAtEarly;
-        var camVup    = ToVector3(camData.Vup) ?? Vector3.UnitY;
-        // Resolve focus distance: focal_pos (a 3D point) wins over the
-        // scalar focal_dist when set, mirroring Arnold/Cycles/RenderMan
-        // "Focus Object" workflow. ComputeFocusDistance projects the point
-        // onto the optical axis and emits Warn/Info on anomalies.
-        float focusDist = ComputeFocusDistance(
-            camPos, camLookAt,
-            camData.FocalPos, camData.FocalDist);
-        // Camera motion blur: a `motion:` block on the camera adds pose
-        // keyframes (base pose = implicit key at time 0); the camera then
-        // rebuilds its basis at each ray's shutter time.
-        var cameraMotion = BuildCameraMotionKeys(camData, camPos, camLookAt, camVup);
+        var camUp     = ToVector3(camData.Up) ?? Vector3.UnitY;
+        // focus_point (a point in focus) wins over focus_distance.
+        float focusDist = ComputeFocusDistance(camPos, camLookAt, camData.FocusPoint, camData.FocusDistance);
+        // Camera keyframes (base pose = key at time 0): the camera rebuilds
+        // its basis at each ray's shutter time.
+        var cameraMotion = BuildCameraMotionKeys(camData, camPos, camLookAt, camUp);
         if (cameraMotion != null)
             sceneHasMotion = true;
         var camera    = new Camera.Camera(
-            camPos, camLookAt, camVup,
+            camPos, camLookAt, camUp,
             camData.Fov, aspect,
             camData.Aperture, focusDist,
             cameraMotion, apertureShape);
@@ -542,25 +447,17 @@ public partial class SceneLoader
             Info($"Exposure:    EV100 {ev:0.##} (scene in nits)");
         }
 
-        var motionBlur = ResolveMotionBlurSettings(camData.Shutter, sceneHasMotion);
+        var motionBlur = ResolveMotionBlurSettings(camData.ShutterInterval, sceneHasMotion);
 
-        // Add Emissive Objects as Geometry Lights. The default for geometry
-        // lights is aligned with AreaLight/SphereLight (16), so emissive
-        // primitives get comparable soft-shadow quality without extra YAML.
-        // Proxy emissives created above are skipped inside
-        // TryGetSamplableEmissive (their parent SphereLight/AreaLight is
-        // already the NEE source).
+        // Emissive geometry joins the NEE pool as GeometryLights (the proxies
+        // of sphere and area lights are skipped: their light samples them).
         ExtractGeometryLights(objects, lights, shadowSamplesOverride ?? GeometryLight.DefaultShadowSamples);
 
-        // Add Environment Light if applicable
         if (sky.CanSampleDirectly)
-        {
             lights.Add(new EnvironmentLight(sky, shadowSamplesOverride ?? 1));
-        }
 
-        // Register a PhysicalSun alongside the env light when the sky model
-        // exposes an analytical sun. Decoupling the sun from the sky body
-        // gives clean cone-sampled shadows and lower variance.
+        // The analytic sun of a sky is a light of its own: cone-sampled
+        // shadows, lower variance than sampling it through the sky.
         var analyticalSun = sky.GetAnalyticalSun();
         if (analyticalSun != null)
         {
@@ -572,139 +469,109 @@ public partial class SceneLoader
                                        shadowSamples: sunSamples));
         }
 
-        // Default lighting only when lights section is completely absent from YAML.
-        // An explicit empty list (lights: []) means "no lights" intentionally
-        // (e.g. HDRI-only or emissive-only scenes).
-        if (lights.Count == 0 && data.Lights == null)
-        {
-            lights.Add(new DirectionalLight(new Vector3(-1, -1, -1), Vector3.One, 0.8f));
-            lights.Add(new PointLight(new Vector3(0, 10, -5), Vector3.One, 100f));
-        }
-
         return (world, camera, lights, sky, globalMedium, motionBlur);
+    }
+
+    /// <summary>
+    /// <c>units.length</c>: metres per scene unit, as a number or a unit name.
+    /// </summary>
+    private static float ParseLengthUnit(string? length)
+    {
+        if (string.IsNullOrWhiteSpace(length)) return 1f;
+        float? m = length.Trim() switch
+        {
+            "m" => 1f, "cm" => 0.01f, "mm" => 0.001f, "km" => 1000f, "in" => 0.0254f, "ft" => 0.3048f,
+            var s => float.TryParse(s, System.Globalization.NumberStyles.Float,
+                                    System.Globalization.CultureInfo.InvariantCulture, out var v) && v > 0f ? v : null,
+        };
+        if (m is float mm) return mm;
+        Warn($"units.length '{length}' is not a positive number of metres or m, cm, mm, km, in, ft; using metres.");
+        return 1f;
+    }
+
+    /// <summary>Wraps a surface in the per-category visibility mask of its <c>visibility:</c> block.</summary>
+    private static IHittable ApplyVisibility(IHittable hittable, VisibilityData? v)
+    {
+        var mask = VisibilityMask(v);
+        return mask == HitVisibilityMask.None ? hittable : new VisibilityFilteredHittable(hittable, mask);
+    }
+
+    private static HitVisibilityMask VisibilityMask(VisibilityData? v)
+    {
+        if (v == null) return HitVisibilityMask.None;
+        HitVisibilityMask mask = HitVisibilityMask.None;
+        if (!v.Camera)       mask |= HitVisibilityMask.Camera;
+        if (!v.Diffuse)      mask |= HitVisibilityMask.Diffuse;
+        if (!v.Glossy)       mask |= HitVisibilityMask.Glossy;
+        if (!v.Transmission) mask |= HitVisibilityMask.Transmission;
+        if (!v.Shadow)       mask |= HitVisibilityMask.Shadow;
+        return mask;
     }
 
     // =========================================================================
     // YAML Imports
     // =========================================================================
- 
+
     /// <summary>
-    /// Processes the <c>imports:</c> section of a scene file. Recursively loads
-    /// external YAML files and merges their materials, entities, lights, and
-    /// templates into the current <see cref="SceneData"/>.
-    ///
-    /// Merge semantics:
-    ///   - Materials, entities, lights, templates: imported are prepended.
-    ///     Local definitions with the same ID/name override imported ones.
-    ///   - World / Camera: NOT imported (main scene owns these).
-    ///
-    /// Circular import protection via the visited set.
+    /// Merges the <c>imports:</c> of a scene, recursively: their materials,
+    /// mediums, lights, entities and templates go before the local ones, so a
+    /// local id or name wins. <c>world</c>, <c>cameras</c>, <c>render</c> and
+    /// <c>units</c> are not imported. A cycle is skipped with a warning; an
+    /// imported file is validated like the scene.
     /// </summary>
-    private static void ProcessImports(SceneData data, string baseDir,
-        IDeserializer deserializer, HashSet<string> visited)
+    private static void ProcessImports(SceneData data, string baseDir, HashSet<string> visited)
     {
         if (data.Imports == null) return;
- 
+
         var importedMaterials = new List<MaterialData>();
         var importedEntities  = new List<EntityData>();
         var importedLights    = new List<LightData>();
         var importedTemplates = new List<EntityData>();
         var importedMediums   = new List<MediumData>();
- 
+
         foreach (var import in data.Imports)
         {
-            if (string.IsNullOrWhiteSpace(import.Path))
+            if (string.IsNullOrWhiteSpace(import))
             {
-                Warn("Import entry has empty 'path'. Skipping.");
+                Warn("Empty entry in 'imports'. Skipping.");
                 continue;
             }
- 
-            string importPath = Path.IsPathRooted(import.Path)
-                ? import.Path
-                : Path.Combine(baseDir, import.Path);
- 
-            string fullPath = Path.GetFullPath(importPath);
- 
+
+            string fullPath = Path.GetFullPath(Path.IsPathRooted(import) ? import : Path.Combine(baseDir, import));
             if (!visited.Add(fullPath))
             {
-                Warn($"Circular import detected: '{import.Path}'. Skipping.");
+                Warn($"Circular import detected: '{import}'. Skipping.");
                 continue;
             }
- 
             if (!File.Exists(fullPath))
-            {
-                Warn($"Import file not found: '{import.Path}' " +
-                     $"(resolved to '{fullPath}'). Skipping.");
-                continue;
-            }
- 
-            try
-            {
-                var importYaml = File.ReadAllText(fullPath);
-                var importData = deserializer.Deserialize<SceneData>(importYaml);
- 
-                if (importData == null)
-                {
-                    Warn($"Failed to parse import file: '{import.Path}'. Skipping.");
-                    continue;
-                }
- 
-                var importDir = Path.GetDirectoryName(fullPath) ?? ".";
-                if (importData.Imports is { Count: > 0 })
-                    ProcessImports(importData, importDir, deserializer, visited);
- 
-                if (importData.Materials != null)
-                    importedMaterials.AddRange(importData.Materials);
-                if (importData.Entities != null)
-                    importedEntities.AddRange(importData.Entities);
-                if (importData.Lights != null)
-                    importedLights.AddRange(importData.Lights);
-                if (importData.Templates != null)
-                    importedTemplates.AddRange(importData.Templates);
-                if (importData.Mediums != null)
-                    importedMediums.AddRange(importData.Mediums);
+                throw new SceneFormatException(fullPath, [$"imported file not found: '{import}'"]);
 
-                Verbose($"Imported:    {import.Path} " +
-                        $"({importData.Materials?.Count ?? 0} materials, " +
-                        $"{importData.Entities?.Count ?? 0} entities, " +
-                        $"{importData.Lights?.Count ?? 0} lights, " +
-                        $"{importData.Templates?.Count ?? 0} templates, " +
-                        $"{importData.Mediums?.Count ?? 0} mediums)");
-            }
-            catch (Exception ex)
-            {
-                Warn($"Error loading import '{import.Path}': {ex.Message}. Skipping.");
-            }
+            var importData = ReadValidated(fullPath);
+            var importDir = Path.GetDirectoryName(fullPath) ?? ".";
+            if (importData.Imports is { Count: > 0 })
+                ProcessImports(importData, importDir, visited);
+
+            if (importData.Materials != null) importedMaterials.AddRange(importData.Materials);
+            if (importData.Entities != null)  importedEntities.AddRange(importData.Entities);
+            if (importData.Lights != null)    importedLights.AddRange(importData.Lights);
+            if (importData.Templates != null) importedTemplates.AddRange(importData.Templates);
+            if (importData.Mediums != null)   importedMediums.AddRange(importData.Mediums);
+
+            Verbose($"Imported:    {import} " +
+                    $"({importData.Materials?.Count ?? 0} materials, " +
+                    $"{importData.Entities?.Count ?? 0} entities, " +
+                    $"{importData.Lights?.Count ?? 0} lights, " +
+                    $"{importData.Templates?.Count ?? 0} templates, " +
+                    $"{importData.Mediums?.Count ?? 0} mediums)");
         }
- 
-        // Merge: imported go BEFORE local (local wins on ID/name conflicts)
-        if (importedMaterials.Count > 0)
-        {
-            importedMaterials.AddRange(data.Materials ?? new List<MaterialData>());
-            data.Materials = importedMaterials;
-        }
-        if (importedEntities.Count > 0)
-        {
-            importedEntities.AddRange(data.Entities ?? new List<EntityData>());
-            data.Entities = importedEntities;
-        }
-        if (importedLights.Count > 0)
-        {
-            importedLights.AddRange(data.Lights ?? new List<LightData>());
-            data.Lights = importedLights;
-        }
-        if (importedTemplates.Count > 0)
-        {
-            importedTemplates.AddRange(data.Templates ?? new List<EntityData>());
-            data.Templates = importedTemplates;
-        }
-        if (importedMediums.Count > 0)
-        {
-            importedMediums.AddRange(data.Mediums ?? new List<MediumData>());
-            data.Mediums = importedMediums;
-        }
+
+        // Imported go before local (local wins on id / name conflicts).
+        if (importedMaterials.Count > 0) { importedMaterials.AddRange(data.Materials ?? []); data.Materials = importedMaterials; }
+        if (importedEntities.Count > 0)  { importedEntities.AddRange(data.Entities ?? []);   data.Entities = importedEntities; }
+        if (importedLights.Count > 0)    { importedLights.AddRange(data.Lights ?? []);       data.Lights = importedLights; }
+        if (importedTemplates.Count > 0) { importedTemplates.AddRange(data.Templates ?? []); data.Templates = importedTemplates; }
+        if (importedMediums.Count > 0)   { importedMediums.AddRange(data.Mediums ?? []);     data.Mediums = importedMediums; }
     }
-
     // =========================================================================
     // Utility helpers
     // =========================================================================
@@ -717,7 +584,6 @@ public partial class SceneLoader
         Group g                        => g.Children.Count > 0 && g.Children.All(c => IsInfinitePlane(c)),
         UvTransformedHittable uv       => IsInfinitePlane(uv.Inner),
         VisibilityFilteredHittable vis => IsInfinitePlane(vis.Inner),
-        CameraInvisibleHittable ci     => IsInfinitePlane(ci.Inner),
         _             => false
     };
 

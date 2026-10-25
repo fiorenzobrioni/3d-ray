@@ -34,9 +34,10 @@ entities:
     center: [0, 0, -3]
     radius: 1.0
     material: ""m""
-camera:
-  position: [0, 0, 0]
-  look_at: [0, 0, -1]
+format_version: 2
+cameras:
+  - position: [0, 0, 0]
+    look_at: [0, 0, -1]
 ";
         string path = Path.GetTempFileName();
         File.WriteAllText(path, yaml);

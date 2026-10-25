@@ -172,9 +172,10 @@ public class MotionBlurTests
     }
 
     private const string SceneHeader = @"
-camera:
-  position: [0, 1, 5]
-  look_at: [0, 0.5, 0]
+format_version: 2
+cameras:
+  - position: [0, 1, 5]
+    look_at: [0, 0.5, 0]
 lights:
   - { type: point, position: [0, 5, 0], color: [1, 1, 1], intensity: 50 }
 materials:
@@ -212,10 +213,11 @@ entities:
     public void ShutterWithoutMotion_StaysInactive()
     {
         var loaded = LoadScene(@"
-camera:
-  position: [0, 1, 5]
-  look_at: [0, 0.5, 0]
-  shutter: [0.25, 0.75]
+format_version: 2
+cameras:
+  - position: [0, 1, 5]
+    look_at: [0, 0.5, 0]
+    shutter_interval: [0.25, 0.75]
 lights:
   - { type: point, position: [0, 5, 0], color: [1, 1, 1], intensity: 50 }
 materials:
@@ -230,10 +232,11 @@ entities:
     public void InvalidShutter_ResetsToFullInterval()
     {
         var loaded = LoadScene(@"
-camera:
-  position: [0, 1, 5]
-  look_at: [0, 0.5, 0]
-  shutter: [0.9, 0.1]
+format_version: 2
+cameras:
+  - position: [0, 1, 5]
+    look_at: [0, 0.5, 0]
+    shutter_interval: [0.9, 0.1]
 lights:
   - { type: point, position: [0, 5, 0], color: [1, 1, 1], intensity: 50 }
 materials:
@@ -255,11 +258,12 @@ entities:
     public void CameraMotionInYaml_ActivatesMotionBlur()
     {
         var loaded = LoadScene(@"
-camera:
-  position: [0, 1, 5]
-  look_at: [0, 0.5, 0]
-  motion:
-    - { time: 1.0, position: [2, 1, 5] }
+format_version: 2
+cameras:
+  - position: [0, 1, 5]
+    look_at: [0, 0.5, 0]
+    motion:
+      - { time: 1.0, position: [2, 1, 5] }
 lights:
   - { type: point, position: [0, 5, 0], color: [1, 1, 1], intensity: 50 }
 materials:
@@ -300,9 +304,10 @@ entities:
     public void AnimatedEmissive_RegistersSnapshotGeometryLight()
     {
         var loaded = LoadScene(@"
-camera:
-  position: [0, 1, 5]
-  look_at: [0, 0.5, 0]
+format_version: 2
+cameras:
+  - position: [0, 1, 5]
+    look_at: [0, 0.5, 0]
 lights: []
 materials:
   - { id: glow, type: emissive, color: [1, 0.8, 0.6], intensity: 5 }

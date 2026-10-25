@@ -67,17 +67,15 @@ public class SkyModelTests
     }
 
     [Fact]
-    public void HosekWilkie_EvaluatesTheRawModelInKcd()
+    public void HosekWilkie_EvaluatesTheRawModelInNits()
     {
+        // The model's radiance is in W/(m² sr) per channel: 683 lm/W makes nits.
         var sun = SunAt(30f);
         var sky = new HosekWilkieSky(sun, 3f, new Vector3(0.3f));
         var dir = Vector3.Normalize(new Vector3(-0.3f, 0.8f, 0.5f));
         double theta = Math.Acos(dir.Y), gamma = Math.Acos(Vector3.Dot(dir, sun));
         Vector3 raw = sky.RawRadiance(theta, gamma);
-        Vector3 l = sky.EvaluateRadiance(dir);
-        Assert.Equal(raw.Y * 0.683f, l.Y, raw.Y * 1e-4f);
-        var nits = new HosekWilkieSky(sun, 3f, new Vector3(0.3f), units: SkyUnits.Photometric);
-        Assert.Equal(raw.Y * 683f, nits.EvaluateRadiance(dir).Y, raw.Y * 0.1f);
+        Assert.Equal(raw.Y * 683f, sky.EvaluateRadiance(dir).Y, raw.Y * 0.1f);
     }
 
     [Theory]
@@ -115,11 +113,11 @@ public class SkyModelTests
         }
     }
 
-    private static AnalyticSky Build(string model, float elevation, SkyUnits units = SkyUnits.Relative) => model switch
+    private static AnalyticSky Build(string model, float elevation) => model switch
     {
-        "hosek_wilkie" => new HosekWilkieSky(SunAt(elevation), 3f, units: units),
-        "preetham" => new PreethamSky(SunAt(elevation), 3f, units: units),
-        _ => new NishitaSky(SunAt(elevation), dustDensity: NishitaSky.DustFromTurbidity(3f), units: units),
+        "hosek_wilkie" => new HosekWilkieSky(SunAt(elevation), 3f),
+        "preetham" => new PreethamSky(SunAt(elevation), 3f),
+        _ => new NishitaSky(SunAt(elevation), dustDensity: NishitaSky.DustFromTurbidity(3f)),
     };
 
     /// <summary>
@@ -141,22 +139,6 @@ public class SkyModelTests
         if (elevation > 15f) Assert.True(ratio > Build(model, 15f).SunIlluminance / (Build(model, 15f).SkyIlluminance - Build(model, 15f).SunIlluminance));
     }
 
-    [Theory]
-    [MemberData(nameof(Models))]
-    public void Photometric_IsRelativeTimesItsScale(string model, float elevation)
-    {
-        var rel = Build(model, elevation);
-        var nits = Build(model, elevation, SkyUnits.Photometric);
-        float scale = model == "nishita" ? Atmosphere.SolarIlluminanceTop / NishitaSky.RelativeSolarIlluminance : 1000f;
-        var dir = Vector3.Normalize(new Vector3(0.2f, 0.7f, -0.4f));
-        Assert.Equal(MathUtils.Luminance(rel.EvaluateRadiance(dir)) * scale,
-                     MathUtils.Luminance(nits.EvaluateRadiance(dir)),
-                     MathUtils.Luminance(nits.EvaluateRadiance(dir)) * 1e-3f);
-        Assert.Equal(MathUtils.Luminance(rel.AnalyticalSun.Radiance) * scale,
-                     MathUtils.Luminance(nits.AnalyticalSun.Radiance),
-                     MathUtils.Luminance(nits.AnalyticalSun.Radiance) * 1e-3f);
-    }
-
     [Fact]
     public void Photometric_NoonSkyAndSunAreDaylight()
     {
@@ -165,7 +147,7 @@ public class SkyModelTests
         // 1.4·10⁹ nits (1.6·10⁹ at the zenith of a very clear day).
         foreach (var model in new[] { "hosek_wilkie", "preetham" })
         {
-            var sky = Build(model, 60f, SkyUnits.Photometric);
+            var sky = Build(model, 60f);
             _out.WriteLine($"{model}: global {sky.SkyIlluminance:0} lx, sky {sky.SkyIlluminance - sky.SunIlluminance:0} lx, " +
                            $"sun disc {MathUtils.Luminance(sky.AnalyticalSun.Radiance):E2} nits, zenith {MathUtils.Luminance(sky.EvaluateRadiance(Vector3.UnitY)):0} nits");
             Assert.InRange(sky.SunIlluminance, 65_000f, 95_000f);
@@ -174,7 +156,7 @@ public class SkyModelTests
             Assert.InRange(MathUtils.Luminance(sky.AnalyticalSun.Radiance), 1.1e9f, 1.7e9f);
         }
         // Nishita's clean air (turbidity 3 is dust 0.9): a brighter sun, half the sky.
-        var nishita = Build("nishita", 60f, SkyUnits.Photometric);
+        var nishita = Build("nishita", 60f);
         _out.WriteLine($"nishita: global {nishita.SkyIlluminance:0} lx, sky {nishita.SkyIlluminance - nishita.SunIlluminance:0} lx");
         Assert.InRange(nishita.SunIlluminance, 90_000f, 110_000f);
         Assert.InRange(nishita.SkyIlluminance - nishita.SunIlluminance, 3_000f, 10_000f);

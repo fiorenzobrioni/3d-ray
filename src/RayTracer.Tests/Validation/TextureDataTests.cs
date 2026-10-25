@@ -250,9 +250,10 @@ materials:
 {materialBody.Replace("IMG", Path.GetFileName(imagePath))}
 entities:
   - {{ type: ""sphere"", center: [0, 0, -3], radius: 1.0, material: ""m"" }}
-camera:
-  position: [0, 0, 0]
-  look_at: [0, 0, -1]
+format_version: 2
+cameras:
+  - position: [0, 0, 0]
+    look_at: [0, 0, -1]
 ";
         string path = Path.Combine(dir, $"3dray-scene-{Guid.NewGuid():N}.yaml");
         File.WriteAllText(path, yaml);

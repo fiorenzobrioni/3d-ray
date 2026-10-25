@@ -18,36 +18,27 @@ public partial class SceneLoader
 {
     private static IHittable? CreateEntity(EntityData e, IMaterial mat, int entityIndex = 0)
     {
-        IHittable? entity = e.Type?.ToLowerInvariant() switch
+        IHittable? entity = e.Type switch
         {
-            "sphere"   => new Sphere(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, mat),
-            "box"      => new Box(mat),
-            "triangle" or "smooth_triangle"
-                       => CreateTriangleEntity(e, mat),
-            "quad"     => new Quad(
+            "sphere"         => new Sphere(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, mat),
+            "box"            => new Box(mat),
+            "triangle"       => CreateTriangleEntity(e, mat),
+            "quad"           => new Quad(
                 ToVector3(e.Q) ?? Vector3.Zero,
                 ToVector3(e.U) ?? Vector3.UnitX,
                 ToVector3(e.V) ?? Vector3.UnitY, mat),
-            "cylinder" => new Cylinder(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.Height, mat),
-            "cone" or "truncated_cone" or "frustum"
-                       => new Cone(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.TopRadius, e.Height, mat),
-            "torus" or "donut" or "ring"
-                       => CreateTorusEntity(e, mat),
-            "lathe" or "revolution" or "surface_of_revolution"
-                       => CreateLatheEntity(e, mat),
-            "extrusion" or "prism" or "linear_extrude"
-                       => CreateExtrusionEntity(e, mat),
-            "capsule" or "pill" or "sphylinder"
-                       => new Capsule(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.Height, mat),
-            "annulus" or "ring_disk" or "washer"
-                       => new Annulus(ToVector3(e.Center) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, e.Radius, e.InnerRadius, mat),
-            "disk"     => new Disk(ToVector3(e.Center) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, e.Radius, mat),
-            "plane" or "infinite_plane"
-                       => new InfinitePlane(ToVector3(e.Point) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, mat),
-            "csg"      => null, // Handled separately in Load() — needs materials dictionary
-            "group"    => null, // Handled separately in Load() — needs materials dictionary and sceneDir
-            "instance" => null, // Handled separately in Load() — needs templates dictionary
-            _          => null
+            "cylinder"       => new Cylinder(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.Height, mat),
+            "cone"           => new Cone(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.TopRadius, e.Height, mat),
+            "torus"          => CreateTorusEntity(e, mat),
+            "lathe"          => CreateLatheEntity(e, mat),
+            "extrusion"      => CreateExtrusionEntity(e, mat),
+            "capsule"        => new Capsule(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.Height, mat),
+            "annulus"        => new Annulus(ToVector3(e.Center) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, e.Radius, e.InnerRadius, mat),
+            "disk"           => new Disk(ToVector3(e.Center) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, e.Radius, mat),
+            "infinite_plane" => new InfinitePlane(ToVector3(e.Point) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, mat),
+            // csg, mesh, group, instance and heightfield are built by their own
+            // factories (they need the material and template dictionaries).
+            _                => null
         };
 
         if (entity != null)
@@ -61,12 +52,6 @@ public partial class SceneLoader
 
         return entity;
     }
-
-    private static bool IsHeightFieldType(string? type) => type?.ToLowerInvariant() switch
-    {
-        "heightfield" or "height_field" or "terrain" => true,
-        _ => false,
-    };
 
     /// <summary>
     /// Builds a <see cref="HeightField"/> from YAML. Either <c>heightmap_path</c>
@@ -112,8 +97,8 @@ public partial class SceneLoader
                 {
                     MinAltitude = s.MinAltitude,
                     MaxAltitude = s.MaxAltitude,
-                    MinSlopeDeg = s.MinSlopeDeg,
-                    MaxSlopeDeg = s.MaxSlopeDeg,
+                    MinSlopeDeg = s.MinSlope,
+                    MaxSlopeDeg = s.MaxSlope,
                     BlendWidth  = s.BlendWidth,
                     Material    = GetMaterial(materials, s.Material),
                 });
@@ -241,17 +226,12 @@ public partial class SceneLoader
             pts.Sort((a, b) => a.Y.CompareTo(b.Y));
         }
 
-        string rawMode = (e.ProfileType ?? "linear").Trim().ToLowerInvariant();
-        LatheMode mode = rawMode switch
+        LatheMode mode = e.ProfileType switch
         {
-            "linear" or ""            => LatheMode.Linear,
-            "catmull_rom" or "catmull" or "smooth"
-                                      => LatheMode.CatmullRom,
-            "bezier" or "bézier"      => LatheMode.Bezier,
-            _ => LatheMode.Linear,
+            "catmull_rom" => LatheMode.CatmullRom,
+            "bezier"      => LatheMode.Bezier,
+            _             => LatheMode.Linear,
         };
-        if (mode == LatheMode.Linear && !string.IsNullOrEmpty(rawMode) && rawMode != "linear")
-            Warn($"Lathe entity '{e.Name ?? "(unnamed)"}': unknown profile_type '{e.ProfileType}'. Falling back to 'linear'.");
 
         if (mode == LatheMode.CatmullRom && pts.Count < 4)
         {
@@ -361,17 +341,12 @@ public partial class SceneLoader
             return null;
         }
 
-        string rawMode = (e.ProfileType ?? "linear").Trim().ToLowerInvariant();
-        ExtrusionMode mode = rawMode switch
+        ExtrusionMode mode = e.ProfileType switch
         {
-            "linear" or ""            => ExtrusionMode.Linear,
-            "catmull_rom" or "catmull" or "smooth"
-                                      => ExtrusionMode.CatmullRom,
-            "bezier" or "bézier"      => ExtrusionMode.Bezier,
-            _ => ExtrusionMode.Linear,
+            "catmull_rom" => ExtrusionMode.CatmullRom,
+            "bezier"      => ExtrusionMode.Bezier,
+            _             => ExtrusionMode.Linear,
         };
-        if (mode == ExtrusionMode.Linear && !string.IsNullOrEmpty(rawMode) && rawMode != "linear")
-            Warn($"Extrusion entity '{e.Name ?? "(unnamed)"}': unknown profile_type '{e.ProfileType}'. Falling back to 'linear'.");
 
         if (mode == ExtrusionMode.CatmullRom && pts.Count < 3)
         {
@@ -402,13 +377,12 @@ public partial class SceneLoader
             }
         }
 
-        ExtrusionCaps caps = (e.Caps ?? "both").Trim().ToLowerInvariant() switch
+        ExtrusionCaps caps = e.Caps switch
         {
-            "both" or ""    => ExtrusionCaps.Both,
-            "start" or "bottom" => ExtrusionCaps.Start,
-            "end" or "top"  => ExtrusionCaps.End,
-            "none" or "off" => ExtrusionCaps.None,
-            _ => ExtrusionCaps.Both,
+            "start" => ExtrusionCaps.Start,
+            "end"   => ExtrusionCaps.End,
+            "none"  => ExtrusionCaps.None,
+            _       => ExtrusionCaps.Both,
         };
 
         IHittable extrusion;
@@ -416,7 +390,7 @@ public partial class SceneLoader
         {
             extrusion = new Extrusion(pts, mode, e.Height, caps, mat,
                 bezierControls: controls,
-                twistDegrees: e.TwistDegrees,
+                twistDegrees: e.Twist,
                 taper: e.Taper,
                 curveSamples: Math.Max(2, e.CurveSamples),
                 creaseAngleDeg: e.CreaseAngle);
@@ -479,11 +453,11 @@ public partial class SceneLoader
             return null;
         }
  
-        var operation = e.Operation.ToLowerInvariant() switch
+        var operation = e.Operation switch
         {
-            "union"                                      => CsgOperation.Union,
-            "intersection"                               => CsgOperation.Intersection,
-            "subtraction" or "subtract" or "difference"  => CsgOperation.Subtraction,
+            "union"        => CsgOperation.Union,
+            "intersection" => CsgOperation.Intersection,
+            "subtraction"  => CsgOperation.Subtraction,
             _ => (CsgOperation?)null
         };
  
@@ -536,7 +510,7 @@ public partial class SceneLoader
                  $"supported on top-level entities — ignored. Animate the CSG entity itself.");
 
         IHittable? hittable;
-        if (string.Equals(child.Type, "csg", StringComparison.OrdinalIgnoreCase))
+        if (child.Type == "csg")
         {
             // Recursive CSG — child is itself a Boolean operation
             hittable = CreateCsgEntity(child, mat, materials, childIndex);
@@ -647,33 +621,6 @@ public partial class SceneLoader
     }
 
     /// <summary>
-    /// Throws when the YAML still uses the pre-migration entity-level
-    /// displacement syntax. The model moved to material-level for Cycles/
-    /// RenderMan parity (one displaced material drives many meshes). The
-    /// error message points at the new layout so authors can migrate.
-    /// </summary>
-    private static void CheckLegacyEntityDisplacement(EntityData e)
-    {
-        if (e.LegacyEntityDisplacement == null && e.LegacyEntityDisplacementBound == 0f)
-            return;
-
-        string name = e.Name ?? e.Type ?? "(unnamed)";
-        string field = e.LegacyEntityDisplacement != null
-            ? "'displacement'"
-            : "'displacement_bound'";
-        throw new InvalidOperationException(
-            $"Entity '{name}' uses the legacy entity-level {field} field, " +
-            $"which has been moved to the material-level " +
-            $"'displacement:' block (Cycles/RenderMan parity). " +
-            $"Move the block from the entity to its material under " +
-            $"'materials:' so it can be shared across instances, and add " +
-            $"'displacement_enabled: false' on the entity if you want to " +
-            $"suppress the material's displacement for this single instance. " +
-            $"See docs/reference/scene-reference.md (section 'Material-level " +
-            $"displacement').");
-    }
-
-    /// <summary>
     /// Short tag describing the displacement requested by a material, for
     /// load-time info logging.
     /// </summary>
@@ -726,71 +673,18 @@ public partial class SceneLoader
             return null;
         }
 
-        // \u2500\u2500 Parse mode (scalar | vector) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        var mode = DisplacementMode.Scalar;
-        if (!string.IsNullOrWhiteSpace(disp.Mode))
+        // Mode, space (vector mode) and method; the values are checked by the
+        // scene validator.
+        var mode = disp.Mode == "vector" ? DisplacementMode.Vector : DisplacementMode.Scalar;
+        var space = disp.Space == "object" ? DisplacementSpace.Object : DisplacementSpace.Tangent;
+        if (disp.Space != null && mode == DisplacementMode.Scalar)
+            Warn($"Material '{ownerTag}': 'space' is only used in vector mode; ignored on a scalar displacement.");
+        var method = disp.Method switch
         {
-            string mm = disp.Mode.Trim().ToLowerInvariant();
-            mode = mm switch
-            {
-                "scalar" or "height" or ""  => DisplacementMode.Scalar,
-                "vector" or "vec"           => DisplacementMode.Vector,
-                _ => DisplacementMode.Scalar,
-            };
-            if (mode == DisplacementMode.Scalar &&
-                !(mm == "scalar" || mm == "height"))
-            {
-                Warn($"Material '{ownerTag}': unknown displacement " +
-                     $"mode '{disp.Mode}'. Expected 'scalar' or 'vector'. " +
-                     $"Falling back to scalar.");
-            }
-        }
-
-        // \u2500\u2500 Parse space (tangent | object), vector mode only \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        var space = DisplacementSpace.Tangent;
-        if (!string.IsNullOrWhiteSpace(disp.Space))
-        {
-            string s = disp.Space.Trim().ToLowerInvariant();
-            space = s switch
-            {
-                "tangent" or "" => DisplacementSpace.Tangent,
-                "object" or "local" => DisplacementSpace.Object,
-                _ => DisplacementSpace.Tangent,
-            };
-            if (space == DisplacementSpace.Tangent &&
-                !(s == "tangent" || s == ""))
-            {
-                Warn($"Material '{ownerTag}': unknown displacement " +
-                     $"space '{disp.Space}'. Expected 'tangent' or 'object'. " +
-                     $"Falling back to tangent.");
-            }
-            if (mode == DisplacementMode.Scalar)
-            {
-                Warn($"Material '{ownerTag}': 'space' is only used " +
-                     $"in vector mode; ignored on a scalar displacement.");
-            }
-        }
-
-        // ── Parse displacement_method (Cycles tri-state) ─────────────────
-        var method = DisplacementMethod.Both;
-        if (!string.IsNullOrWhiteSpace(disp.Method))
-        {
-            string mt = disp.Method.Trim().ToLowerInvariant();
-            method = mt switch
-            {
-                "both" or "displacement_and_bump" or "" => DisplacementMethod.Both,
-                "displacement" or "displacement_only"   => DisplacementMethod.Displacement,
-                "bump" or "bump_only"                   => DisplacementMethod.BumpOnly,
-                _ => DisplacementMethod.Both,
-            };
-            if (method == DisplacementMethod.Both &&
-                !(mt == "both" || mt == "displacement_and_bump"))
-            {
-                Warn($"Material '{ownerTag}': unknown displacement_method " +
-                     $"'{disp.Method}'. Expected 'both', 'displacement' or " +
-                     $"'bump_only'. Falling back to 'both'.");
-            }
-        }
+            "displacement" => DisplacementMethod.Displacement,
+            "bump_only"    => DisplacementMethod.BumpOnly,
+            _              => DisplacementMethod.Both,
+        };
 
         ITexture inner;
         try
@@ -883,13 +777,12 @@ public partial class SceneLoader
         SubdivisionScheme scheme = SubdivisionScheme.Auto;
         if (!string.IsNullOrWhiteSpace(e.SubdivisionScheme))
         {
-            scheme = e.SubdivisionScheme.Trim().ToLowerInvariant() switch
+            scheme = e.SubdivisionScheme switch
             {
-                "none"                            => SubdivisionScheme.None,
-                "loop"                            => SubdivisionScheme.Loop,
-                "catmull_clark" or "catmull-clark"
-                    or "cc" or "catmullclark"     => SubdivisionScheme.CatmullClark,
-                "auto"                            => SubdivisionScheme.Auto,
+                "none"          => SubdivisionScheme.None,
+                "loop"          => SubdivisionScheme.Loop,
+                "catmull_clark" => SubdivisionScheme.CatmullClark,
+                "auto"          => SubdivisionScheme.Auto,
                 _ => Warned(e.SubdivisionScheme, e.Name)
             };
         }
@@ -907,10 +800,10 @@ public partial class SceneLoader
         var boundary = BoundaryInterpolation.EdgeAndCorner;
         if (!string.IsNullOrWhiteSpace(e.SubdivisionBoundary))
         {
-            boundary = e.SubdivisionBoundary.Trim().ToLowerInvariant() switch
+            boundary = e.SubdivisionBoundary switch
             {
-                "edge_and_corner" or "edge-and-corner" => BoundaryInterpolation.EdgeAndCorner,
-                "edge_only" or "edge-only"             => BoundaryInterpolation.EdgeOnly,
+                "edge_and_corner" => BoundaryInterpolation.EdgeAndCorner,
+                "edge_only"       => BoundaryInterpolation.EdgeOnly,
                 _ => WarnedBoundary(e.SubdivisionBoundary, e.Name),
             };
         }
@@ -1120,41 +1013,22 @@ public partial class SceneLoader
                 ? childTransform * gw
                 : (Matrix4x4?)null;
 
-            IHittable? hittable;
-            if (string.Equals(child.Type, "csg", StringComparison.OrdinalIgnoreCase))
+            IHittable? hittable = child.Type switch
             {
-                hittable = CreateCsgEntity(child, mat, materials, childIdx);
-            }
-            else if (string.Equals(child.Type, "mesh", StringComparison.OrdinalIgnoreCase)
-                  || string.Equals(child.Type, "obj", StringComparison.OrdinalIgnoreCase))
-            {
-                hittable = CreateMeshEntity(child, mat, materials, sceneDir, childIdx);
-            }
-            else if (string.Equals(child.Type, "group", StringComparison.OrdinalIgnoreCase))
-            {
-                hittable = CreateGroupEntity(child, mat, materials, sceneDir, childIdx, childToWorld);
-            }
-            else if (IsHeightFieldType(child.Type))
-            {
-                hittable = CreateHeightFieldEntity(child, mat, materials, sceneDir, childIdx);
-            }
-            else
-            {
-                hittable = CreateEntity(child, mat, childIdx);
-            }
+                "csg"         => CreateCsgEntity(child, mat, materials, childIdx),
+                "mesh"        => CreateMeshEntity(child, mat, materials, sceneDir, childIdx),
+                "group"       => CreateGroupEntity(child, mat, materials, sceneDir, childIdx, childToWorld),
+                "heightfield" => CreateHeightFieldEntity(child, mat, materials, sceneDir, childIdx),
+                _             => CreateEntity(child, mat, childIdx),
+            };
 
             if (hittable == null) continue;
 
             if (childTransform != Matrix4x4.Identity)
                 hittable = new Transform(hittable, childTransform);
 
-            // Symmetric with the top-level entity loop: per-child
-            // visible_to_camera flag works inside groups too. The group's own
-            // outer wrap (if set) still applies; this lets a child carry an
-            // independent flag that composes as OR (parent OR child invisible
-            // ⇒ child is invisible to primary rays).
-            if (!child.VisibleToCamera)
-                hittable = new CameraInvisibleHittable(hittable);
+            // A child's visibility composes with its group's (the masks OR).
+            hittable = ApplyVisibility(hittable, child.Visibility);
 
             result.Add(hittable);
         }
@@ -1166,7 +1040,7 @@ public partial class SceneLoader
     /// Creates a Triangle or SmoothTriangle depending on whether per-vertex
     /// normals (n0/n1/n2) are specified in the YAML.
     ///
-    /// Both "triangle" and "smooth_triangle" types route here. This means
+    /// The "triangle" type routes here. This means
     /// a plain "triangle" with n0/n1/n2 fields automatically upgrades to
     /// smooth shading — no type change needed.
     /// </summary>
@@ -1203,42 +1077,49 @@ public partial class SceneLoader
         }
     }
 
+    /// <summary>
+    /// An entity's transform: <c>scale</c>, then <c>rotate</c> (Euler degrees in
+    /// <c>rotate_order</c>, default xyz: X first), then <c>translate</c>; or a
+    /// <c>matrix</c> (16 numbers, row by row, acting on column vectors).
+    /// </summary>
     private static Matrix4x4 ComputeTransformMatrix(EntityData e)
     {
-        var m = Matrix4x4.Identity;
-
-        // Scale
-        if (e.Scale != null)
+        if (e.Matrix != null)
         {
-            if (e.Scale is List<object> list && list.Count >= 3)
+            if (e.Translate != null || e.Rotate != null || e.Scale != null)
+                Warn($"Entity '{e.Name ?? e.Type ?? "(unnamed)"}': 'matrix' replaces translate / rotate / scale; those are ignored.");
+            if (e.Matrix.Count == 16)
             {
-                var s = new Vector3(
-                    Convert.ToSingle(list[0], System.Globalization.CultureInfo.InvariantCulture),
-                    Convert.ToSingle(list[1], System.Globalization.CultureInfo.InvariantCulture),
-                    Convert.ToSingle(list[2], System.Globalization.CultureInfo.InvariantCulture));
-                m *= Matrix4x4.CreateScale(s);
+                var a = e.Matrix;
+                // System.Numerics multiplies row vectors: the transpose.
+                return new Matrix4x4(a[0], a[4], a[8], a[12], a[1], a[5], a[9], a[13],
+                                     a[2], a[6], a[10], a[14], a[3], a[7], a[11], a[15]);
             }
-            else
-            {
-                float s = Convert.ToSingle(e.Scale, System.Globalization.CultureInfo.InvariantCulture);
-                m *= Matrix4x4.CreateScale(s);
-            }
+            Warn($"Entity '{e.Name ?? e.Type ?? "(unnamed)"}': 'matrix' needs 16 numbers (got {e.Matrix.Count}); ignored.");
+            return Matrix4x4.Identity;
         }
 
-        // Rotate (degrees → radians, applied X then Y then Z)
-        if (e.Rotate != null && e.Rotate.Count >= 3)
-        {
-            m *= Matrix4x4.CreateRotationX(MathUtils.DegreesToRadians(e.Rotate[0]));
-            m *= Matrix4x4.CreateRotationY(MathUtils.DegreesToRadians(e.Rotate[1]));
-            m *= Matrix4x4.CreateRotationZ(MathUtils.DegreesToRadians(e.Rotate[2]));
-        }
-
-        // Translate
+        var m = Matrix4x4.CreateScale(ParseScaleVector(e.Scale));
+        m *= RotationMatrix(e.Rotate, e.RotateOrder);
         if (e.Translate != null && e.Translate.Count >= 3)
-        {
             m *= Matrix4x4.CreateTranslation(e.Translate[0], e.Translate[1], e.Translate[2]);
-        }
+        return m;
+    }
 
+    /// <summary>Euler degrees applied axis by axis in <paramref name="order"/> (default xyz).</summary>
+    private static Matrix4x4 RotationMatrix(List<float>? rotate, string? order)
+    {
+        if (rotate == null || rotate.Count < 3) return Matrix4x4.Identity;
+        var m = Matrix4x4.Identity;
+        foreach (char axis in order ?? "xyz")
+        {
+            m *= axis switch
+            {
+                'x' => Matrix4x4.CreateRotationX(MathUtils.DegreesToRadians(rotate[0])),
+                'y' => Matrix4x4.CreateRotationY(MathUtils.DegreesToRadians(rotate[1])),
+                _   => Matrix4x4.CreateRotationZ(MathUtils.DegreesToRadians(rotate[2])),
+            };
+        }
         return m;
     }
 
@@ -1248,7 +1129,7 @@ public partial class SceneLoader
 
     /// <summary>
     /// Parses a YAML <c>scale</c> value (scalar or <c>[x, y, z]</c> list) into
-    /// a scale vector. Same accepted forms as <see cref="ComputeTransformMatrix"/>.
+    /// a scale vector.
     /// </summary>
     private static Vector3 ParseScaleVector(object? scale)
     {
@@ -1265,18 +1146,14 @@ public partial class SceneLoader
     }
 
     /// <summary>
-    /// Converts YAML Euler angles (degrees, applied X then Y then Z — the same
-    /// order and row-vector convention as <see cref="ComputeTransformMatrix"/>)
-    /// into the equivalent quaternion, so slerped keyframe rotations agree
-    /// with the static-transform path at the keys.
+    /// Euler angles as a quaternion, with the order and row-vector convention
+    /// of <see cref="ComputeTransformMatrix"/>, so slerped keyframe rotations
+    /// agree with the static transform at the keys.
     /// </summary>
-    private static Quaternion RotationQuaternion(List<float>? rotate)
+    private static Quaternion RotationQuaternion(List<float>? rotate, string? order = null)
     {
         if (rotate == null || rotate.Count < 3) return Quaternion.Identity;
-        var m = Matrix4x4.CreateRotationX(MathUtils.DegreesToRadians(rotate[0]))
-              * Matrix4x4.CreateRotationY(MathUtils.DegreesToRadians(rotate[1]))
-              * Matrix4x4.CreateRotationZ(MathUtils.DegreesToRadians(rotate[2]));
-        return Quaternion.CreateFromRotationMatrix(m);
+        return Quaternion.CreateFromRotationMatrix(RotationMatrix(rotate, order));
     }
 
     /// <summary>
@@ -1291,7 +1168,7 @@ public partial class SceneLoader
         string label = e.Name ?? e.Type ?? "(unnamed)";
 
         var baseT = ToVector3(e.Translate) ?? Vector3.Zero;
-        var baseR = RotationQuaternion(e.Rotate);
+        var baseR = RotationQuaternion(e.Rotate, e.RotateOrder);
         var baseS = ParseScaleVector(e.Scale);
 
         // time → key; the base pose seeds time 0 and an explicit `time: 0`
@@ -1315,7 +1192,7 @@ public partial class SceneLoader
             byTime[t] = new MotionKey(
                 t,
                 k.Translate != null ? (ToVector3(k.Translate) ?? baseT) : baseT,
-                k.Rotate != null ? RotationQuaternion(k.Rotate) : baseR,
+                k.Rotate != null ? RotationQuaternion(k.Rotate, e.RotateOrder) : baseR,
                 k.Scale != null ? ParseScaleVector(k.Scale) : baseS);
         }
 

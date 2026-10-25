@@ -30,20 +30,10 @@ public partial class SceneLoader
     /// </remarks>
     public static void TryListCameras(string yamlPath)
     {
-        var yaml = File.ReadAllText(yamlPath);
-        var deserializer = new DeserializerBuilder()
-            .WithNamingConvention(UnderscoredNamingConvention.Instance)
-            .IgnoreUnmatchedProperties()
-            .WithTypeConverter(new MaterialParamConverter())
-            .Build();
-
-        var data = deserializer.Deserialize<SceneData>(yaml);
-
-        if (data?.Cameras == null || data.Cameras.Count == 0)
+        var data = Parse(yamlPath).Data;
+        if (data.Cameras == null || data.Cameras.Count == 0)
         {
-            Console.WriteLine(data?.Camera != null
-                ? "This scene uses a single 'camera:' entry (no named cameras list)."
-                : "No camera defined in the scene.");
+            Console.WriteLine("No camera defined in the scene.");
             return;
         }
 
@@ -62,43 +52,29 @@ public partial class SceneLoader
     }
 
     /// <summary>
-    /// Resolves which <see cref="CameraData"/> to use from the scene data.
-    ///
-    /// Resolution order:
-    /// <list type="number">
-    ///   <item>If <c>cameras:</c> list is present, it takes priority over the
-    ///         legacy <c>camera:</c> singleton.</item>
-    ///   <item>Within the list, <paramref name="selector"/> is matched first by
-    ///         name (case-insensitive), then by zero-based index.</item>
-    ///   <item>If no selector is provided and the list has more than one entry,
-    ///         a warning is printed and the first camera is used.</item>
-    ///   <item>Falls back to the legacy <c>camera:</c> singleton, or a built-in
-    ///         default if neither is present.</item>
-    /// </list>
+    /// The camera to render: <paramref name="selector"/> matched by name
+    /// (case-insensitive), then by zero-based index; without a selector the
+    /// first camera (with a note when there are several); a default camera
+    /// when the scene has none.
     /// </summary>
     private static CameraData ResolveCamera(SceneData data, string? selector)
     {
-        // No cameras list → fall back to legacy singleton
         if (data.Cameras == null || data.Cameras.Count == 0)
         {
             if (selector != null)
-                Warn($"--camera '{selector}' was specified but the scene uses " +
-                     "the single 'camera:' syntax. Ignoring selector.");
-            return data.Camera ?? new CameraData();
+                Warn($"--camera '{selector}' was specified but the scene has no cameras. Ignoring selector.");
+            return new CameraData();
         }
 
         var list = data.Cameras;
 
-        // Selector provided → resolve by name first, then by index
         if (selector != null)
         {
-            // Try name match (case-insensitive)
             var byName = list.FirstOrDefault(
                 c => string.Equals(c.Name, selector, StringComparison.OrdinalIgnoreCase));
             if (byName != null)
                 return byName;
 
-            // Try numeric index
             if (int.TryParse(selector, out int idx))
             {
                 if (idx >= 0 && idx < list.Count)
@@ -110,7 +86,6 @@ public partial class SceneLoader
                 return list[0];
             }
 
-            // No match by name or index
             var names = string.Join(", ",
                 list.Select((c, i) => c.Name != null ? $"\"{c.Name}\" (#{i})" : $"#{i}"));
             Warn($"--camera '{selector}' not found. Using camera 0.");
@@ -118,7 +93,6 @@ public partial class SceneLoader
             return list[0];
         }
 
-        // No selector → use the only camera silently, or warn and use first
         if (list.Count == 1)
             return list[0];
 
@@ -162,12 +136,14 @@ public partial class SceneLoader
     /// of view (the sensor width spans the image width, as on a still camera;
     /// the lens is treated as focused at infinity, so no focus breathing), and
     /// <c>f_stop</c> → aperture diameter = focal length / N, in scene units via
-    /// <c>meters_per_unit</c>. Without <c>focal_length</c>, <c>f_stop</c> uses
+    /// the scene's <c>units.length</c>. Without <c>focal_length</c>, <c>f_stop</c> uses
     /// the focal length that gives the scene's <c>fov</c> on that sensor.
     /// Returns the aperture shape (blades, rotation, ratio).
+    /// <paramref name="metersPerUnit"/>: the scene's length unit (default: the scene being loaded).
     /// </summary>
-    public static Camera.ApertureShape ApplyPhysicalCamera(CameraData cam, float aspect)
+    public static Camera.ApertureShape ApplyPhysicalCamera(CameraData cam, float aspect, float? metersPerUnit = null)
     {
+        float mpu = metersPerUnit ?? _metersPerUnit;
         float sensorWidth = cam.SensorWidth;
         if (!(sensorWidth > 0f))
         {
@@ -186,17 +162,17 @@ public partial class SceneLoader
 
         if (cam.FStop is float n)
         {
-            if (n > 0f && cam.MetersPerUnit > 0f)
+            if (n > 0f)
             {
                 float focalMm = cam.FocalLength is > 0f
                     ? cam.FocalLength.Value
                     : sensorHeight / (2f * MathF.Tan(cam.Fov * MathF.PI / 360f));
                 if (cam.Aperture > 0f)
                     Info($"Camera 'f_stop' {n} overrides 'aperture' {cam.Aperture}.");
-                cam.Aperture = focalMm / n / 1000f / cam.MetersPerUnit;
+                cam.Aperture = focalMm / n / 1000f / mpu;
             }
             else
-                Warn($"Camera 'f_stop' and 'meters_per_unit' must be > 0 (got {n}, {cam.MetersPerUnit}); keeping aperture = {cam.Aperture}.");
+                Warn($"Camera 'f_stop' must be > 0 (got {n}); keeping aperture = {cam.Aperture}.");
         }
 
         int blades = cam.ApertureBlades;
@@ -216,8 +192,8 @@ public partial class SceneLoader
 
     /// <summary>
     /// Resolves the camera focus distance from either a YAML
-    /// <c>focal_pos: [x, y, z]</c> (Arnold/Cycles "Focus Point" workflow)
-    /// or the scalar <c>focal_dist</c> fallback.
+    /// <c>focus_point: [x, y, z]</c> (Arnold/Cycles "Focus Point" workflow)
+    /// or the scalar <c>focus_distance</c> fallback.
     ///
     /// <para><b>Math.</b> When <paramref name="focalPos"/> is set, the
     /// focus distance is the projection of the camera→focal-point vector
@@ -244,8 +220,8 @@ public partial class SceneLoader
 
         if (focalPos.Count < 3)
         {
-            Warn("Camera 'focal_pos' requires 3 components [x, y, z]. " +
-                 "Falling back to 'focal_dist'.");
+            Warn("Camera 'focus_point' requires 3 components [x, y, z]. " +
+                 "Falling back to 'focus_distance'.");
             return fallbackFocalDist;
         }
 
@@ -253,8 +229,8 @@ public partial class SceneLoader
         float forwardLen = forward.Length();
         if (forwardLen < 1e-6f)
         {
-            Warn("Camera 'focal_pos' ignored: 'position' and 'look_at' " +
-                 "coincide (degenerate camera). Falling back to 'focal_dist'.");
+            Warn("Camera 'focus_point' ignored: 'position' and 'look_at' " +
+                 "coincide (degenerate camera). Falling back to 'focus_distance'.");
             return fallbackFocalDist;
         }
         forward /= forwardLen;
@@ -263,19 +239,16 @@ public partial class SceneLoader
         float projected = Vector3.Dot(F - camPos, forward);
         if (projected <= 1e-4f)
         {
-            Warn($"Camera 'focal_pos' projects behind or onto the camera " +
-                 $"(distance = {projected:F4}). Falling back to 'focal_dist'.");
+            Warn($"Camera 'focus_point' projects behind or onto the camera " +
+                 $"(distance = {projected:F4}). Falling back to 'focus_distance'.");
             return fallbackFocalDist;
         }
 
-        // FocalDist defaults to 1f when omitted from YAML, so we can't
-        // distinguish "explicitly 1" from "not set" without a custom
-        // YamlDotNet converter. Treat any non-default value as user intent
-        // for the override-info message.
+        // focus_distance defaults to 1: any other value was written.
         if (MathF.Abs(fallbackFocalDist - 1f) > 1e-6f)
-            Info($"Camera 'focal_pos' overrides 'focal_dist' " +
+            Info($"Camera 'focus_point' overrides 'focus_distance' " +
                  $"(computed focus distance = {projected:F3}, " +
-                 $"YAML focal_dist = {fallbackFocalDist:F3}).");
+                 $"YAML focus_distance = {fallbackFocalDist:F3}).");
 
         return projected;
     }
@@ -307,7 +280,7 @@ public partial class SceneLoader
                 t,
                 ToVector3(k.Position) ?? basePos,
                 ToVector3(k.LookAt) ?? baseLookAt,
-                ToVector3(k.Vup) ?? baseVup,
+                ToVector3(k.Up) ?? baseVup,
                 k.Fov ?? camData.Fov);
         }
 
@@ -315,7 +288,7 @@ public partial class SceneLoader
     }
 
     /// <summary>
-    /// Validates the camera <c>shutter: [open, close]</c> and combines it with
+    /// Validates the camera <c>shutter_interval: [open, close]</c> and combines it with
     /// the scene-motion flag. The renderer samples a time per camera ray only
     /// when <see cref="MotionBlurSettings.Active"/> is true, so a static scene
     /// stays bit-identical regardless of any declared shutter.
@@ -332,12 +305,12 @@ public partial class SceneLoader
             }
             else
             {
-                Warn($"Invalid camera shutter [{string.Join(", ", shutter)}] — expected [open, close] " +
+                Warn($"Invalid camera shutter_interval [{string.Join(", ", shutter)}] — expected [open, close] " +
                      $"with 0 <= open < close <= 1. Using [0, 1].");
             }
 
             if (!sceneHasMotion)
-                Info("Camera shutter declared but nothing is animated — motion blur inactive.");
+                Info("Camera shutter_interval declared but nothing is animated — motion blur inactive.");
         }
 
         return new MotionBlurSettings(open, close, sceneHasMotion);

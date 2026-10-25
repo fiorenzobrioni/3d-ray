@@ -1198,6 +1198,65 @@ Cosa manca rispetto a un formato premium:
 11. **Codice**: spezzare `SceneLoader.cs` (4368 righe) per sezione (camera, luci, materiali,
     texture, entità, mondo), già nel TODO.
 
+#### Piano di lavoro e decisioni (2026-10-25)
+
+Il formato 2 descrive il motore uscito dalle fasi 1-9. Regola generale: **un nome per concetto**,
+nessun alias, ogni chiave sconosciuta o senza effetto è segnalata. Le scene v1 non si leggono più:
+`SceneMigrate` le converte (vale la pena: 127 file, 445 materiali `disney`).
+
+- [ ] 10.0 `SceneLoader.cs` spezzato in file parziali per sezione (camera, luci, materiali,
+      texture, mondo, entità, mezzi).
+- [ ] 10.1 Validazione: `format_version: 2` obbligatorio; chiavi sconosciute = errore con
+      file:riga:colonna e suggerimento ("forse `roughness`?", o il nome v2 della chiave v1);
+      chiave valida ma senza effetto per quel `type` = avviso. JSON Schema generato dai tipi
+      (`docs/reference/scene-schema.json`, un test lo tiene allineato). Colori anche come
+      `"#rrggbb"` (sRGB, decodificato in lineare); `[r, g, b]` è sempre lineare Rec.709.
+- [ ] 10.2 `units: { length }` (metri per unità di scena, o `m`/`cm`/`mm`/`km`): lo usano
+      l'apertura da `f_stop`, le conversioni fotometriche che hanno una lunghezza (candela e
+      potenza: prima ignoravano la scala della scena, **[BUG]** per le scene non in metri) e
+      l'atmosfera. Spariscono `meters_per_unit` della camera e `world_scale` dell'atmosfera.
+- [ ] 10.3 Blocco `render:` (preset, risoluzione, spp, profondità per tipo, integratore,
+      denoiser, adaptive, view/look, filtro, clamp, ...). Precedenza: preset → `render:` della
+      scena → flag CLI; un `-q` da CLI vince sulle chiavi che il preset fissa. Un preset con
+      suffisso `-tiny`/`-small` scala la risoluzione della scena (1/4, 1/2) invece di sostituirla.
+- [ ] 10.4 Camera: solo `cameras:` (lista); `up` (era `vup`), `focus_distance` (`focal_dist`),
+      `focus_point` (`focal_pos`), `shutter_interval` (`shutter`, per non confondersi con
+      `shutter_speed`).
+- [ ] 10.5 Luci: un tipo per nome (via `sun`, `spotlight`, `rect`, `ball`...). La quantità ha il
+      nome della grandezza fotometrica del tipo: `intensity` in candela (point, spot),
+      `luminance` in nit (area, sphere), `illuminance` in lux (directional), `power` in W o lm
+      per le luci finite; il colore è sempre una tinta di luminanza 1. Via l'`intensity` senza
+      unità, `candela`, `normalize` (lo fa `power`), `anchor` del portale (`corner`). La scena è
+      in nit come prima: per una luce bianca `intensity: 5` v1 = `intensity: 5` cd v2, la
+      migrazione moltiplica per la luminanza del colore.
+- [ ] 10.6 Cielo: `exposure` (stop) al posto del moltiplicatore `intensity`; `rotate: [x, y, z]`
+      (gradi, la stessa convenzione delle entità) al posto di `rotation` e `orientation`; disco
+      del sole con `angular_radius` (via `size`) e `illuminance` in lux (era la radianza del
+      disco); cieli fisici sempre fotometrici (via `units: relative` e la scala di Nishita); via
+      `physical` (alias di `hosek_wilkie`). Terreno: via `y` (`point`) e il materiale in linea.
+- [ ] 10.7 Materiali: via `disney` (la migrazione lo traduce in `openpbr` con la mappatura di
+      `DisneyMaterial`). Ogni ingresso di colore o scalare accetta numero, colore o nodo texture
+      (via `texture:` e le chiavi `*_texture`). Tipi semplici con nomi allineati: `roughness`
+      (via `fuzz`), `ior` (via `refraction_index`), `luminance` per `emissive`; `mix` con
+      `blend` numero o texture (via `mask`). Default: `lambertian` 0.5 e `metal` bianco come
+      Mitsuba (il riferimento di quei tipi), `openpbr` quelli della specifica.
+- [ ] 10.8 Trasformazioni: `translate`/`rotate`/`scale` + `rotate_order` e `matrix` su ogni
+      entità.
+- [ ] 10.9 Decisioni rimandate (§2.0): chiuse come sopra; più `noise_basis: classic` tolto
+      (la normalizzazione 0.67 resta: è la taratura di tutti i default procedurali, non
+      compatibilità), costruttore del `Renderer` con i default della CLI (gaussiano, AgX), view
+      `legacy` tolta.
+- [ ] 10.10 `SceneMigrate` (v1 → v2, conserva i commenti) su tutte le scene del repo, i test, i
+      generatori (`TerrainGen`, `FontGen`, `ChessGen`, `TempleGen`) e i comandi in
+      `.claude/commands/`. Verifica: ogni scena renderizzata dal motore v1 (scena v1) e dal
+      motore v2 (scena migrata) a bassa risoluzione, stesse metriche; le scene di
+      `validation/` di nuovo contro Mitsuba.
+- [ ] 10.11 Documentazione: riferimento delle scene EN+IT riscritto sul formato 2, tutorial,
+      README, CLAUDE.md.
+
+Fuori da questa fase (PLANNING): OpenUSD, libreria di texture con id, `wrap`/`filter` per
+texture, flag di visibilità per categoria sulle entità.
+
 ### Fase 11 - Architettura e performance (dopo la correttezza)
 
 - [ ] Aggiornare `SixLabors.ImageSharp` (vulnerabilità note).

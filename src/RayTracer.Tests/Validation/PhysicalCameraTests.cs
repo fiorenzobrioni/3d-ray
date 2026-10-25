@@ -17,7 +17,7 @@ public class PhysicalCameraTests
     {
         // 50 mm on full frame (36 x 24 mm at 3:2): vertical fov 2 atan(12/50).
         var cam = new CameraData { FocalLength = 50f, FStop = 2f };
-        SceneLoader.ApplyPhysicalCamera(cam, 1.5f);
+        SceneLoader.ApplyPhysicalCamera(cam, 1.5f, metersPerUnit: 1f);
         Assert.Equal(2.0 * Math.Atan(12.0 / 50.0) * 180.0 / Math.PI, cam.Fov, 4);
         Assert.Equal(0.025f, cam.Aperture, 6);   // 50 mm / 2 = 25 mm, scene in metres
     }
@@ -28,8 +28,8 @@ public class PhysicalCameraTests
         // fov chosen to be a 35 mm lens on a 36 mm sensor at 16:9.
         float sensorHeight = 36f / (16f / 9f);
         float fov = 2f * MathF.Atan(sensorHeight / 70f) * 180f / MathF.PI;
-        var cam = new CameraData { Fov = fov, FStop = 1.4f, MetersPerUnit = 0.01f };   // scene in cm
-        SceneLoader.ApplyPhysicalCamera(cam, 16f / 9f);
+        var cam = new CameraData { Fov = fov, FStop = 1.4f };
+        SceneLoader.ApplyPhysicalCamera(cam, 16f / 9f, metersPerUnit: 0.01f);   // scene in cm
         Assert.Equal(35f / 1.4f / 1000f / 0.01f, cam.Aperture, 3);   // 2.5 cm = 2.5 units
         Assert.Equal(fov, cam.Fov);
     }

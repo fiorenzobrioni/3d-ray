@@ -13,10 +13,6 @@ public enum ViewTransform
     Aces,
     /// <summary>No tone mapping: clip to [0, 1] and encode with the sRGB curve.</summary>
     Standard,
-    /// <summary>The curve of the engine before the review: a per-channel fit of
-    /// the ACES curve followed by a pure 2.2 gamma (PIANO-REVIEW.md §3.5).
-    /// Kept to reproduce older renders.</summary>
-    Legacy,
 }
 
 /// <summary>Creative look applied inside the AgX view (<c>--look</c>).</summary>
@@ -157,7 +153,8 @@ public static class ColorSpaces
 /// </summary>
 public sealed class DisplayTransform
 {
-    public static readonly DisplayTransform Legacy = new(ViewTransform.Legacy);
+    /// <summary>The CLI's default: AgX, no look, no white balance.</summary>
+    public static readonly DisplayTransform Default = new(ViewTransform.AgX);
 
     public ViewTransform View { get; }
     public ViewLook Look { get; }
@@ -177,8 +174,7 @@ public sealed class DisplayTransform
         {
             ViewTransform.AgX => AgX(linear, Look),
             ViewTransform.Aces => AcesOutput.Apply(linear),
-            ViewTransform.Standard => Srgb.Encode(Vector3.Clamp(linear, Vector3.Zero, Vector3.One)),
-            _ => LegacyCurve(linear),
+            _ => Srgb.Encode(Vector3.Clamp(linear, Vector3.Zero, Vector3.One)),
         };
     }
 
@@ -189,7 +185,6 @@ public sealed class DisplayTransform
             case "agx": view = ViewTransform.AgX; return true;
             case "aces": view = ViewTransform.Aces; return true;
             case "standard": view = ViewTransform.Standard; return true;
-            case "legacy": view = ViewTransform.Legacy; return true;
             default: view = ViewTransform.AgX; return false;
         }
     }
@@ -203,23 +198,6 @@ public sealed class DisplayTransform
             case "golden": look = ViewLook.Golden; return true;
             default: look = ViewLook.None; return false;
         }
-    }
-
-    // ── Legacy ───────────────────────────────────────────────────────────────
-    // Narkowicz's fit of the ACES curve per channel, then gamma 2.2: kept
-    // bit-identical to the pre-review renderer.
-    private static Vector3 LegacyCurve(Vector3 color)
-    {
-        color = Vector3.Max(color, Vector3.Zero);
-        Vector3 a = color * (2.51f * color + new Vector3(0.03f));
-        Vector3 b = color * (2.43f * color + new Vector3(0.59f)) + new Vector3(0.14f);
-        Vector3 mapped = new Vector3(a.X / b.X, a.Y / b.Y, a.Z / b.Z);
-
-        const float invGamma = 1f / 2.2f;
-        return new Vector3(
-            MathF.Pow(Math.Clamp(mapped.X, 0f, 1f), invGamma),
-            MathF.Pow(Math.Clamp(mapped.Y, 0f, 1f), invGamma),
-            MathF.Pow(Math.Clamp(mapped.Z, 0f, 1f), invGamma));
     }
 
     // ── AgX ──────────────────────────────────────────────────────────────────

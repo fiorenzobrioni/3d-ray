@@ -2,398 +2,357 @@ using YamlDotNet.Serialization;
 
 namespace RayTracer.Scene;
 
-/// <summary>
-/// POCO classes matching the YAML scene schema.
-/// </summary>
+// POCO classes of the YAML scene format, version 2 (PIANO-REVIEW.md Phase 10).
+//
+// The format has one name per concept: no aliases, no key kept for an older
+// file. The validator (SceneValidator) reads these classes by reflection: an
+// unknown key is an error, a key that has no effect on the block's `type`
+// (OnlyFor) a warning, and the JSON Schema (SceneSchema) is generated from
+// them. Every length is in scene units (`units.length` metres each), every
+// angle in degrees, every literal colour linear Rec.709 (or "#rrggbb", sRGB).
+
+/// <summary>A scene file.</summary>
 public class SceneData
 {
-    [YamlMember(Alias = "world")]
-    public WorldData? World { get; set; }
+    /// <summary>Version of the scene format: 2. Required.</summary>
+    [YamlMember(Alias = "format_version")]
+    public int? FormatVersion { get; set; }
+
+    [YamlMember(Alias = "units")]
+    public UnitsData? Units { get; set; }
+
+    /// <summary>How to render the scene; the CLI overrides it.</summary>
+    [YamlMember(Alias = "render")]
+    public RenderData? Render { get; set; }
 
     /// <summary>
-    /// Single-camera shorthand (legacy / backward-compatible).
-    /// If both <c>camera</c> and <c>cameras</c> are present, <c>cameras</c> takes precedence.
+    /// Scene files whose materials, mediums, lights, entities and templates
+    /// join this scene's (paths relative to this file; local ids override
+    /// imported ones; cycles are refused). <c>world</c>, <c>cameras</c>,
+    /// <c>render</c> and <c>units</c> are not imported.
     /// </summary>
-    [YamlMember(Alias = "camera")]
-    public CameraData? Camera { get; set; }
+    [YamlMember(Alias = "imports")]
+    public List<string>? Imports { get; set; }
 
-    /// <summary>
-    /// Named camera list. Use <c>--camera &lt;name|index&gt;</c> on the CLI to select
-    /// which camera to render. When more than one camera is defined and no selection
-    /// is made, the first camera in the list is used and a warning is printed.
-    /// </summary>
+    /// <summary>Cameras, picked with <c>--camera name|index</c> (default the first).</summary>
     [YamlMember(Alias = "cameras")]
     public List<CameraData>? Cameras { get; set; }
+
+    [YamlMember(Alias = "world")]
+    public WorldData? World { get; set; }
 
     [YamlMember(Alias = "materials")]
     public List<MaterialData>? Materials { get; set; }
 
-    [YamlMember(Alias = "entities")]
-    public List<EntityData>? Entities { get; set; }
+    /// <summary>Participating media, bound to entities by <c>interior_medium</c> / <c>exterior_medium</c>.</summary>
+    [YamlMember(Alias = "mediums")]
+    public List<MediumData>? Mediums { get; set; }
 
     [YamlMember(Alias = "lights")]
     public List<LightData>? Lights { get; set; }
 
-    /// <summary>
-    /// Library of named participating media, looked up by
-    /// <see cref="EntityData.InteriorMedium"/> / <see cref="EntityData.ExteriorMedium"/>.
-    /// Each entry uses the same <see cref="MediumData"/> schema as
-    /// <c>world.medium</c> but requires an <see cref="MediumData.Id"/> for
-    /// lookup. Mediums may be imported across YAML files identically to
-    /// materials. Pattern Mitsuba 0.6 / PBRT v4 §11.4.
-    /// </summary>
-    [YamlMember(Alias = "mediums")]
-    public List<MediumData>? Mediums { get; set; }
-
-    // ── Scene imports ───────────────────────────────────────────────────────
+    [YamlMember(Alias = "entities")]
+    public List<EntityData>? Entities { get; set; }
 
     /// <summary>
-    /// List of external YAML files to import. Imported files can contribute
-    /// materials, entities, lights, and templates to the current scene.
-    ///
-    /// Paths are resolved relative to the importing file's directory.
-    /// Imports are processed before local definitions, so local definitions
-    /// with the same ID/name override imported ones.
-    ///
-    /// Nested imports are supported (an imported file can itself import
-    /// other files). Circular import detection prevents infinite loops.
-    /// </summary>
-    [YamlMember(Alias = "imports")]
-    public List<ImportData>? Imports { get; set; }
-
-    // ── Templates ───────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Reusable object templates (prototypes). Each template defines a group
-    /// of children that can be instantiated multiple times via <c>type: "instance"</c>
-    /// in the <c>entities:</c> section.
-    ///
-    /// Templates are NOT rendered directly — they serve as blueprints.
-    /// Each instance creates its own copy of the geometry with independent
-    /// material override, transform, and seed.
-    ///
-    /// Templates support transforms (scale/rotate/translate) as a "default pose"
-    /// that composes with the instance's transform: child_local → template_transform → instance_transform.
-    ///
-    /// YAML example:
-    /// <code>
-    /// templates:
-    ///   - name: "pedina"
-    ///     material: "legno_noce"
-    ///     children:
-    ///       - type: "cylinder"
-    ///         center: [0, 0, 0]
-    ///         radius: 0.4
-    ///         height: 0.15
-    ///       - type: "sphere"
-    ///         center: [0, 0.35, 0]
-    ///         radius: 0.3
-    ///
-    /// entities:
-    ///   - type: "instance"
-    ///     template: "pedina"
-    ///     translate: [0, 0, 0]
-    ///   - type: "instance"
-    ///     template: "pedina"
-    ///     translate: [2, 0, 0]
-    ///     material: "legno_acero"   # per-instance override
-    /// </code>
+    /// Blueprints: no geometry until an entity of <c>type: instance</c>
+    /// references one by <c>name</c>. A template's own transform composes
+    /// under the instance's.
     /// </summary>
     [YamlMember(Alias = "templates")]
     public List<EntityData>? Templates { get; set; }
+
+    /// <summary>Settings of the validation harness (<c>validation/run.py</c>); not read by the engine.</summary>
+    [YamlMember(Alias = "validation")]
+    [SchemaFreeForm]
+    public Dictionary<string, object>? Validation { get; set; }
+}
+
+/// <summary>Physical scale of the scene.</summary>
+public class UnitsData
+{
+    /// <summary>
+    /// Length of one scene unit: metres as a number, or <c>m</c>, <c>cm</c>,
+    /// <c>mm</c>, <c>km</c>, <c>in</c>, <c>ft</c>. Default 1 m. Used where a
+    /// quantity carries metres: the aperture of <c>f_stop</c> (millimetres),
+    /// candela and power of the lights, the atmosphere.
+    /// </summary>
+    [YamlMember(Alias = "length")]
+    public string? Length { get; set; }
 }
 
 /// <summary>
-/// Describes an external YAML file to import into the current scene.
+/// How to render the scene. Each key is the CLI flag of the same name
+/// (<c>light_sampling</c> = <c>--light-sampling</c>); a flag given on the
+/// command line wins, and a <c>-q</c> preset given there wins over the keys it
+/// sets. A preset with a <c>-tiny</c> / <c>-small</c> suffix scales the scene's
+/// <c>width</c> × <c>height</c> to a quarter / a half.
 /// </summary>
-public class ImportData
+public class RenderData
 {
-    /// <summary>
-    /// File path to the YAML file to import.
-    /// Resolved relative to the importing file's directory.
-    /// </summary>
-    [YamlMember(Alias = "path")]
-    public string? Path { get; set; }
+    [YamlMember(Alias = "quality")]
+    [SchemaEnum("draft-tiny", "draft-small", "draft", "standard-tiny", "standard-small", "standard",
+                "pre-final-tiny", "pre-final-small", "pre-final", "final-tiny", "final-small", "final", "ultra")]
+    public string? Quality { get; set; }
+
+    [YamlMember(Alias = "width")] public int? Width { get; set; }
+    [YamlMember(Alias = "height")] public int? Height { get; set; }
+    [YamlMember(Alias = "samples")] public int? Samples { get; set; }
+    [YamlMember(Alias = "depth")] public int? Depth { get; set; }
+    [YamlMember(Alias = "depth_diffuse")] public int? DepthDiffuse { get; set; }
+    [YamlMember(Alias = "depth_glossy")] public int? DepthGlossy { get; set; }
+    [YamlMember(Alias = "depth_transmission")] public int? DepthTransmission { get; set; }
+    [YamlMember(Alias = "depth_volume")] public int? DepthVolume { get; set; }
+    [YamlMember(Alias = "depth_transparent")] public int? DepthTransparent { get; set; }
+    [YamlMember(Alias = "shadow_samples")] public int? ShadowSamples { get; set; }
+
+    [YamlMember(Alias = "integrator")]
+    [SchemaEnum("path", "bdpt", "vcm")]
+    public string? Integrator { get; set; }
+
+    [YamlMember(Alias = "vcm_radius")] public float? VcmRadius { get; set; }
+
+    [YamlMember(Alias = "sampler")]
+    [SchemaEnum("sobol", "prng")]
+    public string? Sampler { get; set; }
+
+    [YamlMember(Alias = "mis")]
+    [SchemaEnum("balance", "power")]
+    public string? Mis { get; set; }
+
+    [YamlMember(Alias = "light_sampling")]
+    [SchemaEnum("auto", "all", "power", "uniform", "bvh")]
+    public string? LightSampling { get; set; }
+
+    [YamlMember(Alias = "guiding")] public bool? Guiding { get; set; }
+    [YamlMember(Alias = "guiding_training")] public int? GuidingTraining { get; set; }
+
+    [YamlMember(Alias = "adaptive")] public bool? Adaptive { get; set; }
+    [YamlMember(Alias = "adaptive_threshold")] public float? AdaptiveThreshold { get; set; }
+    [YamlMember(Alias = "adaptive_min_spp")] public int? AdaptiveMinSpp { get; set; }
+
+    [YamlMember(Alias = "denoiser")]
+    [SchemaEnum("none", "nlm", "nfor", "oidn")]
+    public string? Denoiser { get; set; }
+
+    [YamlMember(Alias = "denoise_quality")]
+    [SchemaEnum("fast", "high")]
+    public string? DenoiseQuality { get; set; }
+
+    [YamlMember(Alias = "clamp")] public float? Clamp { get; set; }
+    [YamlMember(Alias = "indirect_clamp_factor")] public float? IndirectClampFactor { get; set; }
+    [YamlMember(Alias = "transparent_shadows")] public bool? TransparentShadows { get; set; }
+
+    [YamlMember(Alias = "texture_filtering")]
+    [SchemaEnum("auto", "on", "off")]
+    public string? TextureFiltering { get; set; }
+
+    [YamlMember(Alias = "sss_mode")]
+    [SchemaEnum("auto", "off")]
+    public string? SssMode { get; set; }
+
+    [YamlMember(Alias = "filter")]
+    [SchemaEnum("gaussian", "blackman-harris", "box")]
+    public string? Filter { get; set; }
+
+    [YamlMember(Alias = "view")]
+    [SchemaEnum("agx", "aces", "standard")]
+    public string? View { get; set; }
+
+    [YamlMember(Alias = "look")]
+    [SchemaEnum("none", "punchy", "golden")]
+    public string? Look { get; set; }
+
+    /// <summary>Exposure in stops, added to the camera's physical exposure.</summary>
+    [YamlMember(Alias = "exposure")] public float? Exposure { get; set; }
+
+    [YamlMember(Alias = "white_balance")] public float? WhiteBalance { get; set; }
+    [YamlMember(Alias = "bit_depth")] public int? BitDepth { get; set; }
+    [YamlMember(Alias = "dither")] public bool? Dither { get; set; }
+    [YamlMember(Alias = "seed")] public int? Seed { get; set; }
+
+    /// <summary>The camera to render, by name or index.</summary>
+    [YamlMember(Alias = "camera")] public string? Camera { get; set; }
 }
 
 public class WorldData
 {
-    [YamlMember(Alias = "ground")]
-    public GroundData? Ground { get; set; }
-
     [YamlMember(Alias = "sky")]
     public SkyData? Sky { get; set; }
 
+    [YamlMember(Alias = "ground")]
+    public GroundData? Ground { get; set; }
+
+    /// <summary>The medium filling the scene (fog, atmosphere).</summary>
     [YamlMember(Alias = "medium")]
     public MediumData? Medium { get; set; }
 }
 
 /// <summary>
-/// Schema for the <c>world.ground</c> block — a richer shorthand than the legacy
-/// "infinite plane at Y" model, with parity to Arnold's <c>floor</c> patterns,
-/// Cycles' shadow-catcher floor and Mitsuba's <c>shape</c>-as-environment-base.
-/// All fields are optional; sensible defaults reproduce the legacy behaviour.
-///
-/// <para>Dispatch by <see cref="Type"/>:
-/// <c>infinite_plane</c> / <c>plane</c> (default), <c>quad</c>, <c>disk</c>,
-/// <c>heightfield</c> (alias <c>terrain</c>). Geometry parameters that do not
-/// apply to the selected type are ignored with an informational warning.</para>
+/// Per-ray-category visibility: <c>false</c> makes the surface invisible to
+/// rays of that category, which go on as if it were not there.
 /// </summary>
+public class VisibilityData
+{
+    [YamlMember(Alias = "camera")] public bool Camera { get; set; } = true;
+    [YamlMember(Alias = "diffuse")] public bool Diffuse { get; set; } = true;
+    [YamlMember(Alias = "glossy")] public bool Glossy { get; set; } = true;
+    [YamlMember(Alias = "transmission")] public bool Transmission { get; set; } = true;
+    [YamlMember(Alias = "shadow")] public bool Shadow { get; set; } = true;
+}
+
+/// <summary>The ground: a shorthand for a plane, quad or disk under the scene.</summary>
+[SchemaTypes("infinite_plane", "quad", "disk")]
 public class GroundData
 {
-    /// <summary>
-    /// Ground geometry kind. Accepted values: <c>infinite_plane</c> / <c>plane</c>
-    /// (default — infinite Y-up floor), <c>quad</c> (finite rectangular patch
-    /// centred at <see cref="Point"/>), <c>disk</c> (finite circular patch),
-    /// <c>heightfield</c> / <c>terrain</c> (full terrain primitive). Unknown
-    /// values fall back to <c>infinite_plane</c> with a warning.
-    /// </summary>
+    /// <summary>Default <c>infinite_plane</c>.</summary>
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
-    /// <summary>Material ID from the <c>materials:</c> list. Mutually exclusive with the inline shorthand (<see cref="Color"/>/<see cref="Roughness"/>/<see cref="Metallic"/>). When both are present <c>material</c> wins.</summary>
+    /// <summary>
+    /// Material id. Unset: a Lambertian of the sky's <c>ground_albedo</c>
+    /// (physical skies) or <c>ground_color</c> (gradient), else grey 0.5.
+    /// </summary>
     [YamlMember(Alias = "material")]
     public string? Material { get; set; }
 
-    // ── Position / orientation (universal) ────────────────────────────────────
-
-    /// <summary>Shorthand for <c>point: [0, y, 0]</c>. Kept for backward compatibility with the legacy schema.</summary>
-    [YamlMember(Alias = "y")]
-    public float Y { get; set; } = 0f;
-
-    /// <summary>Anchor point. For <c>infinite_plane</c>/<c>plane</c> this is a point lying on the plane (defaults to <c>[0, y, 0]</c>). For <c>quad</c>/<c>disk</c> this is the surface centre.</summary>
+    /// <summary>A point on the plane, or the centre of the quad / disk. Default the origin.</summary>
     [YamlMember(Alias = "point")]
     public List<float>? Point { get; set; }
 
-    /// <summary>Surface normal. Defaults to <c>[0, 1, 0]</c> (Y-up). Lets the ground slope or tilt — useful for stylised setups and ramp geometry.</summary>
+    /// <summary>Surface normal, default <c>[0, 1, 0]</c>.</summary>
     [YamlMember(Alias = "normal")]
     public List<float>? Normal { get; set; }
 
-    // ── Finite-type geometry ──────────────────────────────────────────────────
-
-    /// <summary>Half-extent (XZ) for <c>quad</c>, or radius for <c>disk</c>. Default 50 world units (100×100 m floor). Ignored by <c>infinite_plane</c>.</summary>
+    /// <summary>Half side of the quad, radius of the disk. Default 50.</summary>
     [YamlMember(Alias = "size")]
+    [OnlyFor("quad", "disk")]
     public float Size { get; set; } = 50f;
 
-    // ── Heightfield-type geometry (mirrors EntityData heightfield fields) ────
-
-    /// <summary><c>[xMin, zMin, xMax, zMax]</c> in world units. Required when <see cref="Type"/> is <c>heightfield</c>.</summary>
-    [YamlMember(Alias = "bounds")]
-    public List<float>? Bounds { get; set; }
-
-    [YamlMember(Alias = "height_scale")]
-    public float HeightScale { get; set; } = 1f;
-
-    [YamlMember(Alias = "heightmap_path")]
-    public string? HeightmapPath { get; set; }
-
-    [YamlMember(Alias = "height_texture")]
-    public TextureData? HeightTexture { get; set; }
-
-    /// <summary>Procedural heightmap resolution when <see cref="HeightTexture"/> is used. Default 512.</summary>
-    [YamlMember(Alias = "resolution")]
-    public int Resolution { get; set; } = 0;
-
-    [YamlMember(Alias = "sea_level")]
-    public float? SeaLevel { get; set; }
-
-    [YamlMember(Alias = "sea_material")]
-    public string? SeaMaterial { get; set; }
-
-    [YamlMember(Alias = "strata")]
-    public List<StratumData>? Strata { get; set; }
-
-    // ── Inline material shorthand (anonymous material) ────────────────────────
-
-    /// <summary>Base colour. When set without <see cref="Material"/>, the loader builds an anonymous Disney BSDF with the supplied colour + <see cref="Roughness"/> + <see cref="Metallic"/>.</summary>
-    [YamlMember(Alias = "color")]
-    public List<float>? Color { get; set; }
-
-    [YamlMember(Alias = "roughness")]
-    public float? Roughness { get; set; }
-
-    [YamlMember(Alias = "metallic")]
-    public float? Metallic { get; set; }
-
-    // ── UV transform (applied on top of the primitive's native UVs) ──────────
-
-    /// <summary>Per-axis tile factor — e.g. <c>[10, 10]</c> repeats a 1×1 texture 10 times across X and Z.</summary>
+    /// <summary>UV tiling <c>[u, v]</c> on top of the surface's own UVs.</summary>
     [YamlMember(Alias = "uv_scale")]
     public List<float>? UvScale { get; set; }
 
-    /// <summary>Per-axis UV offset applied after scale.</summary>
     [YamlMember(Alias = "uv_offset")]
     public List<float>? UvOffset { get; set; }
 
-    /// <summary>UV-plane rotation in degrees, applied after offset around <c>(0.5, 0.5)</c>.</summary>
+    /// <summary>UV rotation in degrees around (0.5, 0.5).</summary>
     [YamlMember(Alias = "uv_rotation")]
-    public float UvRotation { get; set; } = 0f;
+    public float UvRotation { get; set; }
 
-    // ── Visibility flags (parity with sky / Arnold / Cycles) ─────────────────
-
-    /// <summary>Per-ray-category visibility flags. <c>null</c> = all categories visible (legacy default).</summary>
     [YamlMember(Alias = "visibility")]
-    public GroundVisibilityData? Visibility { get; set; }
+    public VisibilityData? Visibility { get; set; }
 }
 
-/// <summary>
-/// Per-ray-category visibility flags for the ground surface, mirroring
-/// <see cref="SkyVisibilityData"/> and Arnold's <c>polymesh.visibility.*</c> /
-/// Cycles' "Ray Visibility" toggles. A <c>false</c> flag makes the ground
-/// invisible to rays of that category — the ray continues past the surface as
-/// if it weren't there.
-/// </summary>
-public class GroundVisibilityData
-{
-    [YamlMember(Alias = "camera")]
-    public bool Camera { get; set; } = true;
-
-    [YamlMember(Alias = "diffuse")]
-    public bool Diffuse { get; set; } = true;
-
-    [YamlMember(Alias = "glossy")]
-    public bool Glossy { get; set; } = true;
-
-    [YamlMember(Alias = "transmission")]
-    public bool Transmission { get; set; } = true;
-
-    [YamlMember(Alias = "shadow")]
-    public bool Shadow { get; set; } = true;
-}
-
+/// <summary>The environment: what a ray that leaves the scene sees.</summary>
+[SchemaTypes("flat", "gradient", "hdri", "preetham", "hosek_wilkie", "nishita")]
 public class SkyData
 {
-    /// <summary>
-    /// Sky model: <c>flat</c> (uniform colour), <c>gradient</c> (zenith/horizon/ground
-    /// vertical lerp + optional analytical sun), <c>hdri</c> (equirect IBL), or a
-    /// physical sky: <c>hosek_wilkie</c> (alias <c>physical</c>), <c>preetham</c>,
-    /// <c>nishita</c>.
-    /// </summary>
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
-    [YamlMember(Alias = "path")]
-    public string? Path { get; set; }
-
-    [YamlMember(Alias = "intensity")]
-    public float Intensity { get; set; } = 1f;
-
-    /// <summary>Legacy Y-axis rotation in degrees; folded into <see cref="Orientation"/> when both are absent/present.</summary>
-    [YamlMember(Alias = "rotation")]
-    public float Rotation { get; set; } = 0f;
-
+    /// <summary>Radiance of a flat sky (nits).</summary>
     [YamlMember(Alias = "color")]
+    [OnlyFor("flat")]
     public List<float>? Color { get; set; }
 
     [YamlMember(Alias = "zenith_color")]
+    [OnlyFor("gradient")]
     public List<float>? ZenithColor { get; set; }
 
     [YamlMember(Alias = "horizon_color")]
+    [OnlyFor("gradient")]
     public List<float>? HorizonColor { get; set; }
 
+    /// <summary>Below the horizon (gradient), and the albedo of <c>world.ground</c> when it has no material.</summary>
     [YamlMember(Alias = "ground_color")]
     public List<float>? GroundColor { get; set; }
 
+    /// <summary>Equirectangular image (<c>.hdr</c>, <c>.exr</c>), relative to the scene.</summary>
+    [YamlMember(Alias = "path")]
+    [OnlyFor("hdri")]
+    public string? Path { get; set; }
+
+    /// <summary>Brightness in stops (×2^exposure).</summary>
+    [YamlMember(Alias = "exposure")]
+    public float Exposure { get; set; }
+
+    /// <summary>Rotation of the sky, Euler degrees as an entity's <c>rotate</c>.</summary>
+    [YamlMember(Alias = "rotate")]
+    public List<float>? Rotate { get; set; }
+
+    [YamlMember(Alias = "rotate_order")]
+    [SchemaEnum("xyz", "xzy", "yxz", "yzx", "zxy", "zyx")]
+    public string? RotateOrder { get; set; }
+
     [YamlMember(Alias = "sun")]
-    public SunDiskData? Sun { get; set; }
+    [OnlyFor("gradient", "hdri", "preetham", "hosek_wilkie", "nishita")]
+    public SunData? Sun { get; set; }
 
-    // ── Pro features (added with the sky/environment overhaul) ───────────────
-
-    /// <summary>Atmospheric turbidity for the physical skies (the dust of <c>nishita</c>). 1 = pristine, 3 ≈ clear, 5 = haze, 10 = smog. Default 3.</summary>
+    /// <summary>Atmospheric turbidity: 1 pristine, 3 clear (default), 5 haze, 10 smog.</summary>
     [YamlMember(Alias = "turbidity")]
+    [OnlyFor("preetham", "hosek_wilkie", "nishita")]
     public float Turbidity { get; set; } = 3f;
 
     /// <summary>
-    /// Units of a physical sky (<c>preetham</c>, <c>hosek_wilkie</c>, <c>nishita</c>):
-    /// <c>relative</c> (default, the sky body's historical scale) or
-    /// <c>photometric</c> (nits, to go with photometric lights and the camera's EV100).
+    /// Albedo of the ground below the horizon of a physical sky (default 0.3),
+    /// and of <c>world.ground</c> when it has no material.
     /// </summary>
-    [YamlMember(Alias = "units")]
-    public string? Units { get; set; }
-
-    /// <summary>RGB albedo of the ground below the horizon, which also tints the Hosek-Wilkie sky. Default 0.3.</summary>
     [YamlMember(Alias = "ground_albedo")]
     public List<float>? GroundAlbedo { get; set; }
 
-    /// <summary>Per-ray-category visibility flags. Optional; all true by default.</summary>
     [YamlMember(Alias = "visibility")]
-    public SkyVisibilityData? Visibility { get; set; }
+    public VisibilityData? Visibility { get; set; }
 
-    /// <summary>Optional separate background plate shown to camera rays.</summary>
+    /// <summary>A separate plate shown to camera rays only.</summary>
     [YamlMember(Alias = "background")]
     public SkyData? Background { get; set; }
-
-    /// <summary>Sky-space orientation. Euler XYZ in degrees, or quaternion XYZW.</summary>
-    [YamlMember(Alias = "orientation")]
-    public OrientationData? Orientation { get; set; }
 }
 
-public class SunDiskData
+/// <summary>
+/// The sun of a sky. Gradient sky: a disc of <c>illuminance</c> lux. HDRI:
+/// a sun extracted from the image. Physical skies: the direction only (the
+/// disc follows from the atmosphere).
+/// </summary>
+public class SunData
 {
-    /// <summary>Direction TOWARDS the sun in world space. Note: this is the new convention (the legacy code internally inverted it).</summary>
+    /// <summary>Direction towards the sun.</summary>
     [YamlMember(Alias = "direction")]
     public List<float>? Direction { get; set; }
 
+    /// <summary>Tint of the gradient sky's disc (luminance 1).</summary>
     [YamlMember(Alias = "color")]
     public List<float>? Color { get; set; }
 
-    [YamlMember(Alias = "intensity")]
-    public float Intensity { get; set; } = 10f;
+    /// <summary>Gradient sky: illuminance of the disc on a surface facing it, lux.</summary>
+    [YamlMember(Alias = "illuminance")]
+    public float? Illuminance { get; set; }
 
-    /// <summary>Total angular diameter of the disc in degrees. Default 3°. Real Sun ≈ 0.53° (diameter).</summary>
-    [YamlMember(Alias = "size")]
-    public float Size { get; set; } = 3f;
-
-    /// <summary>Half-angle in degrees. When set, overrides <see cref="Size"/>. Real Sun ≈ 0.265°.</summary>
+    /// <summary>Gradient sky: half-angle of the disc in degrees (default 1.5; the real sun 0.265).</summary>
     [YamlMember(Alias = "angular_radius")]
-    public float AngularRadius { get; set; } = 0f;
+    public float? AngularRadius { get; set; }
 
-    /// <summary>When <c>type: hdri</c>, attempt automatic sun extraction from the HDRI peak.</summary>
+    /// <summary>HDRI: extract the brightest peak as an analytic sun.</summary>
     [YamlMember(Alias = "extract_from_hdri")]
-    public bool ExtractFromHdri { get; set; } = false;
+    public bool ExtractFromHdri { get; set; }
 
-    /// <summary>Luminance threshold factor for sun extraction (multiple of HDRI mean). Default 50.</summary>
+    /// <summary>HDRI: threshold of the extraction, multiple of the mean luminance (default 50).</summary>
     [YamlMember(Alias = "extract_threshold")]
     public float ExtractThreshold { get; set; } = 50f;
 
-    /// <summary>Number of stratified shadow samples for the paired PhysicalSun. Default 4.</summary>
     [YamlMember(Alias = "shadow_samples")]
     public int ShadowSamples { get; set; } = 4;
 
-    /// <summary>When false, the sun disc is invisible to primary camera rays (still illuminates the scene).</summary>
-    [YamlMember(Alias = "visible_to_camera")]
-    public bool VisibleToCamera { get; set; } = true;
+    /// <summary>Only <c>camera</c> applies: <c>false</c> hides the disc from camera rays.</summary>
+    [YamlMember(Alias = "visibility")]
+    public VisibilityData? Visibility { get; set; }
 }
 
-public class SkyVisibilityData
-{
-    [YamlMember(Alias = "camera")]
-    public bool Camera { get; set; } = true;
-
-    [YamlMember(Alias = "diffuse")]
-    public bool Diffuse { get; set; } = true;
-
-    [YamlMember(Alias = "glossy")]
-    public bool Glossy { get; set; } = true;
-
-    [YamlMember(Alias = "transmission")]
-    public bool Transmission { get; set; } = true;
-
-    [YamlMember(Alias = "shadow")]
-    public bool Shadow { get; set; } = true;
-}
-
-public class OrientationData
-{
-    /// <summary>Euler XYZ angles in degrees, applied in that order (intrinsic).</summary>
-    [YamlMember(Alias = "euler")]
-    public List<float>? Euler { get; set; }
-
-    /// <summary>Quaternion XYZW. Mutually exclusive with <see cref="Euler"/>; if both given, quaternion wins.</summary>
-    [YamlMember(Alias = "quaternion")]
-    public List<float>? Quaternion { get; set; }
-}
-
+/// <summary>
+/// A thin-lens camera: a field of view, or the photographic
+/// <c>focal_length</c> on a <c>sensor_width</c>; a lens <c>aperture</c> in
+/// scene units, or an <c>f_stop</c>.
+/// </summary>
 public class CameraData
 {
     [YamlMember(Alias = "name")]
@@ -405,57 +364,51 @@ public class CameraData
     [YamlMember(Alias = "look_at")]
     public List<float>? LookAt { get; set; }
 
-    [YamlMember(Alias = "vup")]
-    public List<float>? Vup { get; set; }
+    /// <summary>Up direction, default <c>[0, 1, 0]</c>.</summary>
+    [YamlMember(Alias = "up")]
+    public List<float>? Up { get; set; }
 
+    /// <summary>Vertical field of view, degrees (default 60).</summary>
     [YamlMember(Alias = "fov")]
     public float Fov { get; set; } = 60f;
 
-    [YamlMember(Alias = "aperture")]
-    public float Aperture { get; set; } = 0f;
-
-    [YamlMember(Alias = "focal_dist")]
-    public float FocalDist { get; set; } = 1f;
-
-    // ── Physical camera (PIANO-REVIEW.md, Phase 3) ──────────────────────────
-    // Photographic description of the same thin lens. When set, these win
-    // over `fov` and `aperture`; the loader converts them in
-    // SceneLoader.ApplyPhysicalCamera.
-
-    /// <summary>Focal length in millimetres: sets the field of view together
-    /// with <see cref="SensorWidth"/> (the sensor width spans the image width).</summary>
+    /// <summary>Focal length in millimetres: with <c>sensor_width</c> it sets the field of view.</summary>
     [YamlMember(Alias = "focal_length")]
     public float? FocalLength { get; set; }
 
-    /// <summary>Sensor width in millimetres (default 36, full frame).</summary>
+    /// <summary>Sensor width in millimetres, spanning the image width (default 36).</summary>
     [YamlMember(Alias = "sensor_width")]
     public float SensorWidth { get; set; } = 36f;
 
-    /// <summary>f-number N: aperture diameter = focal length / N.</summary>
+    /// <summary>Lens diameter in scene units (0 = pinhole).</summary>
+    [YamlMember(Alias = "aperture")]
+    public float Aperture { get; set; }
+
+    /// <summary>f-number: the aperture is the focal length over N.</summary>
     [YamlMember(Alias = "f_stop")]
     public float? FStop { get; set; }
 
-    /// <summary>Length of one scene unit in metres (default 1): converts the
-    /// millimetre aperture of <see cref="FStop"/> into scene units.</summary>
-    [YamlMember(Alias = "meters_per_unit")]
-    public float MetersPerUnit { get; set; } = 1f;
-
-    /// <summary>Number of straight aperture blades (polygonal bokeh); 0 = round.</summary>
+    /// <summary>Straight aperture blades (polygonal bokeh); 0 = round.</summary>
     [YamlMember(Alias = "aperture_blades")]
-    public int ApertureBlades { get; set; } = 0;
+    public int ApertureBlades { get; set; }
 
     /// <summary>Rotation of the blade polygon, degrees.</summary>
     [YamlMember(Alias = "aperture_rotation")]
-    public float ApertureRotation { get; set; } = 0f;
+    public float ApertureRotation { get; set; }
 
-    /// <summary>Aperture width / height (default 1). Below 1 the bokeh is a
-    /// tall oval, as with an anamorphic lens (0.5 for a 2x squeeze).</summary>
+    /// <summary>Aperture width / height (below 1: anamorphic oval bokeh).</summary>
     [YamlMember(Alias = "aperture_ratio")]
     public float ApertureRatio { get; set; } = 1f;
 
-    /// <summary>ISO sensitivity of the physical exposure (with <c>shutter_speed</c>
-    /// and <c>f_stop</c>): scene radiance in nits maps to the display as on a
-    /// camera. See <see cref="Ev100"/>.</summary>
+    /// <summary>Distance of the plane in focus, along the view axis (default 1).</summary>
+    [YamlMember(Alias = "focus_distance")]
+    public float FocusDistance { get; set; } = 1f;
+
+    /// <summary>A point in focus: wins over <c>focus_distance</c>.</summary>
+    [YamlMember(Alias = "focus_point")]
+    public List<float>? FocusPoint { get; set; }
+
+    /// <summary>ISO of the physical exposure (with <c>shutter_speed</c> and <c>f_stop</c>).</summary>
     [YamlMember(Alias = "iso")]
     public float? Iso { get; set; }
 
@@ -463,74 +416,37 @@ public class CameraData
     [YamlMember(Alias = "shutter_speed")]
     public float? ShutterSpeed { get; set; }
 
-    /// <summary>Exposure value at ISO 100, instead of ISO, shutter and
-    /// f-number (15 for a sunny day, 7 for a lit interior).</summary>
+    /// <summary>Exposure value at ISO 100 (15 sunny day, 7 lit interior), instead of ISO, shutter and f-number.</summary>
     [YamlMember(Alias = "ev100")]
     public float? Ev100 { get; set; }
 
-    /// <summary>White balance in kelvin: a light of this colour temperature
-    /// renders neutral (lower cools the image, higher warms it). Display only:
-    /// EXR output stays scene-linear. Unset = no white balance.</summary>
+    /// <summary>White balance, kelvin: a light of this colour temperature renders neutral.</summary>
     [YamlMember(Alias = "white_balance")]
     public float? WhiteBalance { get; set; }
 
-    /// <summary>
-    /// World-space focal point: alternative to <see cref="FocalDist"/>. When
-    /// set, the loader computes the focus distance as the projection of
-    /// <c>focal_pos − position</c> onto the optical axis
-    /// <c>normalize(look_at − position)</c> — the standard "Focus Object/
-    /// Point" workflow of Arnold, Cycles and RenderMan: the focus plane is
-    /// perpendicular to the view direction passing through this point, so
-    /// the value is a projection, not the Euclidean distance. When both
-    /// <c>focal_pos</c> and <c>focal_dist</c> are specified, <c>focal_pos</c>
-    /// wins and an info message is logged for transparency.
-    /// </summary>
-    [YamlMember(Alias = "focal_pos")]
-    public List<float>? FocalPos { get; set; }
+    /// <summary>Motion-blur interval <c>[open, close]</c> inside the animation range [0, 1].</summary>
+    [YamlMember(Alias = "shutter_interval")]
+    public List<float>? ShutterInterval { get; set; }
 
-    /// <summary>
-    /// Shutter interval <c>[open, close]</c>, normalized to the scene
-    /// animation range [0, 1] with <c>0 ≤ open &lt; close ≤ 1</c>. Each camera
-    /// sample picks one time inside this interval; a narrower interval
-    /// freezes the motion (shorter exposure), the full <c>[0, 1]</c> integrates
-    /// the whole animation range. Default <c>[0, 1]</c> when the scene is
-    /// animated; ignored (with an info message) when nothing moves.
-    /// </summary>
-    [YamlMember(Alias = "shutter")]
-    public List<float>? Shutter { get; set; }
-
-    /// <summary>
-    /// Camera motion keyframes (camera motion blur). The camera's base
-    /// <c>position</c>/<c>look_at</c>/<c>vup</c>/<c>fov</c> is the implicit
-    /// keyframe at <c>time: 0</c>; each entry adds a key at its own time.
-    /// Omitted fields inherit the base pose.
-    /// </summary>
+    /// <summary>Camera keyframes; the base pose is the key at time 0.</summary>
     [YamlMember(Alias = "motion")]
     public List<CameraMotionKeyData>? Motion { get; set; }
 }
 
-/// <summary>
-/// One camera motion keyframe (see <see cref="CameraData.Motion"/>).
-/// Omitted fields inherit the camera's base pose.
-/// </summary>
 public class CameraMotionKeyData
 {
-    [YamlMember(Alias = "time")]
-    public float Time { get; set; }
-
-    [YamlMember(Alias = "position")]
-    public List<float>? Position { get; set; }
-
-    [YamlMember(Alias = "look_at")]
-    public List<float>? LookAt { get; set; }
-
-    [YamlMember(Alias = "vup")]
-    public List<float>? Vup { get; set; }
-
-    [YamlMember(Alias = "fov")]
-    public float? Fov { get; set; }
+    [YamlMember(Alias = "time")] public float Time { get; set; }
+    [YamlMember(Alias = "position")] public List<float>? Position { get; set; }
+    [YamlMember(Alias = "look_at")] public List<float>? LookAt { get; set; }
+    [YamlMember(Alias = "up")] public List<float>? Up { get; set; }
+    [YamlMember(Alias = "fov")] public float? Fov { get; set; }
 }
 
+/// <summary>
+/// A material. Every colour or scalar input marked as a parameter takes a
+/// number, a colour <c>[r, g, b]</c> or a texture block.
+/// </summary>
+[SchemaTypes("lambertian", "metal", "dielectric", "emissive", "openpbr", "mix")]
 public class MaterialData
 {
     [YamlMember(Alias = "id")]
@@ -539,55 +455,64 @@ public class MaterialData
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
+    // ── Simple types ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// lambertian: albedo (default 0.5). metal: reflectance at normal
+    /// incidence (default 1). dielectric: tint of the transmitted light
+    /// (default 1). emissive: colour of the emission (a texture keeps its
+    /// values, a colour is a tint of luminance 1).
+    /// </summary>
     [YamlMember(Alias = "color")]
-    public List<float>? Color { get; set; }
+    [OnlyFor("lambertian", "metal", "dielectric", "emissive")]
+    public MaterialParam? Color { get; set; }
 
-    /// <summary>Metal roughness (α = fuzz²); <c>roughness</c> is accepted as an alias.</summary>
-    [YamlMember(Alias = "fuzz")]
-    public float? Fuzz { get; set; }
+    /// <summary>metal, dielectric: GGX roughness, α = roughness² (default 0, smooth).</summary>
+    [YamlMember(Alias = "roughness")]
+    [OnlyFor("metal", "dielectric")]
+    public float? Roughness { get; set; }
 
-    // ── Metal (conductor) Fresnel, PIANO-REVIEW.md Phase 5 ──────────────────
-
-    /// <summary>Measured metal (gold, silver, copper, aluminium, ...): its
-    /// complex IOR replaces <c>color</c> / <c>edge_color</c>.</summary>
-    [YamlMember(Alias = "preset")]
-    public string? Preset { get; set; }
-
-    /// <summary>F82 tint: the metal's colour near grazing incidence (default
-    /// white = Schlick from <c>color</c>).</summary>
+    /// <summary>metal: F82 tint, the colour near grazing incidence (default white).</summary>
     [YamlMember(Alias = "edge_color")]
+    [OnlyFor("metal")]
     public List<float>? EdgeColor { get; set; }
 
-    /// <summary>Complex IOR, real part per RGB channel (with <see cref="K"/>).</summary>
+    /// <summary>metal: measured complex IOR (gold, silver, copper, aluminium, ...), instead of the colours.</summary>
+    [YamlMember(Alias = "preset")]
+    [OnlyFor("metal")]
+    public string? Preset { get; set; }
+
+    /// <summary>metal: complex IOR, real part per channel (with <c>k</c>).</summary>
     [YamlMember(Alias = "eta")]
+    [OnlyFor("metal")]
     public List<float>? Eta { get; set; }
 
-    /// <summary>Complex IOR, extinction coefficient per RGB channel.</summary>
+    /// <summary>metal: complex IOR, extinction per channel.</summary>
     [YamlMember(Alias = "k")]
+    [OnlyFor("metal")]
     public List<float>? K { get; set; }
 
-    /// <summary>Kulla-Conty multiple scattering of a rough metal (default on).
-    /// Off only to compare with renderers that lack it.</summary>
+    /// <summary>metal: Kulla-Conty multiple scattering (default on).</summary>
     [YamlMember(Alias = "multiple_scattering")]
+    [OnlyFor("metal")]
     public bool MultipleScattering { get; set; } = true;
 
-    [YamlMember(Alias = "refraction_index")]
-    public float RefractionIndex { get; set; } = 1.5f;
+    /// <summary>dielectric: index of refraction (default 1.5).</summary>
+    [YamlMember(Alias = "ior")]
+    [OnlyFor("dielectric")]
+    public float Ior { get; set; } = 1.5f;
 
-    [YamlMember(Alias = "intensity")]
-    public float Intensity { get; set; } = 1f;
-
-    /// <summary><c>emissive</c>: luminance in nits (cd/m²) instead of the
-    /// unitless <c>intensity</c>; the colour then only tints (PIANO-REVIEW.md §3.14).</summary>
+    /// <summary>emissive: luminance in nits (default 1).</summary>
     [YamlMember(Alias = "luminance")]
-    public float? Luminance { get; set; }
+    [OnlyFor("emissive")]
+    public float Luminance { get; set; } = 1f;
 
-    /// <summary><c>emissive</c>: colour temperature in kelvin (black body), multiplying <c>color</c>.</summary>
+    /// <summary>emissive: colour temperature in kelvin (black body), multiplying the colour.</summary>
     [YamlMember(Alias = "temperature")]
+    [OnlyFor("emissive")]
     public float? Temperature { get; set; }
 
-    [YamlMember(Alias = "texture")]
-    public TextureData? Texture { get; set; }
+    // ── Shared surface modifiers ────────────────────────────────────────────
 
     [YamlMember(Alias = "normal_map")]
     public NormalMapData? NormalMap { get; set; }
@@ -595,304 +520,72 @@ public class MaterialData
     [YamlMember(Alias = "bump_map")]
     public BumpMapData? BumpMap { get; set; }
 
-    // ── Disney BSDF parameters ──────────────────────────────────────────────
-    [YamlMember(Alias = "metallic")]
-    public float Metallic { get; set; } = 0f;
+    /// <summary>Displacement of the meshes using the material (on a mix: <c>blend_with_mask</c>).</summary>
+    [YamlMember(Alias = "displacement")]
+    public DisplacementData? Displacement { get; set; }
 
-    /// <summary>Roughness: Disney (default 0.5), metal (alias of <c>fuzz</c>, default 0)
-    /// and dielectric (default 0, smooth). Null when not written.</summary>
-    [YamlMember(Alias = "roughness")]
-    public float? Roughness { get; set; }
+    // ── OpenPBR Surface v1.1 (the specification's names and defaults) ────────
 
-    [YamlMember(Alias = "subsurface")]
-    public float Subsurface { get; set; } = 0f;
+    [YamlMember(Alias = "base_weight")] [OnlyFor("openpbr")] public MaterialParam? BaseWeight { get; set; }
+    [YamlMember(Alias = "base_color")] [OnlyFor("openpbr")] public MaterialParam? BaseColor { get; set; }
+    [YamlMember(Alias = "base_metalness")] [OnlyFor("openpbr")] public MaterialParam? BaseMetalness { get; set; }
+    [YamlMember(Alias = "base_diffuse_roughness")] [OnlyFor("openpbr")] public MaterialParam? BaseDiffuseRoughness { get; set; }
+    [YamlMember(Alias = "specular_weight")] [OnlyFor("openpbr")] public MaterialParam? SpecularWeight { get; set; }
+    [YamlMember(Alias = "specular_color")] [OnlyFor("openpbr")] public MaterialParam? SpecularColor { get; set; }
+    [YamlMember(Alias = "specular_roughness")] [OnlyFor("openpbr")] public MaterialParam? SpecularRoughness { get; set; }
+    [YamlMember(Alias = "specular_roughness_anisotropy")] [OnlyFor("openpbr")] public MaterialParam? SpecularRoughnessAnisotropy { get; set; }
+    /// <summary>Rotation of the anisotropic highlight around the normal, degrees.</summary>
+    [YamlMember(Alias = "specular_rotation")] [OnlyFor("openpbr")] public MaterialParam? SpecularRotation { get; set; }
+    [YamlMember(Alias = "specular_ior")] [OnlyFor("openpbr")] public MaterialParam? SpecularIor { get; set; }
+    [YamlMember(Alias = "transmission_weight")] [OnlyFor("openpbr")] public MaterialParam? TransmissionWeight { get; set; }
+    [YamlMember(Alias = "transmission_color")] [OnlyFor("openpbr")] public MaterialParam? TransmissionColor { get; set; }
+    [YamlMember(Alias = "transmission_depth")] [OnlyFor("openpbr")] public MaterialParam? TransmissionDepth { get; set; }
+    [YamlMember(Alias = "transmission_scatter")] [OnlyFor("openpbr")] public MaterialParam? TransmissionScatter { get; set; }
+    [YamlMember(Alias = "transmission_scatter_anisotropy")] [OnlyFor("openpbr")] public MaterialParam? TransmissionScatterAnisotropy { get; set; }
+    [YamlMember(Alias = "subsurface_weight")] [OnlyFor("openpbr")] public MaterialParam? SubsurfaceWeight { get; set; }
+    [YamlMember(Alias = "subsurface_color")] [OnlyFor("openpbr")] public MaterialParam? SubsurfaceColor { get; set; }
+    /// <summary>Mean free path in scene units (default 1), per channel times <c>subsurface_radius_scale</c>.</summary>
+    [YamlMember(Alias = "subsurface_radius")] [OnlyFor("openpbr")] public float? SubsurfaceRadius { get; set; }
+    [YamlMember(Alias = "subsurface_radius_scale")] [OnlyFor("openpbr")] public MaterialParam? SubsurfaceRadiusScale { get; set; }
+    [YamlMember(Alias = "subsurface_scatter_anisotropy")] [OnlyFor("openpbr")] public MaterialParam? SubsurfaceScatterAnisotropy { get; set; }
+    [YamlMember(Alias = "coat_weight")] [OnlyFor("openpbr")] public MaterialParam? CoatWeight { get; set; }
+    [YamlMember(Alias = "coat_color")] [OnlyFor("openpbr")] public MaterialParam? CoatColor { get; set; }
+    [YamlMember(Alias = "coat_roughness")] [OnlyFor("openpbr")] public MaterialParam? CoatRoughness { get; set; }
+    [YamlMember(Alias = "coat_roughness_anisotropy")] [OnlyFor("openpbr")] public MaterialParam? CoatRoughnessAnisotropy { get; set; }
+    [YamlMember(Alias = "coat_ior")] [OnlyFor("openpbr")] public MaterialParam? CoatIor { get; set; }
+    [YamlMember(Alias = "coat_darkening")] [OnlyFor("openpbr")] public MaterialParam? CoatDarkening { get; set; }
+    [YamlMember(Alias = "coat_normal_map")] [OnlyFor("openpbr")] public NormalMapData? CoatNormalMap { get; set; }
+    [YamlMember(Alias = "fuzz_weight")] [OnlyFor("openpbr")] public MaterialParam? FuzzWeight { get; set; }
+    [YamlMember(Alias = "fuzz_color")] [OnlyFor("openpbr")] public MaterialParam? FuzzColor { get; set; }
+    [YamlMember(Alias = "fuzz_roughness")] [OnlyFor("openpbr")] public MaterialParam? FuzzRoughness { get; set; }
+    [YamlMember(Alias = "thin_film_weight")] [OnlyFor("openpbr")] public MaterialParam? ThinFilmWeight { get; set; }
+    /// <summary>Film thickness in micrometres (default 0.5).</summary>
+    [YamlMember(Alias = "thin_film_thickness")] [OnlyFor("openpbr")] public MaterialParam? ThinFilmThickness { get; set; }
+    [YamlMember(Alias = "thin_film_ior")] [OnlyFor("openpbr")] public MaterialParam? ThinFilmIor { get; set; }
+    [YamlMember(Alias = "emission_luminance")] [OnlyFor("openpbr")] public MaterialParam? EmissionLuminance { get; set; }
+    [YamlMember(Alias = "emission_color")] [OnlyFor("openpbr")] public MaterialParam? EmissionColor { get; set; }
+    [YamlMember(Alias = "geometry_opacity")] [OnlyFor("openpbr")] public MaterialParam? GeometryOpacity { get; set; }
+    [YamlMember(Alias = "geometry_thin_walled")] [OnlyFor("openpbr")] public bool GeometryThinWalled { get; set; }
 
-    [YamlMember(Alias = "specular")]
-    public float Specular { get; set; } = 0.5f;
-
-    [YamlMember(Alias = "specular_tint")]
-    public float SpecularTint { get; set; } = 0f;
-
-    [YamlMember(Alias = "sheen")]
-    public float Sheen { get; set; } = 0f;
-
-    [YamlMember(Alias = "sheen_tint")]
-    public float SheenTint { get; set; } = 0.5f;
-
-    // Estevez-Kulla 2017 "Charlie" sheen NDF roughness in (0, 1]. Lower
-    // values give thin grazing-angle velvet; higher values broaden the lobe
-    // toward dust/cloth. Defaults to 0.3, matching the Imageworks reference
-    // and Arnold's standard_surface sheen_roughness default.
-    [YamlMember(Alias = "sheen_roughness")]
-    public float SheenRoughness { get; set; } = 0.3f;
-
-    [YamlMember(Alias = "clearcoat")]
-    public float Clearcoat { get; set; } = 0f;
-
-    [YamlMember(Alias = "clearcoat_gloss")]
-    public float ClearcoatGloss { get; set; } = 1f;
-
-    [YamlMember(Alias = "spec_trans")]
-    public float? SpecTrans { get; set; } = null;
-
-    [YamlMember(Alias = "ior")]
-    public float DisneyIor { get; set; } = 1.5f;
-
-    [YamlMember(Alias = "anisotropic")]
-    public float Anisotropic { get; set; } = 0f;
-
-    // Rotation of the anisotropic highlight around the surface normal, expressed
-    // as a fraction of a full turn in [0, 1). Values outside the range are
-    // wrapped at sample time.
-    [YamlMember(Alias = "anisotropic_rotation")]
-    public float AnisotropicRotation { get; set; } = 0f;
-
-    // ── Volumetric interior (Beer-Lambert through glass) ────────────────────
-    // transmission_color is the colour light takes on after travelling
-    // transmission_depth units through the material. Internally converted to
-    // a per-channel absorption σ_a = -ln(color) / depth and applied as
-    // exp(-σ_a · t) to the ray segment inside the glass by the renderer's
-    // interior-medium stack. transmission_depth = 0 disables Beer-Lambert
-    // and falls back to a thin-approximation tint (equivalent to the pre-
-    // stack baseColor-based attenuation).
-    [YamlMember(Alias = "transmission_color")]
-    public List<float>? TransmissionColor { get; set; }
-
-    [YamlMember(Alias = "transmission_depth")]
-    public float TransmissionDepth { get; set; } = 0f;
-
-    // ── Disney 2015: subsurface / leaf-like thin-walled extensions ──────────
-    // subsurface_color: tints the approximate subsurface lobe (used in place
-    //   of base_color inside the Hanrahan-Krueger blend). Defaults to null,
-    //   in which case base_color is used — matching the pre-Disney-2015
-    //   single-colour convention.
-    // subsurface_radius: per-channel mean free path (world units) for the
-    //   future random-walk SSS implementation. Currently unused by the
-    //   approximate SS lobe but persisted in the material so existing scene
-    //   files authored for the full SSS pipeline can be loaded.
-    // thin_walled: treats the surface as having no interior (leaves, paper,
-    //   fabric). Disables refraction; enables diff_trans backface sampling.
-    // diff_trans: fraction of the diffuse lobe that transmits through the
-    //   surface — relevant when thin_walled or when modelling foliage.
-    // flatness: blends the Lambert diffuse lobe with a flat (subsurface-
-    //   approximation) lobe. 1.0 gives the classic HK "flat" look even for
-    //   surfaces that don't use the full subsurface parameter.
-    [YamlMember(Alias = "subsurface_color")]
-    public List<float>? SubsurfaceColor { get; set; }
-
-    [YamlMember(Alias = "subsurface_radius")]
-    public List<float>? SubsurfaceRadius { get; set; }
-
-    /// <summary>
-    /// Global multiplier applied to <see cref="SubsurfaceRadius"/> before
-    /// the medium is built. Lets a single radius vector be reused at
-    /// different scene scales (e.g. radius=[0.45,0.35,0.22] with scale=0.1
-    /// for a miniature). Default 1.0.
-    /// </summary>
-    [YamlMember(Alias = "subsurface_scale")]
-    public float SubsurfaceScale { get; set; } = 1f;
-
-    /// <summary>
-    /// Henyey–Greenstein anisotropy g ∈ (−1, 1) for the auto-built embedded
-    /// SSS medium (only used when <see cref="SubsurfaceRadius"/> is set).
-    /// 0 = isotropic (marble, wax). 0.7–0.9 = forward (skin, milk).
-    /// Negative values = backward scattering. Default 0.0.
-    /// </summary>
-    [YamlMember(Alias = "subsurface_anisotropy")]
-    public float SubsurfaceAnisotropy { get; set; } = 0f;
-
-    [YamlMember(Alias = "thin_walled")]
-    public bool ThinWalled { get; set; } = false;
-
-    [YamlMember(Alias = "diff_trans")]
-    public float DiffTrans { get; set; } = 0f;
-
-    [YamlMember(Alias = "flatness")]
-    public float Flatness { get; set; } = 0f;
-
-    // ── Disney BSDF parameter textures (optional; override the scalar) ──────
-    // Each *_texture block is parsed as a full TextureData, so any existing
-    // texture type (solid, image, checker, noise, marble, wood) works. When
-    // present it replaces the corresponding scalar at lookup time; when null
-    // the scalar value above is used unchanged.
-    [YamlMember(Alias = "metallic_texture")]
-    public TextureData? MetallicTexture { get; set; }
-
-    [YamlMember(Alias = "roughness_texture")]
-    public TextureData? RoughnessTexture { get; set; }
-
-    [YamlMember(Alias = "subsurface_texture")]
-    public TextureData? SubsurfaceTexture { get; set; }
-
-    [YamlMember(Alias = "specular_texture")]
-    public TextureData? SpecularTexture { get; set; }
-
-    [YamlMember(Alias = "specular_tint_texture")]
-    public TextureData? SpecularTintTexture { get; set; }
-
-    [YamlMember(Alias = "sheen_texture")]
-    public TextureData? SheenTexture { get; set; }
-
-    [YamlMember(Alias = "sheen_tint_texture")]
-    public TextureData? SheenTintTexture { get; set; }
-
-    [YamlMember(Alias = "sheen_roughness_texture")]
-    public TextureData? SheenRoughnessTexture { get; set; }
-
-    [YamlMember(Alias = "clearcoat_texture")]
-    public TextureData? ClearcoatTexture { get; set; }
-
-    [YamlMember(Alias = "clearcoat_gloss_texture")]
-    public TextureData? ClearcoatGlossTexture { get; set; }
-
-    [YamlMember(Alias = "spec_trans_texture")]
-    public TextureData? SpecTransTexture { get; set; }
-
-    [YamlMember(Alias = "ior_texture")]
-    public TextureData? IorTexture { get; set; }
-
-    [YamlMember(Alias = "anisotropic_texture")]
-    public TextureData? AnisotropicTexture { get; set; }
-
-    [YamlMember(Alias = "anisotropic_rotation_texture")]
-    public TextureData? AnisotropicRotationTexture { get; set; }
-
-    [YamlMember(Alias = "transmission_color_texture")]
-    public TextureData? TransmissionColorTexture { get; set; }
-
-    [YamlMember(Alias = "transmission_depth_texture")]
-    public TextureData? TransmissionDepthTexture { get; set; }
-
-    [YamlMember(Alias = "subsurface_color_texture")]
-    public TextureData? SubsurfaceColorTexture { get; set; }
-
-    [YamlMember(Alias = "diff_trans_texture")]
-    public TextureData? DiffTransTexture { get; set; }
-
-    [YamlMember(Alias = "flatness_texture")]
-    public TextureData? FlatnessTexture { get; set; }
-
-    // ── Arnold standard_surface "coat" parameters ──────────────────────────
-    // coat_ior:       index of refraction of the lacquer layer (default 1.5,
-    //                 matching the legacy Disney F0 = 0.04). Higher values
-    //                 brighten the coat highlight (1.7-2.4 for automotive
-    //                 paint and diamond-clear coats).
-    // coat_roughness: optional explicit roughness in [0, 1] for the coat
-    //                 lobe; α = roughness² (matches the base specular
-    //                 mapping). When omitted (null) the legacy
-    //                 clearcoat_gloss slider is used so existing scenes
-    //                 keep their look.
-    // coat_normal_map: dedicated normal map perturbing the coat highlight
-    //                 independently of the base NormalMap. Models scratches
-    //                 or orange peel in the lacquer that sit on top of an
-    //                 otherwise-different substrate normal.
-    /// <summary>Coat IOR: Disney default 1.5, OpenPBR default 1.6.</summary>
-    [YamlMember(Alias = "coat_ior")]
-    public float? CoatIor { get; set; }
-
-    // -1 sentinel: the Disney translation then derives the coat roughness from clearcoat_gloss. Authors
-    // should set the value in [0, 1] to take the explicit-roughness branch.
-    [YamlMember(Alias = "coat_roughness")]
-    public float CoatRoughness { get; set; } = -1f;
-
-    [YamlMember(Alias = "coat_ior_texture")]
-    public TextureData? CoatIorTexture { get; set; }
-
-    [YamlMember(Alias = "coat_roughness_texture")]
-    public TextureData? CoatRoughnessTexture { get; set; }
-
-    [YamlMember(Alias = "coat_normal_map")]
-    public NormalMapData? CoatNormalMap { get; set; }
-
-    // ── Thin-film iridescence (Belcour-Barla 2017) ─────────────────────────
-    // thin_film_thickness: film thickness in nanometres. 0 (default) leaves
-    //   the BSDF on the plain Schlick Fresnel; values in 100-800 nm produce
-    //   the visible-spectrum colour sweep characteristic of soap bubbles,
-    //   beetle elytra and anti-reflection coatings.
-    // thin_film_ior: refractive index of the film (default 1.5 — generic
-    //   lacquer). Drives the contrast of the interference fringes; higher
-    //   IOR with the same thickness yields more saturated colours.
-    /// <summary>Film thickness: nanometres for <c>disney</c> (default 0),
-    /// micrometres for <c>openpbr</c> (default 0.5), as each model defines it.</summary>
-    [YamlMember(Alias = "thin_film_thickness")]
-    public float? ThinFilmThickness { get; set; }
-
-    /// <summary>Film IOR: Disney default 1.5, OpenPBR default 1.4.</summary>
-    [YamlMember(Alias = "thin_film_ior")]
-    public float? ThinFilmIor { get; set; }
-
-    [YamlMember(Alias = "thin_film_thickness_texture")]
-    public TextureData? ThinFilmThicknessTexture { get; set; }
-
-    [YamlMember(Alias = "thin_film_ior_texture")]
-    public TextureData? ThinFilmIorTexture { get; set; }
-
-    // ── OpenPBR Surface (type: openpbr) ─────────────────────────────────────
-    // The specification's names and defaults. Each takes a number, an RGB
-    // list or a texture block. Keys shared with the Disney schema
-    // (transmission_color/_depth, subsurface_color/_radius, coat_ior,
-    // coat_roughness, thin_film_*, thin_walled, coat_normal_map) are read from
-    // the properties above, with their *_texture companions.
-    [YamlMember(Alias = "base_weight")] public MaterialParam? BaseWeight { get; set; }
-    [YamlMember(Alias = "base_color")] public MaterialParam? BaseColor { get; set; }
-    [YamlMember(Alias = "base_metalness")] public MaterialParam? BaseMetalness { get; set; }
-    [YamlMember(Alias = "base_diffuse_roughness")] public MaterialParam? BaseDiffuseRoughness { get; set; }
-    [YamlMember(Alias = "specular_weight")] public MaterialParam? SpecularWeight { get; set; }
-    [YamlMember(Alias = "specular_color")] public MaterialParam? SpecularColor { get; set; }
-    [YamlMember(Alias = "specular_roughness")] public MaterialParam? SpecularRoughness { get; set; }
-    [YamlMember(Alias = "specular_roughness_anisotropy")] public MaterialParam? SpecularRoughnessAnisotropy { get; set; }
-    [YamlMember(Alias = "specular_ior")] public MaterialParam? SpecularIor { get; set; }
-    [YamlMember(Alias = "transmission_weight")] public MaterialParam? TransmissionWeight { get; set; }
-    [YamlMember(Alias = "transmission_scatter")] public MaterialParam? TransmissionScatter { get; set; }
-    [YamlMember(Alias = "transmission_scatter_anisotropy")] public MaterialParam? TransmissionScatterAnisotropy { get; set; }
-    [YamlMember(Alias = "subsurface_weight")] public MaterialParam? SubsurfaceWeight { get; set; }
-    [YamlMember(Alias = "subsurface_radius_scale")] public MaterialParam? SubsurfaceRadiusScale { get; set; }
-    [YamlMember(Alias = "subsurface_scatter_anisotropy")] public MaterialParam? SubsurfaceScatterAnisotropy { get; set; }
-    [YamlMember(Alias = "coat_weight")] public MaterialParam? CoatWeight { get; set; }
-    [YamlMember(Alias = "coat_color")] public MaterialParam? CoatColor { get; set; }
-    [YamlMember(Alias = "coat_roughness_anisotropy")] public MaterialParam? CoatRoughnessAnisotropy { get; set; }
-    [YamlMember(Alias = "coat_darkening")] public MaterialParam? CoatDarkening { get; set; }
-    [YamlMember(Alias = "fuzz_weight")] public MaterialParam? FuzzWeight { get; set; }
-    [YamlMember(Alias = "fuzz_color")] public MaterialParam? FuzzColor { get; set; }
-    [YamlMember(Alias = "fuzz_roughness")] public MaterialParam? FuzzRoughness { get; set; }
-    [YamlMember(Alias = "thin_film_weight")] public MaterialParam? ThinFilmWeight { get; set; }
-    [YamlMember(Alias = "emission_luminance")] public MaterialParam? EmissionLuminance { get; set; }
-    [YamlMember(Alias = "emission_color")] public MaterialParam? EmissionColor { get; set; }
-    [YamlMember(Alias = "geometry_opacity")] public MaterialParam? GeometryOpacity { get; set; }
-    [YamlMember(Alias = "geometry_thin_walled")] public bool? GeometryThinWalled { get; set; }
-
-    // ── Mix Material parameters ─────────────────────────────────────────────
+    // ── mix ──────────────────────────────────────────────────────────────────
 
     [YamlMember(Alias = "material_a")]
+    [OnlyFor("mix")]
     public string? MaterialA { get; set; }
 
     [YamlMember(Alias = "material_b")]
+    [OnlyFor("mix")]
     public string? MaterialB { get; set; }
 
+    /// <summary>Share of <c>material_b</c>: a number (default 0.5) or a texture mask.</summary>
     [YamlMember(Alias = "blend")]
-    public float Blend { get; set; } = 0.5f;
-
-    [YamlMember(Alias = "mask")]
-    public TextureData? Mask { get; set; }
-
-    // ── Surface displacement (Cycles/RenderMan parity) ───────────────────────
-    // Material-level displacement lets a single displaced material drive
-    // multiple mesh entities without per-entity duplication. On a Mix
-    // material the inner block can also enable `blend_with_mask: true` to
-    // vector-blend the children's displacement at the vertex via the same
-    // mask the BSDF blend uses (Cycles' "Mix Shader → Displacement" path).
-    /// <summary>
-    /// Material-level displacement block. When set and the entity using this
-    /// material is a polygonal mesh, the loader deforms the (sub)divided
-    /// limit topology before BVH construction. Non-mesh entities (analytic
-    /// primitives, CSG, groups) emit a load warning and ignore the block.
-    /// </summary>
-    [YamlMember(Alias = "displacement")]
-    public DisplacementData? Displacement { get; set; }
+    [OnlyFor("mix")]
+    public MaterialParam? Blend { get; set; }
 }
 
 public class NormalMapData
 {
+    /// <summary>Tangent-space normal map image, relative to the scene.</summary>
     [YamlMember(Alias = "path")]
     public string? Path { get; set; }
 
@@ -902,207 +595,120 @@ public class NormalMapData
     [YamlMember(Alias = "uv_scale")]
     public List<float>? UvScale { get; set; }
 
+    /// <summary>Flip the green channel (DirectX-style maps).</summary>
     [YamlMember(Alias = "flip_y")]
-    public bool FlipY { get; set; } = false;
+    public bool FlipY { get; set; }
 }
 
 public class BumpMapData
 {
+    /// <summary>Height field; its luminance times <c>strength</c> is a height in scene units.</summary>
     [YamlMember(Alias = "texture")]
     public TextureData? Texture { get; set; }
 
     [YamlMember(Alias = "strength")]
     public float Strength { get; set; } = 1f;
 
+    /// <summary>Frequency multiplier of the height field.</summary>
     [YamlMember(Alias = "scale")]
     public float Scale { get; set; } = 1f;
 }
 
 /// <summary>
-/// YAML block for the surface displacement on a mesh entity
-/// (Arnold/RenderMan/Cycles parity — DEVLOG steps 3/5 scalar, 4/5 vector).
-///
-/// <para>Scalar mode: <c>v' = v + scale · (luminance(texture) − midlevel) · n_smooth</c>.
-/// Vector mode: <c>v' = v + scale · (rgb − midlevel) · basis</c>, where
-/// <c>basis</c> is the per-vertex TBN frame (tangent space) or the identity
-/// (object space).</para>
+/// Displacement of a mesh: scalar <c>v + scale (h − midlevel) n</c> along the
+/// smooth normals, or vector <c>v + scale (rgb − midlevel)</c> in tangent or
+/// object space.
 /// </summary>
 public class DisplacementData
 {
-    /// <summary>
-    /// <c>"scalar"</c> (default) or <c>"vector"</c>. Scalar reads the
-    /// texture's Rec.709 luminance and offsets along the smooth normal;
-    /// vector reads the full RGB triplet as a 3D offset (overhangs and
-    /// crinkles a height map cannot represent).
-    /// </summary>
     [YamlMember(Alias = "mode")]
+    [SchemaEnum("scalar", "vector")]
     public string? Mode { get; set; }
 
-    /// <summary>
-    /// Vector-mode only: <c>"tangent"</c> (default) interprets RGB as a
-    /// TBN-frame offset, <c>"object"</c> interprets it as a local-space
-    /// <c>(x, y, z)</c> offset. Ignored when <see cref="Mode"/> is
-    /// <c>"scalar"</c>.
-    /// </summary>
+    /// <summary>Vector mode: <c>tangent</c> (default) or <c>object</c>.</summary>
     [YamlMember(Alias = "space")]
+    [SchemaEnum("tangent", "object")]
     public string? Space { get; set; }
 
-    /// <summary>
-    /// Inner displacement texture. Any <see cref="TextureData"/> works
-    /// (procedurals or images) — luminance is read in scalar mode, the
-    /// full RGB in vector mode.
-    /// </summary>
     [YamlMember(Alias = "texture")]
     public TextureData? Texture { get; set; }
 
-    /// <summary>
-    /// Signed amplitude in world units. The applied offset is
-    /// <c>scale · (h − midlevel)</c> in scalar mode and
-    /// <c>scale · (rgb − midlevel)</c> in vector mode. 0 disables the
-    /// displacement.
-    /// </summary>
+    /// <summary>Amplitude in scene units (default 0.1).</summary>
     [YamlMember(Alias = "scale")]
     public float Scale { get; set; } = 0.1f;
 
-    /// <summary>
-    /// Reference texture value treated as "no displacement". Defaults to 0
-    /// (matches RenderMan's <c>dispMidpoint</c> and Arnold's
-    /// <c>vector_zero_value</c>). Use 0.5 for 8-bit storage where the
-    /// midpoint of <c>[0, 1]</c> means "flat" (both for greyscale height
-    /// maps and for vector-displacement EXRs/PNGs baked from Mudbox/
-    /// ZBrush with the standard unsigned remap).
-    /// </summary>
+    /// <summary>Texture value that means no displacement (default 0).</summary>
     [YamlMember(Alias = "midlevel")]
-    public float Midlevel { get; set; } = 0f;
+    public float Midlevel { get; set; }
 
-    /// <summary>
-    /// Uniform UV multiplier stacked on top of any per-texture <c>uv_scale</c>.
-    /// </summary>
+    /// <summary>UV multiplier on top of the texture's <c>uv_scale</c>.</summary>
     [YamlMember(Alias = "uv_scale")]
     public float UvScale { get; set; } = 1f;
 
-    /// <summary>
-    /// "Autobump" toggle — when <c>true</c> the engine derives a residual
-    /// bump map from the same displacement texture and attaches it to the
-    /// mesh, so sub-pixel detail finer than the subdivision grid still
-    /// shows up in the shading normal. Combines with any explicit
-    /// <c>bump_map</c> on the material (Arnold composes them additively;
-    /// our pipeline applies the material bump first, then the autobump).
-    /// Disabled by default — when omitted the step-3/step-4 displacement
-    /// behaviour is byte-identical to before. Mirrors Arnold's
-    /// <c>autobump_visibility</c> flag on <c>polymesh</c> nodes (the
-    /// engine-level equivalent of "use the high-frequency detail of the
-    /// displacement texture as a bump").
-    /// </summary>
+    /// <summary>Add the detail finer than the subdivision as a bump.</summary>
     [YamlMember(Alias = "autobump")]
-    public bool Autobump { get; set; } = false;
+    public bool Autobump { get; set; }
 
-    /// <summary>
-    /// Bump-strength multiplier passed to the derived
-    /// <see cref="Textures.BumpMapTexture"/>. Defaults to the displacement
-    /// scale so the autobump amplitude is in lockstep with the macro
-    /// displacement (an authoring shortcut — same physical interpretation
-    /// as Arnold's <c>autobump</c> auto-magnitude). Set explicitly to
-    /// override.
-    /// </summary>
     [YamlMember(Alias = "autobump_strength")]
     public float AutobumpStrength { get; set; } = 1f;
 
-    /// <summary>
-    /// UV-frequency multiplier for the autobump. Defaults to <c>1.0</c>
-    /// (sample at the displacement's native frequency); raise it to tile
-    /// the bump finer than the displacement and capture sub-grid detail
-    /// (Arnold's <c>autobump</c> defaults to the same frequency; the
-    /// extra dial mirrors the manual workflow of stacking a finer-tiled
-    /// bump on top of the displacement texture).
-    /// </summary>
     [YamlMember(Alias = "autobump_scale")]
     public float AutobumpScale { get; set; } = 1f;
 
-    /// <summary>
-    /// Maximum expected displacement amplitude in world units. Used to pad
-    /// every BVH leaf AABB so shading-time bump perturbation stays inside the
-    /// boxes the BVH was built with. Mirrors Arnold's <c>disp_padding</c> and
-    /// RenderMan's <c>dispBound</c>. When 0 (default) the loader auto-derives
-    /// it from <see cref="Scale"/>: <c>|scale|</c> in scalar mode,
-    /// <c>|scale|·√3</c> in vector mode.
-    /// </summary>
+    /// <summary>Largest displacement, scene units, padding the bounds (0: from <c>scale</c>).</summary>
     [YamlMember(Alias = "bound")]
-    public float Bound { get; set; } = 0f;
+    public float Bound { get; set; }
 
-    /// <summary>
-    /// On a Mix material's <c>displacement:</c> block: opt-in to vector-blend
-    /// the two children's per-vertex displacement offsets using the Mix's own
-    /// mask/blend factor (Cycles "Mix Shader → Displacement" parity). The
-    /// other displacement fields above are ignored on the Mix; the Mix's
-    /// displacement is purely a blend of the children's. Defaults to false
-    /// (the Mix has no displacement of its own; if the user wants the Mix to
-    /// displace the geometry they must set this to true).
-    /// </summary>
+    /// <summary>On a mix: blend the two materials' displacements with the mix's blend.</summary>
     [YamlMember(Alias = "blend_with_mask")]
-    public bool BlendWithMask { get; set; } = false;
+    public bool BlendWithMask { get; set; }
 
-    /// <summary>
-    /// Tri-state Cycles-style mode: <c>"both"</c> (default) applies both
-    /// geometric displacement and (when <see cref="Autobump"/> is true) a
-    /// residual bump; <c>"displacement"</c> applies only the geometric
-    /// displacement, never the autobump; <c>"bump_only"</c> skips the
-    /// geometric displacement and turns the texture into a pure bump map.
-    /// </summary>
-    [YamlMember(Alias = "displacement_method")]
+    /// <summary><c>both</c> (default), <c>displacement</c> (no autobump) or <c>bump_only</c>.</summary>
+    [YamlMember(Alias = "method")]
+    [SchemaEnum("both", "displacement", "bump_only")]
     public string? Method { get; set; }
 }
 
+/// <summary>A texture: an image or a procedural pattern.</summary>
+[SchemaTypes("image", "checker", "noise", "marble", "wood", "voronoi", "brick", "gradient", "coordinate")]
 public class TextureData
 {
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
+    /// <summary>Image file, relative to the scene.</summary>
     [YamlMember(Alias = "path")]
+    [OnlyFor("image")]
     public string? Path { get; set; }
 
     [YamlMember(Alias = "uv_scale")]
+    [OnlyFor("image")]
     public List<float>? UvScale { get; set; }
 
     /// <summary>
-    /// Image textures: how the stored values relate to linear light,
-    /// <c>srgb</c>, <c>linear</c> or <c>raw</c> (= linear, for data). Unset:
-    /// sRGB where the texture is a colour, raw where it is data (roughness,
-    /// metallic, masks, heights, displacement). PIANO-REVIEW.md §3.3.
+    /// How the stored values relate to linear light: <c>srgb</c> or
+    /// <c>linear</c>. Unset: sRGB where the texture is a colour, linear where
+    /// it is data (roughness, weights, masks, heights).
     /// </summary>
     [YamlMember(Alias = "color_space")]
+    [OnlyFor("image")]
+    [SchemaEnum("srgb", "linear")]
     public string? ColorSpace { get; set; }
 
-    /// <summary>
-    /// Procedurals built on lattice noise (noise, marble, wood, voronoi's
-    /// warp, brick): <c>improved</c> (default, Perlin 2002) or <c>classic</c>
-    /// (the basis of earlier versions, for a scene that must keep its exact
-    /// pattern). PIANO-REVIEW.md §3.30.
-    /// </summary>
-    [YamlMember(Alias = "noise_basis")]
-    public string? NoiseBasis { get; set; }
-
+    /// <summary>The pattern's colours (two; brick three: brick, alternate brick, mortar).</summary>
     [YamlMember(Alias = "colors")]
+    [OnlyFor("checker", "noise", "marble", "wood", "voronoi", "brick", "gradient")]
     public List<List<float>>? Colors { get; set; }
 
-    /// <summary>
-    /// Procedural texture sampling scale. Accepts either a scalar
-    /// (isotropic frequency — the historical behaviour) or a per-axis
-    /// <c>[sx, sy, sz]</c> sequence (anisotropic stretch). The vector form is
-    /// honoured by the solid procedurals (<c>noise</c>, <c>marble</c>,
-    /// <c>wood</c>, <c>voronoi</c>); other textures use its dominant component.
-    /// Unset → scalar 1 (no-op), so existing scenes are unaffected.
-    /// </summary>
+    /// <summary>Frequency: a number, or <c>[sx, sy, sz]</c> to stretch a solid pattern per axis.</summary>
     [YamlMember(Alias = "scale")]
+    [OnlyFor("checker", "noise", "marble", "wood", "voronoi", "coordinate")]
     public object? Scale { get; set; }
 
     /// <summary>
-    /// Parses <see cref="Scale"/> into <c>(scalar, ratio)</c>: a dominant
-    /// scalar frequency and a per-axis ratio in <c>[-1, 1]</c>. A scalar input
-    /// yields <c>(s, [1,1,1])</c> — byte-identical to the legacy behaviour. A
-    /// vector <c>v</c> yields <c>(max|vᵢ|, v / max|vᵢ|)</c>, so the dominant
-    /// frequency drives the (conservative) Nyquist octave clamp while the ratio
-    /// stretches the sample point per axis. Unset → <c>(1, [1,1,1])</c>.
+    /// Parses <see cref="Scale"/> into <c>(scalar, ratio)</c>: the dominant
+    /// frequency (it drives the octave clamp) and a per-axis ratio in [-1, 1]
+    /// applied to the sample point. A number gives a ratio of 1.
     /// </summary>
     public (float Scalar, float Rx, float Ry, float Rz) ScaleScalarAndRatio()
     {
@@ -1136,245 +742,150 @@ public class TextureData
         return (m, x / m, y / m, z / m);
     }
 
+    /// <summary>Amplitude of the turbulence (noise), of the vein distortion (marble), of the grain (wood).</summary>
     [YamlMember(Alias = "noise_strength")]
+    [OnlyFor("noise", "marble", "wood")]
     public float? NoiseStrength { get; set; }
 
     [YamlMember(Alias = "offset")]
+    [OnlyFor("noise", "marble", "wood", "voronoi", "brick", "gradient", "coordinate")]
     public List<float>? Offset { get; set; }
 
+    /// <summary>Rotation of the pattern space, Euler degrees.</summary>
     [YamlMember(Alias = "rotation")]
+    [OnlyFor("noise", "marble", "wood", "voronoi", "brick", "gradient", "coordinate")]
     public List<float>? Rotation { get; set; }
 
+    /// <summary>A per-object random offset (from the entity's seed).</summary>
     [YamlMember(Alias = "randomize_offset")]
+    [OnlyFor("noise", "marble", "wood", "voronoi", "brick", "gradient")]
     public bool RandomizeOffset { get; set; }
 
     [YamlMember(Alias = "randomize_rotation")]
+    [OnlyFor("noise", "marble", "wood", "voronoi", "brick", "gradient")]
     public bool RandomizeRotation { get; set; }
 
-    // --- Pro-grade procedural parameters (opt-in; back-compat preserved when unset) ---
-
     [YamlMember(Alias = "noise_type")]
+    [OnlyFor("noise")]
+    [SchemaEnum("auto", "perlin", "fbm", "turbulence", "ridged", "billow", "hetero_terrain", "hybrid_multifractal")]
     public string? NoiseTypeName { get; set; }
 
     [YamlMember(Alias = "octaves")]
+    [OnlyFor("noise", "marble", "wood")]
     public int? Octaves { get; set; }
 
     [YamlMember(Alias = "lacunarity")]
+    [OnlyFor("noise", "marble", "wood")]
     public float? Lacunarity { get; set; }
 
     [YamlMember(Alias = "gain")]
+    [OnlyFor("noise", "marble", "wood")]
     public float? Gain { get; set; }
 
     [YamlMember(Alias = "distortion")]
+    [OnlyFor("noise", "voronoi")]
     public float? Distortion { get; set; }
 
-    // Musgrave multifractal — only used by noise_type: hetero_terrain | hybrid_multifractal.
     [YamlMember(Alias = "fractal_increment")]
+    [OnlyFor("noise")]
     public float? FractalIncrement { get; set; }
 
     [YamlMember(Alias = "fractal_offset")]
+    [OnlyFor("noise")]
     public float? FractalOffset { get; set; }
 
-    [YamlMember(Alias = "vein_axis")]
-    public List<float>? VeinAxis { get; set; }
+    // ── marble ───────────────────────────────────────────────────────────────
 
-    // ─── Marble — production-grade ridged + IQ-warp pipeline ────────────────
-    // Replaces the legacy sin-carrier veining. See MarbleTexture.cs.
+    [YamlMember(Alias = "vein_axis")] [OnlyFor("marble")] public List<float>? VeinAxis { get; set; }
+    [YamlMember(Alias = "warp_amplitude")] [OnlyFor("marble", "wood")] public float? WarpAmplitude { get; set; }
+    [YamlMember(Alias = "warp_scale")] [OnlyFor("marble", "wood")] public float? WarpScale { get; set; }
+    [YamlMember(Alias = "warp_iterations")] [OnlyFor("marble", "wood")] public int? WarpIterations { get; set; }
+    [YamlMember(Alias = "fold_amplitude")] [OnlyFor("marble", "wood")] public List<float>? FoldAmplitude { get; set; }
+    [YamlMember(Alias = "fold_scale")] [OnlyFor("marble", "wood")] public float? FoldScale { get; set; }
+    [YamlMember(Alias = "vein_layers")] [OnlyFor("marble")] public int? VeinLayers { get; set; }
+    [YamlMember(Alias = "vein_scale")] [OnlyFor("marble")] public List<float>? VeinScale { get; set; }
+    [YamlMember(Alias = "vein_weight")] [OnlyFor("marble")] public List<float>? VeinWeight { get; set; }
+    [YamlMember(Alias = "vein_thickness")] [OnlyFor("marble")] public float? VeinThickness { get; set; }
+    [YamlMember(Alias = "vein_softness")] [OnlyFor("marble")] public float? VeinSoftness { get; set; }
+    [YamlMember(Alias = "soft_max_sharpness")] [OnlyFor("marble")] public float? SoftMaxSharpness { get; set; }
+    [YamlMember(Alias = "background_scale")] [OnlyFor("marble")] public float? BackgroundScale { get; set; }
+    [YamlMember(Alias = "background_octaves")] [OnlyFor("marble")] public int? BackgroundOctaves { get; set; }
+    [YamlMember(Alias = "impurities_density")] [OnlyFor("marble")] public float? ImpuritiesDensity { get; set; }
+    [YamlMember(Alias = "impurities_scale")] [OnlyFor("marble")] public float? ImpuritiesScale { get; set; }
+    [YamlMember(Alias = "impurity_weight")] [OnlyFor("marble")] public float? ImpurityWeight { get; set; }
+    [YamlMember(Alias = "impurities_texture")] [OnlyFor("marble")] public TextureData? ImpuritiesTexture { get; set; }
+    [YamlMember(Alias = "space_stretch")] [OnlyFor("marble", "wood")] public List<float>? SpaceStretch { get; set; }
+    [YamlMember(Alias = "cracks_density")] [OnlyFor("marble")] public float? CracksDensity { get; set; }
+    [YamlMember(Alias = "cracks_scale")] [OnlyFor("marble")] public float? CracksScale { get; set; }
+    [YamlMember(Alias = "cracks_softness")] [OnlyFor("marble")] public float? CracksSoftness { get; set; }
+    [YamlMember(Alias = "cracks_weight")] [OnlyFor("marble")] public float? CracksWeight { get; set; }
 
-    [YamlMember(Alias = "warp_amplitude")]
-    public float? WarpAmplitude { get; set; }
+    // ── wood ─────────────────────────────────────────────────────────────────
 
-    [YamlMember(Alias = "warp_scale")]
-    public float? WarpScale { get; set; }
+    [YamlMember(Alias = "ring_axis")] [OnlyFor("wood")] public List<float>? RingAxis { get; set; }
+    [YamlMember(Alias = "ring_sharpness")] [OnlyFor("wood")] public float? RingSharpness { get; set; }
+    [YamlMember(Alias = "axial_grain")] [OnlyFor("wood")] public float? AxialGrain { get; set; }
+    [YamlMember(Alias = "grain_scale")] [OnlyFor("wood")] public float? GrainScale { get; set; }
+    [YamlMember(Alias = "figure_scale")] [OnlyFor("wood")] public float? FigureScale { get; set; }
+    [YamlMember(Alias = "figure_strength")] [OnlyFor("wood")] public float? FigureStrength { get; set; }
+    [YamlMember(Alias = "figure_aspect")] [OnlyFor("wood")] public float? FigureAspect { get; set; }
+    [YamlMember(Alias = "radial_anisotropy")] [OnlyFor("wood")] public float? RadialAnisotropy { get; set; }
+    [YamlMember(Alias = "knot_density")] [OnlyFor("wood")] public float? KnotDensity { get; set; }
+    [YamlMember(Alias = "knot_scale")] [OnlyFor("wood")] public float? KnotScale { get; set; }
+    [YamlMember(Alias = "latewood_width")] [OnlyFor("wood")] public float? LatewoodWidth { get; set; }
+    [YamlMember(Alias = "earlywood_transition")] [OnlyFor("wood")] public float? EarlywoodTransition { get; set; }
+    [YamlMember(Alias = "ring_color_variation")] [OnlyFor("wood")] public float? RingColorVariation { get; set; }
+    [YamlMember(Alias = "ring_width_variation")] [OnlyFor("wood")] public float? RingWidthVariation { get; set; }
+    [YamlMember(Alias = "pore_density")] [OnlyFor("wood")] public float? PoreDensity { get; set; }
+    [YamlMember(Alias = "pore_scale")] [OnlyFor("wood")] public float? PoreScale { get; set; }
+    [YamlMember(Alias = "pore_strength")] [OnlyFor("wood")] public float? PoreStrength { get; set; }
+    [YamlMember(Alias = "pore_aspect")] [OnlyFor("wood")] public float? PoreAspect { get; set; }
+    [YamlMember(Alias = "heartwood_radius")] [OnlyFor("wood")] public float? HeartwoodRadius { get; set; }
+    [YamlMember(Alias = "heartwood_blend")] [OnlyFor("wood")] public float? HeartwoodBlend { get; set; }
 
-    [YamlMember(Alias = "warp_iterations")]
-    public int? WarpIterations { get; set; }
-
-    [YamlMember(Alias = "fold_amplitude")]
-    public List<float>? FoldAmplitude { get; set; }
-
-    [YamlMember(Alias = "fold_scale")]
-    public float? FoldScale { get; set; }
-
-    [YamlMember(Alias = "vein_layers")]
-    public int? VeinLayers { get; set; }
-
-    [YamlMember(Alias = "vein_scale")]
-    public List<float>? VeinScale { get; set; }
-
-    [YamlMember(Alias = "vein_weight")]
-    public List<float>? VeinWeight { get; set; }
-
-    [YamlMember(Alias = "vein_thickness")]
-    public float? VeinThickness { get; set; }
-
-    [YamlMember(Alias = "vein_softness")]
-    public float? VeinSoftness { get; set; }
-
-    [YamlMember(Alias = "soft_max_sharpness")]
-    public float? SoftMaxSharpness { get; set; }
-
-    [YamlMember(Alias = "background_scale")]
-    public float? BackgroundScale { get; set; }
-
-    [YamlMember(Alias = "background_octaves")]
-    public int? BackgroundOctaves { get; set; }
-
-    [YamlMember(Alias = "impurities_density")]
-    public float? ImpuritiesDensity { get; set; }
-
-    [YamlMember(Alias = "impurities_scale")]
-    public float? ImpuritiesScale { get; set; }
-
-    [YamlMember(Alias = "impurity_weight")]
-    public float? ImpurityWeight { get; set; }
-
-    [YamlMember(Alias = "impurities_texture")]
-    public TextureData? ImpuritiesTexture { get; set; }
-
-    // Marble — anisotropic pre-stretch (geological compression).
-    [YamlMember(Alias = "space_stretch")]
-    public List<float>? SpaceStretch { get; set; }
-
-    // Marble — secondary linear cracks (Worley F2 − F1 overlay).
-    [YamlMember(Alias = "cracks_density")]
-    public float? CracksDensity { get; set; }
-
-    [YamlMember(Alias = "cracks_scale")]
-    public float? CracksScale { get; set; }
-
-    [YamlMember(Alias = "cracks_softness")]
-    public float? CracksSoftness { get; set; }
-
-    [YamlMember(Alias = "cracks_weight")]
-    public float? CracksWeight { get; set; }
-
-    [YamlMember(Alias = "ring_axis")]
-    public List<float>? RingAxis { get; set; }
-
-    [YamlMember(Alias = "ring_sharpness")]
-    public float? RingSharpness { get; set; }
-
-    [YamlMember(Alias = "axial_grain")]
-    public float? AxialGrain { get; set; }
-
-    // Wood — studio-quality controls (step 5/7 VFX textures).
-    // `grain_strength` is a forward-compat alias for `noise_strength`.
-    [YamlMember(Alias = "grain_strength")]
-    public float? GrainStrength { get; set; }
-
-    [YamlMember(Alias = "grain_scale")]
-    public float? GrainScale { get; set; }
-
-    [YamlMember(Alias = "figure_scale")]
-    public float? FigureScale { get; set; }
-
-    [YamlMember(Alias = "figure_strength")]
-    public float? FigureStrength { get; set; }
-
-    [YamlMember(Alias = "radial_anisotropy")]
-    public float? RadialAnisotropy { get; set; }
-
-    [YamlMember(Alias = "knot_density")]
-    public float? KnotDensity { get; set; }
-
-    // Wood — production-grade additions (replaces the legacy `distortion`
-    // single-iter warp and the symmetric pow-of-triangle ring profile).
-    // All have sensible defaults and can be omitted by authors.
-
-    [YamlMember(Alias = "knot_scale")]
-    public float? KnotScale { get; set; }
-
-    [YamlMember(Alias = "figure_aspect")]
-    public float? FigureAspect { get; set; }
-
-    [YamlMember(Alias = "latewood_width")]
-    public float? LatewoodWidth { get; set; }
-
-    [YamlMember(Alias = "earlywood_transition")]
-    public float? EarlywoodTransition { get; set; }
-
-    [YamlMember(Alias = "ring_color_variation")]
-    public float? RingColorVariation { get; set; }
-
-    [YamlMember(Alias = "ring_width_variation")]
-    public float? RingWidthVariation { get; set; }
-
-    [YamlMember(Alias = "pore_density")]
-    public float? PoreDensity { get; set; }
-
-    [YamlMember(Alias = "pore_scale")]
-    public float? PoreScale { get; set; }
-
-    [YamlMember(Alias = "pore_strength")]
-    public float? PoreStrength { get; set; }
-
-    [YamlMember(Alias = "pore_aspect")]
-    public float? PoreAspect { get; set; }
-
-    [YamlMember(Alias = "heartwood_radius")]
-    public float? HeartwoodRadius { get; set; }
-
-    [YamlMember(Alias = "heartwood_blend")]
-    public float? HeartwoodBlend { get; set; }
-
-    // Voronoi
-    [YamlMember(Alias = "metric")]
-    public string? Metric { get; set; }
-
+    /// <summary>marble, wood: <c>color</c> or <c>mask</c>; voronoi: the feature it outputs.</summary>
     [YamlMember(Alias = "output")]
+    [OnlyFor("marble", "wood", "voronoi")]
+    [SchemaEnum("color", "mask", "f1", "f2", "f3", "f4", "f2_minus_f1", "f3_minus_f1", "f1_plus_f2", "cell", "random", "position")]
     public string? Output { get; set; }
 
-    [YamlMember(Alias = "randomness")]
-    public float? Randomness { get; set; }
+    // ── voronoi ──────────────────────────────────────────────────────────────
 
-    // Smooth Voronoi (IQ): 0 = hard min (back-compat), ∈ (0,1] enables soft-min.
-    [YamlMember(Alias = "smoothness")]
-    public float? Smoothness { get; set; }
+    [YamlMember(Alias = "metric")]
+    [OnlyFor("voronoi")]
+    [SchemaEnum("euclidean", "euclidean_squared", "manhattan", "chebyshev")]
+    public string? Metric { get; set; }
 
-    // Brick
-    [YamlMember(Alias = "brick_width")]
-    public float? BrickWidth { get; set; }
+    [YamlMember(Alias = "randomness")] [OnlyFor("voronoi")] public float? Randomness { get; set; }
+    [YamlMember(Alias = "smoothness")] [OnlyFor("voronoi")] public float? Smoothness { get; set; }
 
-    [YamlMember(Alias = "brick_height")]
-    public float? BrickHeight { get; set; }
+    // ── brick ────────────────────────────────────────────────────────────────
 
-    [YamlMember(Alias = "mortar_size")]
-    public float? MortarSize { get; set; }
+    [YamlMember(Alias = "brick_width")] [OnlyFor("brick")] public float? BrickWidth { get; set; }
+    [YamlMember(Alias = "brick_height")] [OnlyFor("brick")] public float? BrickHeight { get; set; }
+    [YamlMember(Alias = "mortar_size")] [OnlyFor("brick")] public float? MortarSize { get; set; }
+    [YamlMember(Alias = "row_offset")] [OnlyFor("brick")] public float? RowOffset { get; set; }
+    [YamlMember(Alias = "color_variation")] [OnlyFor("brick", "marble")] public float? ColorVariation { get; set; }
+    [YamlMember(Alias = "noise_scale")] [OnlyFor("brick")] public float? NoiseScale { get; set; }
 
-    [YamlMember(Alias = "row_offset")]
-    public float? RowOffset { get; set; }
+    // ── gradient, coordinate ─────────────────────────────────────────────────
 
-    [YamlMember(Alias = "color_variation")]
-    public float? ColorVariation { get; set; }
-
-    [YamlMember(Alias = "noise_scale")]
-    public float? NoiseScale { get; set; }
-
-    // Gradient
+    /// <summary>gradient: linear, quadratic, easing, spherical, radial. coordinate: object, uv, generated, world.</summary>
     [YamlMember(Alias = "mode")]
+    [OnlyFor("gradient", "coordinate")]
+    [SchemaEnum("linear", "quadratic", "easing", "spherical", "radial", "object", "uv", "generated", "world")]
     public string? Mode { get; set; }
 
-    [YamlMember(Alias = "axis")]
-    public List<float>? Axis { get; set; }
+    [YamlMember(Alias = "axis")] [OnlyFor("gradient")] public List<float>? Axis { get; set; }
+    [YamlMember(Alias = "length")] [OnlyFor("gradient")] public float? Length { get; set; }
 
-    [YamlMember(Alias = "length")]
-    public float? Length { get; set; }
-
-    // Multi-stop colour ramp. When set, overrides the two-colour lerp built
-    // from `colors:` on every procedural texture (noise/marble/wood/voronoi/
-    // gradient). Each stop carries the interpolation kind used on its
-    // outgoing segment (toward the next stop), matching Blender's convention.
+    /// <summary>Multi-stop colour ramp, replacing <c>colors</c>.</summary>
     [YamlMember(Alias = "color_ramp")]
+    [OnlyFor("noise", "marble", "wood", "voronoi", "gradient")]
     public List<ColorRampStopData>? ColorRamp { get; set; }
 
-    // CoordinateTexture (DEVLOG VFX step 7): reference-space bounds used by
-    // `mode: "generated"`. Default unit cube `[-1, 1]³` if omitted.
-    [YamlMember(Alias = "bounds_min")]
-    public List<float>? BoundsMin { get; set; }
-
-    [YamlMember(Alias = "bounds_max")]
-    public List<float>? BoundsMax { get; set; }
+    [YamlMember(Alias = "bounds_min")] [OnlyFor("coordinate")] public List<float>? BoundsMin { get; set; }
+    [YamlMember(Alias = "bounds_max")] [OnlyFor("coordinate")] public List<float>? BoundsMax { get; set; }
 }
 
 public class ColorRampStopData
@@ -1385,48 +896,40 @@ public class ColorRampStopData
     [YamlMember(Alias = "color")]
     public List<float>? Color { get; set; }
 
+    /// <summary>Interpolation towards the next stop.</summary>
     [YamlMember(Alias = "interp")]
+    [SchemaEnum("linear", "smoothstep", "constant", "ease")]
     public string? Interp { get; set; }
 }
 
 /// <summary>
-/// One altitude/slope band of a <c>heightfield</c> primitive. Altitude is
-/// normalised to <c>[0, 1]</c> over the heightfield's world Y extent above
-/// <c>sea_level</c>; slope is in degrees off vertical (0 = flat, 90 = cliff).
+/// One altitude/slope band of a heightfield: altitude normalised to [0, 1]
+/// above <c>sea_level</c>, slope in degrees off the horizontal plane.
 /// </summary>
 public class StratumData
 {
-    [YamlMember(Alias = "min_altitude")]
-    public float MinAltitude { get; set; } = 0f;
-
-    [YamlMember(Alias = "max_altitude")]
-    public float MaxAltitude { get; set; } = 1f;
-
-    [YamlMember(Alias = "min_slope_deg")]
-    public float MinSlopeDeg { get; set; } = 0f;
-
-    [YamlMember(Alias = "max_slope_deg")]
-    public float MaxSlopeDeg { get; set; } = 90f;
-
-    /// <summary>
-    /// Soft-edge width over which the band fades to 0 outside
-    /// <c>[min_altitude, max_altitude]</c>. v1 stratum selection is winner
-    /// takes all, so this currently only affects the band's effective
-    /// dominance radius; future versions will lerp adjacent strata's
-    /// materials over the fade region.
-    /// </summary>
-    [YamlMember(Alias = "blend_width")]
-    public float BlendWidth { get; set; } = 0f;
-
-    [YamlMember(Alias = "material")]
-    public string? Material { get; set; }
+    [YamlMember(Alias = "min_altitude")] public float MinAltitude { get; set; }
+    [YamlMember(Alias = "max_altitude")] public float MaxAltitude { get; set; } = 1f;
+    [YamlMember(Alias = "min_slope")] public float MinSlope { get; set; }
+    [YamlMember(Alias = "max_slope")] public float MaxSlope { get; set; } = 90f;
+    [YamlMember(Alias = "blend_width")] public float BlendWidth { get; set; }
+    [YamlMember(Alias = "material")] public string? Material { get; set; }
 }
 
+/// <summary>
+/// An entity: a primitive, a model file, a CSG, a group or an instance of a
+/// template. Every entity takes the same transform (<c>scale</c>, then
+/// <c>rotate</c> in <c>rotate_order</c>, then <c>translate</c>; or a
+/// <c>matrix</c>) and motion keys.
+/// </summary>
+[SchemaTypes("sphere", "box", "triangle", "quad", "cylinder", "cone", "torus", "capsule", "disk", "annulus",
+             "infinite_plane", "lathe", "extrusion", "mesh", "heightfield", "csg", "group", "instance")]
 public class EntityData
 {
     [YamlMember(Alias = "name")]
     public string? Name { get; set; }
 
+    /// <summary>Seed of the randomised procedural textures (default from the entity's position in the file).</summary>
     [YamlMember(Alias = "seed")]
     public int? Seed { get; set; }
 
@@ -1436,703 +939,371 @@ public class EntityData
     [YamlMember(Alias = "material")]
     public string? Material { get; set; }
 
-    /// <summary>
-    /// ID of a medium in the scene-level <c>mediums:</c> library that fills
-    /// the interior of this entity (the volume on the back-face side of the
-    /// surface). Drives Beer-Lambert absorption + (Phase 3) Random Walk
-    /// subsurface scattering when the medium has σ_s &gt; 0. Null means the
-    /// interior is vacuum / inherits the enclosing volume on the medium
-    /// stack. Pattern Mitsuba 0.6 / PBRT v4 §11.4.
-    /// </summary>
+    /// <summary>Id of the medium inside the entity (from <c>mediums:</c>).</summary>
     [YamlMember(Alias = "interior_medium")]
     public string? InteriorMedium { get; set; }
 
-    /// <summary>
-    /// ID of a medium in the scene-level <c>mediums:</c> library that fills
-    /// the exterior of this entity (the front-face side of the surface).
-    /// Almost always left null — the exterior is the enclosing volume on
-    /// the medium stack (or vacuum / the global medium if the stack is
-    /// empty). Override only when the geometry sits inside another
-    /// transmissive solid whose binding the loader cannot infer
-    /// topologically.
-    /// </summary>
+    /// <summary>Id of the medium outside, when the loader cannot infer it.</summary>
     [YamlMember(Alias = "exterior_medium")]
     public string? ExteriorMedium { get; set; }
 
-    /// <summary>
-    /// When <c>false</c>, this entity is invisible to primary camera rays
-    /// while still receiving and casting indirect light, appearing in
-    /// specular reflections/refractions and contributing to direct lighting
-    /// (if emissive) through NEE. Mirrors Arnold's <c>camera</c> visibility
-    /// flag and Cycles' "Ray Visibility → Camera". Default <c>true</c>.
-    /// Applies uniformly to all entity types (primitive, csg, mesh, group,
-    /// instance); on a group the flag propagates to every child via the
-    /// outer wrapper.
-    /// </summary>
-    [YamlMember(Alias = "visible_to_camera")]
-    public bool VisibleToCamera { get; set; } = true;
+    [YamlMember(Alias = "visibility")]
+    public VisibilityData? Visibility { get; set; }
 
-    // Sphere & Cylinder
+    // ── Primitives ───────────────────────────────────────────────────────────
+
     [YamlMember(Alias = "center")]
+    [OnlyFor("sphere", "cylinder", "cone", "torus", "capsule", "disk", "annulus", "lathe", "extrusion")]
     public List<float>? Center { get; set; }
 
     [YamlMember(Alias = "radius")]
+    [OnlyFor("sphere", "cylinder", "cone", "capsule", "disk", "annulus")]
     public float Radius { get; set; } = 1f;
 
-    // Triangle
-    [YamlMember(Alias = "v0")]
-    public List<float>? V0 { get; set; }
+    [YamlMember(Alias = "v0")] [OnlyFor("triangle")] public List<float>? V0 { get; set; }
+    [YamlMember(Alias = "v1")] [OnlyFor("triangle")] public List<float>? V1 { get; set; }
+    [YamlMember(Alias = "v2")] [OnlyFor("triangle")] public List<float>? V2 { get; set; }
+    /// <summary>Vertex normals: all three make the triangle smooth.</summary>
+    [YamlMember(Alias = "n0")] [OnlyFor("triangle")] public List<float>? N0 { get; set; }
+    [YamlMember(Alias = "n1")] [OnlyFor("triangle")] public List<float>? N1 { get; set; }
+    [YamlMember(Alias = "n2")] [OnlyFor("triangle")] public List<float>? N2 { get; set; }
+    /// <summary>Vertex UVs (with the normals).</summary>
+    [YamlMember(Alias = "uv0")] [OnlyFor("triangle")] public List<float>? UV0 { get; set; }
+    [YamlMember(Alias = "uv1")] [OnlyFor("triangle")] public List<float>? UV1 { get; set; }
+    [YamlMember(Alias = "uv2")] [OnlyFor("triangle")] public List<float>? UV2 { get; set; }
 
-    [YamlMember(Alias = "v1")]
-    public List<float>? V1 { get; set; }
+    /// <summary>Quad: corner <c>q</c> and edges <c>u</c>, <c>v</c>.</summary>
+    [YamlMember(Alias = "q")] [OnlyFor("quad")] public List<float>? Q { get; set; }
+    [YamlMember(Alias = "u")] [OnlyFor("quad")] public List<float>? U { get; set; }
+    [YamlMember(Alias = "v")] [OnlyFor("quad")] public List<float>? V { get; set; }
 
-    [YamlMember(Alias = "v2")]
-    public List<float>? V2 { get; set; }
-
-    // SmoothTriangle — per-vertex normals
-    [YamlMember(Alias = "n0")]
-    public List<float>? N0 { get; set; }
-
-    [YamlMember(Alias = "n1")]
-    public List<float>? N1 { get; set; }
-
-    [YamlMember(Alias = "n2")]
-    public List<float>? N2 { get; set; }
-
-    // SmoothTriangle — per-vertex texture coordinates
-    [YamlMember(Alias = "uv0")]
-    public List<float>? UV0 { get; set; }
-
-    [YamlMember(Alias = "uv1")]
-    public List<float>? UV1 { get; set; }
-
-    [YamlMember(Alias = "uv2")]
-    public List<float>? UV2 { get; set; }
-
-    // Quad
-    [YamlMember(Alias = "q")]
-    public List<float>? Q { get; set; }
-
-    [YamlMember(Alias = "u")]
-    public List<float>? U { get; set; }
-
-    [YamlMember(Alias = "v")]
-    public List<float>? V { get; set; }
-
-    // Cylinder
     [YamlMember(Alias = "height")]
+    [OnlyFor("cylinder", "cone", "capsule", "extrusion")]
     public float Height { get; set; } = 1f;
 
-    // Cone (truncated cone / frustum)
     [YamlMember(Alias = "top_radius")]
-    public float TopRadius { get; set; } = 0f;
+    [OnlyFor("cone")]
+    public float TopRadius { get; set; }
 
-    // Torus
     [YamlMember(Alias = "major_radius")]
+    [OnlyFor("torus")]
     public float MajorRadius { get; set; } = 1f;
 
     [YamlMember(Alias = "minor_radius")]
+    [OnlyFor("torus")]
     public float MinorRadius { get; set; } = 0.25f;
 
-    // Annulus (ring disk)
     [YamlMember(Alias = "inner_radius")]
-    public float InnerRadius { get; set; } = 0f;
+    [OnlyFor("annulus")]
+    public float InnerRadius { get; set; }
 
-    // Mesh (model file: .obj, .gltf, .glb, .ply)
-    [YamlMember(Alias = "path")]
-    public string? Path { get; set; }
-
-    /// <summary>
-    /// Mesh only: scene material IDs for the model file's own materials, by
-    /// their name in the file (MTL <c>newmtl</c>, glTF material <c>name</c>).
-    /// Used when the entity has no <c>material</c>, which otherwise covers
-    /// every face.
-    /// </summary>
-    [YamlMember(Alias = "material_overrides")]
-    public Dictionary<string, string>? MaterialOverrides { get; set; }
-
-    // ── Mesh subdivision (Loop / Catmull-Clark) ─────────────────────────────
-
-    /// <summary>
-    /// Subdivision algorithm to apply to the loaded OBJ mesh before BVH
-    /// construction. One of <c>none</c> (default), <c>loop</c>,
-    /// <c>catmull_clark</c> (or <c>catmull-clark</c> / <c>cc</c>),
-    /// <c>auto</c>. <c>auto</c> picks Catmull-Clark for all-quad input,
-    /// Loop for all-triangle input, Catmull-Clark for mixed.
-    /// </summary>
-    [YamlMember(Alias = "subdivision_scheme")]
-    public string? SubdivisionScheme { get; set; }
-
-    /// <summary>
-    /// Number of uniform subdivision iterations. Each iteration multiplies
-    /// face count by 4 and roughly halves edge length. Clamped to
-    /// <c>[0, subdivision_max_iterations]</c>. Default 0 (no subdivision).
-    /// </summary>
-    [YamlMember(Alias = "subdivision_iterations")]
-    public int SubdivisionIterations { get; set; } = 0;
-
-    /// <summary>
-    /// Adaptive screen-space target: the loader picks the iteration count
-    /// that brings the mesh's longest projected edge below this many pixels.
-    /// Combined with the static <see cref="SubdivisionIterations"/> by
-    /// taking the max. 0 = disabled. Default 0.
-    /// </summary>
-    [YamlMember(Alias = "subdivision_pixel_error")]
-    public float SubdivisionPixelError { get; set; } = 0f;
-
-    /// <summary>
-    /// Upper bound for the iteration count, including the adaptive
-    /// estimate. Default 6 (4 096× face explosion ceiling).
-    /// </summary>
-    [YamlMember(Alias = "subdivision_max_iterations")]
-    public int SubdivisionMaxIterations { get; set; } = 6;
-
-    /// <summary>
-    /// How the open boundary is subdivided: <c>edge_and_corner</c> (default:
-    /// boundary edges sharp, a boundary vertex with a single face kept in
-    /// place) or <c>edge_only</c> (corners rounded along the boundary).
-    /// </summary>
-    [YamlMember(Alias = "subdivision_boundary")]
-    public string? SubdivisionBoundary { get; set; }
-
-    /// <summary>
-    /// Edges whose two faces meet at more than this many degrees (between
-    /// their normals) become creases. 0 (default) = no creases.
-    /// </summary>
-    [YamlMember(Alias = "subdivision_crease_angle")]
-    public float SubdivisionCreaseAngle { get; set; } = 0f;
-
-    /// <summary>
-    /// Sharpness of those creases: sharp for this many subdivision levels,
-    /// then smooth, fractions blending (semi-sharp creases). Omitted = always
-    /// sharp.
-    /// </summary>
-    [YamlMember(Alias = "subdivision_crease_sharpness")]
-    public float? SubdivisionCreaseSharpness { get; set; }
-
-    // ── Surface displacement (material-level — Cycles/RenderMan parity) ────
-    //
-    // Displacement is now a property of the material, not the entity. This
-    // mirrors Cycles' "Material Output → Displacement" socket and RenderMan's
-    // bxdf shader network: a single displaced material drives every mesh that
-    // uses it, with no per-entity duplication. The two legacy entity-level
-    // fields (`displacement` and `displacement_bound`) are deserialized into
-    // sentinels below so the loader can raise a clear migration error rather
-    // than silently ignoring them.
-
-    /// <summary>
-    /// When false, suppresses the resolved material's displacement for this
-    /// single entity (the material itself is still shared). Defaults to
-    /// true. Useful for per-instance overrides, e.g. a "low detail" copy of
-    /// a displaced rock that uses the same material but skips the
-    /// subdivision/displacement cost.
-    /// </summary>
-    [YamlMember(Alias = "displacement_enabled")]
-    public bool DisplacementEnabled { get; set; } = true;
-
-    /// <summary>
-    /// Legacy field — the entity-level <c>displacement:</c> block has moved
-    /// to the material. The loader detects a non-null value here and raises
-    /// a hard error pointing at the material-level migration. Do not use.
-    /// </summary>
-    [YamlMember(Alias = "displacement")]
-    public DisplacementData? LegacyEntityDisplacement { get; set; }
-
-    /// <summary>
-    /// Legacy field — the entity-level <c>displacement_bound</c> override has
-    /// moved to <c>material.displacement.bound</c>. Detected and reported as
-    /// a load error. Do not use.
-    /// </summary>
-    [YamlMember(Alias = "displacement_bound")]
-    public float LegacyEntityDisplacementBound { get; set; } = 0f;
-
-    // Plane
     [YamlMember(Alias = "normal")]
+    [OnlyFor("disk", "annulus", "infinite_plane")]
     public List<float>? Normal { get; set; }
 
     [YamlMember(Alias = "point")]
+    [OnlyFor("infinite_plane")]
     public List<float>? Point { get; set; }
 
-    // ── HeightField (Mitsuba-style procedural/baked terrain) ────────────────
+    // ── mesh ─────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// XZ extents of the heightfield rectangle as <c>[xMin, zMin, xMax, zMax]</c>.
-    /// </summary>
-    [YamlMember(Alias = "bounds")]
-    public List<float>? Bounds { get; set; }
+    /// <summary>Model file (<c>.obj</c>, <c>.gltf</c>, <c>.glb</c>, <c>.ply</c>), relative to the scene.</summary>
+    [YamlMember(Alias = "path")]
+    [OnlyFor("mesh")]
+    public string? Path { get; set; }
 
-    /// <summary>
-    /// Multiplicative scale applied to the unit-range height samples before
-    /// they are stored in the primitive (so e.g. a normalised PNG-16 value of
-    /// <c>1.0</c> becomes <c>height_scale</c> world units in Y).
-    /// </summary>
-    [YamlMember(Alias = "height_scale")]
-    public float HeightScale { get; set; } = 1f;
+    /// <summary>Scene material ids for the file's own materials, by name (when <c>material</c> is unset).</summary>
+    [YamlMember(Alias = "material_overrides")]
+    [OnlyFor("mesh")]
+    public Dictionary<string, string>? MaterialOverrides { get; set; }
 
-    /// <summary>
-    /// Procedural height definition. Mutually exclusive with
-    /// <see cref="HeightmapPath"/> — when both are set, the path wins and a
-    /// deferred warning is emitted.
-    /// </summary>
-    [YamlMember(Alias = "height_texture")]
-    public TextureData? HeightTexture { get; set; }
+    /// <summary><c>none</c> (default), <c>loop</c>, <c>catmull_clark</c>, <c>auto</c>.</summary>
+    [YamlMember(Alias = "subdivision_scheme")]
+    [OnlyFor("mesh")]
+    [SchemaEnum("none", "loop", "catmull_clark", "auto")]
+    public string? SubdivisionScheme { get; set; }
 
-    /// <summary>
-    /// Path to a PNG (16-bit preferred) heightmap, resolved relative to the
-    /// scene file. The luminance / red channel is read as the height in
-    /// <c>[0, 1]</c>; values are scaled by <c>height_scale</c>.
-    /// </summary>
-    [YamlMember(Alias = "heightmap_path")]
-    public string? HeightmapPath { get; set; }
+    [YamlMember(Alias = "subdivision_iterations")] [OnlyFor("mesh")] public int SubdivisionIterations { get; set; }
+    /// <summary>Adaptive target: subdivide until the longest projected edge is below this many pixels.</summary>
+    [YamlMember(Alias = "subdivision_pixel_error")] [OnlyFor("mesh")] public float SubdivisionPixelError { get; set; }
+    [YamlMember(Alias = "subdivision_max_iterations")] [OnlyFor("mesh")] public int SubdivisionMaxIterations { get; set; } = 6;
 
-    /// <summary>
-    /// For procedural mode: side length of the pre-sampling grid feeding the
-    /// min/max pyramid. Final visual quality is set by the bilinear patch +
-    /// bisection; this only governs the acceleration structure's tightness.
-    /// </summary>
-    [YamlMember(Alias = "resolution")]
-    public int Resolution { get; set; } = 512;
+    [YamlMember(Alias = "subdivision_boundary")]
+    [OnlyFor("mesh")]
+    [SchemaEnum("edge_and_corner", "edge_only")]
+    public string? SubdivisionBoundary { get; set; }
 
-    /// <summary>
-    /// World-space Y of an optional water plane clipped to the heightfield
-    /// footprint. When set, the plane is treated as an extra surface;
-    /// <see cref="SeaMaterial"/> drives its shading.
-    /// </summary>
-    [YamlMember(Alias = "sea_level")]
-    public float? SeaLevel { get; set; }
+    [YamlMember(Alias = "subdivision_crease_angle")] [OnlyFor("mesh")] public float SubdivisionCreaseAngle { get; set; }
+    [YamlMember(Alias = "subdivision_crease_sharpness")] [OnlyFor("mesh")] public float? SubdivisionCreaseSharpness { get; set; }
 
-    /// <summary>
-    /// Material ID for the water surface (see <see cref="SeaLevel"/>). When
-    /// null or empty no water is rendered.
-    /// </summary>
-    [YamlMember(Alias = "sea_material")]
-    public string? SeaMaterial { get; set; }
+    /// <summary>False: this entity skips its material's displacement.</summary>
+    [YamlMember(Alias = "displacement_enabled")]
+    [OnlyFor("mesh")]
+    public bool DisplacementEnabled { get; set; } = true;
 
-    /// <summary>
-    /// Altitude/slope-driven material bands layered on top of the fallback
-    /// <see cref="EntityData.Material"/>. Order is insignificant — at each
-    /// shading point the band with the highest combined alt×slope weight wins.
-    /// </summary>
-    [YamlMember(Alias = "strata")]
-    public List<StratumData>? Strata { get; set; }
+    // ── heightfield ──────────────────────────────────────────────────────────
 
-    // CSG (Constructive Solid Geometry)
+    /// <summary><c>[x_min, z_min, x_max, z_max]</c>.</summary>
+    [YamlMember(Alias = "bounds")] [OnlyFor("heightfield")] public List<float>? Bounds { get; set; }
+    [YamlMember(Alias = "height_scale")] [OnlyFor("heightfield")] public float HeightScale { get; set; } = 1f;
+    /// <summary>Procedural height (its luminance in [0, 1]).</summary>
+    [YamlMember(Alias = "height_texture")] [OnlyFor("heightfield")] public TextureData? HeightTexture { get; set; }
+    /// <summary>Baked height map (16-bit PNG preferred), relative to the scene.</summary>
+    [YamlMember(Alias = "heightmap_path")] [OnlyFor("heightfield")] public string? HeightmapPath { get; set; }
+    [YamlMember(Alias = "resolution")] [OnlyFor("heightfield")] public int Resolution { get; set; } = 512;
+    [YamlMember(Alias = "sea_level")] [OnlyFor("heightfield")] public float? SeaLevel { get; set; }
+    [YamlMember(Alias = "sea_material")] [OnlyFor("heightfield")] public string? SeaMaterial { get; set; }
+    [YamlMember(Alias = "strata")] [OnlyFor("heightfield")] public List<StratumData>? Strata { get; set; }
+
+    // ── csg, group, instance ─────────────────────────────────────────────────
+
     [YamlMember(Alias = "operation")]
+    [OnlyFor("csg")]
+    [SchemaEnum("union", "intersection", "subtraction")]
     public string? Operation { get; set; }
 
-    [YamlMember(Alias = "left")]
-    public EntityData? Left { get; set; }
+    [YamlMember(Alias = "left")] [OnlyFor("csg")] public EntityData? Left { get; set; }
+    [YamlMember(Alias = "right")] [OnlyFor("csg")] public EntityData? Right { get; set; }
 
-    [YamlMember(Alias = "right")]
-    public EntityData? Right { get; set; }
-
-    // ── Group (Scene Graph) ─────────────────────────────────────────────────
-
-    /// <summary>
-    /// Child entities for group nodes (type: "group") and template definitions.
-    /// Each child can be any entity type, including other groups (arbitrary nesting).
-    /// </summary>
     [YamlMember(Alias = "children")]
+    [OnlyFor("group")]
     public List<EntityData>? Children { get; set; }
 
-    // ── Instance (Template reference) ───────────────────────────────────────
-
-    /// <summary>
-    /// Name of the template to instantiate. Only used when <c>type: "instance"</c>.
-    /// The template must be defined in the <c>templates:</c> section (or imported).
-    /// The instance inherits the template's children and default transform;
-    /// its own transform composes on top: child_local → template_transform → instance_transform.
-    /// Material can be overridden per-instance via the <c>material</c> field.
-    /// </summary>
     [YamlMember(Alias = "template")]
+    [OnlyFor("instance")]
     public string? Template { get; set; }
 
-    // ── Lathe (Surface of Revolution) ───────────────────────────────────────
+    // ── lathe, extrusion ─────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Profile points for a <c>type: "lathe"</c> entity. Each entry is a
-    /// <c>[r, y]</c> pair in lathe-local coordinates (r ≥ 0, y monotonically
-    /// non-decreasing). Must contain at least two points.
-    /// </summary>
-    [YamlMember(Alias = "profile")]
-    public List<List<float>>? Profile { get; set; }
+    /// <summary>lathe: <c>[r, y]</c> points; extrusion: closed <c>[x, z]</c> polygon.</summary>
+    [YamlMember(Alias = "profile")] [OnlyFor("lathe", "extrusion")] public List<List<float>>? Profile { get; set; }
 
-    /// <summary>
-    /// Interpolation mode for the <c>profile</c>. One of <c>linear</c>
-    /// (default — polyline / faceted frustum stack), <c>catmull_rom</c>
-    /// (centripetal, smooth, passes through all points) or <c>bezier</c>
-    /// (explicit control points via <c>profile_bezier_controls</c>).
-    /// </summary>
     [YamlMember(Alias = "profile_type")]
+    [OnlyFor("lathe", "extrusion")]
+    [SchemaEnum("linear", "catmull_rom", "bezier")]
     public string? ProfileType { get; set; }
 
-    /// <summary>
-    /// Explicit cubic-Bezier control points for <c>profile_type: bezier</c>.
-    /// Layout: four <c>[r, y]</c> entries per segment, concatenated for every
-    /// segment of the profile (length must equal <c>4 · (profile.Count − 1)</c>
-    /// for a lathe, or <c>4 · profile.Count</c> for a closed extrusion).
-    /// Ignored for the linear and Catmull-Rom modes.
-    /// </summary>
-    [YamlMember(Alias = "profile_bezier_controls")]
-    public List<List<float>>? ProfileBezierControls { get; set; }
+    [YamlMember(Alias = "profile_bezier_controls")] [OnlyFor("lathe", "extrusion")] public List<List<float>>? ProfileBezierControls { get; set; }
 
-    // ── Extrusion (Linear extrusion of a 2D profile) ────────────────────────
-
-    /// <summary>
-    /// Which ends of an <c>extrusion</c> are closed by a triangulated cap.
-    /// One of <c>both</c> (default), <c>start</c>, <c>end</c> or <c>none</c>.
-    /// </summary>
     [YamlMember(Alias = "caps")]
+    [OnlyFor("extrusion")]
+    [SchemaEnum("both", "start", "end", "none")]
     public string? Caps { get; set; }
 
-    /// <summary>
-    /// Total rotation of the top profile around the Y axis for an
-    /// <c>extrusion</c>, in degrees. Default 0 (straight prism).
-    /// </summary>
-    [YamlMember(Alias = "twist_degrees")]
-    public float TwistDegrees { get; set; } = 0f;
+    [YamlMember(Alias = "twist")] [OnlyFor("extrusion")] public float Twist { get; set; }
+    [YamlMember(Alias = "taper")] [OnlyFor("extrusion")] public float Taper { get; set; } = 1f;
+    [YamlMember(Alias = "curve_samples")] [OnlyFor("extrusion")] public int CurveSamples { get; set; } = 16;
+    [YamlMember(Alias = "crease_angle")] [OnlyFor("extrusion")] public float CreaseAngle { get; set; }
 
-    /// <summary>
-    /// Uniform XZ scale of the top profile relative to the bottom for an
-    /// <c>extrusion</c>. 1 = straight prism, &lt; 1 narrows toward the top
-    /// (pyramid-like), &gt; 1 flares outward. Must be &gt; 0.
-    /// </summary>
-    [YamlMember(Alias = "taper")]
-    public float Taper { get; set; } = 1f;
+    // ── Transform ────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// For curved <c>extrusion</c> profile types (catmull_rom, bezier), how
-    /// many polyline samples to emit per input segment. Higher values produce
-    /// smoother silhouettes at the cost of more triangles in the internal
-    /// BVH. Default 16.
-    /// </summary>
-    [YamlMember(Alias = "curve_samples")]
-    public int CurveSamples { get; set; } = 16;
-
-    /// <summary>
-    /// For <c>profile_type: linear</c> only: dihedral threshold (degrees)
-    /// for auto-smoothing across adjacent profile segments. Pairs of side
-    /// walls whose face normals make an angle below this value share a
-    /// blended vertex normal (smooth shading) while pairs above it stay
-    /// hard. Set to 0 to disable smoothing entirely (faceted look — the
-    /// historical default for polyline profiles). 30° is a sensible
-    /// default that softens polyline-approximated curves while preserving
-    /// 90° corners on letters, gears and engineered profiles.
-    /// </summary>
-    [YamlMember(Alias = "crease_angle")]
-    public float CreaseAngle { get; set; } = 0f;
-
-    // Transformations
     [YamlMember(Alias = "translate")]
     public List<float>? Translate { get; set; }
 
+    /// <summary>Euler degrees, applied in <c>rotate_order</c> (default xyz: X first).</summary>
     [YamlMember(Alias = "rotate")]
     public List<float>? Rotate { get; set; }
 
+    [YamlMember(Alias = "rotate_order")]
+    [SchemaEnum("xyz", "xzy", "yxz", "yzx", "zxy", "zyx")]
+    public string? RotateOrder { get; set; }
+
+    /// <summary>A number or <c>[sx, sy, sz]</c>.</summary>
     [YamlMember(Alias = "scale")]
     public object? Scale { get; set; }
 
-    /// <summary>
-    /// Motion-blur keyframes. The base <c>translate</c>/<c>rotate</c>/<c>scale</c>
-    /// is the implicit keyframe at <c>time: 0</c>; each entry here adds a key at
-    /// its own time. Components omitted in a key inherit the BASE pose (not the
-    /// previous key). Times are normalized to [0, 1] — the same range the camera
-    /// shutter samples. Supported on top-level entities of any type; ignored
-    /// (with a warning) on template definitions and group/instance children.
-    /// </summary>
+    /// <summary>A 4×4 matrix, 16 numbers row by row acting on column vectors (translation in the last column); instead of translate / rotate / scale.</summary>
+    [YamlMember(Alias = "matrix")]
+    public List<float>? Matrix { get; set; }
+
+    /// <summary>Motion keyframes; the base transform is the key at time 0.</summary>
     [YamlMember(Alias = "motion")]
     public List<MotionKeyData>? Motion { get; set; }
 }
 
-/// <summary>
-/// One entity motion keyframe (see <see cref="EntityData.Motion"/>).
-/// Omitted components inherit the entity's base pose.
-/// </summary>
 public class MotionKeyData
 {
-    [YamlMember(Alias = "time")]
-    public float Time { get; set; }
-
-    [YamlMember(Alias = "translate")]
-    public List<float>? Translate { get; set; }
-
-    [YamlMember(Alias = "rotate")]
-    public List<float>? Rotate { get; set; }
-
-    [YamlMember(Alias = "scale")]
-    public object? Scale { get; set; }
+    [YamlMember(Alias = "time")] public float Time { get; set; }
+    [YamlMember(Alias = "translate")] public List<float>? Translate { get; set; }
+    [YamlMember(Alias = "rotate")] public List<float>? Rotate { get; set; }
+    [YamlMember(Alias = "scale")] public object? Scale { get; set; }
 }
 
+/// <summary>
+/// A light. Its amount is the photometric quantity of the type, the colour a
+/// tint of luminance 1: <c>intensity</c> in candela (point, spot),
+/// <c>luminance</c> in nits (area, sphere), <c>illuminance</c> in lux
+/// (directional), or <c>power</c> for the finite lights.
+/// </summary>
+[SchemaTypes("point", "spot", "directional", "area", "sphere", "portal")]
 public class LightData
 {
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
+    [YamlMember(Alias = "name")]
+    public string? Name { get; set; }
+
     [YamlMember(Alias = "position")]
+    [OnlyFor("point", "spot", "sphere")]
     public List<float>? Position { get; set; }
 
+    /// <summary>spot: the axis; directional: towards where the light travels; point: the axis of an IES profile.</summary>
     [YamlMember(Alias = "direction")]
+    [OnlyFor("point", "spot", "directional")]
     public List<float>? Direction { get; set; }
 
     [YamlMember(Alias = "color")]
+    [OnlyFor("point", "spot", "directional", "area", "sphere")]
     public List<float>? Color { get; set; }
 
-    [YamlMember(Alias = "intensity")]
-    public float Intensity { get; set; } = 1f;
-
-    [YamlMember(Alias = "inner_angle")]
-    public float InnerAngle { get; set; } = 15f;
-
-    [YamlMember(Alias = "outer_angle")]
-    public float OuterAngle { get; set; } = 30f;
-
-    [YamlMember(Alias = "corner")]
-    public List<float>? Corner { get; set; }
-
-    /// <summary>Alias for <see cref="Corner"/> used in portal-light YAML.</summary>
-    [YamlMember(Alias = "anchor")]
-    public List<float>? Anchor { get; set; }
-
-    [YamlMember(Alias = "u")]
-    public List<float>? U { get; set; }
-
-    [YamlMember(Alias = "v")]
-    public List<float>? V { get; set; }
-
-    [YamlMember(Alias = "shadow_samples")]
-    public int ShadowSamples { get; set; } = 4;
-
-    [YamlMember(Alias = "radius")]
-    public float Radius { get; set; } = 0.5f;
-
-    /// <summary>
-    /// Optional virtual-disc radius for <c>point</c>/<c>spot</c>/<c>area</c>
-    /// lights that softens the 1/d² (or cosLight/d²) singularity. 0 =
-    /// unclamped, identical to pre-existing behaviour. Recommended values
-    /// approximate the physical emitter size (e.g. 0.05–0.2 for a streetlamp,
-    /// 0.5–1.0 for a large area panel in dense fog).
-    /// <para>
-    /// Sphere lights deliberately ignore this knob: their solid-angle
-    /// estimator is bounded by construction and needs no floor.
-    /// </para>
-    /// </summary>
-    [YamlMember(Alias = "soft_radius")]
-    public float SoftRadius { get; set; } = 0f;
-
-    /// <summary>
-    /// Optional angular radius in degrees for <c>directional</c>/<c>sun</c>
-    /// lights. Produces a soft penumbra. 0 = hard shadows (default).
-    /// The real Sun subtends ~0.27°.
-    /// </summary>
-    [YamlMember(Alias = "angular_radius")]
-    public float AngularRadius { get; set; } = 0f;
-
-    /// <summary>
-    /// When <c>false</c>, the light's visible proxy (the <c>Sphere</c> for
-    /// <c>type: sphere</c>, the <c>Quad</c> for <c>type: area</c>) is hidden
-    /// from primary camera rays — the light still illuminates the scene via
-    /// NEE and remains visible in specular reflections/refractions and to
-    /// indirect bounces. Mirrors Arnold's <c>camera</c> visibility flag and
-    /// Cycles' "Ray Visibility → Camera". Default <c>true</c>.
-    /// <para>
-    /// Has no observable effect on delta lights (<c>point</c>,
-    /// <c>directional</c>, <c>spot</c>) which carry no proxy geometry.
-    /// </para>
-    /// </summary>
-    [YamlMember(Alias = "visible_to_camera")]
-    public bool VisibleToCamera { get; set; } = true;
-
-    // ── Photometric units (PIANO-REVIEW.md §3.14) ───────────────────────────
-    // Any one of these replaces the unitless `intensity`; the colour then
-    // only tints (it is divided by its luminance). See Lights.LightUnits.
-
-    /// <summary>Emitted flux, in <see cref="PowerUnit"/> (watts by default):
-    /// point, spot (as the point light of that flux), area, sphere.</summary>
-    [YamlMember(Alias = "power")]
-    public float? Power { get; set; }
-
-    /// <summary><c>watt</c> (radiant, 683 lm/W) or <c>lumen</c>.</summary>
-    [YamlMember(Alias = "power_unit")]
-    public string? PowerUnit { get; set; }
-
-    /// <summary>Luminous intensity in candela: point, spot.</summary>
-    [YamlMember(Alias = "candela")]
-    public float? Candela { get; set; }
-
-    /// <summary>Luminance of the surface in nits (cd/m²): area, sphere.</summary>
-    [YamlMember(Alias = "luminance")]
-    public float? Luminance { get; set; }
-
-    /// <summary>Illuminance on a surface facing it, in lux: directional / sun.</summary>
-    [YamlMember(Alias = "illuminance")]
-    public float? Illuminance { get; set; }
-
-    /// <summary>Colour temperature in kelvin (black body), multiplying <c>color</c>.</summary>
+    /// <summary>Colour temperature in kelvin (black body), multiplying the colour.</summary>
     [YamlMember(Alias = "temperature")]
+    [OnlyFor("point", "spot", "directional", "area", "sphere")]
     public float? Temperature { get; set; }
 
-    /// <summary>Area and sphere lights: <c>intensity</c> is the total power
-    /// rather than the radiance, so resizing the light keeps its output.</summary>
-    [YamlMember(Alias = "normalize")]
-    public bool Normalize { get; set; }
+    /// <summary>Luminous intensity, candela (default 1).</summary>
+    [YamlMember(Alias = "intensity")]
+    [OnlyFor("point", "spot")]
+    public float? Intensity { get; set; }
 
-    /// <summary>Point and spot lights: an IES (LM-63) photometric file, relative
-    /// to the scene. The light emits its candela distribution (nadir down, or
-    /// along a spot's direction or a point light's <c>direction</c>);
-    /// <c>power</c> or <c>candela</c> rescale it to that flux or peak.</summary>
+    /// <summary>Luminance of the emitting surface, nits (default 1).</summary>
+    [YamlMember(Alias = "luminance")]
+    [OnlyFor("area", "sphere")]
+    public float? Luminance { get; set; }
+
+    /// <summary>Illuminance on a surface facing the light, lux (default 1).</summary>
+    [YamlMember(Alias = "illuminance")]
+    [OnlyFor("directional")]
+    public float? Illuminance { get; set; }
+
+    /// <summary>Emitted flux in <c>power_unit</c>, instead of the quantity above.</summary>
+    [YamlMember(Alias = "power")]
+    [OnlyFor("point", "spot", "area", "sphere")]
+    public float? Power { get; set; }
+
+    /// <summary><c>watt</c> (default, 683 lm/W) or <c>lumen</c>.</summary>
+    [YamlMember(Alias = "power_unit")]
+    [OnlyFor("point", "spot", "area", "sphere")]
+    [SchemaEnum("watt", "lumen")]
+    public string? PowerUnit { get; set; }
+
+    /// <summary>Scales the light by 2^exposure.</summary>
+    [YamlMember(Alias = "exposure")]
+    [OnlyFor("point", "spot", "directional", "area", "sphere")]
+    public float Exposure { get; set; }
+
+    /// <summary>Half-angle where the spot starts to fall off, degrees (default 15).</summary>
+    [YamlMember(Alias = "inner_angle")]
+    [OnlyFor("spot")]
+    public float InnerAngle { get; set; } = 15f;
+
+    /// <summary>Half-angle of the spot's cone, degrees (default 30).</summary>
+    [YamlMember(Alias = "outer_angle")]
+    [OnlyFor("spot")]
+    public float OuterAngle { get; set; } = 30f;
+
+    /// <summary>IES (LM-63) photometric file, relative to the scene: the light emits its candela distribution.</summary>
     [YamlMember(Alias = "ies")]
+    [OnlyFor("point", "spot")]
     public string? Ies { get; set; }
 
-    /// <summary>Scales the light by 2^exposure (stops).</summary>
-    [YamlMember(Alias = "exposure")]
-    public float Exposure { get; set; }
+    /// <summary>Rectangle: a corner and the two edges <c>u</c>, <c>v</c> (it emits on the side of u × v).</summary>
+    [YamlMember(Alias = "corner")] [OnlyFor("area", "portal")] public List<float>? Corner { get; set; }
+    [YamlMember(Alias = "u")] [OnlyFor("area", "portal")] public List<float>? U { get; set; }
+    [YamlMember(Alias = "v")] [OnlyFor("area", "portal")] public List<float>? V { get; set; }
+
+    [YamlMember(Alias = "radius")]
+    [OnlyFor("sphere")]
+    public float Radius { get; set; } = 0.5f;
+
+    /// <summary>Floor of the 1/d² term near the light (scene units), for lights in dense media.</summary>
+    [YamlMember(Alias = "soft_radius")]
+    [OnlyFor("point", "spot", "area")]
+    public float SoftRadius { get; set; }
+
+    /// <summary>Half-angle of the light's disc, degrees (0 = sharp shadows; the sun 0.265).</summary>
+    [YamlMember(Alias = "angular_radius")]
+    [OnlyFor("directional")]
+    public float AngularRadius { get; set; }
+
+    [YamlMember(Alias = "shadow_samples")]
+    [OnlyFor("spot", "area", "sphere", "portal")]
+    public int ShadowSamples { get; set; } = 4;
+
+    /// <summary>Visibility of the light's surface (area, sphere).</summary>
+    [YamlMember(Alias = "visibility")]
+    [OnlyFor("area", "sphere")]
+    public VisibilityData? Visibility { get; set; }
 }
 
 /// <summary>
-/// Participating medium definition. Lives under <c>world.medium</c>.
-/// When absent, the renderer runs in surface-only mode and produces
-/// bit-identical output to pre-volumetric builds.
-///
-/// Supported <c>type</c> values:
-///   - <c>homogeneous</c>: constant σ_a, σ_s everywhere (uses sigma_a, sigma_s)
-///   - <c>height_fog</c>: exponential altitude falloff (sigma_a/sigma_s as density at <c>y0</c>; <c>scale_height</c>)
-///   - <c>procedural</c>: Perlin-fBm noise density (frequency, octaves, lacunarity, gain, seed)
-///   - <c>grid</c>: 3D voxel grid (bounds_min/max, nx/ny/nz, and either <c>data</c> inline or <c>file</c>)
-///
-/// Supported <c>phase</c> values:
-///   - <c>isotropic</c> (default)
-///   - <c>hg</c> / <c>henyey_greenstein</c>: needs <c>g</c>
-///   - <c>rayleigh</c>: no parameters
-///   - <c>schlick</c>: needs <c>g</c> (mapped to Schlick's k)
-///   - <c>double_hg</c>: needs <c>g1</c>, <c>g2</c>, <c>w</c>
+/// A participating medium: <c>world.medium</c>, or an entry of
+/// <c>mediums:</c> with an <c>id</c>. Coefficients are per scene unit.
 /// </summary>
+[SchemaTypes("homogeneous", "height_fog", "procedural", "grid", "atmosphere")]
 public class MediumData
 {
-    /// <summary>
-    /// Library identifier. Required when the medium is declared inside the
-    /// top-level <c>mediums:</c> list and referenced by entities via
-    /// <c>interior_medium</c> / <c>exterior_medium</c>. Ignored for the
-    /// inline <c>world.medium</c> shorthand. Mediums with duplicate ids
-    /// follow last-write-wins (with a deferred warning), matching
-    /// <c>materials:</c>.
-    /// </summary>
     [YamlMember(Alias = "id")]
     public string? Id { get; set; }
 
-    /// <summary>"homogeneous", "height_fog", "procedural", "grid".</summary>
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
-    /// <summary>Absorption coefficient σ_a per RGB channel (units: 1/world-unit).</summary>
+    /// <summary>Absorption coefficient per channel (height fog: at <c>y0</c>; procedural, grid: at density 1).</summary>
     [YamlMember(Alias = "sigma_a")]
+    [OnlyFor("homogeneous", "height_fog", "procedural", "grid")]
     public List<float>? SigmaA { get; set; }
 
-    /// <summary>Scattering coefficient σ_s per RGB channel (units: 1/world-unit).</summary>
     [YamlMember(Alias = "sigma_s")]
+    [OnlyFor("homogeneous", "height_fog", "procedural", "grid")]
     public List<float>? SigmaS { get; set; }
 
-    /// <summary>Phase function identifier. Default: "isotropic".</summary>
+    /// <summary>Phase function (default isotropic; atmosphere: of the dust, default hg 0.76).</summary>
     [YamlMember(Alias = "phase")]
+    [OnlyFor("homogeneous", "height_fog", "procedural", "grid", "atmosphere")]
+    [SchemaEnum("isotropic", "hg", "rayleigh", "schlick", "double_hg")]
     public string? Phase { get; set; }
 
-    /// <summary>HG / Schlick anisotropy parameter g ∈ (-1, 1). Ignored for isotropic and rayleigh.</summary>
+    /// <summary>Anisotropy of <c>hg</c> and <c>schlick</c>.</summary>
     [YamlMember(Alias = "g")]
-    public float G { get; set; } = 0f;
+    [OnlyFor("homogeneous", "height_fog", "procedural", "grid", "atmosphere")]
+    public float G { get; set; }
 
-    // ── double_hg phase ──────────────────────────────────────────────────
-    /// <summary>Double-HG forward lobe anisotropy.</summary>
-    [YamlMember(Alias = "g1")]
-    public float G1 { get; set; } = 0.85f;
+    [YamlMember(Alias = "g1")] [OnlyFor("homogeneous", "height_fog", "procedural", "grid", "atmosphere")] public float G1 { get; set; } = 0.85f;
+    [YamlMember(Alias = "g2")] [OnlyFor("homogeneous", "height_fog", "procedural", "grid", "atmosphere")] public float G2 { get; set; } = -0.3f;
+    /// <summary>Weight of the forward lobe of <c>double_hg</c>.</summary>
+    [YamlMember(Alias = "w")] [OnlyFor("homogeneous", "height_fog", "procedural", "grid", "atmosphere")] public float W { get; set; } = 0.5f;
 
-    /// <summary>Double-HG backward lobe anisotropy.</summary>
-    [YamlMember(Alias = "g2")]
-    public float G2 { get; set; } = -0.3f;
+    /// <summary>height_fog: altitude of the reference density; atmosphere: sea level.</summary>
+    [YamlMember(Alias = "y0")] [OnlyFor("height_fog", "atmosphere")] public float Y0 { get; set; }
+    /// <summary>Exponential scale height H: the density falls by e every H.</summary>
+    [YamlMember(Alias = "scale_height")] [OnlyFor("height_fog")] public float ScaleHeight { get; set; } = 1f;
 
-    /// <summary>Double-HG weight of the forward lobe (0..1).</summary>
-    [YamlMember(Alias = "w")]
-    public float W { get; set; } = 0.5f;
+    [YamlMember(Alias = "frequency")] [OnlyFor("procedural")] public float Frequency { get; set; } = 1f;
+    [YamlMember(Alias = "octaves")] [OnlyFor("procedural")] public int Octaves { get; set; } = 4;
+    [YamlMember(Alias = "lacunarity")] [OnlyFor("procedural")] public float Lacunarity { get; set; } = 2f;
+    [YamlMember(Alias = "gain")] [OnlyFor("procedural")] public float Gain { get; set; } = 0.5f;
+    [YamlMember(Alias = "seed")] [OnlyFor("procedural")] public int Seed { get; set; }
 
-    // ── height_fog ────────────────────────────────────────────────────────
-    /// <summary>Reference altitude for <c>height_fog</c>: σ = sigma_a/sigma_s at y = y0.</summary>
-    [YamlMember(Alias = "y0")]
-    public float Y0 { get; set; } = 0f;
+    [YamlMember(Alias = "bounds_min")] [OnlyFor("grid")] public List<float>? BoundsMin { get; set; }
+    [YamlMember(Alias = "bounds_max")] [OnlyFor("grid")] public List<float>? BoundsMax { get; set; }
+    [YamlMember(Alias = "nx")] [OnlyFor("grid")] public int Nx { get; set; }
+    [YamlMember(Alias = "ny")] [OnlyFor("grid")] public int Ny { get; set; }
+    [YamlMember(Alias = "nz")] [OnlyFor("grid")] public int Nz { get; set; }
+    /// <summary>Inline densities, nx·ny·nz values in z-major order (as a <c>.vol</c> file).</summary>
+    [YamlMember(Alias = "data")] [OnlyFor("grid")] public List<float>? Data { get; set; }
+    /// <summary>A <c>.vol</c> file, relative to the scene.</summary>
+    [YamlMember(Alias = "file")] [OnlyFor("grid")] public string? File { get; set; }
 
-    /// <summary>Exponential scale height H for <c>height_fog</c> (density halves every H · ln 2).</summary>
-    [YamlMember(Alias = "scale_height")]
-    public float ScaleHeight { get; set; } = 1f;
-
-    // ── procedural ────────────────────────────────────────────────────────
-    /// <summary>Spatial frequency multiplier of the noise for <c>procedural</c>.</summary>
-    [YamlMember(Alias = "frequency")]
-    public float Frequency { get; set; } = 1f;
-
-    /// <summary>Number of fBm octaves for <c>procedural</c> (1..8).</summary>
-    [YamlMember(Alias = "octaves")]
-    public int Octaves { get; set; } = 4;
-
-    /// <summary>Frequency multiplier between octaves for <c>procedural</c>.</summary>
-    [YamlMember(Alias = "lacunarity")]
-    public float Lacunarity { get; set; } = 2f;
-
-    /// <summary>Amplitude multiplier between octaves for <c>procedural</c>.</summary>
-    [YamlMember(Alias = "gain")]
-    public float Gain { get; set; } = 0.5f;
-
-    /// <summary>Noise seed for <c>procedural</c>. Same seed → identical volume.</summary>
-    [YamlMember(Alias = "seed")]
-    public int Seed { get; set; } = 0;
-
-    // ── grid ──────────────────────────────────────────────────────────────
-    /// <summary>World-space AABB min corner for <c>grid</c>.</summary>
-    [YamlMember(Alias = "bounds_min")]
-    public List<float>? BoundsMin { get; set; }
-
-    /// <summary>World-space AABB max corner for <c>grid</c>.</summary>
-    [YamlMember(Alias = "bounds_max")]
-    public List<float>? BoundsMax { get; set; }
-
-    /// <summary>Grid resolution along X for <c>grid</c>.</summary>
-    [YamlMember(Alias = "nx")]
-    public int Nx { get; set; } = 0;
-
-    /// <summary>Grid resolution along Y for <c>grid</c>.</summary>
-    [YamlMember(Alias = "ny")]
-    public int Ny { get; set; } = 0;
-
-    /// <summary>Grid resolution along Z for <c>grid</c>.</summary>
-    [YamlMember(Alias = "nz")]
-    public int Nz { get; set; } = 0;
-
-    /// <summary>Inline flat density array (length nx*ny*nz, z-major) for small <c>grid</c> volumes.</summary>
-    [YamlMember(Alias = "data")]
-    public List<float>? Data { get; set; }
-
-    /// <summary>Path to a <c>.vol</c> binary file (relative to the scene YAML) for larger <c>grid</c> volumes.</summary>
-    [YamlMember(Alias = "file")]
-    public string? File { get; set; }
-
-    /// <summary>
-    /// Reconstruction filter used when sampling between voxels in a <c>grid</c>
-    /// medium. Accepts <c>trilinear</c> (default, C⁰, 8 taps) or <c>tricubic</c>
-    /// (C¹ Catmull-Rom, 64 taps — smoother at low resolutions, ~8× cost).
-    /// </summary>
     [YamlMember(Alias = "interpolation")]
-    public string Interpolation { get; set; } = "trilinear";
+    [OnlyFor("grid")]
+    [SchemaEnum("trilinear", "tricubic")]
+    public string? Interpolation { get; set; }
 
-    // ── atmosphere (Nishita aerial perspective) ─────────────────────────────
-    /// <summary>Air density multiplier (Rayleigh), 1 = the standard atmosphere.</summary>
-    [YamlMember(Alias = "air_density")]
-    public float AirDensity { get; set; } = 1f;
-
-    /// <summary>Ozone density multiplier (absorption around 25 km), 1 = the standard atmosphere.</summary>
-    [YamlMember(Alias = "ozone_density")]
-    public float OzoneDensity { get; set; } = 1f;
-
-    /// <summary>Mie dust density (0 = pristine, 1 = clean, &gt;1 = polluted). Default 1.</summary>
-    [YamlMember(Alias = "dust_density")]
-    public float DustDensity { get; set; } = 1f;
-
-    /// <summary>Metres of real atmosphere per world unit. 1000 = 1 wu : 1 km. Default 1000.</summary>
-    [YamlMember(Alias = "world_scale")]
-    public float WorldScale { get; set; } = 1000f;
+    /// <summary>Air (Rayleigh) density multiplier, 1 = the standard atmosphere.</summary>
+    [YamlMember(Alias = "air_density")] [OnlyFor("atmosphere")] public float AirDensity { get; set; } = 1f;
+    [YamlMember(Alias = "ozone_density")] [OnlyFor("atmosphere")] public float OzoneDensity { get; set; } = 1f;
+    /// <summary>Mie dust density (0 pristine, 1 clean, above 1 polluted).</summary>
+    [YamlMember(Alias = "dust_density")] [OnlyFor("atmosphere")] public float DustDensity { get; set; } = 1f;
 }
