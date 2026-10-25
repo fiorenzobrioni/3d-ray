@@ -1,0 +1,107 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  denoiser-bokeh.yaml - denoiser su luci sfocate e piccole (Fase 9, §3.33)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  La scena di showcases/camera-physical.yaml: un soggetto a fuoco a 2.5 m e
+#  undici lampadine piccole e molto luminose a 18-24 m, fuori fuoco a f/1.2.
+#  Il bokeh di sorgenti così converge lentamente e mette alla prova i
+#  denoiser: è il caso in cui la regressione di NFOR trasformava le luci in
+#  quadrati con un alone scuro (PIANO-REVIEW.md §3.33).
+#
+#  Render (480 x 270, 16 campioni, camera rotonda):
+#    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#      -i scenes/review/denoiser-bokeh.yaml -o renders/bokeh.png \
+#      -w 480 -H 270 -s 16 --denoiser oidn      (oppure nfor, none)
+#
+#  Atteso: con oidn dischi di bokeh rotondi e puliti come nel riferimento a
+#  1024 campioni senza denoiser; con nfor dischi squadrati e sfumati; senza
+#  denoiser dischi rumorosi. Misure a 320 x 180 (relMSE contro 1024 spp):
+#  none 0.055, nfor 0.108, oidn 0.014 a 16 spp. images/denoiser-bokeh.jpg:
+#  sopra none e nfor, sotto oidn e il riferimento.
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.010, 0.014, 0.030]
+    horizon_color: [0.030, 0.030, 0.040]
+    ground_color:  [0.010, 0.010, 0.010]
+
+cameras:
+  - name: "round"
+    position: [0, 1.2, 0]
+    look_at:  [0, 0.9, -2.5]
+    focal_length: 50
+    sensor_width: 36
+    f_stop: 1.2
+    focal_pos: [0, 0.9, -2.5]
+
+  - name: "hexagon"
+    position: [0, 1.2, 0]
+    look_at:  [0, 0.9, -2.5]
+    focal_length: 50
+    f_stop: 1.2
+    aperture_blades: 6
+    aperture_rotation: 0
+    focal_pos: [0, 0.9, -2.5]
+
+  - name: "anamorphic"
+    position: [0, 1.2, 0]
+    look_at:  [0, 0.9, -2.5]
+    focal_length: 50
+    f_stop: 1.2
+    aperture_ratio: 0.5
+    focal_pos: [0, 0.9, -2.5]
+
+  - name: "tungsten"
+    position: [0, 1.2, 0]
+    look_at:  [0, 0.9, -2.5]
+    focal_length: 50
+    f_stop: 1.2
+    aperture_blades: 6
+    focal_pos: [0, 0.9, -2.5]
+    white_balance: 2700
+
+materials:
+  - id: "floor"
+    type: "disney"
+    color: [0.30, 0.28, 0.26]
+    roughness: 0.6
+
+  - id: "subject"
+    type: "disney"
+    color: [0.70, 0.18, 0.12]
+    roughness: 0.25
+    specular: 0.5
+
+  # Lampadine a incandescenza: il colore del corpo nero a 2700 K in Rec.709
+  # lineare (lo stesso luogo dei colori usato dal bilanciamento del bianco).
+  - id: "bulb"
+    type: "emissive"
+    color: [1.0, 0.417, 0.100]
+    intensity: 200.0
+
+entities:
+  - { name: "floor",   type: "box",    material: "floor",   scale: [40, 0.2, 60], translate: [0, -0.1, -10] }
+  - { name: "subject", type: "sphere", center: [0, 0.9, -2.5], radius: 0.35, material: "subject" }
+
+  - { name: "bulb_01", type: "sphere", center: [ -4.8, 2.4,  -21.0], radius: 0.025, material: "bulb" }
+  - { name: "bulb_02", type: "sphere", center: [ -3.8, 2.8,  -23.2], radius: 0.025, material: "bulb" }
+  - { name: "bulb_03", type: "sphere", center: [ -2.9, 2.0,  -19.5], radius: 0.025, material: "bulb" }
+  - { name: "bulb_04", type: "sphere", center: [ -1.9, 2.7,  -24.0], radius: 0.025, material: "bulb" }
+  - { name: "bulb_05", type: "sphere", center: [ -1.0, 2.2,  -18.8], radius: 0.025, material: "bulb" }
+  - { name: "bulb_06", type: "sphere", center: [  0.2, 3.0,  -22.5], radius: 0.025, material: "bulb" }
+  - { name: "bulb_07", type: "sphere", center: [  1.1, 2.1,  -20.2], radius: 0.025, material: "bulb" }
+  - { name: "bulb_08", type: "sphere", center: [  2.1, 2.5,  -21.8], radius: 0.025, material: "bulb" }
+  - { name: "bulb_09", type: "sphere", center: [  3.0, 1.8,  -18.0], radius: 0.025, material: "bulb" }
+  - { name: "bulb_10", type: "sphere", center: [  4.0, 2.8,  -24.0], radius: 0.025, material: "bulb" }
+  - { name: "bulb_11", type: "sphere", center: [  5.0, 2.2,  -19.5], radius: 0.025, material: "bulb" }
+
+lights:
+  - type: "area"
+    corner: [-1.5, 3.5, -4.0]
+    u: [3, 0, 0]
+    v: [0, 0, 3]
+    color: [1.0, 0.97, 0.92]
+    intensity: 6.0
+    shadow_samples: 4

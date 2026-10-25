@@ -111,6 +111,9 @@ soglie fisse).
 | `CameraModelTests.cs` | La camera: un punto del mondo proiettato in prospettiva cade sul pixel previsto (errore angolare < 2e-6 rad); i raggi di un pixel con lente sottile convergono sul piano di fuoco (entro 1e-5 della distanza) e campionano la lente in modo uniforme; la sfocatura di ogni profondità segue la formula della lente sottile. |
 | `PhysicalCameraTests.cs` | Le chiavi fotografiche: `focal_length` + `sensor_width` danno il campo visivo, `f_stop` (con `meters_per_unit`) il diametro della pupilla; il diaframma a lamelle è campionato in modo uniforme (settori equiprobabili, distribuzione radiale ρ² nei triangoli); `aperture_ratio` stira il bokeh. |
 | `PixelFilterTests.cs` | Filtri di ricostruzione: le posizioni campionate seguono il profilo (chi-quadro) e un bordo netto renderizzato dà, colonna per colonna, la risposta al gradino del filtro (box, Gaussiano, Blackman-Harris). |
+| `DualBufferVarianceTests.cs` | La stima della varianza a doppio buffer ((Ā − B̄)/2)² contro la varianza vera della media del pixel, misurata su 24 semi: con Sobol (metà = prima e seconda metà della sequenza) entro il 5-35% e conservativa a 16, 64 e 256 spp (misurato 1.08-1.14; con i campioni pari e dispari era 2.4-3), con il PRNG (celle pari e dispari della griglia) conservativa entro 1.7. |
+| `DenoiserDetailTests.cs` | Una scacchiera di celle di 3 pixel a 8 spp: NFOR e OIDN conservano il contrasto della texture (proiezione del dettaglio sul riferimento entro il 10% di 1) e la media; NFOR dimezza l'errore, OIDN non lo aumenta oltre il 20% (l'errore è la copertura dei bordi, che l'albedo porta con sé). |
+| `AdaptiveSamplingTests.cs` | Adaptive sampling: campioni minimi dalla soglia, errore del pixel dalle metà (con l'esposizione), un pixel rumoroso tiene attivi gli otto vicini, un render che ferma il cielo al primo passo e spinge l'ombra oltre, metà per pixel coerenti con la beauty, energia entro l'1%, rifiutato in `--reference`. |
 | `ColorManagementTests.cs` | Curva sRGB a tratti; ACES 1.x contro OpenColorIO (24 colori, entro 1e-3); AgX e il look punchy contro un'implementazione indipendente; grigi neutri e monotoni in ogni vista; la vista `legacy` identica alla curva di prima. |
 | `WhiteBalanceTests.cs` | Bilanciamento del bianco: 6504 K è l'identità, una luce della temperatura scelta diventa neutra (da 1900 a 9000 K), il luogo dei colori è continuo. |
 | `GeometryAuditTests.cs` | Ogni primitiva (anche scalata non uniformemente, specchiata, inclinata): primo punto colpito contro una funzione implicita marciata e bisezionata, da fuori e da dentro, con normale, `FrontFace` e punto sulla superficie; area con la formula di Cauchy-Crofton (rette isotrope attraverso la sfera che la contiene) contro la forma chiusa e `SurfaceArea`; campionamento d'area (densità `AreaPdf` × area = 1, punti sulla superficie, normale uscente, UV uguali a quelle di `Hit` nello stesso punto, integrale di una funzione come Crofton). |
@@ -128,6 +131,14 @@ Fuori da `Validation/`, due file coprono i materiali OpenPBR dal lato del carica
 |---|---|
 | `OpenPbrLoaderTests.cs` | Il tipo `openpbr` in YAML: i default della specifica, ogni input come numero, colore o blocco texture, il mezzo del subsurface legato agli oggetti che usano il materiale, nessun interno per una superficie thin-walled. |
 | `DisneyBsdfTests.cs` | Il tipo `disney` tradotto su `OpenPbr` (`DisneyMaterial.Create`): reciprocità, integrale della pdf, coerenza di `Sample` con `Evaluate`/`Pdf`, anisotropia, scattering multiplo del metallo, trasmissione (sigma di Beer-Lambert in entrata, nessun cambio di mezzo per il vetro sottile e thin-walled), `diff_trans`, coat, sheen, film sottile, vetro quasi delta. |
+
+E per i denoiser:
+
+| File | Cosa verifica |
+|---|---|
+| `OidnDenoiserTests.cs` | Open Image Denoise: la libreria nativa si carica dove la build la include (Linux x64, Windows x64, macOS), riduce l'errore di un render a 8 spp sotto il 65% di quello rumoroso e sotto NFOR, conserva l'energia entro il 3%, i canali e l'orientamento dell'immagine (un errore nel binding li scambierebbe). |
+| `DenoiserRegressionTests.cs` | NFOR e NLM su una scena mista a basso campionamento: errore contro un riferimento convergente, NFOR non peggiore di NLM, un render Sobol quasi convergente non peggiora. |
+| `DenoiserHighlightTests.cs` | Un pixel migliaia di volte più luminoso degli altri resta dov'è, con la sua energia, senza alone sui vicini. |
 
 Il confronto con un renderer di riferimento esterno su scene complete vive fuori dalla suite, in
 `validation/` (vedi `validation/README.md`), insieme allo strumento `src/Tools/ImageCompare`.

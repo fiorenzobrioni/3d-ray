@@ -68,9 +68,14 @@ public static class NforDenoiser
 
     /// <summary>
     /// Highlights above this multiple of the image's 99th-percentile luminance
-    /// are not filtered (<see cref="SplitHighlights"/>).
+    /// are not filtered (<see cref="SplitHighlights"/>). 8 (was 32 until
+    /// Phase 9): the out-of-focus lights of <c>showcases/camera-physical.yaml</c>
+    /// came out as squares, relMSE 0.51 against the noisy 0.055 at 16 spp;
+    /// 0.11 at 8, and the Cornell box 0.0012 instead of 0.0021. Lower
+    /// factors cost the Cornell box at 4 spp. Bokeh still loses to the noisy
+    /// image with NFOR: OIDN reconstructs it (0.014).
     /// </summary>
-    internal const float HighlightFactor = 32f;
+    internal const float HighlightFactor = 8f;
 
     /// <summary>
     /// Sets aside what the brightest pixels have above a threshold, so the

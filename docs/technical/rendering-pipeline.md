@@ -251,6 +251,10 @@ Vector3 linearColor = cumulativeColor / actualSamples;
 pixels[j, i] = _display.Apply(linearColor * _exposureScale);
 ```
 
+### 3.2b Adaptive sampling (`--adaptive on`)
+
+Con `--adaptive on` (path tracing, sampler Sobol, senza `--guiding` né `--reference`) il loop di `Rendering/AdaptiveSampling.cs` sostituisce quello sopra: tutti i pixel prendono i primi `--adaptive-min-spp` campioni della loro sequenza (default 4/√soglia arrotondato a una potenza di due, 64 alla soglia 0.01), poi passate successive raddoppiano il conteggio dei soli pixel ancora rumorosi, fino a `-s`. Dopo ogni passata l'errore del pixel si legge dalle due metà del doppio buffer (la prima e la seconda metà della sua sequenza): `Σ_c σ_c / (1e-4 + √Σ_c I_c)` con `I` la media esposta e `σ` l'errore standard stimato dalle metà; un pixel si ferma quando lui e gli otto vicini sono sotto `--adaptive-threshold`. Prima di ogni passata i campioni fatti diventano la metà A e la passata riempie la B, così le metà restano le due metà della sequenza. I conteggi per pixel finiscono in `RenderBuffers.SampleCount` e `HalfCountA`; il denoiser li usa così come sono. Dettagli e misure in [Denoising](denoising.md) §8.
+
 ### 3.3 Generazione del Raggio (Camera Thin-Lens)
 
 **File:** `Camera.cs`

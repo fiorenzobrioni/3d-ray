@@ -77,9 +77,8 @@ public class DenoiserRegressionTests
     [Fact]
     public void Denoise_LowSppRender_CutsMseAgainstConvergedReference()
     {
-        // PRNG: independent A/B halves, the dual-buffer estimator's design
-        // assumption (with Sobol the halves anti-correlate and the gains are
-        // deliberately damped by the selection margin — see NforRegression).
+        // PRNG: the halves' variance estimate is conservative (1.2-1.4×,
+        // DualBufferVarianceTests), so the gains measured here are a floor.
         // Thresholds carry headroom over measured values (nfor ≈ 0.46×,
         // nlm ≈ 0.60×, fast ≈ 0.55× at implementation time).
         Sampler.SetKind(SamplerKind.Prng);
@@ -151,7 +150,7 @@ public class DenoiserRegressionTests
     [Fact]
     public void Denoise_NearConvergedSobolRender_NeverRegresses()
     {
-        // The Sobol selection margin must keep the denoiser from making an
+        // The MSE selection must keep the denoiser from making an
         // already-clean low-discrepancy render worse (small tolerance for
         // per-pixel selection noise).
         Sampler.SetKind(SamplerKind.Sobol);

@@ -42,19 +42,23 @@ preset. The ladder is **4 quality tiers × 3 resolutions + 1 4K showcase**
 
 | `-q` value | Resolution | `-s` | `-d` | `-S` | Denoiser | Typical use |
 |---|---|---|---|---|---|---|
-| `draft-tiny`   | 480×270   | 16   | 8 | 1 | nfor fast | Instant sanity check / gross errors |
-| `draft-small`  | 960×540   | 16   | 8 | 1 | nfor fast | Super-fast composition / camera placement |
-| `draft`        | 1920×1080 | 16   | 8 | 1 | nfor fast | Same speed, Full HD framing |
-| `standard-tiny`  | 480×270   | 512 | 12 | 1 | nfor high | Quick check, classic-scene quality |
-| `standard-small` | 960×540   | 512 | 12 | 1 | nfor high | Material/lighting iteration, thumbnails |
-| `standard`       | 1920×1080 | 512 | 12 | 1 | nfor high | **Day-to-day quality render** (review, CI, classic scenes) |
-| `pre-final-tiny`  | 480×270   | 256 | 16 | 1 | nfor high | Full-feature spot check |
-| `pre-final-small` | 960×540   | 256 | 16 | 1 | nfor high | Final-look iteration at ¼ resolution |
-| `pre-final`       | 1920×1080 | 256 | 16 | 1 | nfor high | **Faithful preview of `final`**, ~4-6× faster |
+| `draft-tiny`   | 480×270   | 16   | 8 | 1 | oidn fast | Instant sanity check / gross errors |
+| `draft-small`  | 960×540   | 16   | 8 | 1 | oidn fast | Super-fast composition / camera placement |
+| `draft`        | 1920×1080 | 16   | 8 | 1 | oidn fast | Same speed, Full HD framing |
+| `standard-tiny`  | 480×270   | 512 | 12 | 1 | oidn high | Quick check, classic-scene quality |
+| `standard-small` | 960×540   | 512 | 12 | 1 | oidn high | Material/lighting iteration, thumbnails |
+| `standard`       | 1920×1080 | 512 | 12 | 1 | oidn high | **Day-to-day quality render** (review, CI, classic scenes) |
+| `pre-final-tiny`  | 480×270   | 256 | 16 | 1 | oidn high | Full-feature spot check |
+| `pre-final-small` | 960×540   | 256 | 16 | 1 | oidn high | Final-look iteration at ¼ resolution |
+| `pre-final`       | 1920×1080 | 256 | 16 | 1 | oidn high | **Faithful preview of `final`**, ~4-6× faster |
 | `final-tiny`   | 480×270   | 1024 | 16 | 4 | - | Quick full-quality spot check |
 | `final-small`  | 960×540   | 1024 | 16 | 4 | - | Showcase thumbnail / contact-sheet |
 | `final`        | 1920×1080 | 1024 | 16 | 4 | - | Portfolio, README cover |
 | `ultra`        | 3840×2160 | 512  | 32 | 4 | - | 4K showcase |
+
+From `standard*` up the presets also turn **adaptive sampling** on
+(`--adaptive on`, section 4d): `-s` is then the cap, and the pixels that
+converge earlier stop.
 
 `-d` is the total number of path vertices; each preset also splits it by
 kind of bounce (see section 4), because glass needs many refractions and
@@ -89,17 +93,24 @@ didn't pass: `-q final -d 32` runs the final preset but raises the depth
 to 32 for every kind of bounce (e.g. for a deep stack of glass); `-q standard -w 640 -H 360` shrinks
 the standard preset without touching its sampling settings.
 
-**Denoiser.** The `draft*`, `standard*` and `pre-final*` presets enable the
-feature-guided denoiser by default (`--denoiser nfor`; `draft*` uses
+**Denoiser.** The `draft*`, `standard*` and `pre-final*` presets enable
+Intel Open Image Denoise by default (`--denoiser oidn`; `draft*` uses
 `--denoise-quality fast`, the others `high`): the linear HDR beauty is
-filtered before tone mapping using albedo/normal/depth guides, which is
+filtered before tone mapping using albedo and normal guides, which is
 where low- and mid-spp renders gain the most - and where `standard`'s
-512 spp often leave a faint residual grain that the denoiser absorbs for a
-few extra seconds. `final` and `ultra` stay unfiltered by design (converged
-reference renders keep every unfiltered detail); add an explicit
-`--denoiser nfor` if you want them filtered, or `--denoiser none` to switch
-the preset default off. See [Denoising](../technical/denoising.md) for the
-algorithm and trade-offs.
+512 spp often leave a faint residual grain that the denoiser absorbs in a
+fraction of a second. Where the native library does not load (a platform
+the build does not ship it for) the presets use the built-in
+`--denoiser nfor` instead, with a note in the output. Measured against
+converged images, `oidn` leaves 1.2 to 90 times less error than `nfor`
+and 3 to 140 times less than no denoiser at 4-64 spp; it also removes
+caustic fireflies that are still unconverged, with their energy (a scene
+with glass can come out a few percent darker). `final` and `ultra` stay
+unfiltered by design (converged reference renders keep every unfiltered
+detail); add an explicit `--denoiser oidn` if you want them filtered, or
+`--denoiser none` to switch the preset default off. See
+[Denoising](../technical/denoising.md) for the algorithms and the
+measurements.
 
 **Caustics.** Path tracing renders caustics as they are, unbiased but noisy
 where only a lucky bounce finds the light. A scene whose look depends on
@@ -114,7 +125,7 @@ another), procedural marble with ordinary parameters - while stripping the
 expensive global-illumination machinery that such scenes don't need.
 Relative to `final` it: turns volumetric **SSS off** (`--sss-mode off`), runs **512 spp** with a **single shadow
 sample** (512 spp already anti-aliases), trims the bounce budgets (4
-diffuse, 6 glossy, 12 transmission), and lets the **NFOR denoiser** absorb
+diffuse, 6 glossy, 12 transmission), and lets the **denoiser** absorb
 the residual grain. On a scene with no
 SSS this is dramatically faster than `final` for visually
 equivalent output. As always, explicit flags win - e.g. `-q standard
@@ -169,7 +180,7 @@ RayTracer -i my-scene -q standard --denoiser none
 
 > **No `-q` means `draft-small`.** When the command line omits `--quality`, the
 > renderer applies the `draft-small` preset (960×540, 16 spp, depth 8, single
-> shadow sample, NFOR-fast denoiser) - a quick, denoised composition check is a
+> shadow sample, OIDN denoiser) - a quick, denoised composition check is a
 > better first-run default than a slow, un-denoised pass. Every quality knob
 > below still overrides the preset when passed explicitly. The values in the
 > table are the resulting `draft-small` defaults.
@@ -180,7 +191,8 @@ RayTracer -i my-scene -q standard --denoiser none
 | `-d` / `--depth` | `8` (diffuse 3, glossy 4, transmission 8, volume 3) | `draft-small` preset |
 | `--depth-transparent` | `16` (cut-outs crossed, outside the total) | `PathDepths.DefaultTransparent` |
 | `-S` / `--shadow-samples` | `1` (`draft-small`; without a preset → per-light YAML, default 4) | `Program.cs` |
-| `--denoiser` | `nfor` fast (`draft-small`) | `draft-small` preset |
+| `--denoiser` | `oidn` fast (`draft-small`; `nfor` where OIDN does not load) | `draft-small` preset |
+| `--adaptive` | `off` (`draft-small`; on from `standard` up, threshold `0.01`) | presets |
 | `-C` / `--clamp` | off (no firefly clamp) | opt-in, suggested start `10` (`Renderer.SuggestedMaxSampleRadiance`) |
 | `--indirect-clamp-factor` | `0.25` (only with `-C`: indirect clamp = `-C` × factor) | `Renderer.DefaultIndirectClampFactor` |
 | `--transparent-shadows` | `off` (glass casts its physical shadow and caustic) | `Program.cs` |
@@ -327,6 +339,39 @@ included).
 RayTracer -i scenes/review/vcm-pool.yaml -q standard-small --integrator vcm -s 256
 # Caustics seen directly, unbiased
 RayTracer -i my-scene -q final --integrator bdpt
+```
+
+---
+
+### 4d. **ADAPTIVE SAMPLING (`--adaptive on`)**
+
+With adaptive sampling every pixel takes a first pass of
+`--adaptive-min-spp` samples (default 64), then passes double the samples
+of the pixels still noisy, up to `-s`. A pixel's noise is read from the two
+halves of its own samples; it stops, together with its eight neighbours,
+when the noise falls below `--adaptive-threshold` (default 0.01, about the
+noise of a display value). On by default in the `standard*`, `pre-final*`,
+`final*` and `ultra` presets; `draft*` has fewer samples than the first pass.
+
+| Scene (measured) | Samples on average | Time | Error |
+|---|---|---|---|
+| Cornell box, `-q final-tiny` | 394 of 1024 | −9% | same (relMSE 2.3e-6 between the two) |
+| Cornell box, 160×90, `-s 512` | 246 | −13% | same |
+| Procedural textures, 160×90, `-s 512` | 471 | −6% | same |
+| Sunlit room, 160×90, `-s 512` | 495 | 0% | same |
+
+The pixels that converge first are usually the cheap ones (background, sky),
+so time falls less than the sample count. Raise the threshold (`0.02`) for
+faster previews, lower it (`0.005`) for deliverables. Not available with
+`--reference` (stopping on a pixel's own samples is slightly biased),
+`--guiding`, `--integrator bdpt|vcm` or `--sampler prng`; the presets drop
+it silently there, an explicit `--adaptive on` is an error.
+
+```bash
+# Final with a stricter threshold
+RayTracer -i my-scene -q final --adaptive-threshold 0.005
+# Uniform sampling, every pixel the full -s
+RayTracer -i my-scene -q final --adaptive off
 ```
 
 ---

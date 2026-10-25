@@ -15,12 +15,12 @@
 #
 #  Il bokeh di sorgenti piccole e molto luminose converge lentamente (ogni
 #  pixel del disco riceve luce solo dai campioni di lente che colpiscono la
-#  lampadina): servono molti campioni. Il denoiser NFOR dei preset draft e
-#  standard disegna un alone scuro attorno a queste luci (PIANO-REVIEW.md
-#  §3.33, da correggere nella Fase 9): meglio renderle senza.
+#  lampadina): servono molti campioni. Il denoiser OIDN dei preset lo
+#  ricostruisce già a pochi campioni; NFOR (`--denoiser nfor`) lo disegna a
+#  quadrati (PIANO-REVIEW.md §3.33, scenes/review/denoiser-bokeh.yaml).
 #
 #  Render consigliati:
-#    Preview:  -q draft-small -c hexagon -s 256 --denoiser none
+#    Preview:  -q draft-small -c hexagon -s 64
 #    Final:    -q final -c hexagon
 # ═══════════════════════════════════════════════════════════════════════════
 

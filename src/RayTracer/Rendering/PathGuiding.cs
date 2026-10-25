@@ -24,39 +24,40 @@ public partial class Renderer
     private AABB _finiteSceneBounds;
 
     // Training passes kept for the render, weighted by inverse variance
-    // (CombineGuidedPasses): per pixel the weighted sums of the even- and
-    // odd-indexed samples (the dual-buffer halves), their total weights, and
+    // (CombineGuidedPasses): per pixel the weighted sums of each pass's
+    // first and second half of samples (the dual-buffer halves), their total weights, and
     // how many samples the passes took.
     private Vector3[,]? _guideSumA, _guideSumB;
     private double _guideNormA, _guideNormB;
     private int _guideTrainCount;
 
-    /// <summary>One pass's per-pixel sums: halves by sample index, and luminance squared.</summary>
+    /// <summary>
+    /// One pass's per-pixel sums: the halves (the pass's first ⌈n/2⌉ sample
+    /// indices, then the rest, as <see cref="RenderBuffers"/>), and luminance squared.
+    /// </summary>
     private sealed class GuidedPassSums
     {
         public readonly Vector3[,] A, B;
         public readonly float[,] Lum2;
-        public int CountA, CountB;     // samples per pixel in each half
+        public readonly int CountA, CountB;     // samples per pixel in each half
+        private readonly int _splitIndex;
 
-        public GuidedPassSums(int width, int height)
+        /// <summary>A pass of <paramref name="n"/> samples from global index <paramref name="first"/>.</summary>
+        public GuidedPassSums(int width, int height, int first, int n)
         {
             A = new Vector3[height, width];
             B = new Vector3[height, width];
             Lum2 = new float[height, width];
+            CountA = (n + 1) / 2;
+            CountB = n - CountA;
+            _splitIndex = first + CountA;
         }
 
         public void Add(int i, int j, int index, Vector3 sample)
         {
-            if ((index & 1) == 0) A[j, i] += sample; else B[j, i] += sample;
+            if (index < _splitIndex) A[j, i] += sample; else B[j, i] += sample;
             float l = MathUtils.Luminance(sample);
             Lum2[j, i] += l * l;
-        }
-
-        /// <summary>Sets the half counts for <paramref name="n"/> samples starting at global index <paramref name="first"/>.</summary>
-        public void Count(int first, int n)
-        {
-            CountA = (n + ((first & 1) == 0 ? 1 : 0)) / 2;
-            CountB = n - CountA;
         }
 
         /// <summary>
@@ -99,7 +100,6 @@ public partial class Renderer
                                      Vector3[,] pixels, RenderBuffers? buffers)
     {
         int h = pixels.GetLength(0), w = pixels.GetLength(1);
-        final.Count(trained, finalSamples);
         double wf = PassWeight(final.SampleVariance(finalSamples));
         double normA = _guideNormA + wf * final.CountA, normB = _guideNormB + wf * final.CountB;
         var sumA = _guideSumA!;
@@ -344,7 +344,7 @@ public partial class Renderer
         {
             passes.Add(passSpp);
 
-            var passSums = new GuidedPassSums(width, height);
+            var passSums = new GuidedPassSums(width, height, used, passSpp);
 
             // Bounded memory: about eight million records (≈ 260 MB) in
             // flight; larger batches mean fewer barriers between them.
@@ -379,7 +379,6 @@ public partial class Renderer
                             Ray ray = CameraSample(i, j, width, height, dsdx, dtdy);
                             Vector3 sample = ClampRadiance(TracePath(ray));
                             if (useSobol) Sampler.EndPixelSample();
-                            // Halves by the sample's index over all passes.
                             passSums.Add(i, j, used + s, sample);
                         }
                     }
@@ -393,7 +392,6 @@ public partial class Renderer
             // Into the image, weighted by the pass's noise. A one-sample pass
             // cannot tell its variance: it joins only the reference estimator,
             // where every sample weighs the same.
-            passSums.Count(used, passSpp);
             double wk = _referenceMode ? 1.0 : passSpp > 1 ? PassWeight(passSums.SampleVariance(passSpp)) : 0.0;
             if (wk > 0)
             {

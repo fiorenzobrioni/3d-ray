@@ -41,9 +41,9 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 |---|---------|-------|
 | 12 | Importance Sampling (GGX su Metal/Disney, env via CDF 2D, cosine-weighted diffuse) | ✅ |
 | 13 | Multi-Importance Sampling (tutti i materiali + phase function, balance/power heuristic) | ✅ |
-| 14 | Adaptive Sampling | ⬜ (dopo #15; il layer dual-buffer A/B + `SampleCount` per pixel di #16 è la fondazione pronta) |
+| 14 | Adaptive Sampling (`--adaptive on`, review Fase 9: passate a raddoppio sulla sequenza Sobol del pixel, errore dalle metà del doppio buffer, un pixel si ferma con i suoi otto vicini; solo path tracing senza guiding) | ✅ |
 | 15 | Tile-based Rendering (tile 16×16, progress su thread reporter dedicato) | ✅ |
-| 16 | Denoiser (NFOR: NL-means + regressione first-order guidata da albedo/normal/depth, dual-buffer cross-filtering, selezione MSE con safety net; `--denoiser nlm\|nfor`, default nei preset draft/standard/pre-final) | ✅ |
+| 16 | Denoiser (Intel Open Image Denoise `--denoiser oidn`, default nei preset draft/standard/pre-final dalla review Fase 9; NFOR: NL-means + regressione first-order guidata da albedo/normal/depth, dual-buffer cross-filtering, selezione MSE con safety net, `--denoiser nlm\|nfor`, ripiego senza librerie native) | ✅ |
 | 17 | HDR Output (PFM/EXR pre-tone-mapping) | ✅ PFM (`--aov`) + EXR (`-o *.exr` multilayer scene-linear, `--aov-format pfm\|exr`; writer `ExrImage` zero-dipendenze, half/float + ZIP) |
 | +  | Sobol + Owen Scrambling sampler (`--sampler sobol`, default attivo) | ✅ |
 | +  | Integratore iterativo (`Rendering/PathIntegrator.cs`, review Fase 7): throughput esplicito, Russian Roulette standard su β × η², profondità per tipo di lobo (`--depth-diffuse/-glossy/-transmission/-volume/-transparent`) | ✅ |
@@ -154,7 +154,7 @@ Fase 2 della review (geometria e intersezioni), corretti 2026-10-25:
 Fase 3 della review (camera, film e colore):
 
 - [x] **Decodifica sRGB delle texture con potenza 2.2** (§3.4) e **tone mapping ACES per canale con gamma 2.2** (§3.5): corretti 2026-10-21 (curva sRGB a tratti, view transform AgX / ACES 1.x / standard, `legacy` per i render vecchi).
-- [ ] **NFOR disegna un alone scuro** attorno a luci piccole e molto luminose sfocate (§3.33): mitigato 2026-10-22 (luci estreme tolte dal filtro, candidati che scendono sotto zero esclusi); resta una cucitura sottile lungo i bordi HDR. Fase 9 (OIDN).
+- [x] **NFOR disegna un alone scuro** attorno a luci piccole e molto luminose sfocate (§3.33): mitigato 2026-10-22; corretto 2026-10-25 (Fase 9) con OIDN di default nei preset. NFOR, ripiego senza librerie native, trasforma ancora il bokeh in quadrati (attenuato con la soglia delle luci a 8 volte il 99° percentile).
 - [x] **Esposizione fisica** (ISO, tempo di posa, EV100) senza unità delle luci (§3.34): fatta 2026-10-22 (Fase 6), con le unità fotometriche (§3.14).
 
 Fase 4 della review (texture e dati), corretti 2026-10-21:
@@ -199,6 +199,19 @@ Ottimizzazioni valutate nel ciclo Review e **rimandate** (da riprendere):
   validare su scene marmo-pesanti.
 - **`HitRecord` più snello** - spostare `FilterFootprint`/`MediumInterface`/autobump
   fuori dallo struct core e calcolarli pigramente dopo l'hit finale.
+
+Campionamento (Fase 9):
+- **Blue noise in screen space** (ZSobol di Ahmed e Wonka 2020, come il
+  `ZSobolSampler` di PBRT-v4): valutato e non fatto. Distribuisce l'errore come
+  rumore blu, utile a vista solo a pochi campioni senza denoiser; i preset a pochi
+  campioni usano OIDN, addestrato su rumore indipendente fra i pixel (come la
+  varianza a doppio buffer e le distanze di NFOR), e l'indice globale
+  Morton × spp richiede lo stesso numero di campioni in ogni pixel, che
+  l'adaptive sampling rompe. Da riprendere come `--sampler zsobol` per le
+  anteprime senza denoiser, se servisse.
+- **Adaptive sampling con guiding e BDPT/VCM**: oggi rifiutato. Con il guiding
+  le passate di addestramento sono globali e la combinazione per varianza inversa
+  assume conteggi uniformi; con BDPT/VCM il light tracing deposita su tutti i pixel.
 
 Ottimizzazioni degli integratori bidirezionali possibili (Fase 8b):
 - **Vertici di luce più leggeri** - oggi ogni vertice salva l'`HitRecord` completo
