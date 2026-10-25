@@ -16,8 +16,8 @@
 #  Il bokeh di sorgenti piccole e molto luminose converge lentamente (ogni
 #  pixel del disco riceve luce solo dai campioni di lente che colpiscono la
 #  lampadina): servono molti campioni. Il denoiser OIDN dei preset lo
-#  ricostruisce già a pochi campioni; NFOR (`--denoiser nfor`) lo disegna a
-#  quadrati (PIANO-REVIEW.md §3.33, scenes/review/denoiser-bokeh.yaml).
+#  ricostruisce già a pochi campioni; NFOR (`--denoiser nfor`) lo gonfia con
+#  un alone scuro (PIANO-REVIEW.md §3.33, scenes/review/denoiser-bokeh.yaml).
 #
 #  Render consigliati:
 #    Preview:  -q draft-small -c hexagon -s 64

@@ -14,7 +14,8 @@
 #      -w 480 -H 270 -s 16 --denoiser oidn      (oppure nfor, none)
 #
 #  Atteso: con oidn dischi di bokeh rotondi e puliti come nel riferimento a
-#  1024 campioni senza denoiser; con nfor dischi squadrati e sfumati; senza
+#  1024 campioni senza denoiser; con nfor dischi gonfi e sfumati con un
+#  alone scuro (a quadrati prima della Fase 9); senza
 #  denoiser dischi rumorosi. Misure a 320 x 180 (relMSE contro 1024 spp):
 #  none 0.055, nfor 0.108, oidn 0.014 a 16 spp. images/denoiser-bokeh.jpg:
 #  sopra none e nfor, sotto oidn e il riferimento.
