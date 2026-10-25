@@ -1,0 +1,4 @@
+mitsuba==3.9.1
+numpy
+PyYAML
+flip-evaluator

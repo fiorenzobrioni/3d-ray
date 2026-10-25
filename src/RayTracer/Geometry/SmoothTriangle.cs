@@ -7,7 +7,7 @@ namespace RayTracer.Geometry;
 /// <summary>
 /// Triangle with per-vertex normals and texture coordinates for smooth-shaded meshes.
 ///
-/// Uses the same Möller–Trumbore intersection as <see cref="Triangle"/>, but
+/// Uses the same watertight intersection as <see cref="Triangle"/>, but
 /// interpolates normals and UVs via barycentric coordinates for:
 ///   • Smooth shading (Phong normal interpolation) — no visible facet edges.
 ///   • Artist UV mapping — texture coordinates from OBJ/glTF vertex data.
@@ -18,7 +18,7 @@ namespace RayTracer.Geometry;
 ///   w0 = 1 - u - v  (weight for V0)
 ///   w1 = u           (weight for V1)
 ///   w2 = v           (weight for V2)
-///   This matches the Möller–Trumbore output where u, v are the coordinates
+///   u, v are the coordinates
 ///   along edges V0→V1 and V0→V2 respectively.
 ///
 /// <b>Normal interpolation:</b>
@@ -59,6 +59,25 @@ public class SmoothTriangle : IHittable, ISamplable
     private readonly Vector3 _tangent;
     private readonly Vector3 _bitangent;
 
+    // ∂P/∂u, ∂P/∂v of the UV mapping (unnormalised): the texture footprint
+    // needs the rate, not just the direction. Zero when the UVs are degenerate.
+    private readonly Vector3 _dpdu;
+    private readonly Vector3 _dpdv;
+
+    // Per-vertex tangents (MeshTangents), interpolated at the hit like the
+    // normals, and the face's bitangent sign: B = sign · (N × T). Without
+    // them the face tangent is used, constant per triangle.
+    private Vector3 _vt0, _vt1, _vt2;
+    private float _tangentSign;
+    private bool _hasVertexTangents;
+
+    /// <summary>True when the triangle was given real texture coordinates.</summary>
+    public bool HasTextureUvs { get; }
+
+    /// <summary>The face tangent (∂P/∂u direction) and bitangent of the UV mapping.</summary>
+    public Vector3 FaceTangent => _tangent;
+    public Vector3 FaceBitangent => _bitangent;
+
     // Precomputed edges + area — immutable across the mesh's lifetime so the
     // hit-time subtractions and the SampleAt Cross/Length are wasted work.
     private readonly Vector3 _edge1;
@@ -77,6 +96,7 @@ public class SmoothTriangle : IHittable, ISamplable
         N2 = Vector3.Normalize(n2);
         UV0 = uv0; UV1 = uv1; UV2 = uv2;
         Material = material;
+        HasTextureUvs = true;
 
         _edge1 = v1 - v0;
         _edge2 = v2 - v0;
@@ -115,6 +135,8 @@ public class SmoothTriangle : IHittable, ISamplable
             {
                 _tangent = t / tLen;
                 _bitangent = b / bLen;
+                _dpdu = t;
+                _dpdv = b;
             }
             else
             {
@@ -142,27 +164,27 @@ public class SmoothTriangle : IHittable, ISamplable
         : this(v0, v1, v2, n0, n1, n2,
                new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1),
                material)
-    { }
+    {
+        HasTextureUvs = false;
+    }
+
+    /// <summary>
+    /// Gives the triangle per-vertex tangents (unit, in the plane of each
+    /// vertex normal) and the sign of its bitangent, as computed over the
+    /// whole mesh by <see cref="MeshTangents"/>.
+    /// </summary>
+    public void SetVertexTangents(Vector3 t0, Vector3 t1, Vector3 t2, float sign)
+    {
+        _vt0 = t0; _vt1 = t1; _vt2 = t2;
+        _tangentSign = sign < 0f ? -1f : 1f;
+        _hasVertexTangents = true;
+    }
 
     public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
-        // ── Möller–Trumbore (identical to flat Triangle) ────────────────
-        Vector3 h = Vector3.Cross(ray.Direction, _edge2);
-        float a = Vector3.Dot(_edge1, h);
-
-        if (MathF.Abs(a) < 1e-7f) return false;
-
-        float f = 1f / a;
-        Vector3 s = ray.Origin - V0;
-        float u = f * Vector3.Dot(s, h);
-        if (u < 0f || u > 1f) return false;
-
-        Vector3 q = Vector3.Cross(s, _edge1);
-        float v = f * Vector3.Dot(ray.Direction, q);
-        if (v < 0f || u + v > 1f) return false;
-
-        float t = f * Vector3.Dot(_edge2, q);
-        if (t < tMin || t > tMax) return false;
+        // Watertight test, shared with the flat Triangle.
+        if (!TriangleIntersection.Intersect(ray, V0, V1, V2, tMin, tMax, out float t, out float u, out float v))
+            return false;
 
         // ── Barycentric weights ─────────────────────────────────────────
         float w0 = 1f - u - v;
@@ -188,8 +210,26 @@ public class SmoothTriangle : IHittable, ISamplable
         rec.V = interpUV.Y;
 
         // ── TBN basis ───────────────────────────────────────────────────
-        rec.Tangent = _tangent;
-        rec.Bitangent = _bitangent;
+        // With vertex tangents the frame is MikkTSpace's: the tangent
+        // interpolated and made orthogonal to the interpolated normal, the
+        // bitangent sign · (N × T) rebuilt at the hit. A baked normal map is
+        // encoded in exactly this frame, so it shows no seams between faces.
+        Vector3 tangent = _tangent, bitangent = _bitangent;
+        if (_hasVertexTangents)
+        {
+            Vector3 ti = w0 * _vt0 + w1 * _vt1 + w2 * _vt2;
+            ti -= Vector3.Dot(ti, shadingNormal) * shadingNormal;
+            float tl = ti.Length();
+            if (tl > 1e-8f)
+            {
+                tangent = ti / tl;
+                bitangent = _tangentSign * Vector3.Cross(shadingNormal, tangent);
+            }
+        }
+        rec.Tangent = tangent;
+        rec.Bitangent = bitangent;
+        rec.DpDu = _dpdu;
+        rec.DpDv = _dpdv;
 
         rec.ObjectSeed = Seed;
         rec.Material = Material;
@@ -197,7 +237,10 @@ public class SmoothTriangle : IHittable, ISamplable
     }
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
-        => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleAt(r2u, r2v);
+    }
 
     /// <inheritdoc/>
     public float SurfaceArea => _area;
@@ -206,13 +249,11 @@ public class SmoothTriangle : IHittable, ISamplable
     /// Stratified version — uses the same unit-square-to-triangle warp as
     /// <see cref="Triangle.SampleStratified"/>.
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleAt(xi1, xi2);
     }
 
@@ -233,7 +274,7 @@ public class SmoothTriangle : IHittable, ISamplable
     public int Seed { get; set; }
 
     /// <summary>
-    /// Recovers the Möller–Trumbore barycentrics (u along V0→V1, v along V0→V2)
+    /// Recovers the barycentrics (u along V0→V1, v along V0→V2)
     /// of a point assumed to lie in this triangle's plane.
     /// </summary>
     public void Barycentric(Vector3 p, out float u, out float v)
@@ -253,8 +294,7 @@ public class SmoothTriangle : IHittable, ISamplable
 
     public AABB BoundingBox()
     {
-        var min = Vector3.Min(Vector3.Min(V0, V1), V2) - new Vector3(MathUtils.Epsilon);
-        var max = Vector3.Max(Vector3.Max(V0, V1), V2) + new Vector3(MathUtils.Epsilon);
-        return new AABB(min, max);
+        // Exact: the BVH's slab test is conservative (AABB.Hit).
+        return new AABB(Vector3.Min(Vector3.Min(V0, V1), V2), Vector3.Max(Vector3.Max(V0, V1), V2));
     }
 }

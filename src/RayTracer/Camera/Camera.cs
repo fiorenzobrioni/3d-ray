@@ -12,6 +12,19 @@ namespace RayTracer.Camera;
 /// </summary>
 public readonly record struct CameraKey(float Time, Vector3 LookFrom, Vector3 LookAt, Vector3 Vup, float Fov);
 
+/// <summary>
+/// Shape of the lens aperture, which is the shape of the bokeh: a disk by
+/// default, a regular polygon with <see cref="Blades"/> straight blades
+/// (inscribed in the disk, a vertex at <see cref="RotationDeg"/>), stretched
+/// horizontally by <see cref="Ratio"/> (width / height; below 1 gives the tall
+/// ovals of an anamorphic lens).
+/// </summary>
+public readonly record struct ApertureShape(int Blades = 0, float RotationDeg = 0f, float Ratio = 1f)
+{
+    public static readonly ApertureShape Circular = new(0, 0f, 1f);
+    public bool IsCircular => Blades < 3 && Ratio == 1f;
+}
+
 public class Camera
 {
     /// <summary>Precomputed view frame for one camera pose.</summary>
@@ -53,11 +66,23 @@ public class Camera
 
     private readonly Basis _basis;
     private readonly float _lensRadius;
+    private readonly ApertureShape _aperture;
 
     // Retained only for the animated path, which rebuilds the basis per ray.
     private readonly CameraKey[]? _motion;
     private readonly float _aspectRatio;
     private readonly float _focusDist;
+
+    /// <summary>White balance of the camera in kelvin, or null. A film setting
+    /// read by the display transform, not by the ray generation.</summary>
+    public float? WhiteBalanceKelvin { get; set; }
+
+    /// <summary>
+    /// Exposure, in stops, of the physical camera settings (ISO, shutter,
+    /// f-number or EV100; <see cref="Lights.LightUnits.ExposureEvFromEv100"/>):
+    /// added to the <c>--exposure</c> of the render. Null when the camera sets none.
+    /// </summary>
+    public float? PhysicalExposureEv { get; set; }
 
     /// <summary>True when this camera carries motion keys (camera motion blur).</summary>
     public bool HasMotion => _motion != null;
@@ -70,10 +95,12 @@ public class Camera
         float aspectRatio,
         float aperture,
         float focusDist,
-        IReadOnlyList<CameraKey>? motion = null)
+        IReadOnlyList<CameraKey>? motion = null,
+        ApertureShape? apertureShape = null)
     {
         _basis = new Basis(lookFrom, lookAt, vUp, vFovDeg, aspectRatio, focusDist);
         _lensRadius = aperture / 2f;
+        _aperture = apertureShape ?? ApertureShape.Circular;
         _aspectRatio = aspectRatio;
         _focusDist = focusDist;
         _motion = motion is { Count: >= 2 } ? motion.OrderBy(k => k.Time).ToArray() : null;
@@ -96,7 +123,7 @@ public class Camera
                 time);
         }
 
-        Vector3 rd = _lensRadius * MathUtils.RandomInUnitDisk();
+        Vector3 rd = _lensRadius * SampleAperture();
         Vector3 offset = basis.U * rd.X + basis.V * rd.Y;
 
         return new Ray(
@@ -141,7 +168,7 @@ public class Camera
             return new Ray(basis.Origin, dir, diff, time);
         }
 
-        Vector3 rd = _lensRadius * MathUtils.RandomInUnitDisk();
+        Vector3 rd = _lensRadius * SampleAperture();
         Vector3 offset = basis.U * rd.X + basis.V * rd.Y;
         Vector3 lensOrigin = basis.Origin + offset;
 
@@ -150,6 +177,96 @@ public class Camera
         var dirYa = pixelTargetY - lensOrigin;
         var diffA = new RayDifferential(lensOrigin, dirXa, lensOrigin, dirYa);
         return new Ray(lensOrigin, dirMain, diffA, time);
+    }
+
+    // ── Importance (bidirectional integrators, PIANO-REVIEW.md Phase 8b) ───
+
+    /// <summary>
+    /// A point seen from the camera: the lens point (the centre for a
+    /// pinhole), the unit direction from it to the point and the distance, the
+    /// film coordinates (s, t) of <see cref="GetRay"/> where that ray crosses
+    /// the plane of focus, and the cosine with the optical axis.
+    /// </summary>
+    public readonly record struct FilmConnection(Vector3 LensPoint, Vector3 Direction, float Distance,
+                                                 float S, float T, float CosAxis);
+
+    /// <summary>
+    /// Connects <paramref name="p"/> to the camera: samples the lens (a
+    /// pinhole has one point) and projects onto the film. False when the point
+    /// is behind the camera.
+    /// </summary>
+    public bool ConnectToFilm(Vector3 p, float time, out FilmConnection c)
+    {
+        Basis b = _motion == null ? _basis : BasisAt(time);
+        Vector3 lens = b.Origin;
+        if (_lensRadius > 0f)
+        {
+            Vector3 rd = _lensRadius * SampleAperture();
+            lens += b.U * rd.X + b.V * rd.Y;
+        }
+        c = default;
+        Vector3 d = p - lens;
+        float dist = d.Length();
+        if (!(dist > 0f)) return false;
+        d /= dist;
+        Vector3 forward = Vector3.Cross(b.V, b.U);     // −w: the optical axis
+        float cos = Vector3.Dot(d, forward);
+        if (cos <= 1e-6f) return false;
+        // Where the ray from the lens point crosses the plane of focus, which
+        // lies _focusDist along the axis from the lens plane.
+        Vector3 pf = lens + d * (_focusDist / cos);
+        Vector3 rel = pf - b.LowerLeftCorner;
+        float s = Vector3.Dot(rel, b.Horizontal) / b.Horizontal.LengthSquared();
+        float t = Vector3.Dot(rel, b.Vertical) / b.Vertical.LengthSquared();
+        c = new FilmConnection(lens, d, dist, s, t, cos);
+        return true;
+    }
+
+    /// <summary>
+    /// Density in solid angle, per unit area of the film coordinates (s, t),
+    /// with which <see cref="GetRay"/> produces a ray at cosine
+    /// <paramref name="cosAxis"/> from the axis: f² / (A cos³θ), with f the
+    /// focus distance and A the area of the plane of focus inside the frame
+    /// (per pixel multiply by the number of pixels).
+    /// </summary>
+    public float FilmDirectionPdf(float cosAxis, float time)
+    {
+        Basis b = _motion == null ? _basis : BasisAt(time);
+        float area = b.Horizontal.Length() * b.Vertical.Length();
+        return _focusDist * _focusDist / (area * cosAxis * cosAxis * cosAxis);
+    }
+
+    /// <summary>
+    /// Uniform point on the aperture, in units of the lens radius (x along the
+    /// camera's U axis). One 2D decision: for a polygon the first coordinate
+    /// picks the triangle between the centre and one blade and is then reused
+    /// inside it, so the pair stays stratified.
+    /// </summary>
+    private Vector3 SampleAperture()
+    {
+        if (_aperture.IsCircular)
+            return MathUtils.RandomInUnitDisk();
+
+        Vector3 p;
+        if (_aperture.Blades >= 3)
+        {
+            var (u1, u2) = MathUtils.Random2D();
+            int n = _aperture.Blades;
+            float scaled = u1 * n;
+            int k = Math.Min((int)scaled, n - 1);
+            float a = MathF.Sqrt(scaled - k);       // uniform over the triangle
+            float step = 2f * MathF.PI / n;
+            float phi0 = MathUtils.DegreesToRadians(_aperture.RotationDeg) + MathF.PI / 2f + k * step;
+            var v0 = new Vector3(MathF.Cos(phi0), MathF.Sin(phi0), 0f);
+            var v1 = new Vector3(MathF.Cos(phi0 + step), MathF.Sin(phi0 + step), 0f);
+            p = a * ((1f - u2) * v0 + u2 * v1);
+        }
+        else
+        {
+            p = MathUtils.RandomInUnitDisk();
+        }
+        p.X *= _aperture.Ratio;
+        return p;
     }
 
     /// <summary>Interpolated camera pose at <paramref name="time"/> (clamped to the key range).</summary>

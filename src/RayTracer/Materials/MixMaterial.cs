@@ -8,13 +8,12 @@ namespace RayTracer.Materials;
 /// A composite material that interpolates between two child materials using
 /// a blend factor (constant scalar or spatially-varying texture mask).
 ///
-/// <b>Scatter (indirect lighting)</b> — Stochastic lobe selection: at each hit,
-/// a random number is compared against the blend factor to select material A or B.
-/// This is the standard unbiased approach used by production renderers (Blender
-/// Cycles Mix Shader, Mitsuba, PBRT). No re-weighting is needed because the
-/// selection probability exactly equals the blend weight.
+/// <b>Sample (indirect lighting)</b>: a random number against the blend factor
+/// selects material A or B (the one-sample mixture estimator, PBRT §14.3.3). A
+/// delta sample keeps its weight, the selection probability equalling the blend
+/// weight; a continuous sample reports the whole mixture's value and pdf.
 ///
-/// <b>EvaluateDirect (NEE)</b> — Deterministic weighted average of both materials'
+/// <b>Evaluate (NEE and MIS)</b> — Deterministic weighted average of both materials'
 /// BRDF responses. Lower variance than stochastic selection for direct lighting
 /// because both lobes contribute to every sample.
 ///
@@ -24,7 +23,7 @@ namespace RayTracer.Materials;
 /// <b>Normal map</b> — The MixMaterial accepts its own normal map via the
 /// standard <c>normal_map:</c> YAML field. Child materials' individual normal
 /// maps are NOT applied because the Renderer perturbs the normal once at the
-/// top-level material before calling Scatter/EvaluateDirect.
+/// top-level material before calling Sample/Evaluate.
 ///
 /// In YAML:
 ///   # Constant blend (40% rust, 60% clean metal)
@@ -97,7 +96,7 @@ public sealed class MixMaterial : IMaterial
     public bool IsDeltaScatter => MaterialA.IsDeltaScatter && MaterialB.IsDeltaScatter;
 
     /// <summary>Denoiser/AOV albedo guide: deterministic blend of the children
-    /// (mask-driven), mirroring the EvaluateDirect blend convention.</summary>
+    /// (mask-driven), mirroring the Evaluate blend convention.</summary>
     public Vector3 AovAlbedo(in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
@@ -114,56 +113,8 @@ public sealed class MixMaterial : IMaterial
     public BumpMapTexture? BumpMap { get; set; }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // Scatter (indirect lighting — stochastic lobe selection)
+    // Shadow and transmission queries (deterministic weighted blend)
     // ═════════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Stochastically selects one of the two child materials based on the blend
-    /// factor evaluated at the hit point.
-    ///
-    /// This is mathematically equivalent to:
-    ///   E[color] = (1-t) × colorA + t × colorB
-    ///
-    /// because P(select A) = 1−t and P(select B) = t, so the expected value
-    /// over many samples converges to the weighted blend. The stochastic
-    /// approach is unbiased and works correctly with any material type
-    /// (including Dielectric, Disney BSDF with transmission, nested Mix, etc.)
-    /// without needing to combine incompatible BSDF lobes.
-    /// </summary>
-    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
-    {
-        float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
-
-        if (MathUtils.RandomFloat() < t)
-            return MaterialB.Scatter(rayIn, rec, out attenuation, out scattered);
-        else
-            return MaterialA.Scatter(rayIn, rec, out attenuation, out scattered);
-    }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // EvaluateDirect (NEE — deterministic weighted blend)
-    // ═════════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Weighted average of both materials' BRDF responses for direct lighting.
-    ///
-    /// Unlike Scatter, EvaluateDirect is called once per light sample and its
-    /// result is multiplied by the light color directly. A deterministic blend
-    /// produces lower variance than stochastic selection here because both
-    /// materials contribute to every NEE sample.
-    ///
-    /// The blend factor is evaluated at the hit point's UV coordinates from the
-    /// HitRecord, giving correct spatial blending for texture-masked mix materials.
-    /// </summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
-    {
-        float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
-
-        Vector3 brdfA = MaterialA.EvaluateDirect(toLight, toEye, normal, rec);
-        Vector3 brdfB = MaterialB.EvaluateDirect(toLight, toEye, normal, rec);
-
-        return Vector3.Lerp(brdfA, brdfB, t);
-    }
 
     /// <inheritdoc/>
     public Vector3 ShadowTransmittance(Vector3 wi, in HitRecord rec)
@@ -173,6 +124,16 @@ public sealed class MixMaterial : IMaterial
         Vector3 tB = MaterialB.ShadowTransmittance(wi, rec);
         return Vector3.Lerp(tA, tB, t);
     }
+
+    /// <inheritdoc/>
+    public bool HasTransmission(in HitRecord rec)
+        => MaterialA.HasTransmission(in rec) || MaterialB.HasTransmission(in rec);
+
+    /// <inheritdoc/>
+    public bool Guidable(in HitRecord rec) => MaterialA.Guidable(in rec) && MaterialB.Guidable(in rec);
+
+    public bool TransmitsStraight(in HitRecord rec)
+        => MaterialA.TransmitsStraight(rec) && MaterialB.TransmitsStraight(rec);
 
     /// <inheritdoc/>
     public Vector3 ShadowAbsorption(in HitRecord rec)
@@ -206,7 +167,7 @@ public sealed class MixMaterial : IMaterial
     // Symmetric BSDF API (Evaluate / Pdf / Sample) — enables full MIS.
     //
     // Evaluate / Pdf are deterministic linear blends of the children — same
-    // logic as EvaluateDirect, applied to the cosine-free BRDF / solid-angle
+    // logic as the blend above, applied to the cosine-free BRDF / solid-angle
     // PDF the MIS estimator wants. Sample uses PBRT's one-sample mixture
     // estimator: pick child A or B with probability (1-t) / t, sample a
     // direction from it, then re-evaluate the FULL mixture f and pdf at that
@@ -260,7 +221,7 @@ public sealed class MixMaterial : IMaterial
         // probability so f / pdf = F / c_selected stays the unbiased estimator.
         if (s.IsDelta)
             return new BsdfSample(s.Wo, s.F, s.Pdf * cSelected, isDelta: true,
-                                  s.NextSegmentAbsorption, s.Transition);
+                                  s.NextSegmentAbsorption, s.Transition, s.Lobe, s.Eta);
 
         // Continuous lobe: re-evaluate the full mixture BRDF and pdf at the
         // sampled direction so the reported (F, Pdf) describe the mixture, not
@@ -273,7 +234,7 @@ public sealed class MixMaterial : IMaterial
             return null;
 
         return new BsdfSample(s.Wo, fMix, pdfMix, isDelta: false,
-                              s.NextSegmentAbsorption, s.Transition);
+                              s.NextSegmentAbsorption, s.Transition, s.Lobe, s.Eta);
     }
 
     // ═════════════════════════════════════════════════════════════════════════

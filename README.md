@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/ci.yml/badge.svg)](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/ci.yml)
 
-A personal exploration of ray tracing that grew, one feature at a time, into a full-featured CPU path tracer, written entirely in C#/.NET 10 with no native dependencies. Disney Principled BSDF, NEE+MIS, NFOR denoising, full volumetrics, caustics, surface displacement - all from a single YAML file.
+A personal exploration of ray tracing that grew, one feature at a time, into a full-featured CPU path tracer, written entirely in C#/.NET 10 with no native dependencies. Disney Principled BSDF, NEE+MIS, bidirectional path tracing and VCM, NFOR denoising, full volumetrics, caustics, surface displacement - all from a single YAML file.
 
 ![Spheres Classic](renders/spheres-classic.png)
 
@@ -20,9 +20,9 @@ A personal exploration of ray tracing that grew, one feature at a time, into a f
 
 The material system is built around a **complete Disney Principled BSDF**: a single type that spans the full gamut, from matte plaster to mirror-polished gold, from deep-water glass with Beer-Lambert thickness absorption to iridescent soap film with thin-film interference, with proper multi-scattering energy compensation for rough metals, subsurface shaping for skin and wax, and Charlie sheen for velvet and microfibre. A layered Mix Material with spatial texture masks handles wear, rust, weathering, and recursive compositions without limits.
 
-The lighting engine is production-class. **Next Event Estimation with Multiple Importance Sampling** converges fast even on complex, occluded lighting setups. **Focused caustics** via photon mapping light any specular geometry (glass, water, crystals, mirrors) with no per-object configuration; enable with `--caustics on` or the `final`/`ultra` quality preset. **Motion blur** tracks per-camera shutter time from freeze-frame to long cinematic exposures. The full **volumetric pipeline** (homogeneous fog, height fog, Nishita atmosphere, fBm clouds, participating media) integrates seamlessly with NEE inside the volume itself.
+The lighting engine is production-class. **Next Event Estimation with Multiple Importance Sampling** converges fast even on complex, occluded lighting setups. **Bidirectional path tracing** and **vertex connection and merging** (`--integrator bdpt` or `vcm`) render the light that path tracing finds only by chance: focused caustics from any specular geometry (glass, water, crystals, mirrors) and every light type, with no per-object configuration, and with VCM even the caustics seen through glass or water. **Motion blur** tracks per-camera shutter time from freeze-frame to long cinematic exposures. The full **volumetric pipeline** (homogeneous fog, height fog, Nishita atmosphere, fBm clouds, participating media) integrates seamlessly with NEE inside the volume itself.
 
-Rendering parallelises across all logical CPU cores via a 16×16 tile scheduler, is accelerated by a BVH with parallel SAH construction, and is optionally cleaned by a **feature-guided NFOR denoiser** operating on the linear-HDR beauty before tone mapping. AOV output (albedo, normal, depth, variance) lands as layers in a **multilayer OpenEXR** for downstream compositing. ACES filmic tone mapping closes the pipeline.
+Rendering parallelises across all logical CPU cores via a 16×16 tile scheduler, is accelerated by a BVH with parallel SAH construction, and is optionally cleaned by a **feature-guided NFOR denoiser** operating on the linear-HDR beauty before tone mapping. AOV output (albedo, normal, depth, variance) lands as layers in a **multilayer OpenEXR** for downstream compositing. A colour-managed display transform closes the pipeline: AgX by default, ACES 1.x or plain sRGB on request, with white balance in kelvin.
 
 A quality ladder from `draft-small` (instant preview, seconds) to `final`/`ultra` (unfiltered, portfolio-ready) lets you iterate fast and ship clean: one flag change, same YAML.
 
@@ -35,15 +35,16 @@ For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.
 ### Rendering
 - 🚀 **Parallel Rendering** - exploits all logical CPU cores for linear performance scaling.
 - 🔁 **Path Tracing** with configurable multi-bounce: reflections, refractions, ambient occlusion and colour bleeding emerge naturally from the physical simulation.
-- 📷 **Camera with Depth of Field** - configurable aperture and focus distance for photorealistic bokeh effects.
+- 📷 **Physical Camera and Depth of Field** - describe the lens as a photographer does (focal length in mm, sensor width, f-stop) or by field of view and aperture; focus by distance or on a point. Bladed apertures give polygonal bokeh and an aperture ratio gives the oval bokeh of anamorphic lenses. **Physical exposure** from EV100, or from ISO, shutter speed and f-stop, for scenes lit in photometric units.
 - 🎬 **Multi-Camera** - multiple cameras defined in the same scene, selectable from the CLI by name or index to generate multiple viewpoints from a single YAML file.
 - 💨 **Motion Blur** - physically correct motion blur for objects and camera: moving elements trace streaks proportional to their speed during the exposure. Shutter opening is configurable per-camera, from freeze-frame to long cinematic exposures.
 - 🎯 **Next Event Estimation with MIS** - at each bounce the engine aims directly at lights instead of waiting for a ray to hit them by chance, automatically balancing the two approaches to converge faster with less noise. Works with all materials and inside volumes (fog, smoke).
-- 🔬 **Focused Caustics** - concentrated light spots that glass, water, crystals and mirrors project onto a surface: lens halos, bright reflections, coloured shadows under tinted glass. Work with any specular geometry and all light types (including the sun), with no additional scene configuration.
+- 🔬 **Focused Caustics** - concentrated light spots that glass, water, crystals and mirrors project onto a surface: lens halos, bright reflections, coloured shadows under tinted glass. Work with any specular geometry and all light types (including the sun), with no additional scene configuration: path tracing renders them noisy, `--integrator bdpt` cleanly, `--integrator vcm` also when they are seen through glass or water (the floor of a pool).
 - 🧮 **Stratified Sampling** - reduces noise for a given total sample count.
 - 🔢 **Sobol Sampling** - distributes samples more uniformly than pure random, so the image cleans up faster for a given samples-per-pixel budget.
-- 🎲 **Adaptive Russian Roulette** - terminates low-contribution rays early, concentrating computation where it matters most.
-- 🎞️ **ACES Filmic Tone Mapping** - cinematic post-processing with natural highlights and rich colours.
+- 🎲 **Russian Roulette and per-kind bounce limits** - terminates low-contribution rays early without bias, and counts diffuse, glossy, transmission and volume bounces separately: glass gets the many refractions it needs, diffuse interreflection only the few that matter.
+- 🧭 **Path guiding (optional)** - learns where the light comes from in a few training passes and aims part of the bounces there, unbiased and deterministic: less noise in interiors lit indirectly through small openings (`--guiding on`).
+- 🎞️ **Colour Management** - selectable view transforms: **AgX** (default: bright saturated light rolls off to white as on film, without hue shifts), **ACES 1.x** (the reference RRT + ODT for sRGB displays), **standard** (sRGB curve, no tone mapping). Optional AgX looks, white balance by colour temperature, dithered 8-bit or 16-bit PNG output, and a Gaussian pixel reconstruction filter for clean anti-aliasing.
 - 🧹 **Feature-Guided Denoiser** - cleans up residual image grain using colour, normal and depth information from the scene. Preserves sharp edges and detail in already-clean areas, applying filtering only where noise is most visible.
 - 📤 **HDR & AOV Output (PFM/EXR)** - with `-o scene.exr` the main image is saved as a high-dynamic-range OpenEXR before tone mapping: no blown highlights, with exposure and colour grading adjustable in post without re-rendering. Auxiliary buffers requested with `--aov albedo,normal,depth,beauty,variance` land as layers in the same multilayer file, or as separate PFM/EXR files (`--aov-format`).
 - 🖼️ **Multi-Format Output** - PNG, JPEG, BMP (display, tone-mapped) and EXR (linear HDR) with automatic format detection from the file extension.
@@ -63,7 +64,7 @@ For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.
 - ▰ **Quad** - parametric quadrilateral
 - 🔺 **Triangle / SmoothTriangle** - triangle with flat or per-vertex interpolated (Phong) shading
 - ▬ **Infinite Plane** - infinite plane for floors and backgrounds
-- 🏠 **Mesh (OBJ)** - 3D models from Wavefront OBJ files with smooth shading, artist UV mapping and a dedicated internal BVH
+- 🏠 **Mesh (OBJ, glTF 2.0, PLY)** - 3D models from Wavefront OBJ (with MTL materials), glTF 2.0 (`.gltf`/`.glb`, PBR materials and the main KHR extensions) and PLY files, with smooth shading, artist UV mapping, per-material meshes, `material_overrides` and a dedicated internal BVH. Watertight triangle intersection: no ray slips between the faces of a mesh, at any scale
 - 🏔️ **HeightField** - continuous terrain surface with analytic intersection. The heightmap can be a 16-bit PNG (output of `TerrainGen`) or synthesised from procedural noise at load time. Supports altitude/slope strata bands (sand/grass/rock/snow), an optional water plane and all engine materials.
 - 🔷 **CSG (Constructive Solid Geometry)** - boolean operations on solids: **Union** (A ∪ B), **Intersection** (A ∩ B) and **Subtraction** (A \ B), recursively nestable for arbitrarily complex shapes.
 - 🏺 **Lathe (Surface of Revolution)** - a 2D profile rotated around the Y axis to produce vases, goblets, columns and lamps without tessellation. Three profile modes: **linear** (segments with sharp edges, turned look), **Catmull-Rom** (smooth curve passing through every point) and **cubic Bézier** (manual control points).
@@ -76,8 +77,9 @@ For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.
 
 ### Materials
 - 🎨 **Lambertian** - opaque diffuse
-- 🪞 **Metal** - specular reflection with configurable roughness (`fuzz`)
-- 💎 **Dielectric** - glass and transparent materials with refraction and Fresnel reflection
+- 🪞 **Metal** - GGX microfacet reflection with configurable roughness (`fuzz`), multiple scattering between the microfacets (a rough metal keeps its brightness), colour at normal incidence and at the edge (`color`, `edge_color`), or a measured metal by name (`preset: gold`, `silver`, `copper`, `aluminium`, ...) with its exact complex Fresnel.
+- 💎 **Dielectric** - glass and transparent materials with refraction and exact Fresnel reflection; `roughness` gives frosted glass, lit directly through its surface.
+- 🧬 **OpenPBR Surface** - the layered material of the Academy Software Foundation standard (`"openpbr"`), with its parameter names and defaults: metal with edge tint, dielectric with energy-preserving rough diffuse, glass, subsurface through a random walk, absorbing coat, fuzz for velvet and dust, thin film, emission, thin-walled sheets and cut-outs. Every input takes a number, a colour or a texture, and a white material conserves energy in every combination of layers.
 - 💡 **Emissive** - self-luminous material; emissive objects automatically join the NEE pool as geometry light sources
 - 🌟 **Disney Principled BSDF** - unified PBR material (`"disney"` / `"pbr"`): a single type covers plastic, metal, glass, car paint, fabric, skin, soap bubbles and any combination. Beyond the classic parameters (`metallic`, `roughness`, `specular`, `sheen`, `clearcoat`, `spec_trans`, `ior`) it supports:
   - **Anisotropy** for elongated highlights on brushed metal, hair and vinyl.
@@ -86,21 +88,23 @@ For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.
   - **Diffuse transmission & thin-walled** for sheets, leaves, curtains and lampshades.
   - **Subsurface shaping** with dedicated under-skin tints for skin, wax and marble.
   - **Advanced clearcoat** with its own IOR and normal map for car bodies, lacquers and protected vinyl.
-  - **Charlie sheen** for realistic microfibres (velvet, peach fuzz, moss).
+  - **Sheen** for realistic microfibres (velvet, peach fuzz, moss).
   - **Thin-film iridescence** for soap bubbles, opal and dichroic coatings.
+
+  The Disney parameters are translated onto the OpenPBR material, so every combination of layers conserves energy (no glowing rims from sheen or clearcoat).
 
 - 🔀 **Mix Material** - blending between any two materials with a constant weight or a spatial texture mask (noise, marble, image…). For rust, wear, gradual transitions, decals and recursive compositions (mix-of-mix).
 
 ### Textures
 - ♟ **Checker** - procedural 3D checkerboard
-- 🌀 **Noise** - Perlin noise (smooth or turbulent) with `noise_type`, `octaves`, `lacunarity`, `gain`, `distortion`; modes `perlin` / `fbm` / `turbulence` / `ridged` / `billow` plus the two Musgrave multifractals `hetero_terrain` and `hybrid_multifractal` for eroded terrain and stratified rock.
+- 🌀 **Noise** - improved Perlin noise (`noise_basis: classic` keeps the earlier pattern), smooth or turbulent, with `noise_type`, `octaves`, `lacunarity`, `gain`, `distortion`; modes `perlin` / `fbm` / `turbulence` / `ridged` / `billow` plus the two Musgrave multifractals `hetero_terrain` and `hybrid_multifractal` for eroded terrain and stratified rock.
 - 🏔 **Marble** - realistic procedural marble with multi-layer veining, distortion that eliminates visible tiling, geological folds, background colour variation and mineral impurities.
 - 🪵 **Wood** - realistic procedural wood with asymmetric and variable growth rings, grain and cut figure, pores, sapwood/heartwood gradient and knots. The ring pattern can also drive `roughness` and `sheen` of the Disney BSDF.
 - 🔷 **Voronoi / Worley** - cellular patterns with ten output channels and euclidean/manhattan/chebyshev metrics, ideal for rocks, scales, mosaics and pebbles. Per-cell colour free or driven by palette/colour ramp, with sharp or softened edges (`smoothness`).
 - 🧱 **Brick** - running-bond brick pattern with per-brick variation and weathering.
 - 🌈 **Gradient** - linear, quadratic, easing, spherical and radial gradients.
-- 🖼 **Image Texture** - textures from file (PNG, JPEG, BMP, GIF, TIFF, WebP) with bilinear filtering, configurable tiling and **mipmap pyramid + EWA anisotropic filtering** for zero moiré and shimmer at low angles or at 4K.
-- 🗺 **Normal Map** - surface geometric detail without extra triangles; OpenGL and DirectX-style compatible (`flip_y`).
+- 🖼 **Image Texture** - textures from file (PNG, JPEG, BMP, GIF, TIFF, WebP at 8 or 16 bits, Radiance HDR, OpenEXR) with bilinear filtering, configurable tiling, a `color_space` per texture (colours sRGB, data maps raw by default) and **mipmap pyramid + anisotropic filtering** for zero moiré and shimmer at low angles or at 4K.
+- 🗺 **Normal Map** - surface geometric detail without extra triangles; OpenGL and DirectX-style compatible (`flip_y`), 8 or 16 bits, MikkTSpace tangents on meshes (baked maps show no seams).
 - 🎨 **Multi-Stop Colour Ramp** - optional `color_ramp:` block that replaces the implicit two-colour lerp on noise/marble/wood/voronoi/gradient. Multiple stops at free positions with four interpolation modes (linear, smoothstep, ease, constant): 3-tone marbles, sapwood/heartwood, sunset gradients, toon bands, heat maps.
 - 🧭 **Coordinate** - returns the shading point's coordinates as RGB in four canonical spaces (`object`, `uv`, `generated`, `world`). Two uses: visual debug overlay (UV unwrap, object/world space alignment) and deterministic XYZ driver for feeding another texture via mix material.
 
@@ -114,8 +118,8 @@ All procedural textures support **offset**, **rotation** and **per-object random
   Result: no shimmer/moiré at distance, no aliasing at low angles, without increasing the global sample count.
 
 ### Surface Displacement Stack
-- 🟢 **Bump map** - surface detail achieved by perturbing the shading normal from any texture (procedural or image), without adding geometry. Available on every material and every primitive.
-- 🔺 **Mesh subdivision** - OBJ mesh refinement with Loop (triangle meshes) and Catmull-Clark (quad/mixed meshes) algorithms, in uniform or adaptive screen-space mode.
+- 🟢 **Bump map** - surface detail achieved by perturbing the shading normal from any texture (procedural or image), without adding geometry. The height is in scene units, as a displacement's, whatever the object's size, scale or rotation. Available on every material and every primitive.
+- 🔺 **Mesh subdivision** - mesh refinement with Loop (triangle meshes) and Catmull-Clark (quad/mixed meshes) algorithms, in uniform or adaptive screen-space mode, with sharp and semi-sharp creases, corner-preserving boundaries, and vertices placed on the exact limit surface with its normals.
 - 🎯 **Material-level displacement** - displacement lives on the material: a single definition automatically drives all meshes that reference it, with no per-entity configuration. Tri-state mode (bump-only, displacement, or both) and per-instance override.
 - 🏔️ **Scalar displacement** - real mesh deformation along the normal of the subdivided mesh: changes the object's silhouette, not just shading.
 - 🗿 **Vector displacement** - 3D vertex offset read from the RGB triplet of the texture, in tangent space or object space. Allows overhangs, folds and details that fold back on themselves.
@@ -126,22 +130,25 @@ All procedural textures support **offset**, **rotation** and **per-object random
 - 🔄 **Transform** - scale, rotation and translation applicable to any primitive, including CSG nodes.
 
 ### Lighting System
+- 📏 **Photometric Units** - any light can be written in physical units instead of a unitless intensity: power in watts or lumens, candela, luminance in nits, illuminance in lux, and a colour temperature in kelvin (black body). With the camera's EV100 exposure, a 800 lm bulb, a 3000 nit LED panel and the 100 000 lux sun light a scene as they would in reality.
+- 📐 **IES Profiles** - point and spot lights can emit a measured luminaire distribution from an IES LM-63 file, at its own flux or rescaled.
 - 💡 **Point Light** - point light with quadratic attenuation.
 - ☀️ **Directional Light** - parallel light (sun), no attenuation.
 - 🔦 **Spot Light** - spotlight with inner/outer cone and smooth falloff.
-- 🟧 **Area Light** - rectangular emitter with physically correct soft shadows via Monte Carlo sampling.
+- 🟧 **Area Light** - rectangular emitter with physically correct soft shadows, sampled uniformly in the solid angle it subtends: little noise even right next to the light.
 - 🟡 **Sphere Light** - spherical light with solid-angle sampling: uniform circular penumbra and zero wasted samples. Ideal for bulbs, lanterns and luminous globes.
 - ✨ **Emissive Objects** - any geometry with an `emissive` material becomes a visible light source with natural indirect illumination.
-- 🌐 **Environment Light** - all sky types (flat, gradient, Hosek-Wilkie, HDRI) participate in direct light sampling; the analytic sun is decoupled from the sky body and combinable with any sky type.
+- 🌐 **Environment Light** - all sky types (flat, gradient, physical, HDRI) participate in direct light sampling; the analytic sun is decoupled from the sky body and combinable with any sky type.
+- 🌳 **Many Lights** - with many lights a light BVH sends each sample to the lights that matter for that point (near and facing it), so a street of lamps or a room full of fixtures converges as fast as a scene with a few lights. Every light-selection strategy is unbiased.
 
 ### Environment
 - ☁️ **Flat Sky** - uniform-colour sky. Default `[0.5, 0.7, 1.0]` when `world.sky` is omitted; participates in NEE when luminance > 0.
 - 🌅 **Gradient Sky** - procedural sky with a vertical 3-band gradient (zenith, horizon, ground) and an optional analytic sun attached to a `PhysicalSun` with stratified cone sampling and physically correct limb darkening.
-- ☀️ **Physical Sky (Preetham/Hosek-Wilkie)** - analytic daylight parameterised by `turbidity` and `ground_albedo`. `type: hosek_wilkie` or `type: preetham`.
-- 🌌 **Nishita Sky** - physical Rayleigh+Mie atmosphere with a precomputed transmittance LUT and single-scattering integration. Physically correct sunrises and sunsets: red disc, orange halo and blue zenith emerge from the physical simulation, not from fitting.
+- ☀️ **Physical Sky (Hosek-Wilkie, Preetham)** - analytic clear-sky daylight parameterised by `turbidity` and `ground_albedo`: `type: hosek_wilkie` (fitted to measured skies, low suns included) or `type: preetham`. The sun comes from the same light as the sky: its disc is the sunlight at the top of the atmosphere, attenuated along its path, so the sun and the sky light a scene in the real proportion. In relative units or in nits, to expose with EV100 like a photograph.
+- 🌌 **Nishita Sky** - physical Rayleigh, Mie and ozone atmosphere with a precomputed transmittance table and single-scattering integration. Physically correct sunrises and sunsets: red disc, orange halo and blue zenith emerge from the physical simulation, not from fitting.
 - 🪟 **Portal Light** - window or skylight opening onto the environment. Concentrates light sampling in the aperture to significantly reduce noise in interiors lit by natural light.
-- 🔍 **HDRI Mipmap Prefiltering** - hierarchical filtering of the environment image that automatically reduces fireflies in glossy reflections, without sacrificing dark-zone definition or overall illumination energy.
-- 🌫️ **Aerial Perspective (Nishita Medium)** - atmospheric attenuation of distant geometry with the same Rayleigh+Mie physics as the sky: mountains, buildings and forests fade into the atmospheric blue in a way physically consistent with the sky colour above.
+- 🔍 **HDRI Importance Sampling** - the environment image is sampled in proportion to its brightness, with the multiple-importance compensation of Karlík et al. 2019: the light the BSDF finds well is left to the BSDF, the samples go to the bright spots.
+- 🌫️ **Aerial Perspective (Nishita Medium)** - atmospheric attenuation and in-scattering of distant geometry with the same air, dust and ozone as the sky (air scatters with the Rayleigh phase function, dust with its forward lobe), only between the eye and what it sees, since the sky already holds the rest: mountains, buildings and forests fade into the atmospheric blue in a way physically consistent with the sky colour above.
 - 🌍 **IBL / HDRI** - ambient illumination from high-dynamic-range panoramas (`.hdr` or `.exr`): captures reflections and diffuse light from the real or synthetic environment. **Automatic sun extraction** detects the luminous peak in the HDRI and converts it into a separate light source for sharp shadows and less noise.
 - 🎛️ **Visibility Flags** - granular visibility control for every light source: it can be visible from the camera, cast shadows, contribute to diffuse surfaces, glossy reflections or transmission, each independently.
 - 🖼️ **Background Plate** - illuminate the scene with an HDRI and show the camera a different background image: useful for compositing with real footage or for replacing the sky without re-rendering the illumination.
@@ -151,12 +158,13 @@ All procedural textures support **offset**, **rotation** and **per-object random
 ### Volumetrics (Participating Media)
 - 🌫️ **Homogeneous Medium** - uniform global participating medium for dense fog, haze and underwater effects. Analytic Beer-Lambert, inexpensive, suitable as a starting point.
 - 🏔️ **Height Fog** - atmospheric haze with density that falls off exponentially with altitude (`scale_height`, `y0`). Aerial perspective model for outdoor scenes: mountains, roads at dawn, urban vistas.
-- 🌀 **Procedural Medium (Perlin fBm)** - heterogeneous fog generated from multi-octave Perlin noise with delta tracking and ratio tracking. Irregular density pockets, non-homogeneous god rays, horror-film atmospheres or scattered clouds.
-- 🧊 **Grid Medium** - density sampled on a regular 3D grid (inline YAML or binary `.vol` file) confined to a world-space AABB, with selectable reconstruction filter: **trilinear** (default, fast) or **Catmull-Rom tricubic** (smoother) to remove kinks visible on low-resolution grids. Ideal for localised smoke, explosions and isolated clouds.
+- 🌀 **Procedural Medium (Perlin fBm)** - heterogeneous fog generated from multi-octave Perlin noise, tracked with null collisions (spectral tracking for distances, ratio tracking for shadows): unbiased in every colour channel. Irregular density pockets, non-homogeneous god rays, horror-film atmospheres or scattered clouds.
+- 🧊 **Grid Medium** - density sampled on a regular 3D grid (inline YAML or binary `.vol` file) confined to a world-space AABB, with selectable reconstruction filter: **trilinear** (default, fast) or **Catmull-Rom tricubic** (smoother) to remove kinks visible on low-resolution grids. A coarse grid of majorants, walked cell by cell, keeps thin and empty regions cheap. Ideal for localised smoke, explosions and isolated clouds.
+- 💡 **Equiangular Sampling** - the light of point and spot lights in a fog is also sampled at distances spread as the angle the light sees (Kulla-Fajardo), combined by MIS with the free flight: the glow round a lamp and the beam of a spot converge with a fraction of the noise.
 - 🎇 **Five Phase Functions** - `isotropic` (uniform scattering), `hg` (Henyey-Greenstein, directional asymmetry), `rayleigh` (atmospheric scattering), `double_hg` (two mixed lobes for realistic clouds) and `schlick` (fast-HG approximation). Every medium is combinable with any phase function.
 - 🧬 **Per-Entity MediumInterface** - participating medium assigned to an individual entity: local fog in a room, smoke in a teapot, water in an aquarium, a planet's atmosphere - without filling the entire scene. Correctly handles nested transmissive volumes, such as glass containing a liquid.
-- 🪨 **Volumetric Subsurface Scattering (Random Walk)** - physical subsurface diffusion for marble, skin, wax, milk and jade: light penetrates the volume, scatters and re-emerges with the characteristic translucency of these materials. Three quality levels (preview / normal / high) to balance speed and fidelity.
-- 🧪 **Material-Embedded SSS** - volumetric subsurface scattering declared directly on the Disney material, with no separate volume configuration: a colour and a diffusion radius are enough to get physical translucency on marble, wax, milk, skin and other organic materials.
+- 🪨 **Volumetric Subsurface Scattering (Random Walk)** - physical subsurface diffusion for marble, skin, wax, milk and jade: light penetrates the volume, scatters and re-emerges with the characteristic translucency of these materials. Unbiased: a light sample at every bounce and no cap on the bounces, the Russian roulette ends the walk.
+- 🧪 **Material-Embedded SSS** - volumetric subsurface scattering declared directly on the Disney material, with no separate volume configuration: a colour (the albedo the surface shows, inverted to the medium's single-scattering albedo) and a diffusion radius are enough to get physical translucency on marble, wax, milk, skin and other organic materials.
 
 ---
 
@@ -218,7 +226,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -q ultra -o renders/render-4k.png
 ```
 
-Classic render with explicit parameters - the old way still works and every explicit flag always overrides the preset (e.g. `-q final -d 16` for scenes with stacked glass):
+Classic render with explicit parameters - the old way still works and every explicit flag always overrides the preset (e.g. `-q final -d 32` for a deep stack of glass):
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -s 1024 -d 8 -S 4 -o renders/render-final.png -w 1920 -H 1080
 ```
@@ -307,7 +315,7 @@ The result is in `renders/hello.png`. From here you can change `color`, add more
 │   │   ├── Denoising/          # Feature-guided denoiser (NLM, NFOR)
 │   │   ├── Geometry/           # Primitives (Sphere, Box, Cylinder, CsgObject, Group…)
 │   │   ├── Lights/             # Point, Directional, Spot, Area, Sphere, GeometryLight, EnvironmentLight
-│   │   ├── Materials/          # Lambertian, Metal, Dielectric, Emissive, Disney BSDF, MixMaterial
+│   │   ├── Materials/          # Lambertian, Metal, Dielectric, Emissive, OpenPBR, Disney BSDF, MixMaterial
 │   │   ├── Rendering/          # Renderer, SkySettings, EnvironmentMap
 │   │   ├── Scene/              # SceneLoader, SceneData
 │   │   ├── Textures/           # Checker, Noise, Marble, Wood, Image, NormalMap
@@ -319,6 +327,7 @@ The result is in `renders/hello.png`. From here you can change `color`, add more
 │       ├── FontGen/            # 3D font generator from system fonts or .ttf/.otf files
 │       ├── TextureGen/         # Procedural texture generator (PNG)
 │       ├── NormalMapGen/       # Flat normal map generator for testing
+│       ├── ImageCompare/       # Linear HDR image comparison (relMSE, mean ratio, diff map)
 │       ├── ChessGen/           # Chess scene generator (chess.yaml)
 │       └── TempleGen/          # Roman temple scene generator (tempio-romano.yaml)
 ├── scenes/                     # YAML scene files
@@ -380,6 +389,13 @@ dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- \
 Output: `scenes/assets/heightmaps/<stem>-height.png` + `scenes/assets/heightmaps/<stem>.yaml`  
 With `--with-cameras`: also `scenes/<stem>-preview.yaml` (render-ready scene with five cameras).
 
+### ImageCompare
+Compares a linear HDR render (`.pfm` or `.exr`) with a reference image: mean luminance ratio (global energy bias), relMSE, RMSE, SMAPE and the share of pixels off by more than 10%, plus an optional false-colour map of the signed relative error (red = brighter, blue = darker). Pair it with `--reference` and `--aov beauty` to validate the engine:
+```bash
+dotnet run --project src/Tools/ImageCompare/ImageCompare.csproj -- \
+  test.beauty.pfm reference.pfm [--diff diff.png] [--diff-scale 0.25] [--crop x,y,w,h] [--json]
+```
+
 ---
 
 ## 📖 Usage Guide and CLI
@@ -390,31 +406,45 @@ With `--with-cameras`: also `scenes/<stem>-preview.yaml` (render-ready scene wit
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | - (**required**) | Path to the scene YAML file. The `.yaml` (or `.yml`) extension is **optional**: if the path does not exist as-is, the loader tries adding it automatically (e.g. `-i scenes/chess` ⇒ `scenes/chess.yaml`). |
 | `--output` | `-o` | `renders/render-<scene>.png` | Output file. If omitted, derived from the scene name. The extension selects the format: `.png`/`.jpg`/`.bmp` = tone-mapped display image; `.exr` = **scene-linear pre-tone-mapping** radiance (multilayer OpenEXR, RGB half + optional AOV layers, ZIP compression) for compositing and colour grading in post. |
-| `--quality` | `-q` | `draft-small` | Quality preset that fills `-w -H -s -d -S` in one shot (and, for `standard`, also forces caustics/SSS off, power NEE and the indirect clamp). **When omitted the renderer uses `draft-small`** (960×540, 16 spp, depth 4, NFOR denoiser): a fast, denoised composition check is a better first-run default than a slow, un-denoised pass. Ladder: `draft` → `standard` → `pre-final` → `final` → `ultra`. The first four levels have `-tiny` (480×270) and `-small` (960×540) variants; `ultra` is fixed at 3840×2160. `draft*`/`standard*`/`pre-final*` presets also enable the denoiser (`--denoiser nfor`); `final`/`ultra` do not. **Any explicit flag overrides the preset** (e.g. `-q final -d 16` for scenes with stacked glass). `standard` = final-class quality for classic scenes (Lambertian/Disney, non-nested glass, procedural marble) without the expensive GI extras; `pre-final` = faithful preview of `final` (feature complete, 256 spp + denoiser, ~4-6× faster) - see [Rendering Profiles](./docs/reference/rendering-profiles.md). |
+| `--quality` | `-q` | `draft-small` | Quality preset that fills `-w -H -s -d -S` in one shot (plus the per-kind bounce limits and, for `standard`, SSS off and the indirect clamp factor). **When omitted the renderer uses `draft-small`** (960×540, 16 spp, depth 8, NFOR denoiser): a fast, denoised composition check is a better first-run default than a slow, un-denoised pass. Ladder: `draft` → `standard` → `pre-final` → `final` → `ultra`. The first four levels have `-tiny` (480×270) and `-small` (960×540) variants; `ultra` is fixed at 3840×2160. `draft*`/`standard*`/`pre-final*` presets also enable the denoiser (`--denoiser nfor`); `final`/`ultra` do not. **Any explicit flag overrides the preset** (e.g. `-q final -d 16` for scenes with stacked glass). `standard` = final-class quality for classic scenes (Lambertian/Disney, non-nested glass, procedural marble) without the expensive GI extras; `pre-final` = faithful preview of `final` (feature complete, 256 spp + denoiser, ~4-6× faster) - see [Rendering Profiles](./docs/reference/rendering-profiles.md). |
 | `--width` | `-w` | `960` (from `draft-small`) | Width in pixels. |
 | `--height` | `-H` | `540` (from `draft-small`) | Height in pixels. |
 | `--samples` | `-s` | `16` (from `draft-small`) | Samples per pixel. With the Sobol sampler (default) the exact count is used; with `--sampler prng` it is rounded up to the nearest perfect square (`√N × √N`). |
-| `--depth` | `-d` | `4` (from `draft-small`) | Maximum recursive bounces per ray. Raise to `8` (or `16+` for stacked dielectrics: nested glass, liquids in glasses). |
+| `--depth` | `-d` | `8` (from `draft-small`; `12` standard, `16` final, `32` ultra) | Maximum path vertices (1 = direct light only). The presets also split it by kind of bounce (below); an explicit `-d` lifts every kind to the same value. |
+| `--depth-diffuse` | - | `3` (draft), `4` (standard), `8` (final), `16` (ultra) | Maximum diffuse bounces. |
+| `--depth-glossy` | - | `4`, `6`, `8`, `16` | Maximum glossy and mirror reflections. |
+| `--depth-transmission` | - | `8`, `12`, `16`, `32` | Maximum refractions and transmissions: raise it for stacked dielectrics (nested glass, liquids in glasses). |
+| `--depth-volume` | - | `3`, `4`, `8`, `16` | Maximum scattering events inside a medium. |
+| `--depth-transparent` | - | `16` (`32` ultra) | Maximum cut-outs crossed (geometry opacity 0: leaves, fences). Outside the total: a cut-out is not a bounce. |
 | `--shadow-samples` | `-S` | *(from YAML)* | Global shadow sample override for all area lights. Use perfect squares (`1, 4, 9, 16`). |
-| `--clamp` | `-C` | `10` | Firefly clamp: maximum per-sample radiance before tone mapping. Lower (e.g. `5`) for problematic scenes with glass/fog, raise for very intense highlights. |
-| `--indirect-clamp-factor` | - | `0.25` | Clamp factor for indirect bounces (depth ≥ 1). `0.25` = on (indirect clamp = `2.5` with `-C 10`); `1.0` = off. Applied once, camera-relative. |
-| `--exposure` | - | `0` EV | Photographic exposure compensation in stops, applied as `2^EV` **before** ACES tone mapping. Negative darkens (`-1` = ½, `-2` = ¼), positive brightens. Use it to slide overly bright scenes into the linear sweet spot of ACES where texture contrast stays visible. |
+| `--clamp` | `-C` | off | Opt-in firefly clamp: maximum per-sample radiance before tone mapping. Off by default because it is biased: the ceiling is an absolute radiance, so it also removes legitimate light from bright sources. Add it (start from `10`, lower for glass/fog) only when isolated fireflies survive more samples or the denoiser. |
+| `--indirect-clamp-factor` | - | `0.25` | Clamp factor for indirect bounces (depth ≥ 1), active only with `-C`: indirect clamp = `-C` × factor (`2.5` with `-C 10`); `1.0` = no extra suppression. Applied once, camera-relative. |
+| `--transparent-shadows` | - | `off` | `off`: glass casts its physical shadow and its caustic (noisy with path tracing at low samples; `--integrator bdpt` or `vcm` resolve it). Index-matched shells (`refraction_index: 1`) and smooth `thin_walled` sheets always let shadow rays through, which is exact. `on`: an artistic approximation, shadow rays go straight through glass tinted by its Fresnel transmittance (soft half-shadow, no caustic, no noise), and the refracted paths are dropped so light is not counted twice. |
+| `--exposure` | - | `0` EV | Photographic exposure compensation in stops, applied as `2^EV` **before** the view transform. Negative darkens (`-1` = ½, `-2` = ¼), positive brightens. Use it to bring overly bright scenes back from the shoulder of the tone curve, where texture contrast is lost. |
+| `--view` | - | `agx` | View transform from scene-linear radiance to the display image: `agx` (default; bright saturated colours desaturate towards white as on film, no hue shifts), `aces` (ACES 1.x RRT + ODT for an sRGB display, 100 nits: more contrast, darker mid-tones), `standard` (no tone mapping: clip to [0, 1] and sRGB curve, for checking linear values), `legacy` (the curve used before October 2026, a per-channel fit of ACES with a 2.2 gamma, to reproduce older renders). EXR output is unaffected. |
+| `--look` | - | `none` | Creative look of the `agx` view: `punchy` (more contrast and saturation), `golden` (warm, saturated). |
+| `--white-balance` | - | camera's `white_balance` | White balance in kelvin (1667-25000): a light of this colour temperature renders neutral, as with a camera set to it. `3200` neutralises tungsten light, `6504` is the identity. Applied to the display image only. |
+| `--filter` | - | `gaussian` | Pixel reconstruction filter: `gaussian` (σ = 0.5 px, 2 px radius), `blackman-harris` (1.5 px radius, a little sharper), `box` (each sample counts only for its own pixel: sharpest, most aliased). Applied by filter importance sampling, so the noise of neighbouring pixels stays independent. |
+| `--bit-depth` | - | `8` | Bits per channel of a `.png` output: `8` or `16`. |
+| `--dither` | - | `on` | Dither 8-bit output (triangular noise of ±1 code before rounding): removes banding in skies and soft gradients. `off` rounds to the nearest code. |
 | `--camera` | `-c` | *(first camera)* | Select camera by name or index (0-based). |
 | `--sampler` | - | `sobol` | Per-pixel sampler: `sobol` (Owen-scrambled, default) or `prng` (legacy thread-local). No difference in scene interface: only the random sequence changes. |
 | `--mis` | - | `balance` | MIS heuristic combining Light Sampling (NEE) and BSDF/Phase Sampling: `balance` or `power` (β=2). Same computational cost; `power` further reduces variance when PDFs disagree (small light + rough material, sun in fog). |
-| `--light-sampling` | - | `all` | NEE strategy: `all` = sum over every light (default, backward compatible); `power` = sample one light ∝ `ApproximatePower` (lower variance in multi-light scenes); `uniform` = uniform sampling (debug). |
-| `--texture-filtering` | - | `auto` | Analytic anti-aliasing of procedural and image textures via ray differentials: `auto`/`on` = filtering on (Perlin/fBm octave clamp, adaptive Voronoi supersampling, image mipmap + EWA anisotropic); `off` = pure point-sampled (useful as a benchmark/A-B baseline). |
-| `--caustics` | - | `off`¹ | Focused caustics via **photon mapping**: `on` activates a pre-pass that emits caustic photons from lights, traces them through specular surfaces (mirror/glass/water/metal) and deposits them where they land on diffuse surfaces (paths `L S+ D`); the camera pass gathers them with a k-nearest density estimate. It is **general** (any specular geometry, **all** light types - including `directional`/sun) and **requires no per-object YAML flag**. With `off` rendering is identical to before and the cost is zero. Known limitations in this version: caustics from **rough/frosted** glass/metal and from **HDRI** environments fall back to the path tracer (noisier); the Beer-Lambert inner tint along the photon path is not applied (slight colour difference on thick tinted glass). ¹Enabled by default in `pre-final*`, `final` and `ultra` presets (an explicit `--caustics` takes precedence). |
-| `--caustic-photons` | - | `2–4M`² | Photon budget emitted by the caustic pre-pass (in millions of photons). Higher values = sharper, less noisy caustics, slower pre-pass. No effect with `--caustics off`. ²Preset-dependent default (higher on `final`/`ultra`). |
+| `--light-sampling` | - | `auto` | NEE strategy: `all` = sum over every light; `power` = sample one light ∝ `ApproximatePower`; `uniform` = uniform sampling (debug); `bvh` = one light picked by a light BVH, by power, distance and orientation (many lights); `auto` = `all` up to 16 lights, `bvh` above. All unbiased. |
+| `--texture-filtering` | - | `auto` | Analytic anti-aliasing of procedural and image textures via ray differentials: `auto`/`on` = filtering on (Perlin/fBm octave clamp, adaptive Voronoi supersampling, image mipmap + anisotropic); `off` = pure point-sampled (useful as a benchmark/A-B baseline). |
+| `--integrator` | - | `path` | Light transport algorithm. `path`: path tracing with next-event estimation (the presets' choice). `bdpt`: **bidirectional path tracing**, subpaths traced from the camera and from the lights and joined at every pair of vertices, all the ways of building a path weighed by MIS (surfaces and participating media): caustics seen directly or in a mirror converge, small lights behind glass light the scene, at about 2-3× the cost of a path-tracing sample. `vcm`: **vertex connection and merging**, `bdpt` plus merging of nearby light vertices (progressive photon mapping with a shrinking radius): also the caustics that no connection reaches, seen through glass or water (the floor of a pool, an object in a glass). `vcm` is consistent (its bias vanishes as the samples grow), not unbiased, and is refused with `--reference`. Not with `--guiding`. See [Rendering Profiles](./docs/reference/rendering-profiles.md). |
+| `--vcm-radius` | - | `0.003` | Merging radius of `--integrator vcm` at the first iteration, as a fraction of the scene radius; it shrinks with the iterations (∝ i^-1/8). Larger: smoother caustics sooner, blurrier at low samples. |
+| `--guiding` | - | `off` | **Path guiding**: training passes learn where the light reaching each part of the scene comes from, then part of the bounces on broad surfaces and in media are drawn from it. Unbiased (allowed with `--reference`) and deterministic; the training is part of `-s` and its samples join the image. Helps interiors lit indirectly through small openings at high sample counts and resolutions; see [Rendering Profiles §4b](./docs/reference/rendering-profiles.md). |
+| `--guiding-training` | - | `-s` / 2 | Samples per pixel of `-s` spent training the guide, in passes of 1, 2, 4, ... |
 | `--denoiser` | - | `none`³ | Feature-guided denoiser applied to the linear HDR radiance **before** tone mapping: `nfor` (first-order regression guided by albedo/normal/depth with per-pixel minimum-estimated-error candidate selection - recommended), `nlm` (joint NL-means weighted average, faster and softer), `none`. Selection always includes the unfiltered image as a safety candidate: where the filter cannot win (e.g. fine contact shadows, invisible to the features) the original noise is preserved instead of introducing bias. ³Enabled by default in `draft*` presets (nfor fast), `standard*` and `pre-final*` (nfor high); `final`/`ultra` stay unfiltered. An explicit `--denoiser` always takes precedence. |
 | `--denoise-quality` | - | `high` | Denoiser speed/quality trade-off: `high` = 19×19 search window, two intensity candidates combined per pixel; `fast` = 15×15 window, single candidate (~2× faster). |
 | `--aov` | - | - | Comma-separated list of auxiliary buffers (linear HDR, scene-referred): `albedo`, `normal` (world-space), `depth` (camera distance, `-1` = sky), `beauty` (linear radiance pre-exposure; **post-denoise** when a denoiser is active), `variance` (raw dual-buffer variance). With `-o out.png` produces separate PFM files (`out.albedo.pfm`, …); with `-o out.exr` the AOVs become **layers of the multilayer file** (`albedo.R/G/B`, `normal.X/Y/Z`, `Z` float32, `variance.R/G/B`). |
 | `--aov-format` | - | *(auto)* | Forces a separate file per AOV in the given format: `pfm` or `exr` (e.g. `out.depth.exr` with a single `Z` float32 channel). Without the flag: layers embedded if `-o` is `.exr`, otherwise separate PFM files. |
 | `--sss-mode` | - | `auto` | Random walk subsurface scattering dispatch: `auto` (default) - media bound to entities with `σ_s > 0` activate the walk; `off` - pushed media are downgraded to absorption-only (Beer-Lambert legacy), useful for fast previews and A/B comparison. |
-| `--sss-quality` | - | from `-q` | Random-walk preset: `preview` (16 vol-bounces, no NEE in-walk), `normal` (64, NEE on), `high` (256, NEE on). If omitted, inherited from the `-q` preset (`draft*` → preview, `pre-final*`/`final*`/`ultra` → high; on `standard*` SSS is disabled). |
-| `--max-volume-bounces` | - | from `--sss-quality` | Hard cap on random-walk bounces inside an entity. Overrides the preset value, useful for stress tests on dense media (`--max-volume-bounces 16`) or for extra quality (`--max-volume-bounces 512`). |
+| `--reference` | - | - | **Reference (unbiased) estimator**, for validating the engine: disables the firefly clamps (`-C`, `--indirect-clamp-factor`), the straight-through transparent shadows of glass, the prefiltered HDRI for BSDF rays and the denoiser, refuses `--integrator vcm` (merging is biased, `bdpt` is not), and gives every kind of bounce the same depth. Slower to converge but free of bias: compare it with a reference image through `--aov beauty` and `ImageCompare`. |
+| `--seed` | - | `0` | Extra seed for the sample sequences. `0` = the standard sequences (bit-identical output); any other value renders a statistically independent image of the same scene (used to average independent renders). |
 | `--list-cameras` | - | - | List available cameras in the scene and exit. |
-| `--verbose` | `-v` | - | Show detailed information during scene loading and analysis (imports, templates, medium σ, Russian Roulette tuning). Useful for scene debugging and development. |
+| `--verbose` | `-v` | - | Show detailed information during scene loading and analysis (imports, templates, medium σ, light setup). Useful for scene debugging and development. |
 | `--help` | `-h` | - | Show the help message and exit. |
 
 > **Note:** `-H` is uppercase because `-h` is reserved for `--help`. Uppercase flags are used for "advanced overrides": `-S` (`--shadow-samples`) and `-C` (`--clamp`); lowercase `-s` for `--samples`, lowercase `-c` for `--camera`.
@@ -437,7 +467,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q draft-
 
 ### Preset `standard` (day-to-day quality render - Full HD)
 Final-class quality on classic scenes (Lambertian/Disney, non-nested glass,
-procedural marble): caustics and volumetric SSS off, 512 spp, 1 shadow sample,
+procedural marble): volumetric SSS off, 512 spp, 1 shadow sample,
 power-weighted NEE, relaxed indirect clamp and NFOR denoiser on residual grain.
 Much faster than `final` on this type of scene.
 ```bash
@@ -445,7 +475,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q standa
 ```
 
 ### Preset `pre-final` (faithful final preview - Full HD)
-Same feature set as `final` (caustics, SSS, depth 8) with 256 spp, 1 shadow
+Same feature set as `final` (SSS, depth 16) with 256 spp, 1 shadow
 sample and high denoiser: previews the final look at ~4-6× the speed.
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q pre-final -o preview-final.png
@@ -518,7 +548,7 @@ Complete technical reference for every YAML key the engine accepts: world, camer
 
 For those who want to dig into the mathematical details and implementation choices:
 
-- [**Rendering Pipeline**](./docs/technical/rendering-pipeline.md) - Full flow from YAML to pixel: initialisation, scene analysis, TraceRay and post-processing.
+- [**Rendering Pipeline**](./docs/technical/rendering-pipeline.md) - Full flow from YAML to pixel: initialisation, the path loop and post-processing.
 - [**Shading Model and Materials**](./docs/technical/shading-model.md) - Disney BSDF, Fresnel (Schlick) and Normal Mapping (TBN).
 - [**Path Tracing and Lighting**](./docs/technical/path-tracing-and-lighting.md) - NEE, Russian Roulette, HDRI and Sphere Light sampling.
 - [**Multiple Importance Sampling (MIS)**](./docs/technical/multiple-importance-sampling.md) - Veach estimator, balance/power heuristics, `Sample`/`Pdf`/`Evaluate` contracts and edge cases (delta lobes, MixMaterial, phase functions in volumes).
@@ -529,6 +559,7 @@ For those who want to dig into the mathematical details and implementation choic
 - [**Motion Blur**](./docs/technical/motion-blur.md) - Motion blur implementation on transforms: time-sampled TRS, quaternion interpolation, bit-identical invariant when nothing is animated.
 - [**Denoising**](./docs/technical/denoising.md) - Feature-guided denoiser architecture: AOV buffers captured in parallel with rendering, NLM and NFOR algorithms with per-pixel minimum-estimated-error candidate selection.
 - [**MediumInterface - Per-Entity Participating Media**](./docs/technical/medium-interface.md) - Per-entity participating medium assignment: ownership model, stack semantics for rays in nested volumes and boundary transitions.
+- [**Participating Media**](./docs/technical/participating-media.md) - How fog, smoke, the atmosphere and subsurface volumes are sampled: exact free flights in analytic media, spectral and ratio tracking against a grid of majorants, spectral MIS for coloured media, shadow rays through every medium, equiangular sampling of point and spot lights.
 - [**Subsurface Scattering**](./docs/technical/subsurface-scattering.md) - Volumetric random walk integration for SSS: derivation, dispatching on refraction events, comparison with the dipole approximation.
 - [**Benchmarks (`RayTracer.Benchmarks`)**](./docs/technical/benchmarks.md) - BenchmarkDotNet harness for AABB and BVH: execution, output, adding new benchmarks.
 - [**Testing (`RayTracer.Tests`)**](./docs/technical/testing.md) - xUnit suite: BVH ↔ HittableList equivalence tests, AABB differentials, reusable patterns.

@@ -151,12 +151,22 @@ public class Cone : IHittable, ISamplable
                     rec.U = (theta + MathF.PI) / (2f * MathF.PI);
                     rec.V = (y - _yMin) / Height;
 
+                    // P = (r(y) cos θ, y, r(y) sin θ), θ = 2πU − π, y = yMin + V·H:
+                    //   ∂P/∂u = 2π·(−pz, 0, px)               (zero at the apex)
+                    //   ∂P/∂v = H·(s cos θ, 1, s sin θ),  s = dr/dy
+                    float rho = MathF.Sqrt(px * px + pz * pz);
+                    float sOverRho = rho > 1e-12f ? _slope / rho : 0f;
+                    rec.DpDu = new Vector3(-pz, 0f, px) * (2f * MathF.PI);
+                    rec.DpDv = new Vector3(px * sOverRho, 1f, pz * sOverRho) * Height;
+
                     // TBN: Tangent = ∂P/∂θ (azimuthal direction)
                     Vector3 tDir = new Vector3(-pz, 0, px);
                     if (tDir.LengthSquared() < 1e-8f) tDir = Vector3.UnitX;
                     rec.Tangent = Vector3.Normalize(tDir);
-                    // Bitangent = along the cone surface in the V direction (upward slope)
-                    rec.Bitangent = Vector3.Normalize(Vector3.Cross(outwardNormal, rec.Tangent));
+                    // Bitangent = along the cone surface in the V direction (upward
+                    // slope). N × T would point down the slope, against V; ∂P/∂v
+                    // never vanishes (its Y is H), so it gives the direction directly.
+                    rec.Bitangent = Vector3.Normalize(rec.DpDv);
 
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;
@@ -231,6 +241,9 @@ public class Cone : IHittable, ISamplable
 
         rec.Tangent = Vector3.UnitX;
         rec.Bitangent = Vector3.UnitZ;
+        // The cap's diameter spans one unit of U and of V.
+        rec.DpDu = new Vector3(2f * capRadius, 0f, 0f);
+        rec.DpDv = new Vector3(0f, 0f, 2f * capRadius);
 
         rec.ObjectSeed = Seed;
         rec.Material = Material;
@@ -241,7 +254,11 @@ public class Cone : IHittable, ISamplable
     // ═════════════════════════════════════════════════════════════════════════
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
-        => SampleImpl(MathUtils.RandomFloat(), MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        float part = MathUtils.RandomFloat();
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleImpl(part, r2u, r2v);
+    }
 
     /// <inheritdoc/>
     // Frustum (or cone): lateral π(R+r)·slant + bottom πR² + top πr²
@@ -262,14 +279,12 @@ public class Cone : IHittable, ISamplable
     /// grid. The part selection (lateral / bottom / top) stays uniform so that
     /// area-weighting between the three surfaces is preserved.
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
         float xiPart = MathUtils.RandomFloat();
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleImpl(xiPart, xi1, xi2);
     }
 
@@ -322,12 +337,13 @@ public class Cone : IHittable, ISamplable
             float sinT = MathF.Sin(theta);
             Vector3 point = new(Center.X + rAtV * cosT, y, Center.Z + rAtV * sinT);
 
-            // Normal on the cone surface
-            Vector3 radial = new(cosT, 0, sinT);
-            Vector3 normal = Vector3.Normalize(
-                new Vector3(radial.X, -rAtV * _slope, radial.Z));
+            // Normal on the cone surface: the gradient of √(x² + z²) − r(y),
+            // (cos θ, −dr/dy, sin θ) (the radius used to scale dr/dy, tilting
+            // the normal of a frustum's samples toward the axis).
+            Vector3 normal = Vector3.Normalize(new Vector3(cosT, -_slope, sinT));
 
-            return (point, normal, new Vector2(theta / (2f * MathF.PI), v), totalArea);
+            // The UV Hit() reports here: U = (atan2 + π) / 2π, V the height fraction.
+            return (point, normal, new Vector2((MathF.Atan2(sinT, cosT) + MathF.PI) / (2f * MathF.PI), v), totalArea);
         }
         else if (r < lateralArea + bottomArea)
         {
@@ -355,9 +371,10 @@ public class Cone : IHittable, ISamplable
 
         Vector3 point = center + r * MathF.Cos(theta) * uAxis + r * MathF.Sin(theta) * vAxis;
 
+        // The cap UV Hit() reports: a projection on world X and Z.
         float invR = radius > 0f ? 1f / radius : 0f;
-        float uu = (r * MathF.Cos(theta) * invR + 1f) * 0.5f;
-        float vv = (r * MathF.Sin(theta) * invR + 1f) * 0.5f;
+        float uu = ((point.X - center.X) * invR + 1f) * 0.5f;
+        float vv = ((point.Z - center.Z) * invR + 1f) * 0.5f;
         return (point, normal, new Vector2(uu, vv), totalArea);
     }
 

@@ -68,7 +68,8 @@ public class NoiseTexture : ITexture
         HybridMultifractal,
     }
 
-    private readonly Perlin _noise;
+    /// <summary>Lattice-noise basis (<see cref="PerlinBasis"/>).</summary>
+    public PerlinBasis NoiseBasis { get; set; } = PerlinBasis.Improved;
     private readonly float _scale;
     private readonly Vector3 _colorA;
     private readonly Vector3 _colorB;
@@ -137,7 +138,6 @@ public class NoiseTexture : ITexture
 
     public NoiseTexture(float scale, Vector3 colorA, Vector3 colorB)
     {
-        _noise = new Perlin();
         _scale = scale;
         _colorA = colorA;
         _colorB = colorB;
@@ -200,7 +200,7 @@ public class NoiseTexture : ITexture
         transformedP = TextureTransform.ApplyRandomRotation(transformedP, objectSeed, RandomizeRotation);
         transformedP += TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
 
-        Perlin noise = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
+        Perlin noise = Perlin.GetOrCreate(objectSeed, NoiseBasis);
 
         Vector3 q = _scale * transformedP;
         if (Distortion > 0f)
@@ -222,9 +222,11 @@ public class NoiseTexture : ITexture
         float n = kind switch
         {
             NoiseKind.Perlin              => (noise.Noise(q) + 1f) * 0.5f,
-            NoiseKind.Fbm                 => noise.Fbm(q, effOct, Lacunarity, Gain),
-            NoiseKind.Ridged              => noise.Ridged(q, effOct, Lacunarity, Gain),
-            NoiseKind.Billow              => noise.Billow(q, effOct, Lacunarity, Gain),
+            // The footprint drops octaves (effOct) without changing how many
+            // the pattern has (Octaves): the dropped ones count at their mean.
+            NoiseKind.Fbm                 => noise.Fbm(q, Octaves, Lacunarity, Gain, evaluated: effOct),
+            NoiseKind.Ridged              => noise.Ridged(q, Octaves, Lacunarity, Gain, evaluated: effOct),
+            NoiseKind.Billow              => noise.Billow(q, Octaves, Lacunarity, Gain, evaluated: effOct),
             // Legacy turbulence keeps its historical 7-octave default when the
             // user hasn't explicitly overridden `octaves`, matching the old
             // visual output exactly.
@@ -246,8 +248,8 @@ public class NoiseTexture : ITexture
             // the actual value and divide at the end. The clamp prevents
             // exponential blow-up and the division puts typical samples
             // squarely in the [0,1] color-ramp domain.
-            NoiseKind.HeteroTerrain       => HeteroTerrainNormalized(noise, q, effOct, Lacunarity, FractalIncrement, FractalOffset),
-            NoiseKind.HybridMultifractal  => HybridMultifractalNormalized(noise, q, effOct, Lacunarity, FractalIncrement, FractalOffset),
+            NoiseKind.HeteroTerrain       => HeteroTerrainNormalized(noise, q, Octaves, effOct, Lacunarity, FractalIncrement, FractalOffset),
+            NoiseKind.HybridMultifractal  => HybridMultifractalNormalized(noise, q, Octaves, effOct, Lacunarity, FractalIncrement, FractalOffset),
             _                             => (noise.Noise(q) + 1f) * 0.5f,
         };
 
@@ -285,7 +287,7 @@ public class NoiseTexture : ITexture
     /// distinction the showcase wants to highlight.
     /// </para>
     /// </summary>
-    private static float HeteroTerrainNormalized(Perlin noise, Vector3 p, int octaves, float lacunarity, float h, float offset)
+    private static float HeteroTerrainNormalized(Perlin noise, Vector3 p, int octaves, int evaluated, float lacunarity, float h, float offset)
     {
         float value = offset + noise.Noise(p);
         float dc = offset;                    // Noise=0 path (per-octave DC)
@@ -299,7 +301,9 @@ public class NoiseTexture : ITexture
             frequencyWeight *= weightDecay;
             float bounded   = Math.Clamp(value, 0f, 1f);
             float boundedDc = Math.Clamp(dc,    0f, 1f);
-            value += (noise.Noise(p) + offset) * frequencyWeight * bounded;
+            // An octave the footprint filtered out takes its mean, Noise = 0.
+            float nz = i < evaluated ? noise.Noise(p) : 0f;
+            value += (nz + offset) * frequencyWeight * bounded;
             dc    += offset                    * frequencyWeight * boundedDc;
             float amp = frequencyWeight * boundedDc;
             ampSumSq += amp * amp;
@@ -322,7 +326,7 @@ public class NoiseTexture : ITexture
     /// track the DC path (Noise=0) and the per-octave Noise amplitude sum
     /// so the output is recentered and rescaled into [0, 1].
     /// </summary>
-    private static float HybridMultifractalNormalized(Perlin noise, Vector3 p, int octaves, float lacunarity, float h, float offset)
+    private static float HybridMultifractalNormalized(Perlin noise, Vector3 p, int octaves, int evaluated, float lacunarity, float h, float offset)
     {
         float frequencyWeight = 1f;
         float weightDecay = MathF.Pow(lacunarity, -h);
@@ -340,7 +344,7 @@ public class NoiseTexture : ITexture
             if (weightDc > 1f) weightDc = 1f;
 
             frequencyWeight *= weightDecay;
-            float signal   = (noise.Noise(p) + offset) * frequencyWeight;
+            float signal   = ((i < evaluated ? noise.Noise(p) : 0f) + offset) * frequencyWeight;
             float signalDc = offset                    * frequencyWeight;
 
             result += weight   * signal;

@@ -49,55 +49,49 @@ La forma A con il volume di B sottratto. Le superfici di B che tagliano A divent
 
 ---
 
-## 2. Algoritmo: Classificazione per Tutti i Passaggi (All-Hits)
+## 2. Algoritmo: fusione degli attraversamenti
 
-L'implementazione CSG si basa su un algoritmo di classificazione a intervalli che funziona correttamente anche per solidi non-convessi e alberi annidati.
+L'implementazione CSG classifica il raggio a intervalli e funziona anche per solidi non convessi, alberi annidati e facce coincidenti (PIANO-REVIEW.md, Fase 2).
 
-### 2.1 Raccolta di tutte le intersezioni
+### 2.1 Raccolta degli attraversamenti
 
-Per ogni raggio, il motore raccoglie **tutte** le intersezioni con ciascun figlio (non solo la prima), chiamando ripetutamente `Hit()` e avanzando il parametro `tMin` oltre ogni punto trovato. Ogni intersezione riporta la flag `FrontFace` che indica se il raggio sta **entrando** (front face) o **uscendo** (back face) dal solido.
+Per ogni raggio il motore raccoglie gli attraversamenti di ciascun figlio nell'intervallo richiesto, chiamando ripetutamente `Hit()` con `tMin` appena oltre il punto trovato (circa 8 ulp di t: un passo più lungo salterebbe l'uscita di un raggio che sfiora uno spigolo). Ogni attraversamento porta la flag `FrontFace`: il raggio **entra** nel figlio (true) o ne **esce** (false). Lo stato all'inizio dell'intervallo viene dal primo attraversamento (se esce, il raggio partiva dentro); senza attraversamenti nell'intervallo, una sola interrogazione oltre di esso lo dice.
 
-Per una primitiva convessa (sfera, box, cilindro) il risultato è sempre 0 intersezioni (mancato) o 2 intersezioni (entrata + uscita). Per un figlio CSG non-convesso (es. unione di due sfere non sovrapposte) ci possono essere più coppie di intersezioni.
+### 2.2 Fusione e stato
 
-### 2.2 Test di "interno al solido"
+Gli attraversamenti dei due figli sono fusi in ordine di t. Quelli più vicini di una tolleranza formano **un solo evento**: due facce coincidenti (un box a filo con la faccia di un altro, due box che si toccano) sono trovate da primitive diverse a pochi ulp di distanza. La tolleranza è una distanza **attraverso la superficie** (relativa alle coordinate del punto, 2^-17, con un minimo che scala con la scena), quindi lungo il raggio vale quella distanza divisa per |cos θ|: a incidenza radente le distanze di due facce coincidenti differiscono del loro errore di posizione diviso il coseno. Elementi più sottili della tolleranza vengono fusi.
 
-Per determinare se un punto a parametro `t` è interno a un solido si conta il numero di intersezioni con quel solido che si trovano prima di `t`: se il conteggio è dispari, il punto è interno.
+Dopo ogni evento lo stato di ciascun figlio è la `FrontFace` del suo ultimo attraversamento nell'evento, non un conteggio di parità: un attraversamento trovato due volte non inverte il resto del raggio.
 
-### 2.3 Selezione dei punti visibili
+### 2.3 Superfici
 
-La regola di selezione dipende dall'operazione:
+Il risultato è dentro dove vale op(dentro A, dentro B):
 
-| Operazione | Superficie di A visibile se... | Superficie di B visibile se... |
-|------------|-------------------------------|-------------------------------|
-| **Union** | il punto **non è** interno a B | il punto **non è** interno a A |
-| **Intersection** | il punto **è** interno a B | il punto **è** interno a A |
-| **Subtraction** | il punto **non è** interno a B | il punto **è** interno a A *(normale invertita)* |
+| Operazione | Dentro il risultato |
+|------------|--------------------|
+| **Union** | dentro A **o** dentro B |
+| **Intersection** | dentro A **e** dentro B |
+| **Subtraction** | dentro A **e non** dentro B |
 
-Tra tutti i candidati validi viene scelto quello con il `t` minore (il più vicino alla camera).
+Il risultato ha una superficie **esattamente dove il suo stato cambia**, e solo lì. Ne seguono i casi di facce coincidenti: la faccia che due solidi a contatto condividono dentro un'unione non è una superficie, né la bocca di una tasca scavata a filo di una faccia, e A \ A è vuoto. Il primo cambiamento di stato in [tMin, tMax] è il punto colpito.
 
-### 2.4 Perché non l'approccio a due soli raggi
+### 2.4 Verifica
 
-Un approccio alternativo è calcolare gli intervalli `[t_enter, t_exit]` per ciascun figlio e combinarli con la logica dell'operazione. Questo funziona correttamente per coppie di convessi, ma fallisce non appena un figlio è a sua volta un CSG non-convesso (es. `union` di due sfere separate): l'intervallo singolo non può rappresentare due span disgiunti.
-
-L'approccio all-hits usato in 3D-Ray non ha questa limitazione ed è fondamentale per la correttezza degli alberi CSG annidati.
+`CsgAuditTests` confronta il primo punto colpito e `FrontFace` con un riferimento esatto: sfere e box hanno intervalli lungo il raggio in forma chiusa, e gli intervalli di un albero booleano sono le operazioni insiemistiche di quelli (due intervalli che si toccano sono uno, un intervallo di lunghezza zero non c'è). Nove casi, otto seed, 20000 raggi ciascuno, con raggi mirati a facce coincidenti e spigoli: unione di sfere, intersezione sfera-box, sottrazione box-sfera, tasca a filo, box che si toccano in unione, intersezione con faccia condivisa, sottrazione di un box che tocca da fuori, albero annidato a filo, A \ A.
 
 ---
 
 ## 3. Gestione delle Normali
 
-### 3.1 Superfici dei figli originali (Union e Intersection)
+### 3.1 Superfici dei figli originali
 
-Le normali, le coordinate UV, le tangenti e i bitangenti di ogni figlio vengono preservati esattamente come calcolati dalla primitiva originale. Questo garantisce che texture e normal map funzionino correttamente su qualsiasi superficie CSG.
+Il punto colpito è il record di un figlio il cui attraversamento va nel verso del risultato (A se entrambi). Normali, coordinate UV, tangenti e bitangenti restano quelle calcolate dalla primitiva originale: texture e normal map funzionano su qualsiasi superficie CSG.
 
 ### 3.2 Superficie tagliante nella Subtraction
 
-Quando una superficie di B è visibile nella sottrazione (cioè forma il bordo della cavità), la sua normale viene **invertita** automaticamente per puntare verso l'esterno della cavità anziché verso l'interno di B.
+In A \ B un attraversamento di B delimita il risultato nel verso opposto: uscire da B è entrare nel risultato. Per questo nella sottrazione si inverte solo `FrontFace` del record di B. `rec.Normal` è la normale di shading, sempre orientata contro il raggio qualunque sia il solido che possiede la faccia, e resta com'è (invertirla la renderebbe concorde col raggio e azzererebbe i lobi di riflessione).
 
-Oltre alla normale, vengono invertiti:
-- `FrontFace` — mantiene la coerenza con la pipeline di shading (usata da Dielectric e Disney BSDF per determinare la direzione dell'IOR)
-- `Bitangent` — invertire la normale cambia la chiralità dello spazio tangente; invertire il bitangente mantiene il frame TBN destrorso, garantendo che le normal map si orientino correttamente
-
-Questo significa che un materiale `dielectric` (vetro) applicato alla forma B tagliante si comporta correttamente anche all'interno della cavità: il raggio che entra nella cavità trova la normale orientata verso di lui e la rifrazione funziona come atteso.
+Così un materiale `dielectric` (vetro) sulla forma B tagliante si comporta correttamente dentro la cavità: la direzione dell'IOR segue `FrontFace`.
 
 ---
 
@@ -154,7 +148,7 @@ Non esiste un limite teorico alla profondità dell'albero. In pratica, la comple
 
 ## 4bis. Tipi ammessi come figli CSG
 
-Il classificatore all-hits richiede che ogni figlio di un nodo CSG sia una **primitiva solida** con una funzione interno/esterno ben definita (due intersezioni di entrata/uscita per raggio nel caso convesso, un numero pari in quello non convesso). Solo così la regola di selezione del §2.3 ("se il punto è interno all'altro operando") è ben posta.
+La classificazione richiede che ogni figlio di un nodo CSG sia una **primitiva solida** con una funzione interno/esterno ben definita, i cui attraversamenti alternano entrate e uscite. Solo così lo stato di dentro/fuori del §2.2 è ben posto. `quad`, `disk`, `annulus` e `triangle` sono superfici aperte: ammesse, ma il loro "interno" è il lato dietro la faccia per il resto del raggio.
 
 **Tipi ammessi come `left` / `right`:**
 - Primitive analitiche solide: `sphere`, `box`, `cylinder`, `cone` (anche troncato), `torus`, `capsule`, `quad`, `disk`, `annulus`, `triangle`, `lathe` (alias `revolution` / `surface_of_revolution`).
@@ -164,8 +158,8 @@ Il classificatore all-hits richiede che ogni figlio di un nodo CSG sia una **pri
 
 | Tipo scartato | Motivo tecnico |
 |---------------|----------------|
-| `group` | Un gruppo è una collezione di hittable senza interno/esterno definito. Il test "punto dentro il solido" (§2.2) richiederebbe di contare le intersezioni con l'unione, che è un concetto booleano diverso dal raggruppamento scene-graph. |
-| `mesh` / `obj` | Le mesh triangolari non sono garantite essere chiuse né orientabili; il conteggio delle intersezioni per il test di parità può dare risultati errati. |
+| `group` | Un gruppo è una collezione di hittable senza interno/esterno definito. Lo stato "dentro il solido" (§2.2) richiederebbe di contare le intersezioni con l'unione, che è un concetto booleano diverso dal raggruppamento scene-graph. |
+| `mesh` / `obj` | Le mesh triangolari non sono garantite essere chiuse né orientabili: lo stato di dentro/fuori dato dalle facce può essere sbagliato. |
 | `instance` | Risolvere il template richiederebbe accesso al dizionario dei templates durante la costruzione CSG, che al momento non avviene nel percorso `BuildCsgChild`. |
 | `plane` / `infinite_plane` | Un piano infinito ha "interno" non definito (metà spazio? entrambi?), incompatibile con l'algoritmo di classificazione. |
 

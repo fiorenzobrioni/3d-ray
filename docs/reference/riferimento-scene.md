@@ -91,38 +91,79 @@ automaticamente a un `PhysicalSun` separato con cone sampling e limb darkening.
 ```yaml
 sky:
   type: "nishita"
-  turbidity: 3.0                           # remappato internamente a una scala Mie/polvere
+  turbidity: 3.0                           # manopola della foschia: polvere 0.5 a 1, 0.9 a 3, 2.3 a 10
+  ground_albedo: [0.3, 0.3, 0.3]
+  units: "relative"                        # "relative" (default) o "photometric" (nit)
   intensity: 1.0
   sun:
     direction:       [0.4, 0.5, 0.3]      # direzione VERSO il sole
     angular_radius:  0.265
     shadow_samples:  4
 ```
-Modello physically-based con integrazione single-scattering - supera Preetham/
-Hosek-Wilkie alle elevazioni basse (riproduce correttamente il disco rosso, l'halo
-arancione e il blu zenitale all'alba/tramonto da principi fisici, non da
-approssimazione fitting). Il view ray viene marciato attraverso l'atmosfera con
-16 campioni; ciascuno consulta la trasmittanza del sole in una LUT pre-computata
-16×64 (Bruneton). La LUT è height-resolved, pronta per integrazione aerial-
-perspective con un mezzo partecipante (estensione futura).
+Modello a scattering singolo integrato (Nishita et al. 1993): il raggio di vista
+attraversa a passi un'atmosfera con scattering di Rayleigh e di Mie e assorbimento
+dell'ozono sopra un pianeta di 6360 km; a ogni passo la luce del sole, attenuata
+fino a quel punto (tabella di trasmittanza), viene diffusa verso l'osservatore. I
+colori di alba e tramonto vengono dalla fisica, non da un fit, e il cielo funziona
+anche con il sole all'orizzonte.
 
-#### **Hosek-Wilkie / Preetham** (sky fisico analitico clear-sky):
+L'illuminanza del sole al limite dell'atmosfera alimenta sia lo scattering sia il
+disco: 20 nella scala `relative` che il modello ha sempre avuto, 133 800 lux in
+quella `photometric`. Sotto l'orizzonte, lo stesso terreno dei cieli analitici.
+
+Qui `turbidity` corrisponde a poca polvere (a 3 un'atmosfera eccezionalmente
+pulita): il modello diffonde una volta sola, e con l'aerosol di una vera torbidità
+3 il suo orizzonte diventerebbe scuro dove lo scattering multiplo tiene chiaro
+quello reale. Per lo stesso motivo il suo cielo è più scuro di uno misurato
+rispetto al sole (circa la metà): per l'equilibrio di luce diurna più vicino alle
+misure usare `hosek_wilkie`.
+
+#### **Hosek-Wilkie / Preetham** (cielo diurno analitico):
 ```yaml
 sky:
-  type: "hosek_wilkie"                     # alias di "preetham" (modello analitico)
-  turbidity:     3.0                       # 1 = aria pulitissima, 3 = clear, 5 = foschia, 10 = smog
-  ground_albedo: [0.3, 0.3, 0.3]
+  type: "hosek_wilkie"                     # alias "physical"; oppure "preetham"
+  turbidity:     3.0                       # torbidità di Linke: 1 = aria pura, 3 = sereno, 6 = foschia, 10 = molta foschia
+  ground_albedo: [0.3, 0.3, 0.3]           # terreno sotto l'orizzonte (tinge anche il cielo di Hosek-Wilkie)
+  units:         "relative"                # "relative" (default) o "photometric" (nit)
   intensity:     1.0
   sun:
     direction:       [0.3, 0.8, 0.2]      # direzione VERSO il sole
     angular_radius:  0.265                 # default = disco solare reale
     shadow_samples:  4
 ```
-Distribuzione daylight analitica parametrizzata da torbidità atmosferica e
-albedo del terreno. Il modello espone direttamente la direzione del sole come
-luce analitica: viene auto-registrato un `PhysicalSun` accanto all'environment -
-ombre nitide da cone sampling senza dover campionare 1 px su CDF. La trasmittanza
-Rayleigh tinge il sole di caldo alle elevazioni basse (alba/tramonto).
+Due modelli analitici di cielo sereno, parametrizzati da torbidità, albedo del
+terreno ed elevazione del sole:
+
+- **`hosek_wilkie`** (e il suo alias `physical`): Hosek e Wilkie 2012, versione
+  RGB, dalle tabelle degli autori. Segue bene i cieli misurati, anche con il sole
+  basso. Torbidità 1-10, albedo del terreno 0-1 per canale.
+- **`preetham`**: Preetham, Shirley e Smits 1999, il modello precedente. Cielo più
+  luminoso a parità di torbidità, una tinta rosata vicino all'orizzonte alle
+  elevazioni medie, debole con il sole basso: tenuto come riferimento.
+
+**Il sole viene dalla stessa luce del cielo.** Il suo disco mostra l'illuminanza
+del sole al limite dell'atmosfera (133.8 klux), attenuata lungo il suo percorso in
+un'atmosfera con scattering di Rayleigh e di Mie e ozono, con la polvere della
+stessa torbidità, distribuita sull'angolo solido del disco. In una giornata serena
+con il sole a 45° dà a un piano orizzontale circa 3-4 volte quello che dà il cielo;
+a 15° circa altrettanto. Il disco è registrato come una luce `PhysicalSun` separata
+(campionamento del cono, oscuramento al bordo). Al tramonto si scalda e si affievolisce.
+
+**Unità.** `relative` mantiene la scala che il corpo del cielo ha sempre avuto
+(kcd/m²: uno zenit sereno vale circa 4-10); `photometric` dà nit, la scala delle
+luci fotometriche e dell'`ev100` della camera (un cielo sereno a mezzogiorno vale
+migliaia di nit, il disco del sole circa 1.5×10⁹; esporre a EV100 circa 15). Al
+caricamento la console riporta l'illuminanza che il cielo dà a un piano
+orizzontale a terra e la parte che viene dal sole (`Sky light: 75190 lux on the
+ground, 58593 of it from the sun`).
+
+**Sotto l'orizzonte** il cielo mostra un terreno: un piano lambertiano di albedo
+`ground_albedo` illuminato da quel cielo e da quel sole, raggiunto nei primi 3°
+sotto l'orizzonte così che non ci sia una giuntura. Una scena con un suo piano di
+terra lo nasconde.
+
+Con il sole sotto l'orizzonte il cielo resta com'è al tramonto e il disco si
+spegne (per il crepuscolo usare `nishita`).
 
 #### **HDRI/IBL** (image-based, .hdr + .exr):
 ```yaml
@@ -157,6 +198,11 @@ sky:
   sun:
     visible_to_camera: false    # Disco solare invisibile alla camera (continua a illuminare)
 ```
+La categoria di un rimbalzo è il lobo che il materiale ha campionato (un
+riflesso di metallo ruvido o di coat è `glossy`, una rifrazione
+`transmission`, uno scattering in un volume o nel subsurface `diffuse`); un
+raggio che attraversa un cut-out conserva la sua categoria, quindi un raggio
+di camera attraverso una foglia resta un raggio di camera.
 
 #### **Background plate** (solo camera):
 ```yaml
@@ -307,19 +353,25 @@ medium:
   type: "atmosphere"               # alias: "nishita", "aerial_perspective"
   world_scale: 1000.0              # metri per unità mondo (1000 = 1 wu : 1 km). Default 1000.
   sea_level_y: 0.0                 # Y world dell'altitudine 0 (alias Y0 mantenuto)
-  air_density: [1, 1, 1]           # moltiplicatore densità Rayleigh per canale
-  dust_density: 1.0                # densità Mie (0 = puro, 1 = pulito, >1 = inquinato)
-  phase: "hg"                      # default Henyey-Greenstein g=0.76 (Mie forward)
+  air_density: 1.0                 # densità dell'aria (Rayleigh), 1 = atmosfera standard
+  dust_density: 1.0                # densità della polvere (Mie) (0 = puro, 1 = pulito, >1 = inquinato)
+  ozone_density: 1.0               # ozono (assorbimento intorno ai 25 km), 1 = standard
+  phase: "hg"                      # phase function della polvere (default Henyey-Greenstein g = 0.76)
   g: 0.76
 ```
-Mezzo Earth-realistic a due specie esponenziali (Rayleigh scale height 8 km +
-Mie 1.2 km) con le stesse costanti fisiche di `NishitaSky`. L'optical depth
-ha forma chiusa (somma di due esponenziali) - niente varianza da delta
-tracking per il path di trasmittanza. Il sampling free-path usa delta tracking
-con majorante alla quota più bassa. Da abbinare a `world.sky.type: nishita`
-per ottenere sky e aerial perspective visivamente coerenti.
+L'atmosfera terrestre su un suolo piano, con la stessa aria, polvere e ozono
+dei cieli fisici: l'aria diffonde con la phase function di Rayleigh (sempre),
+la polvere con `phase` (Henyey-Greenstein in avanti per default), l'ozono
+assorbe soltanto. La profondità ottica di ogni specie ha forma chiusa, quindi
+la trasmittanza è esatta e le distanze sono campionate esattamente (niente
+rumore di tracking); a un evento di scattering la specie è scelta in
+proporzione alla luce che diffonde. Il mezzo è **aerial perspective**: agisce
+solo tra l'occhio (o un punto di scattering) e la superficie che vede. Un
+raggio o un raggio d'ombra che va verso il cielo lo attraversa intatto, perché
+il cielo fisico contiene già la luce di tutta l'atmosfera e il disco del sole
+la sua trasmittanza. Da abbinare a `world.sky.type: nishita`.
 
-**Tipo 3 - `procedural`** (Perlin fBm, delta tracking):
+**Tipo 3 - `procedural`** (Perlin fBm, tracking a collisioni nulle):
 ```yaml
 medium:
   type: "procedural"
@@ -334,7 +386,7 @@ medium:
   g: 0.75
 ```
 
-**Tipo 4 - `grid`** (griglia 3D inline o da file `.vol`, delta tracking + filtro di ricostruzione):
+**Tipo 4 - `grid`** (griglia 3D inline o da file `.vol`, tracking a collisioni nulle su una griglia di majorant + filtro di ricostruzione):
 ```yaml
 # Variante A - dati inline (utile per griglie piccole, es. ≤ 8³)
 medium:
@@ -369,7 +421,7 @@ medium:
 | Valore | Taps | Continuità | Quando usarlo |
 |---|---|---|---|
 | `trilinear` (default) | 8 | C⁰ | Default. Cheap, ma a risoluzioni basse (≤16³) la derivata salta ai confini delle celle → bande lineari visibili. |
-| `tricubic` | 64 | C¹ | Catmull-Rom cardinal spline (τ = 0.5). ~8× costo per sample, ma rimuove i kink su griglie basso-res e levigna i dati binari. Risultato clampato in `[0,1]` per preservare l'invariante del majorant. Alias accettati: `cubic`, `catmull-rom`, `smooth`. |
+| `tricubic` | 64 | C¹ | Catmull-Rom cardinal spline (τ = 0.5). ~8× costo per sample, ma rimuove i kink su griglie basso-res e levigna i dati binari. Risultato clampato in `[0,1]`; la griglia di majorant tiene conto del superamento tra i voxel (al massimo (1 + 1.25³)/2 del voxel più grande che legge), così il limite vale sempre. Alias accettati: `cubic`, `catmull-rom`, `smooth`. |
 
 Su griglie ad alta risoluzione (128³+) con densità smoothly varying i due filtri convergono visivamente - `trilinear` è sufficiente. Su griglie piccole inline o su dati binari 0/1, `tricubic` è il modo standard per nascondere gli artefatti, ricostruendo la densità in modo liscio ai confini dei voxel.
 
@@ -405,19 +457,21 @@ g: 0.6
 |---|---|---|---|
 | `homogeneous` | Costante ovunque | Analitico, economico | Scene indoor, interni delimitati, ambienti subacquei chiusi, colonne di fumo confinate da geometria. **Da evitare quando l'illuminazione è solo `sky` + `sun` o HDRI** (vedi avviso sotto). |
 | `height_fog` | Decadimento esponenziale con l'altitudine (`exp(-(y-y0)/H)`) | Analitico, economico | Scene outdoor illuminate da sky / sun / HDRI: aerial perspective, montagne all'alba, orizzonte sul mare, smog. **Scelta di default per ogni scena outdoor con illuminazione direzionale / ambientale.** |
-| `procedural` | Perlin fBm (delta tracking) | Più rumoroso (+30–100% di tempo) | Nebbia a chiazze / irregolare, horror, god-ray non uniformi, foreste nebbiose, superfici d'acqua con foschia a macchie. |
-| `grid` | Densità campionata su griglia 3D (inline o `.vol`) | Delta tracking + filtro voxel | Nubi localizzate, fumo da cache di simulazione, esplosioni, asset VFX hero. Il medium esiste solo dentro la sua AABB - fuori è vuoto e il resto della scena non è influenzato. |
+| `procedural` | Perlin fBm (tracking a collisioni nulle) | Più rumoroso (+30–100% di tempo) | Nebbia a chiazze / irregolare, horror, god-ray non uniformi, foreste nebbiose, superfici d'acqua con foschia a macchie. |
+| `grid` | Densità campionata su griglia 3D (inline o `.vol`) | Tracking su una griglia di majorant + filtro voxel | Nubi localizzate, fumo da cache di simulazione, esplosioni, asset VFX hero. Il medium esiste solo dentro la sua AABB - fuori è vuoto e il resto della scena non è influenzato. |
 
 > ⚠️ **Sky + sun + `homogeneous` = render nero.** Un medium globale `homogeneous` ha densità *costante* estesa all'infinito, quindi lo shadow ray Beer–Lambert verso il sole (o verso qualsiasi direzione del cielo) attraversa `exp(-σ_t · ∞) ≈ 0` e il direct lighting ambientale collassa a zero. Le luci spot/point/area/sphere hanno distanza finita e si comportano correttamente, ma se gli *unici* emettitori sono `sky` + `sun` (o HDRI) il render esce nero. Usa `height_fog` al posto suo - la sua profondità ottica verso lo zenit è limitata dallo `scale_height`, che è il comportamento standard dell'"aerial perspective". È il comportamento fisicamente corretto di `homogeneous` (le atmosfere reali non sono infinite), non un bug del renderer.
 
 - **Uso:** Simula nebbia, fumo, foschia atmosferica, nubi, effetti subacquei.
-- **Tip rendering:** `homogeneous` e `height_fog` sono analitici ed economici. `procedural` e `grid` usano delta tracking e sono più rumorosi - alza `-s` a 400/576/1024 e mantieni `-d 6-8`. Per scene con nebbia densa considera `-C 25`. Vedi [Profili di Rendering](./profili-di-rendering.md) §8 per la guida completa.
+- **Come sono campionati i mezzi (ogni stimatore senza distorsione):** `homogeneous`, `height_fog` e `atmosphere` hanno la profondità ottica in forma chiusa: la distanza del prossimo evento di scattering è campionata esattamente. `procedural` e `grid` sono attraversati con collisioni nulle contro un majorant (una griglia grossolana di majorant per `grid`): spectral tracking per le distanze, ratio tracking per i raggi d'ombra, senza limite al numero di passi. Nei mezzi colorati il canale che guida il campionamento è scelto in proporzione alla luce che il cammino porta ancora (MIS spettrale), così ogni canale converge. I raggi d'ombra sono attenuati da ogni mezzo che attraversano e cambiano mezzo ai bordi delle entità con un mezzo legato.
+- **Tip rendering:** `homogeneous` e `height_fog` sono analitici ed economici. `procedural` e `grid` richiedono collisioni lungo il raggio e sono più rumorosi - alza `-s` a 400/576/1024 e mantieni `-d 6-8`. Vedi [Profili di Rendering](./profili-di-rendering.md) §8 per la guida completa.
+- **Campionamento equiangolare:** in un mezzo analitico (`homogeneous`, `height_fog`, `atmosphere`) la luce di point e spot light è campionata anche a distanze distribuite come l'angolo visto dalla luce (Kulla e Fajardo 2012) e combinata per MIS con il volo libero: aloni e fasci degli spot convergono con una frazione del rumore. Automatico, senza impostazioni.
 - **Effetti:** Luci spot → god-ray visibili; point light → aloni; directional → aerial perspective (con `height_fog`).
-- **Fireflies con point/spot in nebbia:** l'attenuazione 1/d² diverge quando un evento di scattering cade vicino a un emettitore puntiforme/spot, producendo pixel isolati luminosi. Imposta `soft_radius` su quelle luci (vedi §8.1, §8.3) a un valore vicino al raggio fisico del bulbo (es. `0.15`–`0.30`).
-- **Fireflies con area light in nebbia:** il termine `cosLight/d²` nel stimatore area può divergere ad angoli radenti in media densi. Imposta `soft_radius` sulle area light (vedi §8.4). Le sphere light usano uno stimatore ad angolo solido limitato per costruzione - non serve `soft_radius`. Considera anche `--indirect-clamp-factor 0.25` (CLI) per sopprimere aggressivamente gli spike nei bounce profondi.
-- **Controllo avanzato firefly:** `--indirect-clamp-factor <f>` (default `0.25` = attivo; `1.0` = disabilitato) moltiplica la soglia `--clamp` per il contributo indiretto. Es. con i default `--clamp 10 --indirect-clamp-factor 0.25` il clamp indiretto è 2.5 (il primario resta 10). Il clamp è applicato **una sola volta, relativo alla camera**, sul contributo indiretto pesato per la throughput alla superficie primaria - non accumulato a ogni bounce.
+- **Point/spot in nebbia:** l'attenuazione 1/d² diverge vicino all'emettitore; il campionamento equiangolare (sopra) mette già i campioni dove cresce, così gli aloni restano puliti. `soft_radius` (vedi §8.1, §8.3) resta per modellare, se serve, la dimensione fisica del bulbo.
+- **Fireflies con area light in nebbia:** il termine `cosLight/d²` nel stimatore area può divergere ad angoli radenti in media densi. Imposta `soft_radius` sulle area light (vedi §8.4). Le sphere light usano uno stimatore ad angolo solido limitato per costruzione - non serve `soft_radius`. Se gli spike restano, il clamp opzionale `-C 10 --indirect-clamp-factor 0.25` (CLI) sopprime gli spike nei bounce profondi al prezzo di un po' di bias.
+- **Controllo avanzato firefly:** `--clamp` è spento per default (introduce bias: un tetto assoluto di radianza toglie anche luce legittima). Quando è indicato, `--indirect-clamp-factor <f>` (default `0.25`; `1.0` = nessuna soppressione aggiuntiva) lo moltiplica per il contributo indiretto. Es. `--clamp 10 --indirect-clamp-factor 0.25` dà un clamp indiretto di 2.5 (primario 10). Il clamp è applicato **una sola volta, relativo alla camera**, sul contributo indiretto pesato per la throughput alla superficie primaria - non accumulato a ogni bounce.
 - **Esposizione fotografica:** `--exposure <EV>` (default `0`) applica un guadagno lineare `2^EV` a ogni pixel prima del tone map ACES. Usa EV negativo (`-1`, `-2`) quando la scena appare lavata perché le luci portano la radianza in ingresso sopra ~2.0, dove ACES si appiattisce sul plateau 0.95-0.99 e nasconde il contrasto delle texture. EV positivo schiarisce scene che cadono sotto la zona lineare della curva. Replica la compensazione fotografica standard disponibile nei renderer di produzione.
-- **Light importance sampling:** `--light-sampling power` (default `all`) campiona una sola luce per evento NEE con probabilità ∝ `ApproximatePower`. Riduce drasticamente la varianza in scene con molte luci di luminosità mista. Usa `uniform` come baseline di confronto.
+- **Light importance sampling:** `--light-sampling auto|all|power|uniform|bvh` (default `auto`). `all` campiona ogni luce a ogni vertice; `power` e `uniform` scelgono una luce per evento NEE (∝ `ApproximatePower`, oppure in modo uniforme); `bvh` sceglie una luce con un BVH delle luci che pesa la potenza di ognuna con la sua distanza e il suo orientamento rispetto al punto (Conty e Kulla 2018): con molte luci, i campioni vanno a quelle vicine. `auto` è `all` fino a 16 luci e `bvh` oltre. Tutte le strategie sono non distorte.
 
 #### **Mediums Nominati** (blocco top-level `mediums:`)
 
@@ -478,8 +532,8 @@ Il `spec_trans`/`ior` (Disney) o il lobo `dielectric` controllano il Fresnel di 
 | Flag | Default | Effetto |
 |---|---|---|
 | `--sss-mode auto\|off` | `auto` | `off` declassa i media legati ad absorption-only (Beer-Lambert legacy), utile per preview rapide e confronto A/B. |
-| `--sss-quality preview\|normal\|high` | eredita da `-q` | Configura MaxVolumeBounces / RrStartBounce / NeeInsideWalk in blocco. `draft*` → preview, `medium*` → normal, `final*`/`ultra` → high. |
-| `--max-volume-bounces <n>` | dipende dal preset (16/64/256) | Cap massimo sui bounce in un walk. Limita il worst-case su media densi. |
+
+Il walk è senza distorsione: un campione di luce a ogni rimbalzo, nessun tetto al numero di rimbalzi (lo chiude una roulette russa sulla throughput del cammino).
 
 Nota migrazione: i parametri Disney legacy `subsurface` e `flatness` non sono più letti. Per ottenere un look SSS fisicamente corretto usa una delle due strade interoperabili:
 
@@ -548,6 +602,42 @@ Il piano focale è perpendicolare alla direzione di vista e passa per `focal_pos
 
 Quando entrambi `focal_pos` e `focal_dist` sono specificati, `focal_pos` vince (viene loggato un info message). `focal_pos` viene ignorato con un warning quando cade alle spalle della camera, coincide con essa o la camera è degenerata (`look_at == position`); in quel caso si usa lo scalare `focal_dist` come fallback.
 
+#### **Camera fisica: focale, f-stop, bokeh, bilanciamento del bianco**
+La stessa lente sottile si può descrivere come su una fotocamera vera. Quando presenti, queste chiavi vincono su `fov` e `aperture`:
+
+| Chiave | Default | Significato |
+|---|---|---|
+| `focal_length` | - | Lunghezza focale in mm. Con `sensor_width` fissa il campo visivo: la larghezza del sensore copre la larghezza dell'immagine, l'altezza segue le proporzioni dell'immagine. L'obiettivo è trattato come messo a fuoco all'infinito (niente focus breathing). |
+| `sensor_width` | `36` | Larghezza del sensore in mm (36 = pieno formato, 23.5 = APS-C, 17.3 = Micro Quattro Terzi). |
+| `f_stop` | - | Numero f N: diametro della pupilla = focale / N. Senza `focal_length` si usa la focale che dà `fov` su quel sensore. |
+| `meters_per_unit` | `1` | Lunghezza di un'unità della scena in metri, per convertire la pupilla da millimetri a unità della scena (`0.01` per una scena modellata in centimetri). |
+| `aperture_blades` | `0` | Numero di lamelle diritte del diaframma: `0` = rotondo, da `5` a `9` danno un bokeh poligonale. |
+| `aperture_rotation` | `0` | Rotazione del poligono delle lamelle, in gradi. |
+| `aperture_ratio` | `1` | Larghezza / altezza del diaframma: sotto 1 il bokeh diventa un ovale verticale, come con un obiettivo anamorfico (`0.5` per una compressione 2x). |
+| `ev100` | - | Valore di esposizione a ISO 100, per una scena in unità fotometriche (luci in lumen, candele, nit o lux; un cielo `photometric`): l'immagine è esposta come su una fotocamera. 15 per una giornata di sole (la regola del "sunny 16"), 12 cielo coperto, 7-8 un interno illuminato, 3-5 un interno poco illuminato. Si somma a `--exposure`. |
+| `iso`, `shutter_speed` | - | Al posto di `ev100`, con `f_stop`: EV100 = log₂(N²/t) − log₂(ISO/100) (`shutter_speed` in secondi, `0.008` = 1/125 s). |
+| `white_balance` | - | Bilanciamento del bianco in kelvin (1667-25000): una luce di questa temperatura di colore appare neutra. Valori più bassi raffreddano l'immagine, più alti la scaldano; `6504` non cambia nulla. Solo sull'immagine per lo schermo (l'EXR resta lineare); `--white-balance` da CLI vince. |
+
+```yaml
+camera:
+  position: [0, 1.2, 0]
+  look_at:  [0, 0.9, -2.5]
+  focal_length: 50          # un 50 mm su pieno formato: fov verticale 22.9° a 16:9
+  f_stop: 1.4               # pupilla di 35.7 mm (scena in metri)
+  focal_pos: [0, 0.9, -2.5]
+  aperture_blades: 6        # bokeh esagonale
+  white_balance: 3200       # la luce al tungsteno appare bianca
+```
+**Esposizione fisica.** Una scena in nit ha bisogno di un'esposizione, come una
+fotografia: con `ev100` (oppure ISO, tempo di posa e diaframma) una superficie di
+luminanza `L` arriva alla trasformazione di visualizzazione come `L / (1.2 × 2^EV100)`
+(la convenzione basata sulla saturazione: un cartoncino grigio al 18% illuminato
+come l'EV richiede finisce vicino al grigio medio). Senza, una scena fotometrica
+è molto sovraesposta. Vedi `scenes/review/daylight-units.yaml` (giornata di sole,
+EV100 15) e `scenes/review/light-units.yaml` (interno, EV100 5).
+
+La sfocatura di un punto a distanza `d` con il fuoco a `f` è il cerchio di confusione della lente sottile: sul piano di fuoco ha diametro `A |d - f| / d`, dove `A` è il diametro della pupilla. Vedi `scenes/showcases/camera-physical.yaml`.
+
 #### **`shutter` - intervallo di esposizione (motion blur)**
 Il motion blur integra la scena sul tempo in cui l'otturatore è aperto.
 L'animazione della scena gira su una timeline normalizzata `[0, 1]` (vedi la
@@ -589,7 +679,7 @@ camera:
 ```
 ---
 
-### 5. **SEZIONE MATERIALI** - Sei Tipi
+### 5. **SEZIONE MATERIALI** - Sette Tipi
 #### **5.1 Lambertian (Diffuso/Opaco)**
 ```yaml
 - id: "matte_red"
@@ -604,33 +694,48 @@ camera:
 ```yaml
 - id: "brushed_steel"
   type: "metal"
-  color: [0.85, 0.85, 0.88]               # Tinta di riflettanza
-  fuzz: 0.1                                # Rugosità: 0=specchio, 1=diffuso
+  color: [0.85, 0.85, 0.88]               # Colore a incidenza normale (F0)
+  edge_color: [0.95, 0.95, 0.97]          # (opzionale) Colore verso la radenza (tinta F82), default bianco
+  fuzz: 0.1                                # Rugosità: 0 = specchio ('roughness' è un alias)
+
+- id: "gold"
+  type: "metal"
+  preset: "gold"                           # Metallo misurato: Fresnel complesso esatto
+  fuzz: 0.25
 ```
-- Superfici lucide e riflettenti
-- Colori metallici basati sulla fisica
-- Supporta texture e normal_map
+- Microfacette GGX con mascheramento e ombreggiamento correlati in altezza, campionate dalle normali visibili.
+- Due modi di dare il colore: `color` + `edge_color` (il modello F82: la curva di Schlick da `color`, con l'avvallamento verso `edge_color` che i metalli veri mostrano verso 82°), oppure un indice di rifrazione complesso misurato con `preset` (`gold`, `silver`, `copper`, `aluminium`, `chromium`, `tungsten`, `nickel`, `iridium`, `molybdenum`, `rhodium`, `tantalum`, `titanium_nitride`, `vanadium`, `beryllium`, `mercury`) o con `eta: [r, g, b]` + `k: [r, g, b]` espliciti. Un IOR complesso fissa da solo il colore: `color` e `edge_color` vengono ignorati.
+- `multiple_scattering` (default `true`): la luce che rimbalza più volte fra le microfacette viene restituita (Kulla-Conty), così un metallo ruvido mantiene la sua luminosità invece di scurirsi al crescere della rugosità. Da spegnere solo per confronti con renderer che non lo hanno.
+- `fuzz` corrisponde alla larghezza GGX come `alpha = fuzz²`.
+- Supporta texture (su `color`) e normal_map
 
 #### **5.3 Dielectric (Vetro/Trasparente)**
 ```yaml
 - id: "glass"
   type: "dielectric"
   refraction_index: 1.52                  # IOR (indice di rifrazione)
-  color: [1.0, 1.0, 1.0]                  # (opzionale) Tinta
+  color: [1.0, 1.0, 1.0]                  # (opzionale) Tinta, default bianco (vetro trasparente)
+  roughness: 0.2                          # (opzionale) Vetro satinato, default 0 = trasparente
 ```
-- Trasparente con rifrazione e riflessione di Fresnel
+- Trasparente con rifrazione e riflessione di Fresnel esatta
+- `roughness` > 0 dà il vetro satinato: microfacette GGX sia sul lato riflesso sia su quello trasmesso, con illuminazione diretta attraverso la superficie.
+- Alla rifrazione la radianza è scalata di (n1/n2)²: una camera sott'acqua vede il cielo più luminoso di n², come deve.
 - IOR comuni: acqua=1.33, vetro=1.5-1.52, diamante=2.42
 
 #### **5.4 Emissive (Auto-illuminato)**
 ```yaml
 - id: "neon_blue"
   type: "emissive"
-  color: [0.2, 0.4, 1.0]
+  color: [0.2, 0.4, 1.0]                   # (opzionale) default bianco
   intensity: 8.0                           # Moltiplicatore di radianza
+  # luminance: 500                         # al posto di intensity: luminanza in nit (cd/m²);
+  #                                        #   il colore diventa una tinta (diviso per la sua luminanza)
+  # temperature: 3000                      # colore di corpo nero in kelvin, moltiplica `color`
   texture: (opzionale)                     # Supporta texture procedurali
 ```
 - Gli oggetti brillano ed emettono luce nella scena
 - Range di intensità: 0.5–2 (bagliore sottile), 3–10 (neon visibile), 10–25 (pannello luminoso), 25–100 (sovraesposto)
+- `luminance` (nit) è la forma fotometrica, per le scene esposte con `ev100`: un tubo al neon vale circa 1000-5000 nit, un pannello LED 3000-10 000, uno schermo TV 200-500. Con una texture, la texture tiene i suoi valori e `luminance` la scala.
 - Partecipano alla NEE (Next Event Estimation) per ridurre il rumore
 - Emettono solo dalle facce anteriori
 
@@ -675,7 +780,7 @@ camera:
   thin_film_ior: 1.5                       # IOR del film (η₂)
 
   # ── SSS material-embedded ───────────────────────────────────────────
-  subsurface_color: [0.95, 0.90, 0.85]     # Albedo del volume (default: usa color)
+  subsurface_color: [0.95, 0.90, 0.85]     # Albedo che mostra la superficie (default: usa color)
   subsurface_radius: [0.45, 0.35, 0.22]    # Mean Free Path per canale RGB (world units)
   subsurface_scale: 1.0                    # Moltiplicatore globale dell'MFP (default 1.0)
   subsurface_anisotropy: 0.0               # HG g della phase function auto-costruita (0 = isotropico)
@@ -686,6 +791,29 @@ camera:
   # Tutti i parametri scalari e i colour map sopra accettano la versione
   # *_texture, ad es. roughness_texture: { type: "image", path: "rough.png" }.
 ```
+
+> **Trasporto della luce (PIANO-REVIEW.md, Fase 5).** Un materiale `disney`
+> è tradotto sul materiale OpenPBR (§5.7): i parametri qui sopra mantengono il
+> loro significato, il trasporto della luce è quello di OpenPBR, che conserva
+> l'energia in ogni combinazione di strati. Cosa cambia nell'aspetto delle
+> scene esistenti:
+> - Sheen, clearcoat e trasmissione non aggiungono più luce sopra la base
+>   (guadagnavano fino al 39% a incidenza radente): la base sotto un coat o uno
+>   sheen riceve solo la luce che li attraversa.
+> - `clearcoat: 1` è uno strato di lacca completo: il vecchio lobo era scalato
+>   di 0.25 (Burley 2012), quindi il riflesso del coat è più luminoso e la base
+>   sotto un po' più scura. `clearcoat_gloss` 1 è un coat a specchio.
+> - `sheen` è il fuzz di OpenPBR, uno strato di fibre (Zeltner 2022):
+>   `sheen_tint` e `sheen_roughness` mantengono il loro significato.
+> - Il diffuso è Lambert (la retro-riflessione di Burley creava energia a
+>   incidenza radente).
+> - `transmission_color` senza `transmission_depth` tingeva ogni rifrazione,
+>   quindi un oggetto pieno mostrava il colore al quadrato; resta al quadrato,
+>   ora applicato una volta all'ingresso (stesso aspetto). Senza
+>   `transmission_color` il vetro è tinto da `color`.
+> - `diff_trans` rende la superficie thin-walled.
+> - Una roughness sotto 0.03 è uno specchio perfetto (un lobo più stretto di
+>   0.06°).
 
 ##### **Riepilogo proprietà Disney**
 Riferimento a colpo d'occhio di ogni chiave Disney accettata dal loader.
@@ -721,7 +849,7 @@ caricamento quando ne trova una).
 | `thin_film_thickness` | float | 0.0 | ≥ 0 (nm) | Thin-film | Belcour-Barla 2017; 100–800 nm = iridescenza |
 | `thin_film_ior` | float | 1.5 | ≥ 1 | Thin-film | η₂ del film (acqua = 1.33, sapone = 1.40) |
 | `subsurface_radius` | colore | - | ≥ 0 (wu) | SSS | Mean Free Path per canale RGB. La sua presenza attiva l'auto-build di un `HomogeneousMedium` embedded. |
-| `subsurface_color` | colore | `color` | 0–1 | SSS | Albedo del volume. Se omesso usa il `color` di superficie. |
+| `subsurface_color` | colore | `color` | 0–1 | SSS | L'albedo che mostra un pezzo spesso sotto luce uniforme (l'albedo di scattering multiplo). Ne deriva l'albedo di singolo scattering del mezzo (Chiang, Kutz e Burley 2016, con il termine di anisotropia di OpenPBR), come per `openpbr`. Se omesso usa il `color` di superficie. |
 | `subsurface_scale` | float | 1.0 | > 0 | SSS | Moltiplicatore globale applicato a `subsurface_radius` prima della conversione σ. |
 | `subsurface_anisotropy` | float | 0.0 | -1–1 | SSS | `g` HG della phase function auto-costruita. 0 ≈ isotropico. |
 | `texture` | blocco | - | - | Texturing | Procedurale o immagine, sostituisce `color` |
@@ -780,7 +908,7 @@ materials:
     type: disney
     color: [0.92, 0.89, 0.85]
     roughness: 0.25
-    subsurface_color:     [0.95, 0.90, 0.85]   # albedo del volume (default: usa color)
+    subsurface_color:     [0.95, 0.90, 0.85]   # albedo che mostra la superficie (default: usa color)
     subsurface_radius:    [0.45, 0.35, 0.22]   # Mean Free Path per canale RGB (world units)
     subsurface_scale:     1.0                  # moltiplicatore globale dell'MFP (opzionale)
     subsurface_anisotropy: 0.0                 # HG g (opzionale, default 0 = isotropico)
@@ -794,16 +922,24 @@ entities:
     # nessun interior_medium, nessuna sezione mediums: - l'SSS funziona lo stesso
 ```
 
-**Come viene costruito il medium.** Sia `α` l'albedo di superficie
-(`subsurface_color` se presente, altrimenti `color`), e `r` il raggio
-(`subsurface_radius × subsurface_scale`, per canale):
+**Come viene costruito il medium.** Sia `A` l'albedo che la superficie deve
+mostrare (`subsurface_color` se presente, altrimenti `color`), e `r` il raggio
+(`subsurface_radius × subsurface_scale`, per canale). L'albedo di singolo
+scattering `α` del mezzo è quella per cui una lastra spessa mostra `A` sotto
+luce uniforme (l'inversione di Chiang, Kutz e Burley 2016 con il termine di
+anisotropia di OpenPBR, la stessa di `openpbr`):
 
 ```
+s   = 4.09712 + 4.20863 A − √(9.59217 + 41.6808 A + 17.7126 A²)
+α   = (1 − s²) / (1 − g s²)
 σ_t = 1 / (radius · scale)
 σ_s = α · σ_t
 σ_a = (1 − α) · σ_t
 phase = HG(g = subsurface_anisotropy)        # isotropico quando g ≈ 0
 ```
+
+(Fino alla Fase 8 della revisione del motore `A` era preso come `α` stesso: un
+colore di 0.8 usciva come 0.4 circa.)
 
 L'`HomogeneousMedium` risultante è anonimo (nessun `id` nel blocco `mediums`) e
 vive solo per la durata della scena.
@@ -857,6 +993,51 @@ oppure quando il volume è eterogeneo (`procedural` / `grid` / `nishita`).
 - Utile per: usura, invecchiamento, transizioni, decalcomanie
 - Supporta il nesting Mix-of-mix
 
+#### **5.7 OpenPBR Surface (Uber-materiale a strati)**
+Il modello OpenPBR Surface v1.1 della Academy Software Foundation, con i nomi e i default dei suoi parametri. Un solo materiale copre plastica, metallo, vetro, pelle, vernice auto, tessuto, carta e bolle di sapone, e conserva l'energia in ogni combinazione: un materiale bianco sotto un cielo bianco uniforme sparisce (vedi `scenes/review/openpbr-white-furnace.yaml`).
+
+```yaml
+- id: "car_paint"
+  type: "openpbr"
+  base_color: [0.55, 0.05, 0.08]          # numero, [r, g, b] o blocco texture
+  base_metalness: 0.8
+  specular_roughness: 0.4
+  coat_weight: 1
+  coat_roughness: 0.03
+  coat_color: [0.95, 0.85, 0.85]          # tinta di assorbimento del coat
+```
+
+Ogni ingresso accetta un numero, una lista `[r, g, b]` (o un solo numero grigio) o un blocco texture in linea, per esempio `specular_roughness: { type: "noise", scale: 4, colors: [[0.2,0.2,0.2],[0.5,0.5,0.5]] }`.
+
+| Strato | Parametri (default) |
+|---|---|
+| Base | `base_weight` (1), `base_color` (0.8; accetta anche `color`/`texture`), `base_metalness` (0), `base_diffuse_roughness` (0) |
+| Speculare | `specular_weight` (1), `specular_color` (1), `specular_roughness` (0.3), `specular_roughness_anisotropy` (0), `specular_ior` (1.5) |
+| Trasmissione | `transmission_weight` (0), `transmission_color` (1), `transmission_depth` (0), `transmission_scatter` (0), `transmission_scatter_anisotropy` (0) |
+| Subsurface | `subsurface_weight` (0), `subsurface_color` (0.8), `subsurface_radius` (1), `subsurface_radius_scale` ([1, 0.5, 0.25]), `subsurface_scatter_anisotropy` (0) |
+| Coat | `coat_weight` (0), `coat_color` (1), `coat_roughness` (0), `coat_roughness_anisotropy` (0), `coat_ior` (1.6), `coat_darkening` (1), `coat_normal_map` |
+| Fuzz | `fuzz_weight` (0), `fuzz_color` (1), `fuzz_roughness` (0.5) |
+| Film sottile | `thin_film_weight` (0), `thin_film_thickness` (0.5, **micrometri**), `thin_film_ior` (1.4) |
+| Emissione | `emission_luminance` (0), `emission_color` (1) |
+| Geometria | `geometry_opacity` (1), `geometry_thin_walled` (false; accetta `thin_walled`), `normal_map`, `bump_map` |
+
+Il modello, lobo per lobo:
+- **Metallo**: GGX con il Fresnel F82 (`base_color` all'incidenza normale, `specular_color` verso il radente) e scattering multiplo, così un metallo bianco ruvido resta bianco.
+- **Dielettrico**: l'interfaccia di `specular_ior`; `specular_weight` scala la riflettanza all'incidenza normale (0 toglie il riflesso, valori sopra 1 lo aumentano). Riflessione e rifrazione ruvide sono microfacette GGX.
+- **Diffuso**: Oren-Nayar che conserva l'energia (EON); `base_diffuse_roughness` 0 è Lambert. Sta sotto lo strato speculare e riceve solo la luce che lo speculare non riflette.
+- **Trasmissione**: rifrazione dentro l'oggetto. Con `transmission_depth` 0 il `transmission_color` tinge la rifrazione una volta, all'ingresso; con una profondità è la trasmittanza a quella profondità (Beer-Lambert all'interno). Con `transmission_scatter` e una profondità l'interno è un mezzo che diffonde.
+- **Subsurface**: la luce entra dalla stessa interfaccia e cammina in un mezzo che il loader lega all'oggetto: cammino libero medio `subsurface_radius × subsurface_radius_scale` per canale, albedo di scattering singolo scelto perché il colore complessivo dell'oggetto sia `subsurface_color`. Tre numeri in `subsurface_radius` sono letti come cammino libero medio per canale.
+- **Coat**: una lacca trasparente o colorata di `coat_ior` sopra tutto il resto. `coat_color` è la tinta all'incidenza normale e scurisce verso il radente; `coat_darkening` 1 mantiene lo scurimento fisico dovuto alle riflessioni interne, 0 lo toglie. Un coat ruvido rende ruvida anche la base.
+- **Fuzz**: la lucentezza di fibre o polvere in superficie (velluto, buccia di pesca), tinta da `fuzz_color`.
+- **Film sottile**: interferenza iridescente sul riflesso della base (bolle di sapone, olio, metallo anodizzato).
+- **Emissione**: radianza `emission_color × emission_luminance` in unità di scena, sotto il coat; non è campionata come luce (per le sorgenti si usa `emissive`).
+- **Thin-walled**: un foglio senza interno (foglie, carta, finestre). La trasmissione è una lastra di vetro; il subsurface diventa riflessione e trasmissione diffuse, ripartite da `subsurface_scatter_anisotropy`.
+
+Note:
+- Trasmissione e subsurface condividono l'interno dell'oggetto: con `subsurface_weight` > 0 l'interno è il mezzo del subsurface.
+- `thin_film_thickness` qui è in micrometri (OpenPBR), in nanometri per `disney`.
+- La dispersione (`transmission_dispersion_*`) non è supportata: il renderer lavora in RGB.
+
 ---
 
 ### 6. **TEXTURES** - Integrate nei Materiali
@@ -868,8 +1049,8 @@ completi su scala, dettaglio, colore e modalità di campionamento.
 Tutte le procedurali campionano su `rec.LocalPoint`, che è il punto di shading
 negli **assi propri dell'oggetto, in unità di mondo** - viene applicato lo
 `scale` dell'entità ma non la sua rotazione né la traslazione. È la proiezione
-object-space metrica dei renderer di produzione (Cycles "Texture Coordinate →
-Object", Arnold `space: object`, RenderMan `Pref`).
+object-space metrica che i renderer di produzione usano per le texture
+procedurali.
 
 Conseguenza chiave: **la dimensione delle feature è data dallo `scale` della
 texture ed è indipendente dallo scale dell'entità.** Allungare un box 10× su X
@@ -942,8 +1123,18 @@ texture:
   fractal_offset: 0.7          # Musgrave offset / "sea level" - solo per hetero_terrain / hybrid_multifractal
   distortion: 0.0              # domain warp (deforma il dominio per organicità)
   noise_strength: 0.0          # legacy: 0=Perlin liscio, >0=turbolento (sovrascritto da noise_type)
+  noise_basis: "improved"      # improved (default) | classic
   colors: [[0, 0, 0], [1, 1, 1]]
 ```
+`noise_basis` sceglie il rumore a reticolo sotto ogni procedurale che lo usa
+(`noise`, `marble`, `wood`, il domain warp di `voronoi`, la variazione per
+mattone di `brick`). `improved` (default) è l'improved Perlin noise: la sua
+curvatura è continua attraverso il reticolo, così un bump del rumore non
+mostra pieghe lungo la griglia, e ha lo stesso aspetto in ogni direzione. Ha
+lo stesso contrasto della base precedente, quindi range e color ramp restano
+validi, ma il disegno è diverso: `classic` riproduce esattamente una scena
+fatta prima del cambio.
+
 Le sette famiglie:
 - `perlin` - gradient noise liscio a singola ottava.
 - `fbm` - Σ noise/2^i, il "fractal noise" canonico.
@@ -1692,16 +1883,26 @@ texture:
   type: "image"
   path: "textures/brick.png"              # Relativo al file YAML
   uv_scale: [2, 1]                        # Fattore di piastrellatura (tiling)
+  color_space: "srgb"                     # Opzionale: srgb | linear | raw
 ```
-- Supporta: PNG, JPEG, BMP, GIF, TIFF, WebP
-- Convertito automaticamente da sRGB a lineare
+- Supporta: PNG, JPEG, BMP, GIF, TIFF, WebP (8 o 16 bit per canale, letti a
+  piena precisione), più Radiance `.hdr` e OpenEXR `.exr` (sempre lineari)
+- `color_space` dice come leggere i valori salvati. Default per ruolo: una texture
+  che dà un **colore** (`color`, `base_color`, `transmission_color`, ...) viene
+  decodificata da sRGB; una texture che dà un **dato** (roughness, metallic, pesi,
+  IOR, maschera di un mix, bump, displacement, heightfield) è letta così com'è
+  (`raw`). Va impostato solo per forzare il ruolo, per esempio una roughness map
+  salvata in sRGB. `linear` e `raw` sono sinonimi (anche `data`, `non-color`).
 - Filtro bilineare per la morbidezza
-- Anti-aliasing analitico (mipmap + EWA anisotropico) quando sono
+- Anti-aliasing analitico (mipmap + anisotropico, fino a 8 campioni trilineari) quando sono
   disponibili i ray differentials - attivo di default; toggle da CLI
   con `--texture-filtering <auto|on|off>` (vedi
   [profili-di-rendering.md §6c](./profili-di-rendering.md)). Lo stesso
-  flag controlla anche l'octave clamp analitico delle texture
-  procedurali noise/fBm/marble/wood/voronoi.
+  flag controlla l'octave clamp analitico della texture `noise` (tutte le
+  famiglie: le ottave più fini del footprint sono sostituite dalla loro
+  media, così il rumore lontano sfuma verso la media) e il supersampling sul
+  footprint di `voronoi`; `marble` e `wood` sono campionate in un punto e
+  si affidano ai campioni del pixel.
 
 #### **Normal Map:**
 ```yaml
@@ -1713,6 +1914,11 @@ normal_map:
 ```
 - Aggiunge dettagli superficiali per pixel senza geometria
 - Neutrale: RGB(128, 128, 255) = nessuna perturbazione
+- Letta come dato (mai decodificata da sRGB), 8 o 16 bit per canale, o EXR;
+  lookup bilineare centrato sul texel, con wrap ai bordi
+- Sulle mesh OBJ il frame tangente è quello MikkTSpace (tangenti per vertice,
+  bitangente ricostruita dalla normale interpolata), il frame in cui scrivono
+  i baker di normal map: una mappa cotta non mostra cuciture tra le facce
 - Si applica a qualsiasi tipo di materiale
 
 #### **Bump Map:**
@@ -1724,7 +1930,7 @@ bump_map:
     scale: 6
     octaves: 4
     colors: [[0, 0, 0], [1, 1, 1]]
-  strength: 3.0                            # Ampiezza della perturbazione (0–10, clamp)
+  strength: 0.02                           # Altezza di un valore 1 della texture, in unità di scena (0-10)
   scale: 1.0                               # Moltiplicatore UV uniforme (default 1)
 ```
 
@@ -1733,10 +1939,17 @@ da una qualunque texture procedurale o image (luminanza Rec.709). La normale
 di shading è perturbata con differenze centrate in tangent space
 (Blinn 1978).
 
+L'altezza è in **unità di scena**: `strength × luminanza(texture)`, la stessa
+superficie che costruirebbe un `displacement` di quell'altezza. La pendenza è
+misurata per unità di lunghezza sulla superficie, qualunque siano dimensione,
+scala o rotazione dell'oggetto, per le texture image come per le procedurali:
+un bump image su un pavimento grande è più dolce della stessa immagine su una
+piastrella piccola, come lo sarebbe un rilievo vero.
+
 | Campo      | Tipo                | Default | Descrizione                                                                  |
 |------------|---------------------|---------|------------------------------------------------------------------------------|
 | `texture`  | TextureData         | -       | Campo di altezza. Qualunque procedurale (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) o `image`. |
-| `strength` | float ∈ [0, 10]     | `1.0`   | Ampiezza della perturbazione. Oltre ~5 il bump appare roccioso; ~0.5–1.0 dà dettagli fini. |
+| `strength` | float ∈ [0, 10]     | `1.0`   | Altezza, in unità di scena, di un valore 1 della texture. Una procedurale con dettagli larghi circa un'unità dà un dettaglio fine a ~0.05-0.5; un'immagine vuole un'altezza in proporzione alla superficie che copre. |
 | `scale`    | float > 0           | `1.0`   | Moltiplicatore UV uniforme che si somma all'eventuale `uv_scale` / `scale` della texture interna. |
 
 **Ordine di composizione** quando sono presenti sia `normal_map` che
@@ -1958,11 +2171,11 @@ precedente).
 Vedi `docs/technical/motion-blur.md` per l'algoritmo, e le scene
 `motion-blur-showcase.yaml` / `motion-blur-billiard-showcase.yaml`.
 
-> **Le caustiche non richiedono alcuna chiave per-entità.** Le caustiche via
-> photon mapping sono una feature globale e completamente automatica: si attivano
-> con il flag CLI `--caustics on` (vedi `docs/reference/rendering-profiles.md` e
-> i doc della pipeline di rendering) e il pre-pass di fotoni individua da solo
-> ogni caster speculare e ogni receiver diffuso.
+> **Le caustiche non richiedono alcuna chiave per-entità.** Ogni integratore
+> rende la luce che vetro, acqua e specchi concentrano; quelli bidirezionali
+> (`--integrator bdpt`, `--integrator vcm`) la rendono pulita, il VCM anche
+> quando si vede attraverso un vetro o l'acqua (vedi
+> `docs/reference/profili-di-rendering.md` §4c).
 
 #### **7.1 Sphere**
 ```yaml
@@ -2091,21 +2304,61 @@ Vedi `docs/technical/motion-blur.md` per l'algoritmo, e le scene
   material: "plastic"
 ```
 
-#### **7.12 Mesh (File OBJ)**
+#### **7.12 Mesh (file OBJ, glTF, PLY)**
 ```yaml
 - name: "model"
   type: "mesh"
-  path: "models/teapot.obj"               # Relativo allo YAML
+  path: "models/teapot.obj"               # .obj, .gltf, .glb o .ply, relativo allo YAML
   scale: [2.0, 2.0, 2.0]
   translate: [0, 1, 0]
-  material: "ceramic"
+  material: "ceramic"                     # opzionale: copre tutte le facce
 ```
-- Supporta il formato Wavefront OBJ
-- Costruisce automaticamente un BVH interno per intersezioni veloci
+- Formati, scelti dall'estensione:
+  - **Wavefront OBJ** con la sua libreria **MTL** (`mtllib`, `usemtl`):
+    poligoni di qualunque numero di lati (quelli concavi sono triangolati per
+    ear clipping, non a ventaglio), indici negativi, gruppi di smoothing
+    (`s`: una faccia senza normali prende le normali medie, pesate sugli
+    angoli, delle facce del suo gruppo; piatta con `s off`). Istruzioni MTL
+    lette: `Kd`/`map_Kd`, `Ks`, `Ns` (esponente di Phong, convertito in
+    roughness), `Pr`/`map_Pr`, `Pm`/`map_Pm`, `Ni`, `d`/`Tr`/`map_d`
+    (opacità; con `illum` 4, 6, 7 o 9 è la trasmissione del vetro), `Tf`,
+    `Ke`/`map_Ke`, `bump`/`map_Bump` (`-bm`), `norm`/`map_Kn`, `Pc`, `Pcr`,
+    `Ps`, `aniso`; opzione delle mappe `-s`.
+  - **glTF 2.0** (`.gltf` con buffer esterni o incorporati, `.glb`): i nodi
+    della scena di default (matrici o TRS; un nodo che specchia inverte il
+    verso delle facce), triangoli, strip e fan, normali, `TEXCOORD_0`,
+    accessor normalizzati e sparse. Materiali: metallic-roughness con base
+    color, alfa (`OPAQUE`, `MASK` come cut-out, `BLEND` come opacità
+    stocastica), normal map ed emissione, e `KHR_materials_emissive_strength`,
+    `_ior`, `_transmission`, `_volume` (senza, la trasmissione è a parete
+    sottile), `_clearcoat`, `_sheen`, `_specular`, `_iridescence`,
+    `_anisotropy`, `_unlit`, `KHR_texture_transform`, `EXT_texture_webp`.
+    Non letti: punti e linee, skin e morph target (posa di riposo), colori
+    per vertice, compressione Draco e meshopt, texture KTX2, mappe di
+    occlusione.
+  - **PLY** (ASCII, binario little e big endian): posizioni, normali
+    (`nx ny nz`), coordinate texture (`u v`, `s t`, `texture_u texture_v`),
+    facce di qualunque numero di lati. Nessun materiale.
+- **Materiali**: `material` sull'entità copre tutte le facce. Senza, valgono
+  i materiali del file (OBJ/MTL, glTF), tradotti in `openpbr`; le facce che
+  non ne hanno prendono il materiale di default (o quello del gruppo).
+  `material_overrides` sostituisce per nome i materiali del file:
+  ```yaml
+  - type: "mesh"
+    path: "models/car.glb"
+    material_overrides:
+      "Body": "red_paint"                 # nome nel file: id del materiale della scena
+  ```
+  Un modello con più materiali diventa una mesh per materiale, ciascuna
+  campionata come luce d'area a sé quando è emissiva.
+- Costruisce automaticamente un BVH interno; ombreggiatura liscia con le
+  normali e le UV del file (una faccia con UV e senza normali tiene le UV,
+  ombreggiata piatta).
+- Supporta `translate`, `rotate`, `scale`
 
 ##### **Superfici di suddivisione (Loop / Catmull-Clark)**
 
-Il loader può raffinare la mesh OBJ prima della costruzione del BVH
+Il loader può raffinare il modello prima della costruzione del BVH
 usando i due algoritmi standard di suddivisione:
 
 ```yaml
@@ -2115,6 +2368,8 @@ usando i due algoritmi standard di suddivisione:
   material: "ceramica"
   subdivision_scheme: "catmull_clark"     # loop | catmull_clark | auto | none
   subdivision_iterations: 3               # passi di raffinamento uniforme
+  subdivision_crease_angle: 45            # gli spigoli oltre 45° diventano pieghe
+  subdivision_crease_sharpness: 2         # vivi per 2 livelli, poi lisci
 ```
 
 | Campo                       | Tipo   | Default | Note |
@@ -2123,20 +2378,27 @@ usando i due algoritmi standard di suddivisione:
 | `subdivision_iterations`    | int    | `0`     | Numero di iterazioni uniformi. Ogni passo moltiplica il numero di facce per ≈ 4. |
 | `subdivision_pixel_error`   | float  | `0`     | Target screen-space adattivo. Il loader sceglie il numero di iterazioni che porta l'edge proiettato più lungo sotto questa soglia in pixel (usa la camera risolta della scena). Si combina con `subdivision_iterations` via `max(statico, adattivo)`. |
 | `subdivision_max_iterations`| int    | `6`     | Tetto rigido anche per la stima adattiva (limita l'esplosione 4^N delle facce). |
+| `subdivision_boundary`      | string | `edge_and_corner` | Bordi aperti: `edge_and_corner` tiene fermo un vertice di bordo con una sola faccia (l'angolo di un foglio); `edge_only` lo arrotonda lungo la curva del bordo. Gli spigoli di bordo sono sempre vivi. |
+| `subdivision_crease_angle`  | float  | `0`     | Gli spigoli le cui due facce si incontrano oltre questo angolo (gradi, tra le normali) diventano pieghe. `0` = nessuna. |
+| `subdivision_crease_sharpness` | float | infinito | Nitidezza di quelle pieghe: vive per questo numero di livelli, poi lisce, una frazione mescola le due (pieghe semi-vive). Omessa: sempre vive. |
 
-- **Loop** (Charles Loop, 1987) - maschere di bordo come in Hoppe et al.
-  1994. Solo triangoli; gli n-gon in input vengono pre-triangolati a ventaglio.
-- **Catmull-Clark** (Catmull & Clark, 1978) - maschere di bordo
-  Hoppe / DeRose. L'input misto è gestito alla prima iterazione, dopo la
-  quale la mesh è tutta a quadrati.
-- Le normali per-vertice sono **ricalcolate dalla topologia limite** con
-  la media pesata sugli angoli (Max 1999). Le normali del file OBJ vengono
-  propagate ma sostituite alla
-  triangolazione finale perché la superficie limite è più liscia
-  dell'input.
+- **Loop** (Charles Loop, 1987) e **Catmull-Clark** (Catmull & Clark,
+  1978), con le regole dei vertici di DeRose, Kass e Truong 1998: un vertice
+  con due spigoli vivi segue la curva della piega (1/8, 6/8, 1/8), tre o più
+  fanno un angolo (fermo), la nitidezza di uno spigolo di piega cala di uno
+  a ogni livello. Loop accetta solo triangoli (i poligoni sono triangolati
+  prima); Catmull-Clark accetta qualunque poligono alla prima iterazione,
+  poi solo quadrilateri.
+- Dopo l'ultimo livello i vertici sono **portati sulla superficie limite**
+  con le maschere limite, e ognuno prende la **normale della superficie
+  limite** dalle maschere tangenti (esatta nei vertici lisci di qualunque
+  valenza). Su una piega o un angolo ogni angolo di faccia prende la normale
+  del proprio lato (settore), così la piega resta viva anche
+  nell'ombreggiatura. Le normali del file non sono usate dopo la
+  suddivisione.
 - I canali UV passano attraverso la subdivision con maschere lineari
-  sul midpoint dell'edge (interpolazione vertex-varying come in OpenSubdiv).
-  Le cuciture UV che condividono la posizione ma non l'UV sono preservate.
+  sul midpoint dell'edge (interpolazione face-varying lineare). Le cuciture
+  UV che condividono la posizione ma non l'UV sono preservate.
 
 ##### **Surface displacement (material-level)**
 
@@ -2418,8 +2680,8 @@ entities:
   diretta ricevono campioni senza rumore.
 - L'intersezione raggio-superficie è quadratica analitica per `linear`;
   per le modalità spline l'equazione è un polinomio di grado 6
-  risolto con ibrido Sturm chain + Newton-Raphson (`SturmSolver`), lo
-  stesso approccio della `lathe` di PovRay e della `Curve` di PBRT.
+  risolto con ibrido Sturm chain + Newton-Raphson (`SturmSolver`),
+  l'approccio standard per le superfici di rivoluzione a spline.
   Aspettati ~10× il costo per-raggio di un hit su Cone sui segmenti
   spline - preferisci `linear` quando lo sfaccettato è accettabile.
 
@@ -2605,6 +2867,54 @@ Le primitive che espongono la chiave `center:` - **sphere, cylinder, cone, capsu
 ---
 
 ### 8. **SEZIONE LIGHTS** - Cinque Tipi
+#### **8.0 Unità fotometriche, temperatura di colore, IES**
+Ogni luce accetta `intensity` (senza unità, come prima) oppure, al suo posto, una
+grandezza fisica. Con una grandezza fisica il `color` tinge soltanto la luce: viene
+diviso per la sua luminanza, quindi `[1, 0.5, 0.2]` e `[2, 1, 0.4]` danno la stessa
+luce. L'unità di radianza della scena diventa il **nit** (cd/m²) e la camera ha
+bisogno di un'esposizione (`ev100`, §4).
+
+| Chiave | Unità | Luci | Significato |
+|---|---|---|---|
+| `power` | W o lm (`power_unit: "watt"` di default, oppure `"lumen"`) | point, spot, area, sphere | Flusso emesso. I watt sono radiometrici, a 683 lm/W. La potenza di uno spot è quella della luce puntiforme che sarebbe: il cono taglia la luce, non la concentra. |
+| `candela` | cd | point, spot | Intensità luminosa (una lampadina da 60 W vale circa 65 cd, 800 lm). |
+| `luminance` | nit (cd/m²) | area, sphere | Luminanza della superficie che emette. |
+| `illuminance` | lux | directional | Illuminamento su una superficie rivolta verso la luce (sole diretto circa 100 000 lux). |
+| `temperature` | K | tutte | Colore di corpo nero (luogo di Planck), moltiplica `color`: 2700 una lampadina calda, 4000 neutra, 6500 luce diurna. Con una grandezza fotometrica cambia solo il colore, non la luminanza. |
+| `normalize` | bool | area, sphere | Con `intensity` senza unità: diventa la potenza totale invece della radianza, così ridimensionare la luce non cambia quanta luce emette. |
+| `exposure` | stop | tutte | Moltiplica la luce per 2^exposure. |
+| `ies` | file | point, spot | Un profilo fotometrico IES LM-63 (tipo C), relativo alla scena. La luce emette la distribuzione di candele assolute del profilo, con il nadir lungo la `direction` dello spot (la `direction` di una luce puntiforme, di default verso il basso). `power` o `candela` lo riscalano a quel flusso o a quel picco; `intensity` lo moltiplica. I dati TILT sono ignorati con un avviso. |
+
+```yaml
+lights:
+  - type: "point"          # una lampadina equivalente a 60 W
+    position: [0, 2.4, 0]
+    power: 800
+    power_unit: "lumen"
+    temperature: 2700
+  - type: "spot"           # un faretto con un profilo misurato
+    position: [1.5, 2.8, 0]
+    direction: [0, -1, 0]
+    ies: "assets/ies/downlight.ies"
+    power: 900
+    power_unit: "lumen"
+  - type: "area"           # un pannello LED
+    corner: [-0.3, 2.79, -0.3]
+    u: [0.6, 0, 0]
+    v: [0, 0, 0.6]
+    luminance: 3000
+    temperature: 4000
+```
+`scenes/review/light-units.yaml` verifica ogni unità contro un calcolo a mano
+(quattro luci sopra un pavimento grigio, misurate entro lo 0.1%).
+
+**Campionamento.** Le luci d'area rettangolari e i portali sono campionati in modo
+uniforme nell'angolo solido che sottendono (Ureña et al. 2013) invece che sulla
+loro area: molto meno rumore vicino alla luce. Il campione di ogni luce porta nel
+suo peso di importance sampling multiplo la probabilità di scegliere quella luce
+(`--light-sampling`, più sotto); l'environment e i portali condividono un solo
+gruppo di pesi.
+
 #### **8.1 Point Light (Omnidirezionale)**
 ```yaml
 - type: "point"
@@ -2614,7 +2924,7 @@ Le primitive che espongono la chiave `center:` - **sphere, cylinder, cone, capsu
   soft_radius: 0.0                         # Opzionale. >0 → niente fireflies da 1/d²
 ```
 - Decadimento quadratico con la distanza
-- `soft_radius` (default `0`): se impostato, il denominatore dell'attenuazione viene clampato a `max(d², r²)`. Elimina la singolarità 1/d² che genera fireflies persistenti nelle scene con nebbia/medium partecipanti, dove gli eventi di scattering possono cadere arbitrariamente vicini all'emettitore. Valori consigliati: simili al raggio fisico del bulbo (es. `0.05`–`0.20`). A distanze `d ≥ r` la luce è invariata. **Caustiche:** con `--caustics on` questo raggio dà alla point light un'area emittente finita da cui il pre-pass di fotoni può lanciare i fotoni di caustica (un punto vero non ha area emittente); un raggio più grande allarga un po' la caustica, uno più piccolo la mantiene più stretta (alza `--caustic-photons` per ripulire il rumore).
+- `soft_radius` (default `0`): se impostato, il denominatore dell'attenuazione viene clampato a `max(d², r²)`. Elimina la singolarità 1/d² che genera fireflies persistenti nelle scene con nebbia/medium partecipanti, dove gli eventi di scattering possono cadere arbitrariamente vicini all'emettitore. Valori consigliati: simili al raggio fisico del bulbo (es. `0.05`–`0.20`). A distanze `d ≥ r` la luce è invariata.
 
 #### **8.2 Directional Light (Sole)**
 ```yaml
@@ -2642,7 +2952,7 @@ Le primitive che espongono la chiave `center:` - **sphere, cylinder, cone, capsu
   soft_radius: 0.0                        # Opzionale. >0 = "disco virtuale", niente fireflies 1/d²
   shadow_samples: 1                       # Default 1. >1 + soft_radius > 0 → sorgente jitterata
 ```
-- `soft_radius` (default `0`): stesso ruolo della point light - clampa il denominatore a `max(d², r²)`. Fortemente raccomandato per spot che illuminano un medium partecipante (nebbia, foschia, fumo): in questi casi il picco 1/d² agli eventi di scattering vicino all'emettitore è la principale sorgente di fireflies. Valori tipici: `0.10`–`0.30` per un bulbo da lampione. **Caustiche:** come per le point light, con `--caustics on` questo raggio dà allo spot un'area emittente finita da cui il pre-pass di fotoni lancia i fotoni di caustica; l'attenuazione di cono dello spot è applicata ai fotoni emessi. Un raggio più piccolo mantiene la caustica più stretta (alza `--caustic-photons` per ripulire il rumore).
+- `soft_radius` (default `0`): stesso ruolo della point light - clampa il denominatore a `max(d², r²)`. Fortemente raccomandato per spot che illuminano un medium partecipante (nebbia, foschia, fumo): in questi casi il picco 1/d² agli eventi di scattering vicino all'emettitore è la principale sorgente di fireflies. Valori tipici: `0.10`–`0.30` per un bulbo da lampione.
 - `shadow_samples` (default `1`): quando > 1 E `soft_radius > 0`, ogni raggio d'ombra jitterizza la posizione della sorgente su un disco di raggio `soft_radius` perpendicolare a `direction`, modellando l'estensione fisica del bulbo. Se `soft_radius == 0`, campioni aggiuntivi non hanno effetto (nessun jitter di posizione) - tenerlo a 1 per efficienza.
 
 #### **8.4 Area Light (Ombre Morbide)**
@@ -2710,6 +3020,17 @@ Le primitive che espongono la chiave `center:` - **sphere, cylinder, cone, capsu
 | Area (pannello) | 20–60 | Dipende dalla dimensione del rettangolo |
 | Sphere (piccola) | 20–50 | Raggio 0.1–0.3 |
 | Sphere (grande) | 15–40 | Raggio 0.5–1.5 |
+
+Riferimenti fotometrici (§8.0), con la camera esposta in `ev100`:
+
+| Sorgente | Valore | Esposizione |
+|---|---|---|
+| Candela | 1 cd, circa 12 lm | EV100 1-3 |
+| Lampadina di casa | 800 lm (equivalente 60 W), 2700 K | EV100 5-7 per la stanza |
+| Pannello LED, ufficio | 3000-4000 lm, luminanza 3000-10 000 nit, 4000 K | EV100 7-8 |
+| Lampione | 10 000-20 000 lm | EV100 3-5 di notte |
+| Sole diretto | 100 000 lux (`directional`, `illuminance`), 5500-6500 K | EV100 15 |
+| Cielo coperto | 1000-10 000 lux a terra | EV100 11-13 |
 
 ---
 

@@ -10,13 +10,16 @@ namespace RayTracer.Textures;
 /// <see cref="ExrImage"/> writes:
 /// <list type="bullet">
 ///   <item><description>Scanline-stored images (the most common variant).</description></item>
-///   <item><description>Compression: <c>NO_COMPRESSION</c>, <c>ZIP</c>, <c>ZIPS</c>,
+///   <item><description>Compression: <c>NO_COMPRESSION</c>, <c>RLE</c>, <c>ZIP</c>, <c>ZIPS</c>,
 ///   including the spec's raw-block fallback (a block whose stored size equals
 ///   its uncompressed size is stored raw).</description></item>
 ///   <item><description>Float32 and half-float channels, any names —
 ///   <see cref="LoadChannels"/> returns every channel plane unclamped, so
 ///   multilayer AOV files round-trip exactly.</description></item>
 /// </list>
+///
+/// RGB images and single-channel luminance (<c>Y</c>) images, the usual
+/// layout of a greyscale data map.
 ///
 /// Tiles, deep data, multi-part files, PIZ / DWAA / DWAB / B44 / PXR24
 /// compression, and chroma-subsampled Y/RY/BY layouts are <b>not</b>
@@ -33,10 +36,11 @@ public static class ExrLoader
     /// <summary>
     /// Loads an RGB EXR as interleaved pixels for use as an environment map.
     /// Negative samples are clamped to zero — radiance below zero is sensor /
-    /// encoder noise an HDRI should never contribute. For an exact, unclamped
-    /// read of arbitrary channels use <see cref="LoadChannels"/>.
+    /// encoder noise an HDRI should never contribute; a data map (a signed
+    /// displacement) passes <paramref name="clampNegative"/> = false. For an
+    /// exact read of arbitrary channels use <see cref="LoadChannels"/>.
     /// </summary>
-    public static (float[] Pixels, int Width, int Height) Load(string path)
+    public static (float[] Pixels, int Width, int Height) Load(string path, bool clampNegative = true)
     {
         var (channels, width, height) = LoadChannels(path);
 
@@ -44,15 +48,22 @@ public static class ExrLoader
         var chG = channels.FirstOrDefault(c => c.Name == "G");
         var chB = channels.FirstOrDefault(c => c.Name == "B");
         if (chR is null || chG is null || chB is null)
-            throw new InvalidDataException("EXR: missing R/G/B channels (only RGB EXR supported).");
+        {
+            // A greyscale image: its one luminance channel fills all three.
+            var chY = channels.FirstOrDefault(c => c.Name == "Y");
+            if (chY is null || chR is not null || chG is not null || chB is not null)
+                throw new InvalidDataException("EXR: needs R, G and B channels, or a single Y channel.");
+            chR = chG = chB = chY;
+        }
 
         int planeSize = width * height;
         var pixels = new float[planeSize * 3];
+        float floor = clampNegative ? 0f : float.NegativeInfinity;
         for (int c = 0; c < 3; c++)
         {
             float[] plane = (c == 0 ? chR : c == 1 ? chG : chB).Plane;
             for (int i = 0; i < planeSize; i++)
-                pixels[i * 3 + c] = MathF.Max(0f, plane[i]);
+                pixels[i * 3 + c] = MathF.Max(floor, plane[i]);
         }
         return (pixels, width, height);
     }
@@ -115,11 +126,12 @@ public static class ExrLoader
         }
 
         if (compression != ExrCompression.None &&
+            compression != ExrCompression.Rle   &&
             compression != ExrCompression.Zips  &&
             compression != ExrCompression.Zip)
         {
             throw new NotSupportedException(
-                $"EXR: compression {compression} not supported (only None / ZIP / ZIPS).");
+                $"EXR: compression {compression} not supported (only None / RLE / ZIP / ZIPS).");
         }
 
         int width  = dataWindowMaxX - dataWindowMinX + 1;
@@ -173,6 +185,7 @@ public static class ExrLoader
                 : compression switch
                 {
                     ExrCompression.Zip or ExrCompression.Zips => DecompressZip(blockData),
+                    ExrCompression.Rle => DecompressRle(blockData, expectedRawSize),
                     _ => throw new InvalidDataException("EXR: uncompressed block with unexpected size."),
                 };
             if (decoded.Length != expectedRawSize)
@@ -252,6 +265,38 @@ public static class ExrLoader
             result.Add(new ExrChannel(name, (ExrPixelType)pixelTypeRaw, xSampling, ySampling));
         }
         return result;
+    }
+
+    internal static byte[] DecompressRle(byte[] compressed, int rawSize)
+    {
+        // A signed count byte: negative, that many literal bytes follow;
+        // otherwise the next byte repeats count + 1 times. The result then
+        // goes through the same predictor and interleave as ZIP.
+        var output = new byte[rawSize];
+        int inPos = 0, outPos = 0;
+        while (inPos < compressed.Length)
+        {
+            int count = (sbyte)compressed[inPos++];
+            if (count < 0)
+            {
+                count = -count;
+                if (outPos + count > rawSize || inPos + count > compressed.Length)
+                    throw new InvalidDataException("EXR: RLE block overruns its size.");
+                Array.Copy(compressed, inPos, output, outPos, count);
+                inPos += count;
+                outPos += count;
+            }
+            else
+            {
+                if (outPos + count + 1 > rawSize || inPos >= compressed.Length)
+                    throw new InvalidDataException("EXR: RLE block overruns its size.");
+                output.AsSpan(outPos, count + 1).Fill(compressed[inPos++]);
+                outPos += count + 1;
+            }
+        }
+        if (outPos != rawSize)
+            throw new InvalidDataException("EXR: RLE block decoded to an unexpected size.");
+        return ExrImage.ZipReconstruct(output);
     }
 
     private static byte[] DecompressZip(byte[] compressed)

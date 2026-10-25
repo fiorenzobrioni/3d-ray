@@ -183,7 +183,14 @@ public static class QuarticSolver
 
         double disc = -4.0 * a * a * a - 27.0 * b * b; // Discriminant of depressed cubic
 
-        if (disc < -Eps)
+        // Relative tolerance: the discriminant scales as the cube of the
+        // coefficients. An absolute 1e-12 called a cubic with three distinct
+        // roots near 1e-3 a double root (Ferrari's resolvent for a ray grazing
+        // a torus tube), which merged two close quartic roots (PIANO-REVIEW.md,
+        // Phase 1).
+        double discTol = Eps * (4.0 * Math.Abs(a * a * a) + 27.0 * b * b);
+
+        if (disc < -discTol)
         {
             // One real root (Cardano)
             double halfB = -b / 2.0;
@@ -196,7 +203,7 @@ public static class QuarticSolver
             roots[0] = u + v + shift;
             return 1;
         }
-        else if (disc < Eps)
+        else if (disc <= discTol)
         {
             // Triple or double root
             if (Math.Abs(a) < Eps && Math.Abs(b) < Eps)
@@ -218,7 +225,7 @@ public static class QuarticSolver
         {
             // Three distinct real roots (trigonometric method)
             double m = 2.0 * Math.Sqrt(-a / 3.0);
-            double theta = Math.Acos(3.0 * b / (a * m)) / 3.0;
+            double theta = Math.Acos(Math.Clamp(3.0 * b / (a * m), -1.0, 1.0)) / 3.0;
             double twoPiOver3 = 2.0 * Math.PI / 3.0;
 
             roots[0] = m * Math.Cos(theta) + shift;
@@ -242,6 +249,7 @@ public static class QuarticSolver
         double best = roots[0];
         for (int i = 1; i < count; i++)
             if (roots[i] > best) best = roots[i];
+
         return best;
     }
 
@@ -416,25 +424,32 @@ public static class QuarticSolver
     /// </summary>
     private static double RefineRoot(double c3, double c2, double c1, double c0, double t)
     {
-        for (int i = 0; i < 3; i++)
+        // f(t) = t⁴ + c3·t³ + c2·t² + c1·t + c0
+        static double F(double c3, double c2, double c1, double c0, double t)
+            => (((t + c3) * t + c2) * t + c1) * t + c0;
+
+        double f = F(c3, c2, c1, c0, t);
+        for (int i = 0; i < 4; i++)
         {
-            double t2 = t * t;
-            double t3 = t2 * t;
-
-            // f(t) = t⁴ + c3·t³ + c2·t² + c1·t + c0
-            double f = t2 * t2 + c3 * t3 + c2 * t2 + c1 * t + c0;
-
             // f'(t) = 4t³ + 3·c3·t² + 2·c2·t + c1
-            double fp = 4.0 * t3 + 3.0 * c3 * t2 + 2.0 * c2 * t + c1;
-
+            double fp = ((4.0 * t + 3.0 * c3) * t + 2.0 * c2) * t + c1;
             if (Math.Abs(fp) < 1e-15)
                 break; // Near a double root — derivative too small for safe division
 
-            double delta = f / fp;
-            t -= delta;
+            double next = t - f / fp;
+            double fNext = F(c3, c2, c1, c0, next);
 
-            // Early exit if correction is negligible (already at machine precision)
-            if (Math.Abs(delta) < 1e-14 * Math.Abs(t))
+            // Safeguard: keep a step only if it shrinks the residual. With two
+            // close roots f' vanishes between them and a plain Newton step from
+            // a poor starting point there overshoots (measured: 2e-2 off for a
+            // pair 1e-3 apart, PIANO-REVIEW.md, Phase 1).
+            if (!(Math.Abs(fNext) < Math.Abs(f)))
+                break;
+
+            bool converged = Math.Abs(next - t) < 1e-14 * Math.Abs(next);
+            t = next;
+            f = fNext;
+            if (converged || f == 0.0)
                 break;
         }
 

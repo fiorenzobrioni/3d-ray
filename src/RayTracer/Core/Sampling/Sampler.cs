@@ -46,8 +46,23 @@ public static class Sampler
         public uint PixelSeed;
         public uint SampleIndex;
         public uint Dimension;
-        public bool Active;   // false = fall back to MathUtils PRNG
+        public uint Limit;      // first dimension past the current vertex's block
+        public uint Vertex;     // path vertices opened so far in this sample
+        public uint Overflow;   // draws past a block's budget (see OverflowBase)
+        public bool Active;     // false = fall back to MathUtils PRNG
     }
+
+    // ── Dimension layout per camera sample ──────────────────────────────────
+    // [0, CameraDims): camera (pixel jitter, shutter time, lens).
+    // Vertex k of the path: [CameraDims + k·VertexDims, … + VertexDims).
+    // Draws past a block's budget (a long subsurface walk, many lights) go to
+    // OverflowBase + n, never reused within the sample. Fixed blocks keep the
+    // same decision on the same dimension across the samples of a pixel even
+    // when an earlier vertex consumed a different number of draws, which is
+    // what lets a low-discrepancy sequence stratify that decision.
+    private const uint CameraDims = 8u;
+    private const uint VertexDims = 64u;
+    private const uint OverflowBase = 0x40000000u;
     // Per-thread context, stored in a [ThreadStatic] field rather than a
     // ThreadLocal<T> wrapper: this is read on every random draw (hundreds of
     // millions of times per render) and a [ThreadStatic] field access is
@@ -79,8 +94,33 @@ public static class Sampler
         c.PixelSeed   = pixelSeed;
         c.SampleIndex = sampleIndex;
         c.Dimension   = 0u;
+        c.Limit       = CameraDims;
+        c.Vertex      = 0u;
+        c.Overflow    = 0u;
         c.Active      = true;
     }
+
+    /// <summary>
+    /// Opens the dimension block of the next path vertex. Called once per
+    /// vertex of the path loop; no-op without an active Sobol context.
+    /// </summary>
+    public static void BeginVertex()
+    {
+        var c = LocalCtx;
+        if (!c.Active) return;
+        uint v = c.Vertex++;
+        if (v >= (OverflowBase - CameraDims) / VertexDims)
+        {
+            // Absurdly deep path: everything goes to the overflow region.
+            c.Dimension = c.Limit = 0u;
+            return;
+        }
+        c.Dimension = CameraDims + v * VertexDims;
+        c.Limit     = c.Dimension + VertexDims;
+    }
+
+    private static uint NextDimension(Ctx c)
+        => c.Dimension < c.Limit ? c.Dimension++ : OverflowBase + c.Overflow++;
 
     /// <summary>
     /// Ends the current per-pixel-sample context. Subsequent calls to
@@ -113,20 +153,76 @@ public static class Sampler
             // thread-local PRNG via the host's existing path.
             return (float)MathUtils.Rng.NextDouble();
         }
-        uint dim = c.Dimension++;
+        uint dim = NextDimension(c);
         return OwenSobol.Sample(c.SampleIndex, dim, c.PixelSeed);
     }
 
     /// <summary>
-    /// 2D draw — consumes two dimensions atomically. Kept as its own
-    /// entry so future stratified-per-pair samplers (e.g. true Sobol
-    /// (2D) with coordinated direction matrices) can plug in without
-    /// touching call sites.
+    /// A draw that never takes a dimension of the vertex's block: for loops
+    /// with a random number of draws (null-collision tracking along a ray),
+    /// which would otherwise push the vertex's later decisions (its light
+    /// sample, its bounce) onto dimensions that differ from sample to sample.
+    /// </summary>
+    public static float SampleLoose1D()
+    {
+        var c = LocalCtx;
+        if (!c.Active) return (float)MathUtils.Rng.NextDouble();
+        return OwenSobol.Sample(c.SampleIndex, OverflowBase + c.Overflow++, c.PixelSeed);
+    }
+
+    /// <summary>
+    /// 2D draw for a two-dimensional decision (a direction, a point on a
+    /// light, a lens position). With Sobol it first aligns the dimension
+    /// counter to an even dimension, so the two coordinates are the two halves
+    /// of one padded Sobol block and are jointly stratified; two loose
+    /// <see cref="Sample1D"/> calls are only stratified one by one.
     /// </summary>
     public static (float u, float v) Sample2D()
     {
+        if (t_provided)
+        {
+            t_provided = false;
+            return (t_providedU, t_providedV);
+        }
+        var c = LocalCtx;
+        if (c.Active)
+        {
+            // Align to an even dimension, in the vertex block if both halves
+            // fit, else in the overflow region.
+            uint aligned = (c.Dimension + 1u) & ~1u;
+            if (aligned + 2u <= c.Limit)
+                c.Dimension = aligned;
+            else
+            {
+                c.Dimension = c.Limit;
+                c.Overflow = (c.Overflow + 1u) & ~1u;
+            }
+        }
         float u = Sample1D();
         float v = Sample1D();
         return (u, v);
     }
+
+    // A pair handed to the next Sample2D (see Provide2D).
+    [ThreadStatic] private static bool t_provided;
+    [ThreadStatic] private static float t_providedU, t_providedV;
+
+    /// <summary>
+    /// Makes the next <see cref="Sample2D"/> on this thread return
+    /// (<paramref name="u"/>, <paramref name="v"/>) instead of drawing. A
+    /// caller that splits one stratified pair between strategies (path
+    /// guiding: the first coordinate picks the BSDF or the guide, the pair
+    /// rescaled then places the direction) hands the BSDF its share this way,
+    /// so the samples each strategy gets stay stratified. Cleared by
+    /// <see cref="ClearProvided"/> if the callee drew no pair.
+    /// </summary>
+    public static void Provide2D(float u, float v)
+    {
+        t_providedU = u;
+        t_providedV = v;
+        t_provided = true;
+    }
+
+    /// <summary>Drops a pair given to <see cref="Provide2D"/> and not drawn.</summary>
+    public static void ClearProvided() => t_provided = false;
 }

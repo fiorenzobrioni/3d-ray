@@ -172,8 +172,7 @@ public class SkySettings
             FlatSky      => SkyMode.Flat,
             GradientSky  => SkyMode.Gradient,
             HdriSky      => SkyMode.Hdri,
-            PreethamSky  => SkyMode.Physical,
-            NishitaSky   => SkyMode.Physical,
+            AnalyticSky  => SkyMode.Physical,
             _            => SkyMode.Flat,
         });
 
@@ -276,11 +275,7 @@ public class SkySettings
                 if (cosAngle >= cosHalf)
                 {
                     Vector3 add = sunRad;
-                    if (limb)
-                    {
-                        const float u1 = 0.6f;
-                        add *= MathF.Max(0f, 1f - u1 * (1f - cosAngle));
-                    }
+                    if (limb) add *= Lights.PhysicalSun.LimbFactor(cosAngle, cosHalf);
                     body += add;
                 }
             }

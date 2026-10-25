@@ -6,8 +6,6 @@ namespace RayTracer.Materials;
 
 public interface IMaterial
 {
-    bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered);
-
     // ─────────────────────────────────────────────────────────────────────────
     // Direct-lighting control flags.
     //
@@ -19,58 +17,20 @@ public interface IMaterial
 
     /// <summary>
     /// True when the renderer should run next-event estimation on this hit
-    /// (sample every light, call <see cref="EvaluateDirect"/>). False means
+    /// (sample every light, weigh it by <see cref="Evaluate"/>). False means
     /// NEE is a waste of shadow rays — used by <see cref="Emissive"/>, which
     /// is the light source itself and absorbs no incoming illumination.
     /// </summary>
     bool NeedsDirectLighting => true;
 
     /// <summary>
-    /// True when the indirect bounce produced by <see cref="Scatter"/> is a
-    /// delta function (perfect mirror, ideal refraction). The renderer uses
-    /// this to set <c>prevIsDelta</c> for the next TraceRay call — delta
-    /// bounces see emission at full weight since no NEE sampler can reach
-    /// through them. Materials that use the <see cref="Sample"/> API instead
-    /// convey deltaness via <see cref="BsdfSample.IsDelta"/> and this flag
-    /// is ignored.
+    /// True when every lobe of the material is a delta function (perfect
+    /// mirror, ideal refraction): no light sample or connection can reach it,
+    /// so the renderer skips them there. Each sample still reports its own
+    /// deltaness through <see cref="BsdfSample.IsDelta"/>, which is what drives
+    /// the emission weight of the next hit.
     /// </summary>
     bool IsDeltaScatter => false;
-
-    /// <summary>
-    /// Evaluates the rendering-equation integrand at one shadow-ray direction
-    /// for direct lighting (NEE). Called once per unshadowed light sample in
-    /// <c>ComputeDirectLighting</c>.
-    ///
-    /// PBRT/Arnold convention — the returned value is the FULL integrand
-    /// <c>f(V, L) · max(N·L, 0)</c>, with every material colour factor
-    /// (baseColor/albedo, metallic Fresnel, sheen tint, subsurface tint,
-    /// thin-film iridescence) already baked in. The caller multiplies by the
-    /// light radiance and adds the result directly to the radiance estimator:
-    /// <c>L = Le + L_direct + scatter_attn · L_indirect</c>. The scatter
-    /// attenuation never multiplies the direct term — that would couple the
-    /// indirect importance sample to the shadow estimator and bias the
-    /// direct contribution for any direction-dependent BSDF.
-    ///
-    /// Delta lobes (Dirac mirror / refraction / near-delta GGX) return zero
-    /// here: their f/pdf collapses to a mirror direction, no shadow ray can
-    /// reach them, and the delta path in <see cref="Sample"/> handles
-    /// emission with full weight via the prevIsDelta flag.
-    ///
-    /// <paramref name="rec"/> provides UV coordinates, local point, and object seed
-    /// so that textured materials (e.g. DisneyBsdf with a BaseColor texture) can
-    /// evaluate the correct surface properties at the hit point rather than using
-    /// a fixed (0.5, 0.5) approximation.
-    ///
-    /// Default: zero — pure delta BSDFs (Dielectric mirror/refraction, Emissive)
-    /// do not receive direct lighting. Lambertian, Metal, MixMaterial and
-    /// DisneyBsdf override this with their full analytic response.
-    /// </summary>
-    /// <param name="toLight">Unit vector from hit point toward the light.</param>
-    /// <param name="toEye">Unit vector from hit point toward the camera.</param>
-    /// <param name="normal">Shading normal (may be perturbed by normal map).</param>
-    /// <param name="rec">Hit record with UV, LocalPoint, ObjectSeed for texture lookups.</param>
-    Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
-        => Vector3.Zero;
 
     /// <summary>
     /// Per-channel transmission factor for a "transparent shadow ray" travelling
@@ -83,12 +43,43 @@ public interface IMaterial
     /// the returned factor is multiplied into the throughput. This is the
     /// standard "transparent shadow rays" approximation: it correctly handles
     /// the loss of direct light through glass (no more hard shadow under glass)
-    /// but does NOT reproduce focused refractive lighting effects, which would
-    /// require photon mapping (see DEVLOG roadmap).
+    /// but does NOT reproduce focused refractive lighting effects (sampled
+    /// paths do: path tracing, BDPT, VCM).
     /// </summary>
     /// <param name="wi">Unit shadow-ray direction at the hit (surface → light).</param>
     /// <param name="rec">Hit record at the shadow-ray intersection.</param>
     Vector3 ShadowTransmittance(Vector3 wi, in HitRecord rec) => Vector3.Zero;
+
+    /// <summary>
+    /// True when light crosses this surface without changing direction: an
+    /// index-matched (IOR 1) interface such as the transparent shell that bounds
+    /// a fog or water volume, or a smooth thin-walled sheet. A shadow ray
+    /// through it is then the exact transport, not the straight-through
+    /// approximation, so the renderer lets shadow rays cross it in every mode
+    /// (and drops the duplicate BSDF path through it, PIANO-REVIEW.md §3.21).
+    /// </summary>
+    bool TransmitsStraight(in HitRecord rec) => false;
+
+    /// <summary>
+    /// True when the BSDF is non-zero for light arriving from behind the
+    /// surface through a non-delta lobe (rough glass, diffuse transmission), so
+    /// direct lighting must also sample lights on the far side
+    /// (PIANO-REVIEW.md §3.36).
+    /// </summary>
+    bool HasTransmission(in HitRecord rec) => false;
+
+    /// <summary>
+    /// Whether path guiding may draw this surface's bounces (PIANO-REVIEW.md
+    /// Phase 7b): a broad reflection with no non-delta transmission. A sharp
+    /// lobe is left to its BSDF: a guided direction misses it, and halving
+    /// the BSDF's density would hand the MIS weight of its highlights to the
+    /// light samples, the noisy strategy there (Veach's plates: 15× the
+    /// error).
+    /// </summary>
+    bool Guidable(in HitRecord rec) => !IsDeltaScatter && !HasTransmission(in rec);
+
+    /// <summary>GGX α (roughness²) below which a lobe counts as too sharp to guide.</summary>
+    const float GuidingMinAlpha = 0.09f;
 
     /// <summary>
     /// Approximate surface reflectance at the hit point, consumed ONLY by the
@@ -116,21 +107,6 @@ public interface IMaterial
     Vector3 ShadowAbsorption(in HitRecord rec) => Vector3.Zero;
 
     /// <summary>
-    /// True when this surface transmits light through a <b>smooth specular</b>
-    /// (delta) interface — clear glass, water, a polished gem. This is exactly the
-    /// transport the caustic photon map reconstructs (<c>L S+ D</c>), so when
-    /// photon caustics are active the renderer makes such an interface opaque to
-    /// straight NEE shadow rays: the focused, refracted (and Beer-Lambert tinted)
-    /// light is supplied by the photon map instead, avoiding a double count and
-    /// reproducing physically correct — coloured — refractive shadows.
-    ///
-    /// <para>Rough/frosted transmission returns <c>false</c>: the photon map does
-    /// not capture it, so the soft straight-through transparent shadow stays its
-    /// only fill. Default <c>false</c> (opaque or non-transmissive).</para>
-    /// </summary>
-    bool IsSpecularTransmissive(in HitRecord rec) => false;
-
-    /// <summary>
     /// Reports the absolute index of refraction of this material's refractive
     /// interface, for the per-ray <see cref="Volumetrics.IorStack"/> the renderer
     /// pushes on a transmissive entry and pops on exit. Returns <c>false</c> when
@@ -150,10 +126,11 @@ public interface IMaterial
     // ─────────────────────────────────────────────────────────────────────────
     // Symmetric BSDF interface (BRDF value, PDF, sampling).
     //
-    // These complement Scatter/EvaluateDirect and are what MIS, furnace tests,
-    // and reciprocity tests consume directly. Unlike EvaluateDirect, Evaluate
-    // returns the BRDF WITHOUT the cosine term so that reciprocity holds
-    // symbolically: f(V, L) = f(L, V) for reciprocal materials.
+    // The one description of the material: direct lighting weighs each light
+    // sample by Evaluate · |N·L|, the indirect bounce samples with Sample, and
+    // MIS combines the two with Pdf, so both strategies estimate the same
+    // integrand by construction (PIANO-REVIEW.md §3.12). Evaluate returns the
+    // BSDF WITHOUT the cosine term, so reciprocity reads f(V, L) = f(L, V).
     //
     // Default implementations return zero / no-sample — materials that want
     // to participate in MIS and the BSDF test suite must override.

@@ -6,7 +6,7 @@ namespace RayTracer.Geometry;
 /// Wraps an <see cref="IHittable"/> and flags every reported hit with
 /// <c>rec.CameraInvisible = true</c>. The renderer consults this flag on the
 /// primary ray only (<c>depth == _maxDepth</c> inside
-/// <see cref="Rendering.Renderer.TraceRay"/>) and advances the ray past the
+/// the path loop (<see cref="Rendering.Renderer.TracePath"/>)) and advances the ray past the
 /// hit when set — implementing Arnold's <c>camera</c> visibility flag and
 /// Cycles' "Ray Visibility → Camera" semantics.
 ///

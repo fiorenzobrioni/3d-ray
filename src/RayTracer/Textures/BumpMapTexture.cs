@@ -6,32 +6,32 @@ namespace RayTracer.Textures;
 /// <summary>
 /// Scalar bump map driven by any <see cref="ITexture"/> (procedural or image).
 ///
-/// Returns a tangent-space normal computed from the local gradient of the
-/// height field h = Rec.709 luminance of the inner texture. Caller is
-/// responsible for transforming the result to world space via the surface
-/// TBN (the renderer does this in <c>ApplyBumpMap</c>).
+/// Returns a tangent-space normal computed from the slope of the height field
+/// <c>h = strength · luminance(texture)</c>, a height in scene units: the
+/// same surface a displacement of that height would make, so a bump and a
+/// displacement of one texture agree (PIANO-REVIEW.md Phase 4).
 ///
-/// Math (Blinn 1978, central differences). Each sample perturbs BOTH the
-/// UV coordinate AND the world-space point <c>p</c> along the tangent /
-/// bitangent — this is essential because some <see cref="ITexture"/>
-/// implementations (noise, marble, wood, voronoi) ignore <c>u,v</c> and
-/// sample purely on <c>p</c>, while others (image, checker) use <c>u,v</c>.
-/// Perturbing both keeps the bump consistent across the two families:
+/// Math (Blinn 1978, central differences). The slope is taken by stepping a
+/// short length δ along the shading tangent and bitangent. A step moves both
+/// inputs a texture may read, through <see cref="BumpFrame"/>: (u, v) by the
+/// surface's own UV rate (∂P/∂u, ∂P/∂v), and the 3D point by the step itself
+/// in the point's space. Image and checker textures read the first, noise,
+/// marble, wood and voronoi the second; either way the slope is per unit of
+/// length, whatever the object's size, scale or rotation:
 ///
-///   p_u± = p ± T·Δ      ;   p_v± = p ± B·Δ
-///   h_u± = Luminance(tex.Value(u±Δ, v, p_u±, seed))   etc.
-///   ∂h/∂u = (h_u+ − h_u−) / (2·Δ)
-///   n_ts  = normalize((−strength·∂h/∂u, −strength·∂h/∂v, 1))
+///   h_T± = Luminance(tex.Value(uv ± δ·UvT, p ± δ·PointT))   (same along B)
+///   ∂h/∂T = (h_T+ − h_T−) / (2·δ)
+///   n_ts  = normalize((−strength·∂h/∂T, −strength·∂h/∂B, 1))
 ///
 /// Central differences (4 samples) are used over forward differences (3
 /// samples) to avoid the directional bias that makes bumps "lean" toward
-/// +u/+v on smooth procedurals — the extra sample is negligible compared
+/// +u/+v on smooth procedurals; the extra sample is negligible compared
 /// to the BSDF eval that follows.
 ///
 /// In YAML:
 ///   bump_map:
 ///     texture: { type: noise, ... }   # any ITexture
-///     strength: 1.0
+///     strength: 1.0                    # height of a texture value of 1, in scene units
 ///     scale: 1.0
 /// </summary>
 public sealed class BumpMapTexture : IBumpMap
@@ -40,8 +40,9 @@ public sealed class BumpMapTexture : IBumpMap
     private readonly float _strength;
     private readonly float _scale;
 
-    // Constant footprint in UV space. Analytic ray-differential filtering of
-    // the inner texture belongs to the separate texture-filtering roadmap.
+    // Step length for the central differences, in scene units, shortened on
+    // a surface whose UVs run fast (a small object) so the step in UV stays
+    // under Delta too.
     private const float Delta = 1e-3f;
 
     // Maximum tangent of the tilt the perturbed normal may take off the surface
@@ -52,9 +53,8 @@ public sealed class BumpMapTexture : IBumpMap
 
     /// <param name="height">Inner height-field texture (luminance is read).</param>
     /// <param name="strength">
-    ///   Perturbation amplitude. Clamped to [0, 10] — bump gradients are
-    ///   unitless and may need larger amplification than normal maps on flat
-    ///   procedurals. 0 disables the perturbation.
+    ///   Height of a texture value of 1, in scene units. Clamped to [0, 10].
+    ///   0 disables the perturbation.
     /// </param>
     /// <param name="scale">
     ///   Uniform UV multiplier stacked on top of any per-texture uv_scale.
@@ -72,38 +72,23 @@ public sealed class BumpMapTexture : IBumpMap
     /// <c>(0, 0, 1)</c> means "no perturbation". The result is normalised
     /// and ready to be transformed by the surface TBN.
     /// </summary>
-    /// <param name="tangent">
-    ///   Surface tangent (world-space, ideally unit length). Used to perturb
-    ///   <paramref name="p"/> for inner textures that sample on 3D position.
-    /// </param>
-    /// <param name="bitangent">Surface bitangent (world-space).</param>
-    public Vector3 SampleTangentNormal(float u, float v, Vector3 p,
-                                       Vector3 tangent, Vector3 bitangent,
-                                       int seed)
+    public Vector3 SampleTangentNormal(float u, float v, Vector3 p, in BumpFrame frame, int seed)
     {
         if (_strength <= 0f) return Vector3.UnitZ;
 
-        float su = u * _scale;
-        float sv = v * _scale;
+        Vector2 uv = new(u * _scale, v * _scale);
+        Vector2 uvT = frame.UvT * _scale;
+        Vector2 uvB = frame.UvB * _scale;
+        float uvRate = MathF.Max(MathF.Max(MathF.Abs(uvT.X), MathF.Abs(uvT.Y)),
+                                 MathF.Max(MathF.Abs(uvB.X), MathF.Abs(uvB.Y)));
+        float d = uvRate > 1f ? Delta / uvRate : Delta;
 
-        Vector3 dpu = tangent   * Delta;
-        Vector3 dpv = bitangent * Delta;
+        float H(Vector2 uvs, Vector3 ps) => MathUtils.Luminance(_height.Value(uvs.X, uvs.Y, ps, seed));
 
-        float hUp = MathUtils.Luminance(_height.Value(su + Delta, sv, p + dpu, seed));
-        float hUm = MathUtils.Luminance(_height.Value(su - Delta, sv, p - dpu, seed));
-        float hVp = MathUtils.Luminance(_height.Value(su, sv + Delta, p + dpv, seed));
-        float hVm = MathUtils.Luminance(_height.Value(su, sv - Delta, p - dpv, seed));
+        float dhdt = (H(uv + d * uvT, p + d * frame.PointT) - H(uv - d * uvT, p - d * frame.PointT)) / (2f * d);
+        float dhdb = (H(uv + d * uvB, p + d * frame.PointB) - H(uv - d * uvB, p - d * frame.PointB)) / (2f * d);
 
-        float dhdu = (hUp - hUm) / (2f * Delta);
-        float dhdv = (hVp - hVm) / (2f * Delta);
-
-        Vector3 nTs = new(-_strength * dhdu, -_strength * dhdv, 1f);
-
-        // Bound the tilt off the surface normal. The raw slope magnitude
-        // sqrt(x²+y²) = tan(tilt) scales with the inner texture's gradient, so
-        // high-frequency height fields can drive the perturbed normal almost
-        // onto the tangent plane, producing aliased glitter at grazing angles.
-        // Capping the tilt keeps the perturbation a well-conditioned micro-relief.
+        Vector3 nTs = new(-_strength * dhdt, -_strength * dhdb, 1f);
         float slope = MathF.Sqrt(nTs.X * nTs.X + nTs.Y * nTs.Y);
         if (slope > MaxSlope)
         {
@@ -111,7 +96,6 @@ public sealed class BumpMapTexture : IBumpMap
             nTs.X *= k;
             nTs.Y *= k;
         }
-
         return Vector3.Normalize(nTs);
     }
 }

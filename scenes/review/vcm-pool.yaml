@@ -1,0 +1,81 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  VCM: caustiche sul fondo di una piscina viste attraverso l'acqua
+#  (PIANO-REVIEW.md Fase 8b)
+#
+#  Una luce sferica piccola sopra una vasca d'acqua con la superficie mossa
+#  (heightfield procedurale, IOR 1.33): la luce rifratta dalle onde si
+#  concentra in reti di caustiche sul fondo a piastrelle, e la camera le vede
+#  attraverso la stessa superficie. I cammini luce → acqua → fondo → acqua →
+#  camera (L S D S E) non hanno due vertici che si possano collegare: il path
+#  tracing e il BDPT li trovano solo colpendo per caso la luce, il merging
+#  del VCM li raccoglie.
+#
+#  Confronto a parità di tempo:
+#    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#      -i scenes/review/vcm-pool.yaml -o renders/pool-path.png -w 480 -H 270 -s 256 -d 12 --denoiser none
+#    ... --integrator bdpt -s 96
+#    ... --integrator vcm  -s 64
+#  Atteso: reti di caustiche nette con vcm; con path e bdpt solo puntini
+#  sparsi (firefly) dove la caustica dovrebbe stare. images/vcm-pool.jpg.
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky: { type: "flat", color: [0.02, 0.025, 0.03] }
+
+camera:
+  position: [0.0, 2.4, 1.9]
+  look_at:  [0.0, -0.9, -0.1]
+  vup: [0, 1, 0]
+  fov: 42
+
+lights:
+  - type: "sphere"
+    position: [0.6, 4.5, -1.0]
+    radius: 0.06
+    color: [1.0, 0.96, 0.9]
+    intensity: 900
+    shadow_samples: 1
+
+materials:
+  - id: "tiles"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 0.25
+      colors: [[0.85, 0.87, 0.88], [0.12, 0.3, 0.5]]
+  - id: "wall"
+    type: "lambertian"
+    color: [0.6, 0.7, 0.75]
+  - id: "rim"
+    type: "lambertian"
+    color: [0.8, 0.78, 0.74]
+  - id: "water"
+    type: "dielectric"
+    refraction_index: 1.33
+    color: [0.92, 0.97, 1.0]
+
+entities:
+  # Fondo e pareti della vasca (2 × 2, profonda 1).
+  - { name: "floor", type: "quad", q: [-1, -1, 1], u: [2, 0, 0], v: [0, 0, -2], material: "tiles" }
+  - { name: "wall-back",  type: "quad", q: [-1, -1, -1], u: [2, 0, 0], v: [0, 1.05, 0], material: "wall" }
+  - { name: "wall-left",  type: "quad", q: [-1, -1, 1], u: [0, 0, -2], v: [0, 1.05, 0], material: "wall" }
+  - { name: "wall-right", type: "quad", q: [1, -1, -1], u: [0, 0, 2], v: [0, 1.05, 0], material: "wall" }
+  # Bordo attorno alla vasca.
+  - { name: "deck", type: "quad", q: [-3, 0.05, 3], u: [6, 0, 0], v: [0, 0, -2], material: "rim" }
+  - { name: "deck-back", type: "quad", q: [-3, 0.05, -1], u: [6, 0, 0], v: [0, 0, -2], material: "rim" }
+  - { name: "deck-left", type: "quad", q: [-3, 0.05, 1], u: [2, 0, 0], v: [0, 0, -2], material: "rim" }
+  - { name: "deck-right", type: "quad", q: [1, 0.05, 1], u: [2, 0, 0], v: [0, 0, -2], material: "rim" }
+  # Superficie dell'acqua: onde alte fino a 12 cm, sotto il bordo.
+  - name: "water-surface"
+    type: "heightfield"
+    bounds: [-1, -1, 1, 1]
+    height_scale: 0.15
+    resolution: 256
+    height_texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 2.5
+      octaves: 2
+      colors: [[0.2, 0.2, 0.2], [1, 1, 1]]   # altezze in [0.2, 1]: nessun tratto piatto a quota 0
+    translate: [0, -0.12, 0]
+    material: "water"

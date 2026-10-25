@@ -69,16 +69,30 @@ in Section 3.7.
 ```
 
 Metal surfaces reflect light specularly. The engine uses a GGX microfacet
-model for realistic highlights.
+model for realistic highlights, and adds back the light that bounces
+several times between the microfacets, so a rough metal stays as bright as
+a polished one instead of turning dark.
 
 | Parameter | Type      | Default | Description                            |
 |-----------|-----------|---------|----------------------------------------|
-| `color`   | `[R,G,B]` | --     | Reflectance color (metallic tint)       |
-| `fuzz`    | `float`   | `0.0`  | Roughness: 0 = perfect mirror, higher = blurrier |
+| `color`   | `[R,G,B]` | --     | Colour at normal incidence              |
+| `edge_color` | `[R,G,B]` | white | Colour near grazing angles (real metals shift hue toward the edge) |
+| `fuzz`    | `float`   | `0.0`  | Roughness: 0 = perfect mirror, higher = blurrier (`roughness` is an alias) |
+| `preset`  | `string`  | --     | A measured metal: `gold`, `silver`, `copper`, `aluminium`, `chromium`, `tungsten`, `nickel`, ... |
 
 The `fuzz` value maps internally to a roughness parameter
-(`alpha = fuzz * fuzz`). Keep it in the 0.0--0.6 range for realistic
-metals; higher values start to look unrealistic.
+(`alpha = fuzz * fuzz`).
+
+A preset uses the metal's measured complex index of refraction and gives its
+exact reflectance at every angle, so it is the quickest way to a believable
+gold or copper:
+
+```yaml
+- id: "gold"
+  type: "metal"
+  preset: "gold"
+  fuzz: 0.2
+```
 
 ---
 
@@ -103,6 +117,11 @@ according to the Fresnel equations: some is reflected, some is refracted
 |--------------------|-----------|---------|----------------------------------|
 | `refraction_index` | `float`   | `1.5`  | Index of refraction (IOR)         |
 | `color`            | `[R,G,B]` | `[1,1,1]` | Tint color for colored glass   |
+| `roughness`        | `float`   | `0.0`  | Frosted glass: 0 = clear, higher = more diffuse transmission |
+
+With `roughness` above zero the surface becomes frosted: the light that
+passes through is spread out, highlights blur, and the objects behind it
+lose their outline.
 
 ### Common Indices of Refraction
 
@@ -119,14 +138,15 @@ according to the Fresnel equations: some is reflected, some is refracted
 
 ### Important: Glass Needs More Ray Depth
 
-Every glass surface a ray enters and exits costs two bounces. The
-`draft-small` default preset uses `-d 4`; quality presets (`-q standard`
-and above) use `-d 8`, which is enough for most scenes thanks to Russian
-Roulette. If you have nested glass objects (e.g. a glass of water, bottles
-behind bottles), raise the ray depth to at least 16:
+Every glass surface a ray enters and exits costs two transmission
+bounces. The engine counts them apart from the diffuse ones: the
+`draft-small` default preset allows 8 transmissions, `-q standard` 12,
+`-q final` 16, which is enough for most scenes. If you have nested glass
+objects (e.g. a glass of water, bottles behind bottles), raise the
+transmission limit:
 
 ```
-RayTracer -i my-scene.yaml -s 64 -d 16
+RayTracer -i my-scene.yaml -s 64 --depth-transmission 24
 ```
 
 See [Rendering Profiles](../../reference/rendering-profiles.md) for the full

@@ -22,16 +22,29 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
         Vector3 oc = ray.Origin - Center;
         float a = ray.Direction.LengthSquared();
         float halfB = Vector3.Dot(oc, ray.Direction);
-        float c = oc.LengthSquared() - Radius * Radius;
-        float discriminant = halfB * halfB - a * c;
+        float rSq = Radius * Radius;
+        float c = oc.LengthSquared() - rSq;
 
+        // Discriminant from the ray's perpendicular distance to the centre,
+        // r² − |l|², instead of b² − ac: for a small or distant sphere b² and
+        // ac are nearly equal and their float difference loses every digit
+        // (t off by ~5e-5 at R = 0.01 seen from 3 units, enough for a sphere
+        // light to shadow itself). Ray Tracing Gems ch. 7, PBRT-v4.
+        Vector3 l = oc - (halfB / a) * ray.Direction;
+        float discriminant = a * (rSq - l.LengthSquared());
         if (discriminant < 0) return false;
 
+        // Stable roots: never subtract two nearly equal numbers.
         float sqrtD = MathF.Sqrt(discriminant);
-        float root = (-halfB - sqrtD) / a;
+        float q = halfB > 0f ? -halfB - sqrtD : -halfB + sqrtD;
+        float tA = q / a;
+        float tB = q != 0f ? c / q : tA;
+        float near = MathF.Min(tA, tB), far = MathF.Max(tA, tB);
+
+        float root = near;
         if (root < tMin || root > tMax)
         {
-            root = (-halfB + sqrtD) / a;
+            root = far;
             if (root < tMin || root > tMax)
                 return false;
         }
@@ -85,16 +98,14 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
         return (Center + p * Radius, p, new Vector2(u, v), area);
     }
 
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
 
         // Stratified sampling in (cosTheta, phi) space — uniform on the sphere.
         // cosTheta ∈ [-1, 1], phi ∈ [0, 2π]
-        float cosTheta = 1f - 2f * (su + MathUtils.RandomFloat()) * inv;
-        float phi = 2f * MathF.PI * (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float cosTheta = 1f - 2f * xs1;
+        float phi = 2f * MathF.PI * xs2;
 
         float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
         Vector3 p = new(sinTheta * MathF.Cos(phi), sinTheta * MathF.Sin(phi), cosTheta);
@@ -122,17 +133,18 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
     /// <inheritdoc/>
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float SolidAnglePdf)
         SampleSolidAngle(Vector3 from)
-        => SampleSolidAngleCore(from, MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleSolidAngleCore(from, r2u, r2v);
+    }
 
     /// <inheritdoc/>
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float SolidAnglePdf)
-        SampleSolidAngleStratified(Vector3 from, int sampleIndex, int sqrtSamples)
+        SampleSolidAngleStratified(Vector3 from, int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleSolidAngleCore(from, xi1, xi2);
     }
 
@@ -161,43 +173,38 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
         float sinThetaMaxSq = rSq / distSq;
         float cosThetaMax = MathF.Sqrt(MathF.Max(0f, 1f - sinThetaMaxSq));
 
-        // Uniform sampling inside the cone (solid-angle measure)
-        float cosTheta = 1f - xi1 * (1f - cosThetaMax);
-        float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
-        float phi = 2f * MathF.PI * xi2;
-
-        Vector3 local = new(
-            sinTheta * MathF.Cos(phi),
-            sinTheta * MathF.Sin(phi),
-            cosTheta);
-        Vector3 dirWorld = LocalToWorld(local, wDir);
-
-        // Intersect ray (from, dirWorld) with the sphere.
-        Vector3 oc = from - Center;
-        float b = Vector3.Dot(oc, dirWorld);
-        float c = oc.LengthSquared() - rSq;
-        float disc = b * b - c;
-
-        float t;
-        if (disc <= 0f)
+        // Sample the visible cap geometrically (PBRT-v4 Sphere::Sample): θ is
+        // uniform in solid angle inside the cone and the surface point is placed
+        // through the angle α it subtends at the centre, instead of intersecting
+        // a ray with the sphere, which misses near the rim in single precision.
+        // Below sin²θ_max ≈ sin²(1.5°) the small-angle forms keep 1 − cos θ_max
+        // from underflowing (PIANO-REVIEW.md §3.19).
+        float sinThetaMax = MathF.Sqrt(sinThetaMaxSq);
+        float cosTheta, sin2Theta, oneMinusCosThetaMax;
+        if (sinThetaMaxSq < SmallConeSin2)
         {
-            // Tangent ray — project observer → surface along dirWorld.
-            // Numerically rare; clamp to the foot of the perpendicular.
-            t = -b;
+            sin2Theta = sinThetaMaxSq * xi1;
+            cosTheta = MathF.Sqrt(1f - sin2Theta);
+            oneMinusCosThetaMax = 0.5f * sinThetaMaxSq;
         }
         else
         {
-            float sqrtD = MathF.Sqrt(disc);
-            t = -b - sqrtD;                              // near hit
-            if (t < MathUtils.Epsilon) t = -b + sqrtD;   // far hit (observer inside fallback)
+            cosTheta = 1f - xi1 * (1f - cosThetaMax);
+            sin2Theta = MathF.Max(0f, 1f - cosTheta * cosTheta);
+            oneMinusCosThetaMax = 1f - cosThetaMax;
         }
-
-        Vector3 samplePoint = from + t * dirWorld;
-        Vector3 normal = Vector3.Normalize(samplePoint - Center);
+        float cosAlpha = sin2Theta / sinThetaMax
+                       + cosTheta * MathF.Sqrt(MathF.Max(0f, 1f - sin2Theta / sinThetaMaxSq));
+        float sinAlpha = MathF.Sqrt(MathF.Max(0f, 1f - cosAlpha * cosAlpha));
+        float phi = 2f * MathF.PI * xi2;
+        // α is measured from the centre toward the observer (−wDir).
+        Vector3 normal = LocalToWorld(
+            new Vector3(sinAlpha * MathF.Cos(phi), sinAlpha * MathF.Sin(phi), cosAlpha), -wDir);
+        Vector3 samplePoint = Center + Radius * normal;
         var (u, v) = GetSphereUV(normal);
 
-        float solidAngle = 2f * MathF.PI * (1f - cosThetaMax);
-        float pdf = solidAngle > MathUtils.Epsilon ? 1f / solidAngle : 0f;
+        float solidAngle = 2f * MathF.PI * oneMinusCosThetaMax;
+        float pdf = solidAngle > 0f ? 1f / solidAngle : 0f;
 
         return (samplePoint, normal, new Vector2(u, v), pdf);
     }
@@ -224,33 +231,24 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
 
         if (cosTheta < cosThetaMax) return 0f;
 
-        float solidAngle = 2f * MathF.PI * (1f - cosThetaMax);
-        return solidAngle > MathUtils.Epsilon ? 1f / solidAngle : 0f;
+        float oneMinusCosThetaMax = sinThetaMaxSq < SmallConeSin2
+            ? 0.5f * sinThetaMaxSq
+            : 1f - cosThetaMax;
+        float solidAngle = 2f * MathF.PI * oneMinusCosThetaMax;
+        return solidAngle > 0f ? 1f / solidAngle : 0f;
     }
+
+    // sin²(1.5°): below it 1 − cos θ_max underflows in single precision.
+    private const float SmallConeSin2 = 0.00068523f;
 
     /// <summary>
     /// Builds a right-handed orthonormal basis with <paramref name="w"/> as the
-    /// Z axis (Frisvad's branch-free construction, with south-pole guard) and
-    /// transforms <paramref name="local"/> into world space. Kept in sync with
-    /// the equivalent helper in <see cref="Lights.SphereLight"/>.
+    /// Z axis (<see cref="MathUtils.OrthonormalBasis"/>) and transforms
+    /// <paramref name="local"/> into world space.
     /// </summary>
     private static Vector3 LocalToWorld(Vector3 local, Vector3 w)
     {
-        Vector3 u, v;
-        if (w.Z < -0.999f)
-        {
-            u = new Vector3(0f, -1f, 0f);
-            v = new Vector3(-1f, 0f, 0f);
-        }
-        else
-        {
-            float a = 1f / (1f + w.Z);
-            float b = -w.X * w.Y * a;
-            u = new Vector3(1f - w.X * w.X * a, b, -w.X);
-            v = new Vector3(b, 1f - w.Y * w.Y * a, -w.Y);
-        }
-
-        Vector3 result = local.X * u + local.Y * v + local.Z * w;
+        Vector3 result = MathUtils.LocalToWorld(local, w);
         float lenSq = result.LengthSquared();
         return lenSq > 1e-8f ? result / MathF.Sqrt(lenSq) : w;
     }

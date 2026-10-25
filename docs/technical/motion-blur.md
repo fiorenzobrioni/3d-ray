@@ -43,7 +43,7 @@ See `Renderer.cs`, both the Sobol and the stratified sample loops.
 **Path time propagation.** A path samples the scene at a single instant: the
 primary ray's time is inherited unchanged by every secondary ray — shadow/NEE
 rays, BSDF bounces, medium phase scatters, the SSS random walk. The renderer owns
-this propagation. It stamps `HitRecord.Time` once at the top of `TraceRay`, and
+this propagation. It stamps `HitRecord.Time` once per path vertex (`PathIntegrator.FindVisibleHit`), and
 all ray-construction sites downstream pass it on. Materials build their scattered
 rays *without* a time; the renderer re-stamps them via `Ray.WithTime` at the
 single consumption point (the legacy `Scatter` path), so the twelve material call
@@ -139,10 +139,12 @@ The trade-off is a slight positional bias of the direct-light contribution for
 fast-moving emitters — a deliberate, documented limitation flagged with a load
 warning.
 
-**Caustics.** The photon pre-pass builds one static photon map. When motion blur
-is active the photons are traced at the shutter midpoint (a notice is printed);
-distributing photon times would require a per-time photon map for a correct
-density estimate.
+**Bidirectional integrators.** With `--integrator bdpt|vcm` the camera subpath
+and the light subpath of a pixel share one shutter time per iteration, so a
+connection always joins two vertices of the same instant, and light tracing
+sees the camera at that instant too. Vertex merging gathers the light vertices
+of every pixel, each at its own time: a moving caustic is blurred as a moving
+object is.
 
 ---
 
@@ -171,7 +173,7 @@ time onto the ray, so a static camera stays bit-identical.
 | Time draw + propagation | `Rendering/Renderer.cs` |
 | Time-aware shadow tests | `Lights/*.cs`, `Geometry/ShadowRay.cs` |
 | YAML schema + keyframe build | `Scene/SceneData.cs`, `Scene/SceneLoader.cs` |
-| Photon-map snapshot time | `Rendering/CausticPhotonTracer.cs` |
+| Shared time of the bidirectional subpaths | `Rendering/Bidirectional/VertexConnectionMerging.cs` (`PathTime`) |
 | Tests | `RayTracer.Tests/AnimatedTransformTests.cs`, `MotionBlurTests.cs` |
 
 ---
@@ -182,7 +184,6 @@ time onto the ray, so a static camera stays bit-identical.
 - **Animated emitters** use a mid-shutter NEE snapshot (above).
 - **Per-hit matrix invert** on animated nodes — cacheable per thread if heavily
   animated scenes ever warrant it.
-- **Caustics** use a single mid-shutter photon map.
 
 See the `motion-blur-showcase.yaml` (didactic) and
 `motion-blur-billiard-showcase.yaml` (cinematic break shot) scenes under

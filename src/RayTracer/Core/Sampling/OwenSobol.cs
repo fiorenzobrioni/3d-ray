@@ -1,88 +1,45 @@
 namespace RayTracer.Core.Sampling;
 
 /// <summary>
-/// Owen-scrambled Sobol sampler combining two well-known constructions:
+/// Owen-scrambled, padded 2D Sobol sampler (Burley 2020, "Practical
+/// Hash-based Owen Scrambling"; PBRT-v4 PaddedSobolSampler).
 ///
-///   • For dimensions 0 and 1 — the camera-jitter pair, the BSDF
-///     azimuth/cosine pair, the area-light position pair, etc. — we use
-///     proper Sobol direction matrices (Joe-Kuo 1972/2008). Together
-///     dim 0 and dim 1 form a (0, 2, 2)-net, which means in addition
-///     to per-dim 1D stratification at every power-of-two prefix, the
-///     joint 2D distribution hits every cell of every 2^a × 2^b grid
-///     exactly the right number of times. This is the structural
-///     property that gives Sobol(2D) its 2-5× variance reduction over
-///     PRNG on 2D integrals — and it CANNOT be reproduced by pure
-///     hashing (Burley 2020 §4): hash-only Sobol gets per-dim 1D
-///     stratification but degenerates to ~PRNG quality in 2D.
+/// Dimensions are grouped in pairs: dimensions 2k and 2k+1 form block k,
+/// and every block is the first two dimensions of the Sobol sequence (van
+/// der Corput and the x² + x + 1 Joe-Kuo dimension), which together are a
+/// (0, 2)-sequence: every power-of-two prefix stratifies every 2^a × 2^b
+/// grid of the unit square. Each block then gets
 ///
-///   • For dimensions ≥ 2 we use Burley 2020 hash-based scrambling
-///     (Laine-Karras four-round multiply-XOR). Each higher dimension
-///     is an Owen-scrambled van der Corput with a per-dimension index
-///     permutation, giving marginal 1D stratification but no joint
-///     2D guarantee with any other dimension. This is the standard
-///     trade-off — full Joe-Kuo direction matrices would ship 1 KB
-///     per dimension, ~1 MB for the typical 1024-dim path-tracer
-///     budget. The path tracer in this engine pairs (Sample1D,
-///     Sample1D) for every BSDF/light decision, so dim ≥ 2 pairs
-///     eventually appear; they get good 1D stratification but the
-///     joint distribution is no better than independent random.
+///   • its own shuffle of the sample index (nested uniform scramble, so a
+///     power-of-two prefix maps onto an aligned block of the sequence, still
+///     a net), which decorrelates the blocks from one another;
+///   • an independent Owen scramble per coordinate and per pixel, which
+///     randomises the net without breaking it and removes the Moiré of
+///     pixels sharing one sequence.
 ///
-/// Every dimension is then Owen-scrambled with a per-(dim, pixel) seed
-/// to give independent per-pixel sequences (kills cross-pixel Moiré)
-/// while preserving the (0,1)-net property by Owen's 1995 theorem.
+/// So every dimension is stratified in 1D, every aligned pair (a 2D decision
+/// drawn through <see cref="Sampler.Sample2D"/>) is stratified in 2D, and
+/// different pairs behave as independent. The previous construction drew
+/// every dimension past 1 from its own shuffled van der Corput sequence:
+/// pairs were never jointly stratified and, measured, converged more slowly
+/// than independent random numbers (PIANO-REVIEW.md §3.10).
 /// </summary>
 internal static class OwenSobol
 {
     /// <summary>
-    /// Owen-scrambled Sobol sample.
-    ///
-    /// dim 0 and dim 1 are jointly stratified; dim ≥ 2 are marginally
-    /// stratified per dimension and decorrelated across dimensions but
-    /// not jointly stratified.
+    /// Owen-scrambled padded Sobol sample for one dimension.
     /// </summary>
     /// <param name="sampleIndex">Sample index within the pixel (0 .. spp-1).</param>
-    /// <param name="dimension">Sequence dimension (0 = camera-jitter U, 1 = jitter V, …).</param>
-    /// <param name="pixelSeed">Per-pixel scramble — different pixels see independent
-    /// scrambled sequences, eliminating the regular Moiré that would otherwise appear
-    /// when every pixel walks the same Sobol prefix.</param>
+    /// <param name="dimension">Sequence dimension; 2k and 2k+1 share block k.</param>
+    /// <param name="pixelSeed">Per-pixel seed of the shuffles and scrambles.</param>
     public static float Sample(uint sampleIndex, uint dimension, uint pixelSeed)
     {
-        uint v;
-        if (dimension < 2u)
-        {
-            // Real Sobol value via direction-matrix XOR — XOR over set
-            // bits k of sampleIndex of V_k(dim). For dim 0 this
-            // reduces to ReverseBits(sampleIndex) (van der Corput);
-            // for dim 1 we look up the tabulated Joe-Kuo direction
-            // vectors generated from the primitive polynomial p(x) =
-            // x² + x + 1.
-            v = SobolValue(sampleIndex, dimension);
-        }
-        else
-        {
-            // Hash-based fallback for dim ≥ 2: Owen-scrambled van der
-            // Corput on a per-dim shuffled sample index.
-            //
-            // Burley 2020 §3 requires *nested* uniform scrambling
-            // (= OwenScramble: reverse_bits → LK → reverse_bits) for
-            // BOTH the shuffle and the scramble. A bare LK on the
-            // sample index — LSB-to-MSB avalanche only — leaks
-            // structure: empirically it gives ~42 of 64 stratified
-            // bins on N = 64 samples, indistinguishable from PRNG, so
-            // every BSDF/light decision past dim 1 sees PRNG-quality
-            // noise on top of the data-dependent dim assignment that
-            // Sobol pays for. Wrapping the LK in reverse_bits both
-            // sides restores the (0,1)-net per dimension.
-            uint shuffleSeed = Hash(dimension * 0x68bc21ebu + 0xc7afe638u);
-            uint shuffledIndex = OwenScramble(sampleIndex, shuffleSeed);
-            v = ReverseBits(shuffledIndex);
-        }
+        uint block = dimension >> 1;
+        uint shuffleSeed = Hash(pixelSeed ^ Hash(block * 0x68bc21ebu + 0xc7afe638u));
+        uint index = OwenScramble(sampleIndex, shuffleSeed);
 
-        // Per-(dim, pixel) Owen scramble — preserves the (0,1)-net
-        // (and the (0,2,2)-net for the dim 0/1 pair) while giving each
-        // pixel an independent permutation of the sequence. Without
-        // this every pixel walks the exact same Sobol prefix, which
-        // produces visible Moiré.
+        uint v = (dimension & 1u) == 0u ? ReverseBits(index) : SobolValue(index, 1u);
+
         uint scrambleSeed = Hash(pixelSeed ^ Hash(dimension * 0xa511e9b3u + 0x736f6c34u));
         v = OwenScramble(v, scrambleSeed);
         return ToFloat01(v);

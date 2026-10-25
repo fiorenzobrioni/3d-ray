@@ -1,0 +1,71 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  openpbr-white-furnace.yaml - fornace bianca del materiale OpenPBR
+#  (PIANO-REVIEW.md, Fase 5)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Un cielo bianco uniforme di radianza 1 e nient'altro. Un materiale che non
+#  assorbe luce rimanda tutta quella che riceve: con abbastanza rimbalzi ogni
+#  sfera sparisce nello sfondo. Una sfera più scura dello sfondo perde
+#  energia, una più chiara la crea: in entrambi i casi è un errore.
+#
+#  Le configurazioni sono quelle che la specifica OpenPBR elenca per il test:
+#    fila davanti: diffuso ruvido, metallo bianco, coat, fuzz, film sottile,
+#                  anisotropia
+#    fila dietro:  thin-walled subsurface, opacità parziale, tutto insieme,
+#                  vetro ruvido (perde qualche % per lo scattering singolo
+#                  dell'interfaccia ruvida: atteso), vetro liscio (esatto)
+#
+#  Render consigliato (view standard e niente denoiser, per leggere i valori):
+#    -s 256 -d 32 --view standard --denoiser none -w 640 -H 360
+#  Con -o *.exr i pixel delle sfere devono valere 1 (entro il rumore).
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [1, 1, 1]
+    horizon_color: [1, 1, 1]
+    ground_color:  [1, 1, 1]
+
+# Nessuna luce: senza questa riga il loader aggiunge due luci di default.
+lights: []
+
+camera:
+  position: [0, 0, -12]
+  look_at: [0, 0, 0]
+  fov: 40
+
+materials:
+  - { id: "diffuse",  type: "openpbr", base_color: 1, base_diffuse_roughness: 0.8, specular_roughness: 0.5 }
+  - { id: "metal",    type: "openpbr", base_color: 1, base_metalness: 1, specular_roughness: 0.6 }
+  - { id: "coat",     type: "openpbr", base_color: 1, coat_weight: 1, coat_roughness: 0.2 }
+  - { id: "fuzz",     type: "openpbr", base_color: 1, fuzz_weight: 1, fuzz_roughness: 0.4 }
+  - { id: "film",     type: "openpbr", base_color: 1, thin_film_weight: 1, thin_film_thickness: 0.4 }
+  - { id: "aniso",    type: "openpbr", base_color: 1, base_metalness: 0.5, specular_roughness: 0.4, specular_roughness_anisotropy: 0.7 }
+  - { id: "thin_sss", type: "openpbr", geometry_thin_walled: true, subsurface_weight: 1, subsurface_color: 1 }
+  - { id: "opacity",  type: "openpbr", base_color: 1, geometry_opacity: 0.4, geometry_thin_walled: true }
+  - id: "everything"
+    type: "openpbr"
+    base_color: 1
+    base_metalness: 0.4
+    base_diffuse_roughness: 0.5
+    specular_roughness: 0.35
+    coat_weight: 0.6
+    coat_roughness: 0.15
+    fuzz_weight: 0.5
+    thin_film_weight: 0.7
+  - { id: "glass_rough",  type: "openpbr", transmission_weight: 1, specular_roughness: 0.3 }
+  - { id: "glass_smooth", type: "openpbr", transmission_weight: 1, specular_roughness: 0 }
+
+entities:
+  - { name: "diffuse",  type: "sphere", center: [ 5.0,  1.1, 0], radius: 0.8, material: "diffuse" }
+  - { name: "metal",    type: "sphere", center: [ 3.0,  1.1, 0], radius: 0.8, material: "metal" }
+  - { name: "coat",     type: "sphere", center: [ 1.0,  1.1, 0], radius: 0.8, material: "coat" }
+  - { name: "fuzz",     type: "sphere", center: [-1.0,  1.1, 0], radius: 0.8, material: "fuzz" }
+  - { name: "film",     type: "sphere", center: [-3.0,  1.1, 0], radius: 0.8, material: "film" }
+  - { name: "aniso",    type: "sphere", center: [-5.0,  1.1, 0], radius: 0.8, material: "aniso" }
+  - { name: "thin_sss", type: "sphere", center: [ 4.0, -1.1, 0], radius: 0.8, material: "thin_sss" }
+  - { name: "opacity",  type: "sphere", center: [ 2.0, -1.1, 0], radius: 0.8, material: "opacity" }
+  - { name: "everything",   type: "sphere", center: [ 0.0, -1.1, 0], radius: 0.8, material: "everything" }
+  - { name: "glass_rough",  type: "sphere", center: [-2.0, -1.1, 0], radius: 0.8, material: "glass_rough" }
+  - { name: "glass_smooth", type: "sphere", center: [-4.0, -1.1, 0], radius: 0.8, material: "glass_smooth" }

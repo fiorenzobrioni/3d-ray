@@ -21,7 +21,7 @@ namespace RayTracer.Tests;
 [Collection("SceneLoader")]
 public class EmbeddedSssSpecTransTests
 {
-    private static DisneyBsdf LoadMaterial(string materialBody)
+    private static OpenPbr LoadMaterial(string materialBody)
     {
         string yaml = $@"
 materials:
@@ -47,7 +47,7 @@ camera:
             var ray = new Ray(Vector3.Zero, Vector3.Normalize(new Vector3(0, 0, -1)));
             world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
             Assert.NotNull(rec.Material);
-            return Assert.IsType<DisneyBsdf>(rec.Material);
+            return Assert.IsType<OpenPbr>(rec.Material);
         }
         finally
         {
@@ -59,8 +59,8 @@ camera:
     public void SubsurfaceRadius_NoSpecTrans_AutoPromotesToOne()
     {
         var bsdf = LoadMaterial("    subsurface_radius: [0.4, 0.3, 0.2]");
-        Assert.True(bsdf.SpecTrans.IsConstant);
-        Assert.Equal(1f, bsdf.SpecTrans.ConstantValue, 5);
+        Assert.True(bsdf.Parameters.SubsurfaceWeight.IsConstant);
+        Assert.Equal(1f, bsdf.Parameters.SubsurfaceWeight.ConstantValue, 5);
     }
 
     [Fact]
@@ -69,8 +69,8 @@ camera:
         // Opaque polished marble: keeps subsurface_radius authored but must
         // stay opaque (spec_trans: 0 not promoted to 1.0).
         var bsdf = LoadMaterial("    subsurface_radius: [0.4, 0.3, 0.2]\n    spec_trans: 0.0");
-        Assert.True(bsdf.SpecTrans.IsConstant);
-        Assert.Equal(0f, bsdf.SpecTrans.ConstantValue, 5);
+        Assert.True(bsdf.Parameters.SubsurfaceWeight.IsConstant);
+        Assert.Equal(0f, bsdf.Parameters.SubsurfaceWeight.ConstantValue, 5);
     }
 
     [Fact]
@@ -78,7 +78,7 @@ camera:
     {
         // Translucent onyx: explicit fractional transmission preserved.
         var bsdf = LoadMaterial("    subsurface_radius: [0.6, 0.5, 0.4]\n    spec_trans: 0.5");
-        Assert.True(bsdf.SpecTrans.IsConstant);
-        Assert.Equal(0.5f, bsdf.SpecTrans.ConstantValue, 5);
+        Assert.True(bsdf.Parameters.SubsurfaceWeight.IsConstant);
+        Assert.Equal(0.5f, bsdf.Parameters.SubsurfaceWeight.ConstantValue, 5);
     }
 }

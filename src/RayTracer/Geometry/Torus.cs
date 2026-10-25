@@ -300,6 +300,12 @@ public class Torus : IHittable, ISamplable
             cosTheta,
             -sinPhi * sinTheta));
 
+        // P = ((R + r cos θ) cos φ, r sin θ, (R + r cos θ) sin φ), φ and θ
+        // both 2π per unit of U and V: |∂P/∂φ| = R + r cos θ is the distance
+        // from the Y axis, |∂P/∂θ| = r.
+        rec.DpDu = rec.Tangent * (2f * MathF.PI * dxz);
+        rec.DpDv = rec.Bitangent * (2f * MathF.PI * MinorRadius);
+
         rec.ObjectSeed = Seed;
         rec.Material = Material;
     }
@@ -320,7 +326,10 @@ public class Torus : IHittable, ISamplable
     // ═════════════════════════════════════════════════════════════════════════
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
-        => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleAt(r2u, r2v);
+    }
 
     /// <inheritdoc/>
     // Surface area of a torus: 4π²Rr  (MajorRadius = R, MinorRadius = r)
@@ -331,13 +340,11 @@ public class Torus : IHittable, ISamplable
     /// φ is uniform; u_θ is fed into the CDF inversion to produce
     /// area-proportional poloidal angles.
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleAt(xi1, xi2);
     }
 
@@ -393,7 +400,10 @@ public class Torus : IHittable, ISamplable
 
         float area = 4f * MathF.PI * MathF.PI * MajorRadius * MinorRadius;
 
-        return (point, normal, new Vector2(xi1, xi2), area);
+        // The UV Hit() reports at this point (angles measured as there).
+        float u = (MathF.Atan2(sinPhi, cosPhi) + MathF.PI) / (2f * MathF.PI);
+        float v = (MathF.Atan2(sinTheta, cosTheta) + MathF.PI) / (2f * MathF.PI);
+        return (point, normal, new Vector2(u, v), area);
     }
 
     public int Seed { get; set; }

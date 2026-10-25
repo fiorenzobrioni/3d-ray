@@ -24,11 +24,11 @@ namespace RayTracer.Textures;
 ///
 /// <para><b>Algorithm.</b>
 /// <list type="number">
-///   <item><description>Compute mean luminance and a threshold = <c>mean × thresholdFactor</c> (default 50).</description></item>
-///   <item><description>Find pixels exceeding the threshold. Compute their luminance-weighted centroid in spherical coords.</description></item>
-///   <item><description>Estimate disc half-angle from the bbox of those pixels.</description></item>
-///   <item><description>Re-paint a circular neighbourhood of radius 2× the sun radius with the ring-averaged HDRI value (simple in-paint).</description></item>
-///   <item><description>Return both the sun parameters and the in-painted pixel buffer.</description></item>
+///   <item><description>Threshold = solid-angle-weighted mean luminance × <c>thresholdFactor</c> (default 50).</description></item>
+///   <item><description>Seed at the brightest texel; the sun is the texels above threshold within <see cref="MaxSunRadiusDeg"/> of it, so a second bright spot elsewhere is not averaged in.</description></item>
+///   <item><description>Direction: their luminance-weighted mean direction (a vector mean, so a sun across the ±180° seam stays where it is). Half-angle: the farthest of them from it, plus half a texel, floored at the real solar disc.</description></item>
+///   <item><description>In-paint: within the half-angle the ring average at twice it, fading back to the HDRI at twice the half-angle (distances are angles on the sphere).</description></item>
+///   <item><description>The sun receives exactly the energy the in-paint took (each texel weighted by its solid angle), spread evenly over its disc: sun plus in-painted map integrate to the original map.</description></item>
 /// </list></para>
 /// </summary>
 public static class HdriSunExtractor
@@ -43,151 +43,137 @@ public static class HdriSunExtractor
     /// Attempts to extract a sun peak. Returns <c>null</c> when no peak above
     /// threshold is found (the HDRI is overcast / studio).
     /// </summary>
+    /// <summary>Largest sun the extractor accepts, around its brightest texel.</summary>
+    public const float MaxSunRadiusDeg = 5f;
+
     public static SunExtractionResult? Extract(EnvironmentMap map, float thresholdFactor = 50f)
     {
         int w = map.Width;
         int h = map.Height;
         float[] src = map.CopyPixels();
+        float[] orig = (float[])src.Clone();
         float intensity = map.Intensity;
         float rotation = map.RotationRad;
 
-        // Solid-angle-weighted mean (so polar pixels don't inflate it).
-        double weightedSum = 0;
-        double weightTotal = 0;
+        float dPhi = 2f * MathF.PI / w, dTheta = MathF.PI / h;
+        float Lat(int y) => (0.5f - (y + 0.5f) / h) * MathF.PI;
+        float Lum(int idx) => 0.2126f * src[idx] + 0.7152f * src[idx + 1] + 0.0722f * src[idx + 2];
+        Vector3 Dir(int x, int y) => EnvironmentMap.DirectionOf(((x + 0.5f) / w - 0.5f) * 2f * MathF.PI, Lat(y));
+
+        // Solid-angle-weighted mean (so polar texels don't inflate it), and
+        // the brightest texel.
+        double weightedSum = 0, weightTotal = 0;
+        float peak = 0f;
+        int px = 0, py = 0;
         for (int y = 0; y < h; y++)
         {
-            float theta = MathF.PI * (y + 0.5f) / h;
-            float sinTheta = MathF.Sin(theta);
+            float dw = MathF.Cos(Lat(y));
             for (int x = 0; x < w; x++)
             {
-                int idx = (y * w + x) * 3;
-                float L = 0.2126f * src[idx] + 0.7152f * src[idx + 1] + 0.0722f * src[idx + 2];
-                weightedSum += L * sinTheta;
-                weightTotal += sinTheta;
+                float L = Lum((y * w + x) * 3);
+                weightedSum += L * dw;
+                weightTotal += dw;
+                if (L > peak) { peak = L; px = x; py = y; }
             }
         }
         if (weightTotal <= 0) return null;
-        float mean = (float)(weightedSum / weightTotal);
-        float threshold = mean * thresholdFactor;
-        if (threshold <= 1e-6f) return null;
+        float threshold = (float)(weightedSum / weightTotal) * thresholdFactor;
+        if (threshold <= 1e-6f || peak < threshold) return null;
 
-        // Pass 2 — find peaks. Track centroid and bbox.
-        double sumPhi = 0, sumTheta = 0, sumWeight = 0;
-        int peakMinX = int.MaxValue, peakMaxX = int.MinValue;
-        int peakMinY = int.MaxValue, peakMaxY = int.MinValue;
-        Vector3 colorSum = Vector3.Zero;
-        int peakCount = 0;
-        for (int y = 0; y < h; y++)
-        {
+        // The sun: texels above threshold near the brightest one.
+        Vector3 seed = Dir(px, py);
+        float cosMax = MathF.Cos(MathUtils.DegreesToRadians(MaxSunRadiusDeg));
+        var (y0, y1) = RowsWithin(Lat(py), MathUtils.DegreesToRadians(MaxSunRadiusDeg) + dTheta, h);
+        Vector3 sumDir = Vector3.Zero;
+        for (int y = y0; y <= y1; y++)
             for (int x = 0; x < w; x++)
             {
-                int idx = (y * w + x) * 3;
-                float L = 0.2126f * src[idx] + 0.7152f * src[idx + 1] + 0.0722f * src[idx + 2];
+                float L = Lum((y * w + x) * 3);
                 if (L < threshold) continue;
-                float phi   = ((x + 0.5f) / w - 0.5f) * 2f * MathF.PI;
-                float theta = (0.5f - (y + 0.5f) / h) * MathF.PI;  // latitude
-                sumPhi += phi * L;
-                sumTheta += theta * L;
-                sumWeight += L;
-                colorSum += new Vector3(src[idx], src[idx + 1], src[idx + 2]);
-                peakCount++;
-                if (x < peakMinX) peakMinX = x;
-                if (x > peakMaxX) peakMaxX = x;
-                if (y < peakMinY) peakMinY = y;
-                if (y > peakMaxY) peakMaxY = y;
+                Vector3 d = Dir(x, y);
+                if (Vector3.Dot(d, seed) < cosMax) continue;
+                sumDir += L * d;
             }
-        }
-        if (peakCount == 0 || sumWeight <= 0) return null;
+        Vector3 centre = Vector3.Normalize(sumDir);
 
-        float phiC   = (float)(sumPhi / sumWeight);
-        float thetaC = (float)(sumTheta / sumWeight);
-        // Undo rotation so the returned direction is in sky-local coords.
-        phiC -= rotation;
-
-        Vector3 sunDir = new(
-            MathF.Cos(thetaC) * MathF.Sin(phiC),
-            MathF.Sin(thetaC),
-            -MathF.Cos(thetaC) * MathF.Cos(phiC));
-        sunDir = Vector3.Normalize(sunDir);
-
-        // Estimate half-angle from bbox: take max of horizontal & vertical
-        // extents in radians, divide by 2.
-        float dPhi   = (peakMaxX - peakMinX + 1) * (2f * MathF.PI / w);
-        float dTheta = (peakMaxY - peakMinY + 1) * (MathF.PI / h);
-        float halfAngleRad = 0.5f * MathF.Max(dPhi, dTheta);
-        // Floor so a single-pixel sun maps to the real solar disc.
-        halfAngleRad = MathF.Max(halfAngleRad, MathUtils.DegreesToRadians(0.265f));
-        float halfAngleDeg = MathUtils.RadiansToDegrees(halfAngleRad);
-
-        // Total energy in sun region (× intensity); convert to peak radiance
-        // by dividing by the disc's solid angle.
-        float solidAngle = 2f * MathF.PI * (1f - MathF.Cos(halfAngleRad));
-        // The integrated energy over the bright pixels ≈ Σ L × dω. We
-        // approximate dω = sin(colat) × dθ × dφ pixel-uniform; sum colorSum
-        // and weight by pixel solid angle at centroid latitude.
-        float sinColatC = MathF.Cos(thetaC);  // sin(colatitude) = cos(latitude)
-        float dPhiPx   = 2f * MathF.PI / w;
-        float dThetaPx = MathF.PI / h;
-        float pixSolidAngle = MathF.Max(1e-8f, sinColatC * dPhiPx * dThetaPx);
-        Vector3 totalEnergy = colorSum * pixSolidAngle * intensity;
-        Vector3 sunRadiance = totalEnergy / MathF.Max(solidAngle, 1e-8f);
-
-        // In-paint: replace sun pixels with a luminance-similar ring average.
-        // Sample a ring at 2× the half-angle radius.
-        float ringRad = 2f * halfAngleRad;
-        Vector3 ring = SampleRingAverage(src, w, h, phiC + rotation, thetaC, ringRad);
-        int padX = (int)MathF.Ceiling(halfAngleRad * w / (2f * MathF.PI)) + 1;
-        int padY = (int)MathF.Ceiling(halfAngleRad * h / MathF.PI) + 1;
-        int cx = ((peakMinX + peakMaxX) >> 1);
-        int cy = ((peakMinY + peakMaxY) >> 1);
-        for (int dy = -padY; dy <= padY; dy++)
-        {
-            int yy = cy + dy;
-            if (yy < 0 || yy >= h) continue;
-            for (int dx = -padX; dx <= padX; dx++)
+        float halfAngleRad = 0f;
+        for (int y = y0; y <= y1; y++)
+            for (int x = 0; x < w; x++)
             {
-                int xx = ((cx + dx) % w + w) % w;
-                int idx = (yy * w + xx) * 3;
-                // Soft falloff: pixels inside the half-angle get pure ring colour,
-                // pixels in the 1× → 2× buffer fade back to the original HDRI.
-                float pixDistRad = PixelAngularDistance(xx, yy, cx, cy, w, h);
-                float t = MathF.Max(0f, MathF.Min(1f, (ringRad - pixDistRad) / halfAngleRad));
-                src[idx]     = src[idx]     * (1f - t) + ring.X * t;
-                src[idx + 1] = src[idx + 1] * (1f - t) + ring.Y * t;
-                src[idx + 2] = src[idx + 2] * (1f - t) + ring.Z * t;
+                if (Lum((y * w + x) * 3) < threshold) continue;
+                Vector3 d = Dir(x, y);
+                if (Vector3.Dot(d, seed) < cosMax) continue;
+                halfAngleRad = MathF.Max(halfAngleRad, Angle(d, centre));
+            }
+        // Half a texel for the extent of the outermost texel; floor so a
+        // single-texel sun maps to the real solar disc.
+        halfAngleRad += 0.5f * dTheta;
+        halfAngleRad = MathF.Max(halfAngleRad, MathUtils.DegreesToRadians(0.265f));
+        float ringRad = 2f * halfAngleRad;
+
+        // In-paint, and add up what it takes away.
+        Vector3 ring = SampleRingAverage(orig, w, h, centre, ringRad);
+        var (r0, r1) = RowsWithin(MathF.Asin(Math.Clamp(centre.Y, -1f, 1f)), ringRad + dTheta, h);
+        Vector3 removed = Vector3.Zero;
+        for (int y = r0; y <= r1; y++)
+        {
+            float dw = MathF.Cos(Lat(y)) * dTheta * dPhi;
+            for (int x = 0; x < w; x++)
+            {
+                float dist = Angle(Dir(x, y), centre);
+                if (dist >= ringRad) continue;
+                // Pure ring colour inside the half-angle, fading back to the
+                // HDRI between one and two half-angles.
+                float t = MathF.Min(1f, (ringRad - dist) / halfAngleRad);
+                int idx = (y * w + x) * 3;
+                Vector3 before = new(src[idx], src[idx + 1], src[idx + 2]);
+                Vector3 after = Vector3.Lerp(before, ring, t);
+                src[idx] = after.X; src[idx + 1] = after.Y; src[idx + 2] = after.Z;
+                removed += (before - after) * dw;
             }
         }
 
-        return new SunExtractionResult(sunDir, sunRadiance, halfAngleDeg, src);
+        float solidAngle = 2f * MathF.PI * (1f - MathF.Cos(halfAngleRad));
+        Vector3 sunRadiance = Vector3.Max(Vector3.Zero, removed * intensity / MathF.Max(solidAngle, 1e-12f));
+
+        // Direction in sky-local coordinates: Sample adds the rotation to φ.
+        float phiC = MathF.Atan2(centre.X, centre.Z) - rotation;
+        Vector3 sunDir = EnvironmentMap.DirectionOf(phiC, MathF.Asin(Math.Clamp(centre.Y, -1f, 1f)));
+
+        return new SunExtractionResult(Vector3.Normalize(sunDir), sunRadiance,
+                                       MathUtils.RadiansToDegrees(halfAngleRad), src);
     }
 
-    private static Vector3 SampleRingAverage(float[] px, int w, int h, float phi, float theta, float radRad)
+    private static float Angle(Vector3 a, Vector3 b)
+    {
+        // atan2 of |a×b| and a·b: accurate for the small angles of a sun disc.
+        return MathF.Atan2(Vector3.Cross(a, b).Length(), Vector3.Dot(a, b));
+    }
+
+    /// <summary>Rows whose latitude lies within <paramref name="radius"/> of <paramref name="lat"/>.</summary>
+    private static (int Y0, int Y1) RowsWithin(float lat, float radius, int h)
+    {
+        float vTop = 0.5f - MathF.Min(MathF.PI / 2f, lat + radius) / MathF.PI;
+        float vBot = 0.5f - MathF.Max(-MathF.PI / 2f, lat - radius) / MathF.PI;
+        return (Math.Clamp((int)MathF.Floor(vTop * h), 0, h - 1), Math.Clamp((int)MathF.Floor(vBot * h), 0, h - 1));
+    }
+
+    private static Vector3 SampleRingAverage(float[] px, int w, int h, Vector3 centre, float radRad)
     {
         const int samples = 32;
+        MathUtils.OrthonormalBasis(centre, out Vector3 e1, out Vector3 e2);
         Vector3 sum = Vector3.Zero;
         for (int i = 0; i < samples; i++)
         {
             float a = (i + 0.5f) * (2f * MathF.PI / samples);
-            float dx = MathF.Cos(a) * radRad;
-            float dy = MathF.Sin(a) * radRad;
-            float pPhi   = phi + dx;
-            float pTheta = theta + dy;
-            float u = 0.5f + pPhi / (2f * MathF.PI);
-            float v = 0.5f - pTheta / MathF.PI;
-            u -= MathF.Floor(u);
-            v = Math.Clamp(v, 0f, 0.999f);
-            int xs = Math.Clamp((int)(u * w), 0, w - 1);
+            Vector3 d = MathF.Cos(radRad) * centre + MathF.Sin(radRad) * (MathF.Cos(a) * e1 + MathF.Sin(a) * e2);
+            float u = 0.5f + MathF.Atan2(d.X, d.Z) / (2f * MathF.PI);
+            float v = 0.5f - MathF.Asin(Math.Clamp(d.Y, -1f, 1f)) / MathF.PI;
+            int xs = Math.Clamp((int)((u - MathF.Floor(u)) * w), 0, w - 1);
             int ys = Math.Clamp((int)(v * h), 0, h - 1);
             int idx = (ys * w + xs) * 3;
             sum += new Vector3(px[idx], px[idx + 1], px[idx + 2]);
         }
         return sum / samples;
-    }
-
-    private static float PixelAngularDistance(int xa, int ya, int xb, int yb, int w, int h)
-    {
-        float dx = (xa - xb) * (2f * MathF.PI / w);
-        float dy = (ya - yb) * (MathF.PI / h);
-        return MathF.Sqrt(dx * dx + dy * dy);
     }
 }

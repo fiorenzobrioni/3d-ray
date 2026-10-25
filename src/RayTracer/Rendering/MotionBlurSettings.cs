@@ -20,12 +20,6 @@ public readonly struct MotionBlurSettings
     /// <summary>True when at least one entity or the camera is animated.</summary>
     public bool Active { get; }
 
-    /// <summary>
-    /// Shutter midpoint — the fixed time used for passes that cannot afford a
-    /// per-sample time (NEE snapshot of animated emissives, caustic photons).
-    /// </summary>
-    public float MidTime => 0.5f * (ShutterOpen + ShutterClose);
-
     public MotionBlurSettings(float shutterOpen, float shutterClose, bool active)
     {
         ShutterOpen = shutterOpen;

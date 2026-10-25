@@ -26,9 +26,9 @@ public interface ISamplable
     (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample();
 
     /// <summary>
-    /// Stratified version of <see cref="Sample"/>: divides the surface into a
-    /// <paramref name="sqrtSamples"/> × <paramref name="sqrtSamples"/> grid and
-    /// returns a jittered point within the cell identified by <paramref name="sampleIndex"/>.
+    /// Stratified version of <see cref="Sample"/>: the <paramref name="sampleIndex"/>-th
+    /// of <paramref name="sampleCount"/> points, one per cell of a grid that
+    /// tiles the parameter square exactly (<see cref="Core.MathUtils.Stratum2D"/>).
     ///
     /// This dramatically reduces noise compared to pure random sampling by
     /// ensuring samples are spread evenly across the surface. The default
@@ -36,8 +36,8 @@ public interface ISamplable
     /// have not yet implemented stratification.
     /// </summary>
     /// <param name="sampleIndex">Index of the current sample (0..N-1).</param>
-    /// <param name="sqrtSamples">Side length of the stratification grid.</param>
-    (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    /// <param name="sampleCount">How many samples the caller draws (N).</param>
+    (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
         => Sample();
 
     /// <summary>
@@ -52,4 +52,21 @@ public interface ISamplable
     /// PRNG-free.
     /// </summary>
     float SurfaceArea => Sample().Area;
+
+    /// <summary>
+    /// The density, in area measure, with which <see cref="Sample"/> draws the
+    /// surface point <paramref name="point"/> of normal <paramref name="normal"/>
+    /// (either orientation): what a light sample's MIS weight and a
+    /// bidirectional emission density must use for a point reached by a ray.
+    /// <c>1 / SurfaceArea</c> for a sampler uniform by area.
+    /// </summary>
+    float AreaPdf(Vector3 point, Vector3 normal) => 1f / SurfaceArea;
+
+    /// <summary>
+    /// True when <see cref="Sample"/> is uniform by area (then
+    /// <see cref="AreaPdf"/> is the constant <c>1 / SurfaceArea</c>). A
+    /// non-uniformly scaled <see cref="Transform"/> is not: it maps the inner
+    /// shape's uniform samples through a Jacobian that varies with the normal.
+    /// </summary>
+    bool UniformArea => true;
 }

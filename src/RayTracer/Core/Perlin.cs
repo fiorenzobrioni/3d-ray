@@ -3,9 +3,41 @@ using System.Numerics;
 
 namespace RayTracer.Core;
 
+/// <summary>
+/// The two lattice-noise bases a <see cref="Perlin"/> can evaluate.
+/// </summary>
+public enum PerlinBasis
+{
+    /// <summary>
+    /// Improved Perlin noise (Perlin 2002): quintic fade, so the curvature is
+    /// continuous across lattice faces (a bump of the noise, which takes its
+    /// slope, shows no creases on the grid), and 12 gradients along the cube's
+    /// edges, so the noise looks the same along every axis and diagonal.
+    /// Rescaled to the classic basis' standard deviation, so every range,
+    /// threshold and colour ramp tuned on the classic noise still fits.
+    /// </summary>
+    Improved,
+
+    /// <summary>
+    /// The original basis of this renderer: cubic fade (its curvature jumps
+    /// across lattice faces) and random unit gradients. Kept so a scene made
+    /// with it can keep its exact look (<c>noise_basis: classic</c>).
+    /// </summary>
+    Classic,
+}
+
 public class Perlin
 {
     private const int PointCount = 256;
+
+    // Improved noise's standard deviation over the classic basis' (both
+    // measured over 10⁶ random points, seed 0; PerlinBasisTests pins it):
+    // multiplying by it keeps the two bases interchangeable in every mapping
+    // tuned on the classic one.
+    internal const float ImprovedToClassicScale = 0.67f;
+
+    /// <summary>The basis this instance evaluates.</summary>
+    public PerlinBasis Basis { get; }
     private readonly Vector3[] _ranvec;
     private readonly int[] _permX;
     private readonly int[] _permY;
@@ -17,7 +49,7 @@ public class Perlin
     /// them across textures saves memory and construction cost while
     /// preserving full determinism.
     /// </summary>
-    private static readonly ConcurrentDictionary<int, Perlin> _seedCache = new();
+    private static readonly ConcurrentDictionary<(int, PerlinBasis), Perlin> _seedCache = new();
 
     // Per-thread single-entry cache in front of the concurrent dictionary.
     // A procedural texture resolves its Perlin instance many times per Value
@@ -26,6 +58,7 @@ public class Perlin
     // [ThreadStatic] keeps it race-free without a lock; on a miss we fall back
     // to the dictionary (still the single source of truth for determinism).
     [ThreadStatic] private static int _tlSeed;
+    [ThreadStatic] private static PerlinBasis _tlBasis;
     [ThreadStatic] private static Perlin? _tlPerlin;
 
     /// <summary>
@@ -34,12 +67,13 @@ public class Perlin
     /// so textures with the same object seed produce identical procedural patterns
     /// across the whole render and across consecutive renders of the same scene.
     /// </summary>
-    public static Perlin GetOrCreate(int seed)
+    public static Perlin GetOrCreate(int seed, PerlinBasis basis = PerlinBasis.Improved)
     {
-        if (_tlPerlin is { } cached && _tlSeed == seed)
+        if (_tlPerlin is { } cached && _tlSeed == seed && _tlBasis == basis)
             return cached;
-        Perlin p = _seedCache.GetOrAdd(seed, s => new Perlin(s));
+        Perlin p = _seedCache.GetOrAdd((seed, basis), k => new Perlin(k.Item1, k.Item2));
         _tlSeed = seed;
+        _tlBasis = basis;
         _tlPerlin = p;
         return p;
     }
@@ -53,14 +87,20 @@ public class Perlin
     {
     }
 
+    /// <summary>The noise of <paramref name="basis"/> at the canonical seed 0.</summary>
+    public Perlin(PerlinBasis basis) : this(0, basis)
+    {
+    }
+
     /// <summary>
     /// Builds a Perlin noise table from a deterministic seed. A given seed
     /// always yields the same gradient vectors and permutation tables, so
     /// renders of the same scene are bit-reproducible (modulo other
     /// non-determinism such as path-tracing sampling, which has its own RNG).
     /// </summary>
-    public Perlin(int seed)
+    public Perlin(int seed, PerlinBasis basis = PerlinBasis.Improved)
     {
+        Basis = basis;
         // Local Random — independent from MathUtils.Rng (which is seeded from
         // Environment.TickCount and would make every render different).
         var rng = new Random(seed);
@@ -74,9 +114,73 @@ public class Perlin
         _permX = GeneratePerm(rng);
         _permY = GeneratePerm(rng);
         _permZ = GeneratePerm(rng);
+        Means = MeasureMeans();
     }
 
-    public float Noise(Vector3 p)
+    /// <summary>
+    /// Means of |Noise| and (1 − |Noise|)² over space: the value a Billow or
+    /// Ridged octave averages to once a footprint filters it out. Measured
+    /// once per instance (in the constructor, so every thread reads them
+    /// set) over a fixed set of points.
+    /// </summary>
+    private readonly (float Abs, float Ridge) Means;
+
+    private (float Abs, float Ridge) MeasureMeans()
+    {
+        var rng = new Random(12345);
+        double a = 0, r = 0;
+        const int n = 16384;
+        for (int i = 0; i < n; i++)
+        {
+            float v = MathF.Abs(Noise(new Vector3(rng.NextSingle() * 64f, rng.NextSingle() * 64f, rng.NextSingle() * 64f)));
+            a += v;
+            r += (1 - v) * (1 - v);
+        }
+        return ((float)(a / n), (float)(r / n));
+    }
+
+    public float Noise(Vector3 p) => Basis == PerlinBasis.Improved ? ImprovedNoise(p) : ClassicNoise(p);
+
+    /// <summary>
+    /// Improved Perlin noise (Perlin 2002, "Improving Noise"). The lattice hash
+    /// is the classic basis' (three independent permutations XORed); its low
+    /// four bits pick one of the 16 gradients of the reference implementation
+    /// (the 12 cube edges, four of them twice).
+    /// </summary>
+    private float ImprovedNoise(Vector3 p)
+    {
+        float fx = MathF.Floor(p.X), fy = MathF.Floor(p.Y), fz = MathF.Floor(p.Z);
+        float x = p.X - fx, y = p.Y - fy, z = p.Z - fz;
+        int i = (int)fx, j = (int)fy, k = (int)fz;
+
+        int px0 = _permX[i & 255], px1 = _permX[(i + 1) & 255];
+        int py0 = _permY[j & 255], py1 = _permY[(j + 1) & 255];
+        int pz0 = _permZ[k & 255], pz1 = _permZ[(k + 1) & 255];
+
+        float u = Fade(x), v = Fade(y), w = Fade(z);
+
+        float x00 = Lerp(u, Grad(px0 ^ py0 ^ pz0, x, y, z),         Grad(px1 ^ py0 ^ pz0, x - 1, y, z));
+        float x10 = Lerp(u, Grad(px0 ^ py1 ^ pz0, x, y - 1, z),     Grad(px1 ^ py1 ^ pz0, x - 1, y - 1, z));
+        float x01 = Lerp(u, Grad(px0 ^ py0 ^ pz1, x, y, z - 1),     Grad(px1 ^ py0 ^ pz1, x - 1, y, z - 1));
+        float x11 = Lerp(u, Grad(px0 ^ py1 ^ pz1, x, y - 1, z - 1), Grad(px1 ^ py1 ^ pz1, x - 1, y - 1, z - 1));
+        float n = Lerp(w, Lerp(v, x00, x10), Lerp(v, x01, x11));
+        return n * ImprovedToClassicScale;
+    }
+
+    // 6t⁵ − 15t⁴ + 10t³: zero first and second derivative at 0 and 1.
+    private static float Fade(float t) => t * t * t * (t * (t * 6f - 15f) + 10f);
+
+    private static float Lerp(float t, float a, float b) => a + t * (b - a);
+
+    private static float Grad(int hash, float x, float y, float z)
+    {
+        int h = hash & 15;
+        float u = h < 8 ? x : y;
+        float v = h < 4 ? y : (h == 12 || h == 14 ? x : z);
+        return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
+    }
+
+    private float ClassicNoise(Vector3 p)
     {
         float u = p.X - MathF.Floor(p.X);
         float v = p.Y - MathF.Floor(p.Y);
@@ -152,7 +256,14 @@ public class Perlin
     /// fBm mode (lacunarity 2.0, gain 0.5).
     /// </para>
     /// </summary>
-    public float Fbm(Vector3 p, int octaves, float lacunarity, float gain, bool signed = false)
+    /// <param name="evaluated">
+    /// How many of the <paramref name="octaves"/> to evaluate; the rest, which
+    /// an anti-aliasing footprint has filtered out, count at their mean (zero
+    /// here) and the normalisation still spans all of them, so a filtered
+    /// fBm fades to its mean instead of gaining contrast with distance.
+    /// </param>
+    public float Fbm(Vector3 p, int octaves, float lacunarity, float gain, bool signed = false,
+                     int evaluated = int.MaxValue)
     {
         float accum = 0f;
         float amplitude = 1f;
@@ -161,7 +272,7 @@ public class Perlin
 
         for (int i = 0; i < octaves; i++)
         {
-            accum += amplitude * Noise(tempP);
+            if (i < evaluated) accum += amplitude * Noise(tempP);
             maxAmp += amplitude;
             amplitude *= gain;
             tempP *= lacunarity;
@@ -178,7 +289,8 @@ public class Perlin
     /// renderers for rocks, mountains, marble veins.
     /// Output is clamped to [0, 1].
     /// </summary>
-    public float Ridged(Vector3 p, int octaves, float lacunarity, float gain)
+    /// <param name="evaluated">Octaves evaluated; the rest count at their mean (see <see cref="Fbm"/>).</param>
+    public float Ridged(Vector3 p, int octaves, float lacunarity, float gain, int evaluated = int.MaxValue)
     {
         float accum = 0f;
         float amplitude = 1f;
@@ -187,8 +299,13 @@ public class Perlin
 
         for (int i = 0; i < octaves; i++)
         {
-            float n = 1f - MathF.Abs(Noise(tempP));
-            n *= n; // sharpen ridges
+            float n;
+            if (i < evaluated)
+            {
+                n = 1f - MathF.Abs(Noise(tempP));
+                n *= n; // sharpen ridges
+            }
+            else n = Means.Ridge;
             accum += amplitude * n;
             maxAmp += amplitude;
             amplitude *= gain;
@@ -202,7 +319,8 @@ public class Perlin
     /// Billowed noise: sum of |Noise| octaves. Produces puffy cloud-like
     /// shapes. Output remapped to [0, 1].
     /// </summary>
-    public float Billow(Vector3 p, int octaves, float lacunarity, float gain)
+    /// <param name="evaluated">Octaves evaluated; the rest count at their mean (see <see cref="Fbm"/>).</param>
+    public float Billow(Vector3 p, int octaves, float lacunarity, float gain, int evaluated = int.MaxValue)
     {
         float accum = 0f;
         float amplitude = 1f;
@@ -211,7 +329,7 @@ public class Perlin
 
         for (int i = 0; i < octaves; i++)
         {
-            accum += amplitude * MathF.Abs(Noise(tempP));
+            accum += amplitude * (i < evaluated ? MathF.Abs(Noise(tempP)) : Means.Abs);
             maxAmp += amplitude;
             amplitude *= gain;
             tempP *= lacunarity;

@@ -89,65 +89,34 @@ public class Box : IHittable, ISamplable
 
         // Per-face planar UV mapping on the unit cube.
         //
-        // BUG-09 fix: Tangent and Bitangent are now chosen so that
-        // Cross(T, B) is aligned with the outward normal for every face,
-        // guaranteeing a right-handed TBN frame. Previously T and B were
-        // fixed per axis without considering the face sign, producing a
-        // left-handed frame on 3 out of 6 faces (+X, +Y, −Z). This caused
-        // the Z component of normal maps (the "out of surface" direction)
-        // to be inverted on those faces — bumps appeared as dents and
-        // vice versa.
-        //
-        // Convention per face:
-        //   +X: T = +Z, B = +Y  → Cross(+Z, +Y) = −X … flip B → −Y  ✓ Cross(+Z,−Y) = +X
-        //   −X: T = −Z, B = +Y  → Cross(−Z, +Y) = +X … flip B → −Y  ✓ Cross(−Z,−Y) = −X
-        //   +Y: T = +X, B = −Z  → Cross(+X,−Z) = +Y  ✓
-        //   −Y: T = +X, B = +Z  → Cross(+X,+Z) = −Y  ✓
-        //   +Z: T = +X, B = +Y  → Cross(+X,+Y) = +Z  ✓
-        //   −Z: T = −X, B = +Y  → Cross(−X,+Y) = −Z  ✓
+        // T follows +U and B follows +V on every face (∂P/∂u, ∂P/∂v, each one
+        // unit long: a face spans the unit cube's side). Where a face's UVs are
+        // mirrored (+X, +Y, −Z: ∂P/∂u × ∂P/∂v points inward) the frame is
+        // left-handed, as MikkTSpace's is on a mirrored UV island: the normal
+        // map's Z goes along N whatever the handedness (ApplyNormalMap), and
+        // its green channel goes along +V as every baker writes it. (BUG-09
+        // had flipped B on those faces to make the frame right-handed, which
+        // turned the green channel, and an image bump's V slope, upside down
+        // there; PIANO-REVIEW.md Phase 4.)
         switch (hitAxis)
         {
             case 0: // X faces
                 rec.U = (rec.Point.Z - Min.Z) / (Max.Z - Min.Z);
                 rec.V = (rec.Point.Y - Min.Y) / (Max.Y - Min.Y);
-                if (!hitNeg) // +X face: outward = +X
-                {
-                    rec.Tangent   = Vector3.UnitZ;
-                    rec.Bitangent = -Vector3.UnitY;
-                }
-                else // −X face: outward = −X
-                {
-                    rec.Tangent   = -Vector3.UnitZ;
-                    rec.Bitangent = -Vector3.UnitY;
-                }
+                rec.Tangent = rec.DpDu = Vector3.UnitZ;
+                rec.Bitangent = rec.DpDv = Vector3.UnitY;
                 break;
             case 1: // Y faces
                 rec.U = (rec.Point.X - Min.X) / (Max.X - Min.X);
                 rec.V = (rec.Point.Z - Min.Z) / (Max.Z - Min.Z);
-                if (!hitNeg) // +Y face: outward = +Y
-                {
-                    rec.Tangent   = Vector3.UnitX;
-                    rec.Bitangent = -Vector3.UnitZ;
-                }
-                else // −Y face: outward = −Y
-                {
-                    rec.Tangent   = Vector3.UnitX;
-                    rec.Bitangent = Vector3.UnitZ;
-                }
+                rec.Tangent = rec.DpDu = Vector3.UnitX;
+                rec.Bitangent = rec.DpDv = Vector3.UnitZ;
                 break;
             default: // Z faces
                 rec.U = (rec.Point.X - Min.X) / (Max.X - Min.X);
                 rec.V = (rec.Point.Y - Min.Y) / (Max.Y - Min.Y);
-                if (!hitNeg) // +Z face: outward = +Z
-                {
-                    rec.Tangent   = Vector3.UnitX;
-                    rec.Bitangent = Vector3.UnitY;
-                }
-                else // −Z face: outward = −Z
-                {
-                    rec.Tangent   = -Vector3.UnitX;
-                    rec.Bitangent = Vector3.UnitY;
-                }
+                rec.Tangent = rec.DpDu = Vector3.UnitX;
+                rec.Bitangent = rec.DpDv = Vector3.UnitY;
                 break;
         }
 
@@ -173,26 +142,24 @@ public class Box : IHittable, ISamplable
     {
         int face = (int)(MathUtils.RandomFloat() * 6f);
         if (face > 5) face = 5; // Guard against RandomFloat() returning exactly 1.0
-        return SampleFace(face, MathUtils.RandomFloat(), MathUtils.RandomFloat());
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleFace(face, r2u, r2v);
     }
 
     /// <summary>
-    /// Stratified version: the 6 faces × sqrtSamples² cells form a uniform
-    /// grid. The sample index is split into a face index (round-robin) and a
-    /// jittered (u, v) within the face. Dividing the total strata across faces
-    /// keeps each face's share of samples proportional to its area, and each
-    /// face sees its own sub-grid of stratified points.
+    /// Stratified version: the six faces side by side form a 6 × 1 strip, and
+    /// the stratified point of the unit square (<see cref="MathUtils.Stratum2D"/>)
+    /// stretched over it picks the face and the point on it. Every face keeps
+    /// its 1/6 share whatever the sample count. (A face picked round-robin by
+    /// index never received a sample when the count was below 6: four shadow
+    /// samples lit a box from four faces only.)
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        int face = sampleIndex % 6;
-        int within = sampleIndex / 6;
-        int su = within % sqrtSamples;
-        int sv = within / sqrtSamples;
-        float inv = 1f / sqrtSamples;
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
-        return SampleFace(face, xi1, xi2);
+        var (s1, s2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float strip = s1 * 6f;
+        int face = Math.Min((int)strip, 5);
+        return SampleFace(face, strip - face, s2);
     }
 
     private static (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleFace(int face, float xi1, float xi2)
@@ -223,10 +190,15 @@ public class Box : IHittable, ISamplable
             _ => -Vector3.UnitZ,
         };
 
-        // Uniform UV in [0,1]² over each face — a reasonable default for Box's
-        // procedural/solid emissives. Box's Hit() does not define per-face UVs,
-        // so this is not expected to coincide with any artist UV atlas.
-        return (point, normal, new Vector2(xi1, xi2), totalArea);
+        // The UV Hit() reports at this point (a textured emitter must give the
+        // light sample the radiance a ray hitting it sees).
+        Vector2 uv = face switch
+        {
+            0 or 1 => new Vector2(point.Z + 0.5f, point.Y + 0.5f),
+            2 or 3 => new Vector2(point.X + 0.5f, point.Z + 0.5f),
+            _      => new Vector2(point.X + 0.5f, point.Y + 0.5f),
+        };
+        return (point, normal, uv, totalArea);
     }
 
     public int Seed { get; set; }

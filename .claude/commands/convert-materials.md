@@ -118,7 +118,7 @@ Se il `lambertian` rappresentava una superficie organica traslucente (pelle, cer
 
 - `subsurface_radius` deve essere un array `[r, g, b]` — **non** uno scalare.
 - `spec_trans: 0.0` esplicito è **obbligatorio** quando si usa SSS su superfici opache: il motore promuove automaticamente a traslucido se trova `subsurface_radius` senza un `spec_trans` esplicito.
-- Le scene con SSS beneficiano di `-q pre-final` o superiore e possono richiedere `--sss-quality high` per render definitivi.
+- Le scene con SSS beneficiano di `-q pre-final` o superiore (il random walk è senza tetti di rimbalzi: servono solo più campioni).
 
 ## Procedura
 

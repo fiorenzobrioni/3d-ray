@@ -79,9 +79,9 @@ public static class TextureTransform
     public static Vector3 ApplyRandomRotation(Vector3 p, int objectSeed, bool enabled)
     {
         if (!enabled || objectSeed == 0) return p;
-        float rx = Hash(objectSeed, 11.11f) * 360f;
-        float ry = Hash(objectSeed, 22.22f) * 360f;
-        float rz = Hash(objectSeed, 33.33f) * 360f;
+        float rx = Hash(objectSeed, 3) * 360f;
+        float ry = Hash(objectSeed, 4) * 360f;
+        float rz = Hash(objectSeed, 5) * 360f;
         return Rotate(p, new Vector3(rx, ry, rz));
     }
 
@@ -101,15 +101,26 @@ public static class TextureTransform
     public static Vector3 SeedOffset(int objectSeed, bool enabled, float magnitude = DefaultSeedOffsetMagnitude)
     {
         if (!enabled || objectSeed == 0) return Vector3.Zero;
-        float ox = Hash(objectSeed, 12.34f) * magnitude;
-        float oy = Hash(objectSeed, 56.78f) * magnitude;
-        float oz = Hash(objectSeed, 90.12f) * magnitude;
+        float ox = Hash(objectSeed, 0) * magnitude;
+        float oy = Hash(objectSeed, 1) * magnitude;
+        float oz = Hash(objectSeed, 2) * magnitude;
         return new Vector3(ox, oy, oz);
     }
 
-    private static float Hash(int seed, float salt)
+    /// <summary>
+    /// Uniform value in [0, 1) from a seed and an axis, by integer mixing
+    /// (SplitMix64 finaliser) so it is the same on every platform. The shader
+    /// hash fract(sin(x) * 43758.5453) it replaces amplified the last bits of
+    /// <c>sin</c>, which differ between the math libraries of Linux, Windows
+    /// and macOS: the same scene placed its texture offsets differently.
+    /// </summary>
+    private static float Hash(int seed, int axis)
     {
-        return (MathF.Abs(MathF.Sin(seed * 12.9898f + salt * 78.233f) * 43758.5453f)) % 1f;
+        ulong z = (ulong)(uint)seed * 0x9E3779B97F4A7C15UL + (ulong)(axis + 1) * 0xD1B54A32D192ED03UL;
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
+        z ^= z >> 31;
+        return (z >> 40) * (1f / (1UL << 24));
     }
 
     public static Vector3 Rotate(Vector3 p, Vector3 degrees)

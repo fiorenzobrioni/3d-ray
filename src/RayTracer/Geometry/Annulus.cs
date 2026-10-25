@@ -109,6 +109,9 @@ public class Annulus : IHittable, ISamplable
 
         rec.Tangent = _uAxis;
         rec.Bitangent = _vAxis;
+        // U and V each span the full diameter (2R) along their axis.
+        rec.DpDu = _uAxis * (2f * OuterRadius);
+        rec.DpDv = _vAxis * (2f * OuterRadius);
 
         return true;
     }
@@ -123,19 +126,20 @@ public class Annulus : IHittable, ISamplable
     // ═════════════════════════════════════════════════════════════════════════
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
-        => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleAt(r2u, r2v);
+    }
 
     /// <summary>
     /// Stratified version: jitters (r², θ) on a <c>sqrtSamples × sqrtSamples</c>
     /// grid. Using r² keeps the uniform-area property of the sampling.
     /// </summary>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleAt(xi1, xi2);
     }
 
@@ -149,8 +153,10 @@ public class Annulus : IHittable, ISamplable
         float r = MathF.Sqrt(_innerRadiusSq + u1 * (_outerRadiusSq - _innerRadiusSq));
         float theta = u2 * 2f * MathF.PI;
 
-        Vector3 point = Center + r * MathF.Cos(theta) * _uAxis + r * MathF.Sin(theta) * _vAxis;
-        return (point, Normal, new Vector2(u1, u2), area);
+        float x = r * MathF.Cos(theta), y = r * MathF.Sin(theta);
+        Vector3 point = Center + x * _uAxis + y * _vAxis;
+        // The planar UV Hit() reports here (the disk's projection).
+        return (point, Normal, new Vector2((x / OuterRadius + 1f) / 2f, (y / OuterRadius + 1f) / 2f), area);
     }
 
     public int Seed { get; set; }

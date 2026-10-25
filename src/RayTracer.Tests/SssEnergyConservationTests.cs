@@ -41,7 +41,7 @@ public class SssEnergyConservationTests
         aperture:    0f,
         focusDist:   1f);
 
-    private static DisneyBsdf MakeTransparentDisney() => new(
+    private static OpenPbr MakeTransparentDisney() => DisneyMaterial.Create(
         baseColor: new SolidColor(Vector3.One),
         roughness: new FloatTexture(0f),
         specular:  new FloatTexture(0f),

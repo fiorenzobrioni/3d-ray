@@ -59,7 +59,7 @@ public class BumpTerminatorRegressionTests
 
     private static float RenderGrazingPlaneMeanLuminance(bool withBump)
     {
-        var disney = new DisneyBsdf(
+        var disney = DisneyMaterial.Create(
             baseColor: new SolidColor(new Vector3(0.06f, 0.06f, 0.06f)),
             roughness: new FloatTexture(0.8f),
             specular:  new FloatTexture(0.5f),
@@ -170,7 +170,7 @@ public class BumpTerminatorRegressionTests
 
         Vector3 nTs = bump.SampleTangentNormal(
             u: 0f, v: 0f, p: Vector3.Zero,
-            tangent: Vector3.UnitX, bitangent: Vector3.UnitY, seed: 0);
+            frame: BumpFrame.Unit, seed: 0);
 
         Assert.True(nTs.Z > 0f, "Tangent-space normal must stay in the upper hemisphere.");
         float slope = MathF.Sqrt(nTs.X * nTs.X + nTs.Y * nTs.Y) / nTs.Z; // = tan(tilt)

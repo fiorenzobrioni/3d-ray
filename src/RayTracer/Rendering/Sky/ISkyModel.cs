@@ -9,7 +9,7 @@ namespace RayTracer.Rendering.Sky;
 /// one level above, in <see cref="SkyEnvironment"/>.
 ///
 /// <para>Concrete implementations: <see cref="FlatSky"/>, <see cref="GradientSky"/>,
-/// <see cref="HosekWilkieSky"/>, <see cref="NishitaSky"/>, <see cref="HdriSky"/>.</para>
+/// <see cref="PreethamSky"/>, <see cref="HosekWilkieSky"/>, <see cref="NishitaSky"/> (the physical ones share <see cref="AnalyticSky"/>), <see cref="HdriSky"/>.</para>
 ///
 /// <para><b>NEE contract.</b> A model that exposes a meaningful importance
 /// sampler (HDRI CDF, gradient sun cone, Hosek/Nishita sun disc) sets
@@ -61,9 +61,9 @@ public interface ISkyModel
     /// Analytical sun parameters when <see cref="HasAnalyticalSun"/>:
     /// <list type="bullet">
     ///   <item><description><c>Direction</c>: <b>direction pointing TO the sun</b> from the scene, sky-local, unit length.</description></item>
-    ///   <item><description><c>Radiance</c>: peak spectral radiance at the disc centre (linear, W/sr/m²·k).</description></item>
+    ///   <item><description><c>Radiance</c>: mean radiance over the disc (limb darkening, when on, redistributes it: <see cref="Lights.PhysicalSun.LimbFactor"/>).</description></item>
     ///   <item><description><c>CosHalfAngle</c>: cosine of the disc half-angle.</description></item>
-    ///   <item><description><c>LimbDarkening</c>: when true the consumer should multiply by Hestroffer 1997 limb function.</description></item>
+    ///   <item><description><c>LimbDarkening</c>: when true the consumer multiplies by <see cref="Lights.PhysicalSun.LimbFactor"/>.</description></item>
     /// </list>
     /// Returns the zero quadruple when <see cref="HasAnalyticalSun"/> is false.
     /// </summary>

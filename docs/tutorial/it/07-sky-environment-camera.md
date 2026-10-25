@@ -22,7 +22,8 @@ cinque modelli, configurabili sotto `world: > sky:`.
 |------------------|------------------------------------------------------------------------------|--------------------------------------------|
 | `flat`           | Colore uniforme su tutta la sfera (default)                                  | Studio, interni, Cornell-box, fill-only    |
 | `gradient`       | Gradiente verticale a tre bande con disco solare opzionale                   | Preview stilizzate, look outdoor rapido    |
-| `preetham`       | Daylight clear-sky analitico (Preetham 1999). Alias YAML: `hosek_wilkie`     | Outdoor a mezzogiorno, background stabili  |
+| `hosek_wilkie`   | Cielo diurno sereno analitico (Hosek-Wilkie 2012). Alias YAML: `physical`    | Luce diurna esterna, il più vicino ai cieli misurati |
+| `preetham`       | Cielo diurno sereno analitico (Preetham 1999), il modello precedente         | Riferimento, confronti                     |
 | `nishita`        | Scattering fisico Rayleigh+Mie con LUT precomputata                          | Alba / tramonto, aerial perspective        |
 | `hdri`           | Immagine HDR equirettangolare (`.hdr` o `.exr`)                              | Photoreal product / VFX / archviz          |
 
@@ -121,21 +122,21 @@ sun:
 
 ---
 
-## 7.4 Physical Sky — Hosek-Wilkie / Preetham
+## 7.4 Physical Sky - Hosek-Wilkie / Preetham
 
-Il modello daylight clear-sky analitico standard (Hosek-Wilkie / Preetham).
-Un singolo knob `turbidity` controlla l'intero look
-atmosferico — niente colori zenith/horizon/ground regolati a mano. La
-direzione del sole controlla sia la posizione del disco sia la
+Cielo diurno sereno analitico. Un singolo knob `turbidity` controlla
+l'intero look atmosferico - niente colori zenith/horizon/ground regolati
+a mano. La direzione del sole controlla sia la posizione del disco sia la
 distribuzione spaziale del cielo (schiarimento attorno al sole, blu allo
 zenith).
 
 ```yaml
 world:
   sky:
-    type: "hosek_wilkie"             # alias di "preetham"
-    turbidity: 3.0                   # 1 = pulitissimo, 3 = clear, 5 = foschia, 10 = smog
+    type: "hosek_wilkie"             # oppure "preetham"
+    turbidity: 3.0                   # 1 = aria pura, 3 = sereno, 6 = foschia, 10 = molta foschia
     ground_albedo: [0.25, 0.25, 0.22]
+    units: "relative"                # oppure "photometric" (nit)
     intensity: 1.0
     sun:
       direction:       [-0.35, 0.78, 0.52]
@@ -143,18 +144,44 @@ world:
       shadow_samples:  4
 ```
 
-| Parametro        | Default | Descrizione                                                              |
-|------------------|---------|--------------------------------------------------------------------------|
-| `turbidity`      | `3.0`   | Pulizia atmosferica (1–10): basso = pulito, alto = foschia               |
-| `ground_albedo`  | `[0.3]` | Albedo emisferica del terreno concettuale; tinge la parte bassa del cielo|
-| `intensity`      | `1.0`   | Moltiplicatore su radianza cielo + sole                                  |
+| Parametro        | Default      | Descrizione                                                              |
+|------------------|--------------|--------------------------------------------------------------------------|
+| `turbidity`      | `3.0`        | Torbidità di Linke (1-10): basso = pulito, alto = foschia                |
+| `ground_albedo`  | `[0.3]`      | Albedo del terreno sotto l'orizzonte; tinge anche il cielo di Hosek-Wilkie |
+| `units`          | `relative`   | `relative` (kcd/m², la scala storica) oppure `photometric` (nit)         |
+| `intensity`      | `1.0`        | Moltiplicatore su radianza cielo + sole                                  |
 
-> **Nota implementativa.** Sia `type: hosek_wilkie` che `type: preetham`
-> instradano attualmente sullo stesso modello Preetham 1999. Il vantaggio
-> di Hosek-Wilkie su Preetham alle elevazioni solari molto basse è
-> completamente (e con margine) coperto dal modello `nishita` — nel
-> dubbio per i tramonti, passa a Nishita. Vedi `devlog/devlog-2026-06-28.md` per la
-> motivazione di design.
+**Due modelli.** `hosek_wilkie` (Hosek e Wilkie 2012) è adattato a cieli
+misurati e regge anche con il sole basso; `preetham` (1999) è il modello
+precedente, più luminoso a parità di torbidità e con una tinta rosata
+vicino all'orizzonte, tenuto come riferimento.
+
+**Il sole è coerente con il cielo.** Il disco è la luce solare al limite
+dell'atmosfera (133.8 klux), attenuata lungo il suo percorso in
+un'atmosfera con la polvere della stessa torbidità, distribuita sul
+disco. In una giornata serena il sole dà al terreno circa quanto il cielo
+con il sole a 15°, da tre a quattro volte tanto a 45°. Le ombre sono
+profonde come in una fotografia di una giornata di sole.
+
+**Esporre una scena diurna.** Con `units: "photometric"` il cielo è in
+nit (un cielo sereno a mezzogiorno vale migliaia di nit, il disco del
+sole circa 1.5×10⁹) e la camera prende un'esposizione fotografica,
+`ev100: 15` per una giornata di sole:
+
+```yaml
+camera:
+  position: [0, 1.6, -7]
+  look_at:  [0, 0.6, 0]
+  ev100: 15                          # la regola del "sunny 16"
+```
+
+Al caricamento la console riporta quello che il cielo dà a un piano
+orizzontale (`Sky light: 75190 lux on the ground, 58593 of it from the
+sun`). Vedi `scenes/review/daylight-units.yaml`.
+
+**Sotto l'orizzonte** il cielo mostra un terreno di albedo
+`ground_albedo` illuminato da quel cielo e da quel sole; una scena con un
+suo piano di terra lo nasconde.
 
 ---
 
@@ -171,13 +198,21 @@ fittati.
 world:
   sky:
     type: "nishita"
-    turbidity: 3.0                  # remappato internamente a un fattore Mie/polvere
+    turbidity: 3.0                  # manopola della foschia: poca polvere (aria pulita a 3)
+    units: "relative"               # oppure "photometric" (nit)
     intensity: 1.0
     sun:
       direction:       [-0.85, 0.12, 0.4]   # basso sull'orizzonte → palette sunset
       angular_radius:  0.265
       shadow_samples:  4
 ```
+
+**Sole e unità.** L'illuminanza del sole al limite dell'atmosfera
+alimenta sia lo scattering sia il disco: 20 nella scala `relative`,
+133 800 lux in quella `photometric`. Il modello diffonde la luce una
+volta sola: il suo cielo è più scuro rispetto al sole di uno misurato
+(circa la metà), e per questo qui `turbidity` corrisponde a poca polvere
+(con l'aerosol di una vera torbidità 3 l'orizzonte diventerebbe scuro).
 
 **Performance.** La LUT di trasmittanza (16×64 float × 3 canali =
 12 KB) è costruita una sola volta in costruzione (~20 ms). La radianza
@@ -189,7 +224,7 @@ render tipici.
 
 | Scenario                                  | Scelta migliore |
 |-------------------------------------------|-----------------|
-| Sole oltre 20° di elevazione, mezzogiorno | Preetham (più veloce) |
+| Sole oltre 15° di elevazione, luce diurna | Hosek-Wilkie (il più vicino ai cieli misurati) |
 | Alba, tramonto, crepuscolo                | Nishita         |
 | Vuoi anche un'atmosfera partecipante      | Nishita (con il medium di §7.9) |
 | Vedute di montagna con foschia atmosferica| Nishita         |
@@ -224,14 +259,21 @@ costruisce una CDF 2D pesata per luminanza al load time e
 supporto EXR copre lo scanline RGB (No compression / ZIP / ZIPS, half +
 float).
 
-### Mipmap prefiltering automatico (zero configurazione)
+### Campionamento dell'HDRI
 
-Il renderer rileva quando un bounce glossy fugge su un HDRI e legge
-automaticamente da un livello mipmap pre-filtrato proporzionale alla
-larghezza del lobo BSDF — eliminando i firefly dai peak HDRI sotto-
-campionati sui mirror rough. La piramide è costruita on-demand (box
-filter 2×2 con peso sin(θ) per conservazione di energia su equirect); le
-scene che non la usano non pagano memoria.
+L'HDRI è una luce: la next-event estimation la campiona in proporzione
+alla sua luminosità e i campioni della BSDF si dividono il lavoro con
+l'importance sampling multiplo. Il lato della luce campiona la mappa meno
+la sua media (Karlík et al. 2019), così la parte uniforme del cielo resta
+alla BSDF, che la trova bene, e i campioni di luce vanno ai punti
+luminosi: meno rumore sugli specchi ruvidi e in ombra.
+
+Un rimbalzo glossy che esce su un'HDRI che le luci non campionano (il
+cielo nascosto ai raggi d'ombra, per esempio) legge invece un livello
+mipmap pre-filtrato proporzionale alla larghezza del lobo della BSDF. Non
+si usa per un'HDRI che è una luce: con il MIS il valore pre-filtrato non è
+la radianza che il lato della luce stima, e l'immagine veniva troppo
+chiara.
 
 ### Sun extraction
 
@@ -383,15 +425,19 @@ world:
     world_scale: 1000.0          # metri per unità mondo (1000 = "1 wu : 1 km")
     sea_level_y: 0.0             # Y world dell'altitudine 0
     dust_density: 1.2            # densità Mie (0 = puro, 1 = pulito, >1 = inquinato)
-    air_density: [1, 1, 1]       # moltiplicatore densità Rayleigh per canale
-    # phase di default Henyey-Greenstein g=0.76 (Mie forward scattering)
+    air_density: 1.0             # densità dell'aria (Rayleigh), 1 = atmosfera standard
+    # l'aria diffonde con la phase function di Rayleigh; `phase` imposta
+    # quella della polvere (default Henyey-Greenstein g = 0.76, in avanti)
 ```
 
 `world_scale` è il knob chiave del mapping — scegli in base alla scala
 della scena (1000 per scene "scala stadio", 200 per "isolato urbano", 50
-per "singola stanza"). L'optical depth ha forma chiusa (somma di due
-esponenziali) quindi nessuna varianza extra sulla trasmittanza — il
-free-path sampling usa delta tracking con majorante alla quota più bassa.
+per "singola stanza"). L'optical depth ha forma chiusa per aria, polvere
+e ozono, quindi la trasmittanza è esatta e le distanze sono campionate
+esattamente. Il mezzo è aerial perspective: agisce tra l'occhio e le
+superfici che vede, mentre i raggi che vanno verso il cielo lo attraversano
+intatti (il cielo Nishita contiene già quella luce; contarla due volte
+sbiadiva il cielo).
 
 ---
 
@@ -445,6 +491,48 @@ renderer di produzione. Quando sono presenti sia `focal_pos` che
   blur desiderata.
 - DOF richiede più sample per risultato pulito. Almeno 64 SPP; 256+
   consigliati per produzione.
+
+### Un obiettivo vero: focale e f-stop
+
+Al posto di `fov` e `aperture` puoi descrivere l'obiettivo come un
+fotografo. Con la scena modellata in metri:
+
+```yaml
+cameras:
+  - name: "ritratto"
+    position: [0, 1.2, 0]
+    look_at: [0, 0.9, -2.5]
+    focal_length: 50        # mm; sensor_width vale 36 per default (pieno formato)
+    f_stop: 1.4             # pupilla = 50 / 1.4 = 35.7 mm
+    focal_pos: [0, 0.9, -2.5]
+```
+
+`focal_length` e `sensor_width` fissano il campo visivo (la larghezza del
+sensore copre la larghezza dell'immagine), `f_stop` il diametro della
+pupilla. Una scena modellata in centimetri aggiunge `meters_per_unit: 0.01`,
+così f/1.4 resta una pupilla di 35.7 mm. Dimezzare il numero f raddoppia la
+pupilla e la sfocatura; un obiettivo più lungo allo stesso numero f sfoca di
+più lo sfondo, come su una fotocamera vera.
+
+### Forma del bokeh
+
+Le luci fuori fuoco prendono la forma del diaframma. `aperture_blades: 6`
+dà esagoni (da 5 a 9 lamelle sono tipiche), `aperture_rotation` ruota il
+poligono e `aperture_ratio: 0.5` dà gli ovali verticali di un obiettivo
+anamorfico. Le luci piccole e molto luminose chiedono molti campioni: ogni
+pixel del disco di bokeh riceve luce solo dai campioni di lente che colpiscono
+la sorgente. `scenes/showcases/camera-physical.yaml` le mostra tutte.
+
+### Bilanciamento del bianco e trasformazione di visualizzazione
+
+`white_balance: 3200` (kelvin) fa apparire bianca una luce al tungsteno a
+3200 K, come una fotocamera impostata su "tungsteno": valori più bassi
+raffreddano l'immagine, più alti la scaldano, `6504` non cambia nulla.
+L'immagine per lo schermo la produce poi la trasformazione di visualizzazione
+scelta da riga di comando: `--view agx` (il default) porta la luce intensa e
+satura verso il bianco come fa la pellicola, `--view aces` dà l'aspetto ACES
+1.x con più contrasto, `--view standard` mostra i valori lineari con la sola
+curva sRGB. `--exposure` (in stop) si applica prima della trasformazione.
 
 ---
 
@@ -640,8 +728,12 @@ RayTracer -i golden-hour.yaml -c macro -w 1200 -H 800 -s 1024 -d 8 -S 4
   ~10× riduzione varianza su scene di interno.
 - Il **Nishita atmospheric medium** aggiunge aerial perspective fisica
   usando le stesse costanti del modello sky.
-- Il **mipmap prefiltering HDRI** è automatico sui bounce glossy —
-  nessuna configurazione richiesta; elimina i firefly.
+- Le **HDRI** sono campionate per importanza con la compensazione MIS di
+  Karlík et al. 2019: i campioni di luce vanno ai punti luminosi, la BSDF
+  copre il cielo uniforme.
+- I **cieli fisici** hanno un sole coerente con il cielo e si possono
+  scrivere in nit (`units: "photometric"`), esposti con l'`ev100` della
+  camera.
 - La **profondità di campo** è controllata da `aperture` (dimensione
   obiettivo) e `focal_dist` (o `focal_pos: [x, y, z]` per mettere a fuoco
   un punto specifico nel mondo).

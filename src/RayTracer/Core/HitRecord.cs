@@ -31,7 +31,7 @@ public struct HitRecord
 
     /// <summary>
     /// Shutter time of the ray that produced this hit (motion blur). Stamped
-    /// once by the renderer at the top of <c>TraceRay</c>; everything shading
+    /// once by the renderer at each vertex of the path loop; everything shading
     /// this hit (NEE shadow rays, BSDF bounces, SSS walks) reads it so the
     /// whole path samples the scene at one frozen instant. 0 when motion blur
     /// is inactive.
@@ -83,7 +83,7 @@ public struct HitRecord
     /// camera-invisible surface, NEE shadow still notices a shadow-invisible
     /// one, etc.). Set by <see cref="Geometry.VisibilityFilteredHittable"/> or
     /// the legacy <see cref="Geometry.CameraInvisibleHittable"/>; consumed by
-    /// <see cref="Rendering.Renderer.TraceRay"/> and
+    /// the path loop (<see cref="Rendering.Renderer.TracePath"/>) and
     /// <see cref="Geometry.ShadowRay"/>.
     /// </summary>
     public HitVisibilityMask VisibilityMask;
@@ -108,7 +108,7 @@ public struct HitRecord
     /// step 5 — Arnold's <c>autobump_visibility</c> equivalent). Populated
     /// by <see cref="Geometry.Mesh.Hit"/> when the mesh was loaded with
     /// <c>displacement.autobump: true</c>. The renderer consumes it in
-    /// <c>ShadeSurface</c> after the material-level <c>BumpMap</c>, so the
+    /// the surface vertex after the material-level <c>BumpMap</c>, so the
     /// final shading normal composes
     /// <c>normal_map → material.bump_map → mesh.autobump</c> on top of the
     /// already-displaced geometry. Independent of the material — sharing
@@ -143,6 +143,18 @@ public struct HitRecord
     // residual aliasing at tight UV scales but no over-blurring).
     public Vector3 DpDu;
     public Vector3 DpDv;
+
+    /// <summary>
+    /// Rotation from the space of <see cref="LocalPoint"/> to world space,
+    /// composed by every <see cref="Geometry.Transform"/> on the way out
+    /// (valid when <see cref="HasLocalFrame"/>; identity otherwise).
+    /// <see cref="LocalPoint"/> carries the transforms' scale but not their
+    /// rotation, so a world direction becomes a <see cref="LocalPoint"/>
+    /// direction through the inverse of this rotation, with its length kept.
+    /// The bump map needs it to step a 3D texture along the surface.
+    /// </summary>
+    public Quaternion LocalToWorld;
+    public bool HasLocalFrame;
 
     /// <summary>
     /// Analytic filter footprint at this shading point (PBRT §10.1).

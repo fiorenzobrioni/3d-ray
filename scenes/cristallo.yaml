@@ -14,16 +14,16 @@
 #      fuoco netto attraverso la lente di vino/cristallo sul tavolo
 #    • Gradient sky scuro — riflessi morbidi nel cristallo
 #
-#  CAUSTICHE (auto-classificazione):
-#    Non servono più flag YAML: con --caustics on il motore classifica da solo
-#    ogni entità (receiver di default; caster automatico se la geometria è curva
-#    e il materiale è speculare/trasmissivo). Qui diventano caster automatici:
+#  CAUSTICHE:
+#    Non servono flag YAML: ogni superficie speculare/trasmissiva focalizza la
+#    luce sulle superfici diffuse. Qui:
 #    • Vino   → caustica ROSSA focalizzata sul tavolo (lente colorata).
 #    • Stelo/base e coppa (CSG di cristallo) → contributo sul tavolo.
-#    Tavolo, gambe e pavimento ricevono le caustiche di default.
-#    Abilita con --caustics on (final/ultra lo fanno da soli):
+#    Tavolo, gambe e pavimento le ricevono.
+#    Rendile pulite con il path tracing bidirezionale (vcm per vederle anche
+#    attraverso il cristallo):
 #      dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-#        -i scenes/cristallo.yaml -o renders/cristallo.png -q final --caustics on
+#        -i scenes/cristallo.yaml -o renders/cristallo.png -q final --integrator bdpt
 #
 #  Render consigliati:
 #    Preview:    -w 400  -H 225  -s 64   -d 4   -S 1

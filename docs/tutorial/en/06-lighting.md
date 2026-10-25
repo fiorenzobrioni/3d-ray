@@ -738,29 +738,32 @@ the table, the coloured glow under a tinted bottle. These are **caustics**, and
 because they need light to follow the bent (refracted) or reflected path, plain
 shadow rays can't produce them.
 
-3D-Ray renders caustics with a **photon pre-pass**. You don't mark anything in
-the scene — any specular surface (glass, water, metal, mirror) automatically
-focuses light, and any diffuse surface (a floor, a wall) receives it. All light
-types drive caustics, including the **sun** (`directional`). Just turn them on:
+You don't mark anything in the scene: any specular surface (glass, water,
+metal, mirror) focuses light, and any diffuse surface (a floor, a wall)
+receives it, from every light type including the **sun** (`directional`) and
+an HDRI sky. The default integrator, path tracing, renders caustics too, but
+it finds them only when a bounce happens to hit the light through the glass:
+they come out grainy, the more so the smaller the light. Two other
+integrators trace light from the lights as well:
 
 ```bash
-# Caustics are on by default in the final/ultra presets:
-RayTracer -i my-scene.yaml -q final
+# Bidirectional path tracing: caustics seen directly or in a mirror
+RayTracer -i my-scene.yaml -q final --integrator bdpt
 
-# Or enable them explicitly on any preset:
-RayTracer -i my-scene.yaml -q standard --caustics on
+# Vertex connection and merging: also caustics seen through glass or water
+# (the floor of a pool, an object inside a glass)
+RayTracer -i my-scene.yaml -q standard --integrator vcm
 ```
 
 A few practical notes:
 
-- **`--caustic-photons <N>`** controls quality: more photons = sharper, less
-  noisy caustics (and a slower pre-pass). The presets pick a sensible default.
-- **Tinted glass casts a coloured caustic** — a red glass throws a red pool of
-  light, because the photons pick up the glass colour as they pass through.
+- **`-s`** is the number of iterations: more = cleaner caustics. VCM also
+  sharpens them as it goes (`--vcm-radius` sets the starting blur).
+- **Tinted glass casts a coloured caustic**: a red glass throws a red pool of
+  light, because the light picks up the glass colour as it passes through.
 - A small, bright light gives a **sharp** caustic; a large light gives a **soft**
   one. The sun gives crisp, parallel-ray caustics.
-- Frosted/rough glass and HDRI-environment caustics are softer and handled by
-  the regular path tracer in this version.
+- Frosted/rough glass gives softer caustics, handled the same way.
 
 Copy-paste-ready glass, metal and lens setups live in
 [`scenes/presets/caustics.md`](../../../scenes/presets/caustics.md).
@@ -814,6 +817,57 @@ is *which slice* of the ACES curve your radiance lands on.
 
 ---
 
+## 6.14 Physical Units and Photographic Exposure
+
+Every light so far had a unitless `intensity`. Each one can instead be
+written in the units a lighting catalogue uses, and the camera then
+exposes the image as a photograph:
+
+```yaml
+camera:
+  position: [0, 1.6, 4]
+  look_at:  [0, 1, 0]
+  ev100: 6                       # a lit living room
+
+lights:
+  - type: "point"                # a 60 W-equivalent bulb
+    position: [0, 2.4, 0]
+    power: 800
+    power_unit: "lumen"
+    temperature: 2700            # warm white, black-body colour
+  - type: "area"                 # an LED panel
+    corner: [1, 2.79, -0.3]
+    u: [0.6, 0, 0]
+    v: [0, 0, 0.6]
+    luminance: 3000              # nits
+    temperature: 4000
+  - type: "spot"                 # a downlight with a measured profile
+    position: [-1.5, 2.8, 0]
+    direction: [0, -1, 0]
+    ies: "assets/ies/downlight.ies"
+```
+
+| Key | Unit | Lights |
+|---|---|---|
+| `power` (+ `power_unit`) | watt or lumen | point, spot, area, sphere |
+| `candela` | cd | point, spot |
+| `luminance` | nit (cd/m²) | area, sphere, `emissive` material |
+| `illuminance` | lux | directional |
+| `temperature` | kelvin | all |
+| `ies` | IES LM-63 file | point, spot |
+
+With a photometric unit the `color` only tints the light. The camera's
+`ev100` (or `iso`, `shutter_speed` and `f_stop`) then plays the part of a
+real exposure: 15 for a sunny day, 7-8 for a lit interior, 3-5 for a dim
+one. A physical sky can be written in nits too (`units: "photometric"`,
+chapter 7). `scenes/review/light-units.yaml` checks each unit against a
+hand calculation.
+
+**Many lights.** With more than 16 lights the renderer picks one light
+per shading point through a light BVH that favours the lights near the
+point and facing it (`--light-sampling auto`, the default); every
+strategy converges to the same image.
+
 ## What You Have Learned
 
 - **Point** lights radiate from a point (inverse-square falloff, hard
@@ -841,8 +895,9 @@ is *which slice* of the ACES curve your radiance lands on.
   point for any scene.
 - **Firefly controls:**
   - `soft_radius` on point/spot/area lights → floors the attenuation denominator
-  - `--indirect-clamp-factor 0.25` → tighter clamp on bounce ≥ 1
-  - `--light-sampling power` → pick one light ∝ `ApproximatePower` (faster convergence in multi-light scenes)
+  - `-C 10 --indirect-clamp-factor 0.25` → opt-in clamp (biased), tighter on bounce ≥ 1
+  - `--light-sampling bvh` → pick one light by power, distance and orientation (the default `auto` switches to it above 16 lights)
+- **Physical units** (`power`, `candela`, `luminance`, `illuminance`, `temperature`, `ies`) with the camera's `ev100` light and expose a scene as in reality.
 
 ---
 

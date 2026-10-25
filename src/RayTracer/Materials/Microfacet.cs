@@ -6,34 +6,18 @@ namespace RayTracer.Materials;
 /// Shared anisotropic GGX microfacet utilities: tangent-frame construction,
 /// NDF, Smith masking/shadowing, and visible-normal sampling (Heitz 2018).
 ///
-/// Extracted out of <see cref="DisneyBsdf"/> so the energy-compensation LUT
-/// builder (<see cref="EnergyCompensationLut"/>) and any future BSDF that
-/// needs GGX sampling can share one implementation. Passing αx = αy recovers
+/// Shared by every GGX lobe (metal, dielectric, OpenPBR). Passing αx = αy recovers
 /// the isotropic formulae exactly, so isotropic and anisotropic call sites
 /// use the same entry points.
 /// </summary>
 internal static class Microfacet
 {
     /// <summary>
-    /// Frisvad orthonormal tangent frame around N, with the south-pole
-    /// branch guarded so near-(-Z) normals don't explode through the
-    /// 1/(1+N.Z) term.
+    /// Orthonormal tangent frame around N (Duff et al. 2017, see
+    /// <see cref="Core.MathUtils.OrthonormalBasis"/>).
     /// </summary>
     public static void BuildTangentFrame(Vector3 N, out Vector3 T, out Vector3 B)
-    {
-        if (N.Z < -0.999f)
-        {
-            T = new Vector3(0f, -1f, 0f);
-            B = new Vector3(-1f, 0f, 0f);
-        }
-        else
-        {
-            float a = 1f / (1f + N.Z);
-            float b = -N.X * N.Y * a;
-            T = new Vector3(1f - N.X * N.X * a, b, -N.X);
-            B = new Vector3(b, 1f - N.Y * N.Y * a, -N.Y);
-        }
-    }
+        => Core.MathUtils.OrthonormalBasis(N, out T, out B);
 
     /// <summary>
     /// Anisotropic GGX (Trowbridge-Reitz) NDF in tangent space.
@@ -68,17 +52,16 @@ internal static class Microfacet
         => 1f / (1f + LambdaGgxAniso(wloc, ax, ay));
 
     /// <summary>
-    /// Isotropic Smith G1 closed form — avoids allocating a Vector3 when
-    /// only the z-component is relevant (e.g. Disney's isotropic clearcoat).
-    ///   G1(NdotX) = 2·NdotX / (NdotX + sqrt(α² + (1-α²)·NdotX²))
+    /// Height-correlated Smith masking-shadowing (Heitz 2014, eq. 99):
+    ///   G2(V, L) = 1 / (1 + Λ(V) + Λ(L))
+    /// A microfacet high on the surface is both less likely to be masked and
+    /// less likely to be shadowed, so the two are not independent: the
+    /// separable G1(V)·G1(L) over-darkens rough surfaces at grazing angles.
+    /// Directions must be in the upper hemisphere of the facet's side (Λ
+    /// depends only on tan²θ, so callers pass |z| for transmission).
     /// </summary>
-    public static float SmithG1(float NdotX, float alpha)
-    {
-        float a2 = alpha * alpha;
-        float NdotX2 = NdotX * NdotX;
-        float denom = NdotX + MathF.Sqrt(a2 + (1f - a2) * NdotX2);
-        return 2f * NdotX / MathF.Max(denom, 1e-7f);
-    }
+    public static float G2GgxAniso(Vector3 vloc, Vector3 lloc, float ax, float ay)
+        => 1f / (1f + LambdaGgxAniso(vloc, ax, ay) + LambdaGgxAniso(lloc, ax, ay));
 
     /// <summary>
     /// Samples a visible microfacet normal from the anisotropic GGX

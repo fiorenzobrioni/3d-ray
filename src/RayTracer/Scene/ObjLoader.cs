@@ -9,33 +9,17 @@ using RayTracer.Textures;
 namespace RayTracer.Scene;
 
 /// <summary>
-/// Wavefront OBJ file parser.
+/// Wavefront OBJ reader (PIANO-REVIEW.md Phase 2).
 ///
-/// Supports:
-///   • <c>v</c>  — vertex positions (x y z)
-///   • <c>vn</c> — vertex normals (nx ny nz)
-///   • <c>vt</c> — texture coordinates (u v)
-///   • <c>f</c>  — faces (triangles and quads, auto-triangulated)
-///   • Face index formats: <c>v</c>, <c>v/vt</c>, <c>v/vt/vn</c>, <c>v//vn</c>
-///   • Negative indices (relative to current vertex count, per OBJ spec)
-///   • <c>#</c> comments and blank lines
-///   • <c>o</c> / <c>g</c> / <c>s</c> / <c>usemtl</c> / <c>mtllib</c> — parsed but ignored
-///     (single-material mesh; MTL support can be added later)
-///
-/// When vertex normals are absent, flat face normals are computed automatically.
-/// When texture coordinates are absent, barycentric UVs are assigned.
-/// Polygons with more than 4 vertices are fan-triangulated from the first vertex.
-///
-/// <b>Performance:</b>
-/// The parser is single-pass and allocation-conscious. Vertex/normal/UV lists
-/// are pre-sized when possible (many OBJ exporters emit a comment like
-/// "# N vertices" that we can use as a hint). The returned <see cref="Mesh"/>
-/// wraps all triangles in an internal BVH for O(log N) intersection.
-///
-/// <b>Coordinate system:</b>
-/// OBJ uses a right-handed coordinate system with Y up, same as our ray tracer.
-/// No axis swapping is needed. If a model appears mirrored, the exporter may
-/// have used Z-up (Blender default) — use Transform rotate to fix.
+/// Reads <c>v</c>, <c>vn</c>, <c>vt</c> and <c>f</c> (any number of corners;
+/// <c>v</c>, <c>v/vt</c>, <c>v/vt/vn</c>, <c>v//vn</c>; negative indices),
+/// <c>mtllib</c> and <c>usemtl</c> (the faces' materials, from the MTL library,
+/// <see cref="MtlLoader"/>) and <c>s</c> (smoothing groups: a face without
+/// normals in a group is shaded with the angle-weighted normals of the
+/// group's faces around each vertex; <c>s off</c> or <c>s 0</c> is flat).
+/// <c>o</c>, <c>g</c>, lines and points are ignored. Polygons are triangulated
+/// by <see cref="PolyMesh.TriangulateFace"/> (concave ones ear-clipped).
+/// OBJ is right-handed with Y up, as the renderer.
 /// </summary>
 public static class ObjLoader
 {
@@ -105,30 +89,34 @@ public static class ObjLoader
         appliedScheme = SubdivisionScheme.None;
         appliedIterations = 0;
         maxDisplacement = 0f;
+        var imported = Read(path, warnings);
+        if (imported == null) return null;
+        var result = MeshImporter.Build(imported, material, null, material, subdivision,
+                                        displacement, objectSeed, warnings);
+        if (result == null) return null;
+        appliedScheme = result.Scheme;
+        appliedIterations = result.Iterations;
+        maxDisplacement = result.MaxDisplacement;
+        return (Mesh)result.Hittable; // one material: one mesh
+    }
 
+    /// <summary>Reads an OBJ file (and its MTL libraries) into an <see cref="ImportedMesh"/>.</summary>
+    public static ImportedMesh? Read(string path, List<string>? warnings)
+    {
         if (!File.Exists(path))
         {
             warnings?.Add($"OBJ file not found: {path}");
             return null;
         }
-
-        // ── Parse OBJ into a PolyMesh (preserves face arity & attribute
-        // indices). Even the legacy non-subdivision path runs through here
-        // — we just skip the SubdivisionEngine.Apply call.
-        // ─────────────────────────────────────────────────────────────────
-        var poly = new PolyMesh
-        {
-            Normals    = new List<Vector3>(4096),
-            UVs        = new List<Vector2>(4096),
-            FaceNormals = new List<int[]>(8192),
-            FaceUVs     = new List<int[]>(8192),
-        };
-
+        string dir = Path.GetDirectoryName(Path.GetFullPath(path)) ?? ".";
+        var imported = new ImportedMesh();
+        var poly = imported.Poly;
+        var library = new Dictionary<string, IMaterial>(StringComparer.Ordinal);
         var faceVerts = new List<FaceVertex>(8);
-
+        var faceSmoothing = new List<int>();
+        int currentSlot = -1;
+        int smoothing = 0;
         int lineNum = 0;
-        bool anyNormalsInFile = false;
-        bool anyUvsInFile     = false;
 
         foreach (var rawLine in File.ReadLines(path))
         {
@@ -138,30 +126,23 @@ public static class ObjLoader
 
             if (line.StartsWith("v ", StringComparison.Ordinal))
             {
-                if (TryParseVec3(line, 2, out var v))
-                    poly.Positions.Add(v);
-                else
-                    warnings?.Add($"OBJ line {lineNum}: malformed vertex position");
+                if (TryParseVec3(line, 2, out var v)) poly.Positions.Add(v);
+                else warnings?.Add($"OBJ line {lineNum}: malformed vertex position");
             }
             else if (line.StartsWith("vn ", StringComparison.Ordinal))
             {
-                if (TryParseVec3(line, 3, out var n))
-                    poly.Normals!.Add(n);
-                else
-                    warnings?.Add($"OBJ line {lineNum}: malformed vertex normal");
+                if (TryParseVec3(line, 3, out var n)) poly.Normals!.Add(n);
+                else warnings?.Add($"OBJ line {lineNum}: malformed vertex normal");
             }
             else if (line.StartsWith("vt ", StringComparison.Ordinal))
             {
-                if (TryParseVec2(line, 3, out var uv))
-                    poly.UVs!.Add(uv);
-                else
-                    warnings?.Add($"OBJ line {lineNum}: malformed texture coordinate");
+                if (TryParseVec2(line, 3, out var uv)) poly.UVs!.Add(uv);
+                else warnings?.Add($"OBJ line {lineNum}: malformed texture coordinate");
             }
             else if (line.StartsWith("f ", StringComparison.Ordinal))
             {
                 faceVerts.Clear();
-                var tokens = line.Substring(2).Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
+                var tokens = line.Substring(2).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var token in tokens)
                 {
                     if (TryParseFaceVertex(token.AsSpan(),
@@ -170,126 +151,108 @@ public static class ObjLoader
                     else
                         warnings?.Add($"OBJ line {lineNum}: malformed face vertex '{token}'");
                 }
-
                 if (faceVerts.Count < 3)
                 {
                     warnings?.Add($"OBJ line {lineNum}: face has fewer than 3 vertices, skipping");
                     continue;
                 }
 
-                bool faceHasNormals = true;
-                bool faceHasUvs = true;
-                int[] fp = new int[faceVerts.Count];
-                int[] fn = new int[faceVerts.Count];
-                int[] fu = new int[faceVerts.Count];
+                bool faceHasNormals = true, faceHasUvs = true;
+                int[] fp = new int[faceVerts.Count], fn = new int[faceVerts.Count], fu = new int[faceVerts.Count];
                 for (int i = 0; i < faceVerts.Count; i++)
                 {
                     var v = faceVerts[i];
-                    fp[i] = v.V;
-                    fn[i] = v.VN;
-                    fu[i] = v.VT;
+                    fp[i] = v.V; fn[i] = v.VN; fu[i] = v.VT;
                     if (v.VN < 0) faceHasNormals = false;
-                    if (v.VT < 0) faceHasUvs    = false;
+                    if (v.VT < 0) faceHasUvs = false;
                 }
                 poly.FacePositions.Add(fp);
-                if (faceHasNormals) { poly.FaceNormals!.Add(fn); anyNormalsInFile = true; }
-                else                  poly.FaceNormals!.Add(Array.Empty<int>());
-                if (faceHasUvs)     { poly.FaceUVs!    .Add(fu); anyUvsInFile     = true; }
-                else                  poly.FaceUVs!    .Add(Array.Empty<int>());
+                poly.FaceNormals!.Add(faceHasNormals ? fn : Array.Empty<int>());
+                poly.FaceUVs!.Add(faceHasUvs ? fu : Array.Empty<int>());
+                if (currentSlot < 0) currentSlot = imported.Slot("");
+                poly.FaceMaterials!.Add(currentSlot);
+                faceSmoothing.Add(smoothing);
             }
-            // Silently ignore: o, g, s, usemtl, mtllib, and other directives
+            else if (line.StartsWith("usemtl", StringComparison.Ordinal))
+            {
+                string name = line.Length > 6 ? line[6..].Trim() : "";
+                library.TryGetValue(name, out var m);
+                if (m == null && name.Length > 0 && library.Count > 0)
+                    warnings?.Add($"OBJ line {lineNum}: material '{name}' is not in the MTL libraries");
+                currentSlot = imported.Slot(name, m);
+            }
+            else if (line.StartsWith("mtllib", StringComparison.Ordinal))
+            {
+                // One or more libraries; a file name with spaces is taken whole
+                // when it exists as such.
+                string rest = line.Length > 6 ? line[6..].Trim() : "";
+                var names = File.Exists(Path.Combine(dir, rest))
+                    ? new[] { rest }
+                    : rest.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var lib in names)
+                    foreach (var (name, m) in MtlLoader.Load(Path.Combine(dir, lib), warnings))
+                        library[name] = m;
+            }
+            else if (line.StartsWith("s ", StringComparison.Ordinal) || line == "s")
+            {
+                string arg = line.Length > 1 ? line[1..].Trim() : "off";
+                smoothing = arg == "off" || !int.TryParse(arg, out int g) ? 0 : g;
+            }
+            // o, g, l, p and other statements: ignored.
         }
-
-        // Drop side-channel attributes the file didn't define on *every*
-        // face — the subdivision engine wants a consistent channel or none.
-        if (!anyNormalsInFile || HasPartialChannel(poly.FaceNormals!))
-            { poly.Normals = null; poly.FaceNormals = null; }
-        if (!anyUvsInFile || HasPartialChannel(poly.FaceUVs!))
-            { poly.UVs = null; poly.FaceUVs = null; }
 
         if (poly.FaceCount == 0)
         {
             warnings?.Add("OBJ file produced zero faces.");
             return null;
         }
+        // A slot named "" with no MTL material is the scene's fallback; drop
+        // the slot list altogether when there is only that one.
+        if (imported.SlotNames.Count == 1 && imported.SlotMaterials[0] == null) poly.FaceMaterials = null;
 
-        int vertexCount = poly.Positions.Count;
+        SmoothingGroupNormals(poly, faceSmoothing);
+        return imported;
+    }
 
-        // ── Optional subdivision pass ────────────────────────────────────
-        if (subdivision.IsActive)
+    /// <summary>
+    /// Normals for the faces that have none and belong to a smoothing group:
+    /// at each vertex, the angle-weighted mean of the normals of the faces of
+    /// the same group around it.
+    /// </summary>
+    private static void SmoothingGroupNormals(PolyMesh poly, List<int> groups)
+    {
+        var sums = new Dictionary<(int Vertex, int Group), Vector3>();
+        for (int fi = 0; fi < poly.FaceCount; fi++)
         {
-            var (iters, scheme) = SubdivisionEngine.Apply(poly, subdivision);
-            appliedScheme = scheme;
-            appliedIterations = iters;
-        }
-
-        // ── Optional surface-displacement pass ───────────────────────────
-        // Runs after subdivision and before triangulation so the micro-mesh
-        // built by Loop / Catmull-Clark is what gets displaced (the silhouette
-        // resolution scales with subdivision_iterations, exactly as in
-        // Arnold/RenderMan). The descriptor is material-level (Cycles/
-        // RenderMan parity); LeafDisplacement is the single-texture path,
-        // MixDisplacement vector-blends two children via the parent Mix's
-        // mask at the vertex.
-        bool wantsGeometricDisplace = displacement?.RequestsGeometricDisplacement == true;
-        if (wantsGeometricDisplace)
-        {
-            maxDisplacement = displacement switch
+            if (groups[fi] == 0 || poly.FaceNormals![fi].Length > 0) continue;
+            int[] f = poly.FacePositions[fi];
+            Vector3 n = LimitSurface.FaceNormal(poly, f);
+            if (n == Vector3.Zero) continue;
+            for (int k = 0; k < f.Length; k++)
             {
-                LeafDisplacement leaf => DisplacementEngine.Apply(poly, leaf.Options, objectSeed),
-                MixDisplacement  mix  => DisplacementEngine.ApplyMix(poly, mix, objectSeed),
-                _ => 0f,
-            };
+                var key = (f[k], groups[fi]);
+                sums.TryGetValue(key, out var acc);
+                sums[key] = acc + LimitSurface.CornerAngle(poly, f, k) * n;
+            }
         }
-
-        // ── Build SmoothTriangle list ────────────────────────────────────
-        List<IHittable> triangles;
-        if (appliedIterations > 0 || wantsGeometricDisplace)
+        if (sums.Count == 0) return;
+        var index = new Dictionary<(int, int), int>(sums.Count);
+        foreach (var (key, sum) in sums)
         {
-            // After subdivision or displacement the per-vertex normals must
-            // come from the (possibly displaced) limit topology — the
-            // triangulator handles the angle-weighted recompute on its own,
-            // so we always route through it once either pass has run.
-            triangles = SubdivisionEngine.Triangulate(poly, material);
+            index[key] = poly.Normals!.Count;
+            float len = sum.Length();
+            poly.Normals.Add(len > 0f ? sum / len : Vector3.UnitY);
         }
-        else
+        for (int fi = 0; fi < poly.FaceCount; fi++)
         {
-            // Legacy direct path: triangulate using the face/normal/uv
-            // indices straight from the OBJ. This preserves the historical
-            // behaviour byte-for-byte when no subdivision is requested.
-            triangles = BuildTrianglesDirect(poly, material);
+            if (groups[fi] == 0 || poly.FaceNormals![fi].Length > 0) continue;
+            int[] f = poly.FacePositions[fi];
+            var fn = new int[f.Length];
+            bool all = true;
+            for (int k = 0; k < f.Length; k++)
+                if (index.TryGetValue((f[k], groups[fi]), out int ni)) fn[k] = ni; else all = false;
+            if (all) poly.FaceNormals[fi] = fn;
         }
-
-        if (triangles.Count == 0)
-        {
-            warnings?.Add("OBJ file produced zero triangles.");
-            return null;
-        }
-
-        // displacement_bound: pad each BVH leaf AABB by the artist-supplied
-        // safety margin. The displaced positions are already baked into the
-        // triangles, so the padding is a defensive measure — it absorbs
-        // shading-time bump perturbation and matches the contract surfaced
-        // by Arnold's disp_padding / RenderMan's dispBound.
-        float bound = wantsGeometricDisplace
-            ? MathF.Max(0f, displacement!.Bound)
-            : 0f;
-        var mesh = new Mesh(triangles, material, vertexCount, bound);
-
-        // Optional "autobump" residual bump map derived from the displacement
-        // descriptor. We compose it onto the mesh — not the material — so
-        // two meshes sharing the same material can independently keep or
-        // suppress their autobump (e.g. via 'displacement_enabled: false'
-        // on the entity). For LeafDisplacement we build a single
-        // BumpMapTexture; for MixDisplacement we wrap the two children's
-        // autobumps in a MixBumpMapTexture that blends tangent-space normals
-        // via the same mask the BSDF mix uses.
-        if (displacement != null && displacement.RequestsAutobump)
-        {
-            mesh.AutoBump = BuildAutobump(displacement);
-        }
-
-        return mesh;
     }
 
     /// <summary>
@@ -299,7 +262,7 @@ public static class ObjLoader
     /// (the caller checks <see cref="MaterialDisplacement.RequestsAutobump"/>
     /// first so this is normally non-null).
     /// </summary>
-    private static IBumpMap? BuildAutobump(MaterialDisplacement disp)
+    internal static IBumpMap? BuildAutobump(MaterialDisplacement disp)
     {
         if (disp is LeafDisplacement leaf)
         {
@@ -339,77 +302,13 @@ public static class ObjLoader
     {
         public static readonly IdentityBump Instance = new();
         public System.Numerics.Vector3 SampleTangentNormal(float u, float v,
-            System.Numerics.Vector3 p,
-            System.Numerics.Vector3 tangent, System.Numerics.Vector3 bitangent,
-            int seed) => System.Numerics.Vector3.UnitZ;
+            System.Numerics.Vector3 p, in BumpFrame frame, int seed) => System.Numerics.Vector3.UnitZ;
     }
 
     /// <summary>Backwards-compatible 4-arg overload (no subdivision).</summary>
     public static Mesh? Load(string path, IMaterial material,
         SubdivisionOptions subdivision, List<string>? warnings = null)
         => Load(path, material, subdivision, warnings, out _, out _);
-
-    /// <summary>
-    /// Direct fan-triangulation of a <see cref="PolyMesh"/> using the
-    /// per-face attribute indices captured during parsing. Reproduces the
-    /// historical OBJ loader output bit-for-bit when subdivision is off.
-    /// </summary>
-    private static List<IHittable> BuildTrianglesDirect(PolyMesh poly, IMaterial material)
-    {
-        var output = new List<IHittable>(poly.FaceCount * 2);
-        for (int fi = 0; fi < poly.FaceCount; fi++)
-        {
-            int[] f  = poly.FacePositions[fi];
-            int[]? fn = poly.FaceNormals != null ? poly.FaceNormals[fi] : null;
-            int[]? fu = poly.FaceUVs     != null ? poly.FaceUVs[fi]     : null;
-
-            bool hasN = fn is { Length: > 0 };
-            bool hasU = fu is { Length: > 0 };
-
-            for (int k = 1; k < f.Length - 1; k++)
-            {
-                Vector3 v0 = poly.Positions[f[0]];
-                Vector3 v1 = poly.Positions[f[k]];
-                Vector3 v2 = poly.Positions[f[k + 1]];
-
-                Vector3 cross = Vector3.Cross(v1 - v0, v2 - v0);
-                if (cross.LengthSquared() < 1e-12f) continue;
-
-                if (hasN && hasU)
-                {
-                    output.Add(new SmoothTriangle(
-                        v0, v1, v2,
-                        poly.Normals![fn![0]], poly.Normals[fn[k]], poly.Normals[fn[k + 1]],
-                        poly.UVs![fu![0]],     poly.UVs[fu[k]],     poly.UVs[fu[k + 1]],
-                        material));
-                }
-                else if (hasN)
-                {
-                    output.Add(new SmoothTriangle(
-                        v0, v1, v2,
-                        poly.Normals![fn![0]], poly.Normals[fn[k]], poly.Normals[fn[k + 1]],
-                        material));
-                }
-                else
-                {
-                    output.Add(new Triangle(v0, v1, v2, material));
-                }
-            }
-        }
-        return output;
-    }
-
-    private static bool HasPartialChannel(List<int[]> faceChannel)
-    {
-        bool sawFull = false, sawEmpty = false;
-        foreach (var f in faceChannel)
-        {
-            if (f.Length == 0) sawEmpty = true;
-            else               sawFull  = true;
-            if (sawFull && sawEmpty) return true;
-        }
-        return false;
-    }
 
     // ═════════════════════════════════════════════════════════════════════════
     // Face vertex parsing

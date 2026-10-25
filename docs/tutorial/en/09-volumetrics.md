@@ -186,8 +186,8 @@ cases.
 
 Density falls exponentially with height: `σ_T(y) = σ_T0 · exp(-(y - y0) / H)`.
 The standard "atmosphere / aerial perspective" model. The integral along
-a ray has a closed form → **cost nearly identical to homogeneous**, no
-delta tracking needed.
+a ray has a closed form → **cost nearly identical to homogeneous**, and
+distances are sampled exactly.
 
 ```yaml
 world:
@@ -221,8 +221,10 @@ of fog, raise `-s` to at least 256.
 ### 9.4.2 `procedural` — Perlin fBm
 
 Density driven by **Perlin noise with fractal brownian motion** (fBm).
-Free-path sampling uses **delta tracking (Woodcock)** and transmittance is
-estimated via **ratio tracking**. Suited to any heterogeneous medium whose
+The ray is tracked with **null collisions** against a majorant (the largest
+density): **spectral tracking** samples where light scatters, **ratio
+tracking** estimates the transmittance of shadow rays. Both are unbiased in
+every colour channel. Suited to any heterogeneous medium whose
 density is defined procedurally rather than baked into a grid.
 
 ```yaml
@@ -250,7 +252,7 @@ world:
 **Typical uses:** rooms with irregular fog, horror scenes, uneven
 god-rays, misty forests, water surfaces with patchy haze.
 
-**Tip:** delta tracking is noisier → raise `-s` to 400 or 1024 for final
+**Tip:** tracking adds noise → raise `-s` to 400 or 1024 for final
 renders.
 
 ### 9.4.3 `grid` — Density from a 3D Grid
@@ -318,7 +320,7 @@ voxels, 3D-Ray interpolates density in one of two ways:
 - **`tricubic`** (64 taps, C¹, Catmull-Rom cardinal spline with τ = 0.5).
   About 8× per-sample cost, but the density field is continuously
   differentiable → no kinks even on tiny grids. The result is clamped to
-  `[0,1]` to preserve the delta-tracking majorant invariant. Accepted
+  `[0,1]`, and the grid of majorants allows for its overshoot between voxels. Accepted
   aliases: `cubic`, `catmull-rom`, `smooth`. Provides smooth density
   reconstruction on VDB grids at the cost of higher tap count.
 
@@ -442,24 +444,23 @@ Keep these tips in mind:
    analytic and look decent at 64 SPP. `procedural` and `grid` use delta
    tracking → need 256+ SPP for clean results, 1024+ for publication.
 
-2. **Don't overdo depth.** The volumetric path is already handled
-   correctly at `-d 6-8`. Russian Roulette terminates long paths
-   automatically, so values above `-d 10` rarely improve quality and
-   always cost time.
+2. **Don't overdo depth.** Scattering events in a medium have their own
+   limit (`--depth-volume`: 3 in `draft`, 4 in `standard`, 8 in `final`).
+   Russian Roulette terminates long paths automatically; raise the limit
+   only for dense, bright media whose multiple scattering you can see.
 
 3. **Firefly clamp with dense fog.** Media with high `sigma_s` + `-d 8+`
    occasionally produce rare bright spikes. Lower `-C` to `25` or `15`
    without hesitation: you lose little dynamic range, gain a lot of
    cleanliness.
 
-4. **`soft_radius` on point/spot lights inside fog.** The 1/d² attenuation
-   of point and spot lights diverges when a scattering event in the medium
-   lands near the emitter, producing isolated firefly pixels that no
-   amount of `-s` will smooth out. Set `soft_radius` on those lights to a
-   value approximating the physical bulb size (e.g. `0.10`–`0.25`): the
-   attenuation denominator is clamped to `max(d², r²)`, the singularity
-   disappears, and the look at `d ≥ r` is unchanged. This is by far the
-   most effective single change for foggy street/lamp scenes.
+4. **Point/spot lights inside fog need nothing special.** Their 1/d²
+   attenuation peaks where the camera ray passes close to the emitter;
+   in `homogeneous`, `height_fog` and `atmosphere` the engine also samples
+   the light at distances spread as the angle the light sees (equiangular
+   sampling) and combines it by MIS with the free flight, so halos are
+   clean at low sample counts. `soft_radius` (a physical bulb size) is a
+   look choice, no longer a firefly fix.
 
 5. **Spot lights create god rays.** A spot light through fog produces
    a visible cone of light. Dramatic effect, especially with `procedural`
@@ -488,15 +489,11 @@ Keep these tips in mind:
    look noisy, lower `g` to 0.7-0.85 or switch to `double_hg` with more
    balanced weights.
 
-10. **`lights: []` + global medium → tendency to come out black.** With
-   no explicit lights, the flux-based classifier flags the scene as
-   indirect-dominant and switches Russian Roulette to its conservative
-   tuning (≥ 8 bounces, 0.5 minimum survival). When fog attenuates every
-   segment, the light from a gradient sky or HDRI alone struggles to
-   reach the sensor and the render comes out very dark. Fix: add at
-   least one explicit `directional` or `sphere` light that declares the
-   sun as a separate `ILight` (HDRI/gradient stays as fill); the
-   classifier flips to "direct-dominant" and god-rays become visible.
+10. **`lights: []` + global medium → dim, noisy fog.** With no explicit
+   lights, only the sky lights the fog, and in a medium that attenuates
+   every segment its diffuse light gives no shafts. Add at least one
+   explicit `directional` or `sphere` light for the sun (the HDRI or
+   gradient stays as fill): god-rays need a light the medium can see.
    Seen in practice in `scenes/foggy-hdri.yaml`.
 
 ---
@@ -657,12 +654,12 @@ the Preview/Standard/Final profiles.
 - **sigma_s** controls scattering (fog density, light shafts).
 - 3D-Ray supports **four medium types**: `homogeneous` (uniform, analytic),
   `height_fog` (exponential altitude falloff, analytic), `procedural`
-  (Perlin fBm, delta tracking) and `grid` (3D grid from data or `.vol`
-  file, delta tracking).
+  (Perlin fBm, null-collision tracking) and `grid` (3D grid from data or
+  `.vol` file, tracking against a grid of majorants).
 - Five phase functions: `isotropic`, `hg`, `rayleigh` (atmosphere),
   `double_hg` (realistic clouds), `schlick` (fast-HG).
-- Analytic media (`homogeneous`, `height_fog`) are cheap; delta-tracking
-  ones (`procedural`, `grid`) are noisier → more SPP.
+- Analytic media (`homogeneous`, `height_fog`) are cheap; tracked ones
+  (`procedural`, `grid`) are noisier → more SPP.
 - The medium is global and affects all rays, except `grid` which is
   confined to its AABB.
 - Volumetric scenes need more samples than surface-only ones; `-d 6-8`

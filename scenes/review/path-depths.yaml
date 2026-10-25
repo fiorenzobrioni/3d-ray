@@ -1,0 +1,77 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  path-depths.yaml - profondità per tipo di rimbalzo
+#  (PIANO-REVIEW.md, Fase 7)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  A sinistra tre gusci di vetro concentrici attorno a un nocciolo rosso
+#  diffuso: per vedere il nocciolo un raggio attraversa tre interfacce,
+#  e la luce che lo illumina ne attraversa altre tre. Il cammino minimo
+#  è camera → 3 rifrazioni → nocciolo → 3 rifrazioni → cielo: 7 vertici,
+#  di cui 6 di trasmissione e uno diffuso.
+#
+#  A destra otto pannelli con cut-out a scacchi (geometry_opacity 0 o 1)
+#  uno dietro l'altro, con la stessa fase della scacchiera: dai buchi si
+#  vedono i pannelli più lontani e, in fondo, il pavimento. Un
+#  cut-out non è un rimbalzo: conta solo nel suo limite
+#  (--depth-transparent, 16 di default) e non nel totale.
+#
+#  Risultato atteso con il preset di default (draft-small: 8 vertici, 3
+#  diffuse, 4 glossy, 8 transmission, 3 volume, 16 cut-out):
+#    - nocciolo rosso pieno dentro i gusci;
+#    - tutti e otto i pannelli visibili attraverso i buchi.
+#  Con il vecchio integratore a profondità 4 (il draft-small di prima
+#  della Fase 7) il nocciolo era nero e oltre il terzo pannello i buchi
+#  erano neri: images/path-depths.jpg (in alto prima, al centro dopo).
+#
+#  Prove (la terza riga di images/path-depths.jpg le fa tutte e due):
+#    -q draft-small                          atteso come sopra
+#    -q draft-small --depth-transmission 4   nocciolo nero (la luce non esce)
+#    -q draft-small --depth-transparent 4    buchi neri dove servono più di
+#                                            quattro cut-out
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color: [0.55, 0.7, 1.0]
+    horizon_color: [1.0, 1.0, 1.0]
+    ground_color: [0.35, 0.33, 0.3]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0
+
+camera:
+  position: [0, 2.2, 9]
+  look_at: [0, 1.1, 0]
+  vup: [0, 1, 0]
+  fov: 34
+
+materials:
+  - { id: "floor", type: "lambertian", color: [0.6, 0.6, 0.6] }
+  - { id: "glass", type: "dielectric", ior: 1.5 }
+  - { id: "core",  type: "lambertian", color: [0.85, 0.08, 0.05] }
+  - id: "card"
+    type: "openpbr"
+    base_color: [0.2, 0.6, 0.15]
+    specular_roughness: 0.5
+    geometry_thin_walled: true
+    geometry_opacity: { type: "checker", scale: 0.37, colors: [[1, 1, 1], [0, 0, 0]] }
+
+entities:
+  - { type: "sphere", center: [-1.9, 1.2, 0], radius: 1.2,  material: "glass" }
+  - { type: "sphere", center: [-1.9, 1.2, 0], radius: 0.95, material: "glass" }
+  - { type: "sphere", center: [-1.9, 1.2, 0], radius: 0.7,  material: "glass" }
+  - { type: "sphere", center: [-1.9, 1.2, 0], radius: 0.4,  material: "core" }
+
+  - { type: "quad", q: [0.60, 0.05, 2.00], u: [2.2, 0, 0], v: [0, 2.2, 0], material: "card" }
+  - { type: "quad", q: [0.72, 0.10, 1.26], u: [2.2, 0, 0], v: [0, 2.2, 0], material: "card" }
+  - { type: "quad", q: [0.84, 0.15, 0.52], u: [2.2, 0, 0], v: [0, 2.2, 0], material: "card" }
+  - { type: "quad", q: [0.96, 0.20, -0.22], u: [2.2, 0, 0], v: [0, 2.2, 0], material: "card" }
+  - { type: "quad", q: [1.08, 0.25, -0.96], u: [2.2, 0, 0], v: [0, 2.2, 0], material: "card" }
+  - { type: "quad", q: [1.20, 0.30, -1.70], u: [2.2, 0, 0], v: [0, 2.2, 0], material: "card" }
+  - { type: "quad", q: [1.32, 0.35, -2.44], u: [2.2, 0, 0], v: [0, 2.2, 0], material: "card" }
+  - { type: "quad", q: [1.44, 0.40, -3.18], u: [2.2, 0, 0], v: [0, 2.2, 0], material: "card" }
+
+lights:
+  - { type: "directional", direction: [-0.4, -1.0, -0.6], color: [1.0, 0.96, 0.9], intensity: 2.5 }

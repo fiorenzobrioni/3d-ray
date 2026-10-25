@@ -19,6 +19,10 @@ public static class MathUtils
 
     public static Random Rng => _threadRng ??= new Random(Interlocked.Increment(ref _globalSeed));
 
+    /// <summary>Replaces the calling thread's PRNG with one seeded deterministically
+    /// (used by <c>--seed</c> to make PRNG renders independent of each other).</summary>
+    public static void ReseedThread(int seed) => _threadRng = new Random(seed);
+
     public const float Epsilon = 1e-4f;
     public const float Infinity = float.MaxValue;
     public const float Pi = MathF.PI;
@@ -30,7 +34,7 @@ public static class MathUtils
 
     /// <summary>
     /// Shadow-terminator softening factor for perturbed shading normals
-    /// (Conty &amp; Kulla 2019). When a normal/bump map tilts the shading normal
+    /// (Chiang, Li and Burley 2019, "Taming the Shadow Terminator"). When a normal/bump map tilts the shading normal
     /// <paramref name="ns"/> away from the geometric normal <paramref name="ng"/>,
     /// a direction <paramref name="w"/> can sit above the shading horizon while
     /// already below the geometric one, letting the clamped cosine fabricate
@@ -74,6 +78,44 @@ public static class MathUtils
     public static float RandomFloat() => Sampler.Sample1D();
     public static float RandomFloat(float min, float max) => min + (max - min) * RandomFloat();
 
+    /// <summary>
+    /// Two coordinates of one 2D decision (a direction, a point on a light or
+    /// a surface, a lens position). Under Sobol they are the two halves of an
+    /// aligned padded block, jointly stratified in 2D; two separate
+    /// <see cref="RandomFloat()"/> calls are only stratified one by one.
+    /// </summary>
+    public static (float U, float V) Random2D() => Sampler.Sample2D();
+
+    /// <summary>
+    /// Grid for <paramref name="count"/> stratified samples of the unit square:
+    /// <c>Rows × Cols = count</c> exactly, rows the largest divisor of the count
+    /// not above its square root (16 → 4 × 4, 8 → 2 × 4, 7 → 1 × 7). Every cell
+    /// gets one sample and holds 1/count of the square, so a sample weighted
+    /// 1/count is unbiased. (A ⌈√n⌉ × ⌈√n⌉ grid left cells unvisited whenever
+    /// n was not a square: 8 samples on 3 × 3 never sampled the last ninth.)
+    /// </summary>
+    public static (int Cols, int Rows) StratumGrid(int count)
+    {
+        count = Math.Max(1, count);
+        int rows = (int)MathF.Sqrt(count);
+        while (rows > 1 && count % rows != 0) rows--;
+        return (count / rows, rows);
+    }
+
+    /// <summary>
+    /// The <paramref name="sampleIndex"/>-th of <paramref name="sampleCount"/>
+    /// stratified points of the unit square (<see cref="StratumGrid"/>), jittered
+    /// in its cell with one 2D draw. A negative index draws an unstratified point.
+    /// </summary>
+    public static (float U, float V) Stratum2D(int sampleIndex, int sampleCount)
+    {
+        var (ju, jv) = Random2D();
+        if (sampleIndex < 0 || sampleCount <= 1) return (ju, jv);
+        var (cols, rows) = StratumGrid(sampleCount);
+        int i = sampleIndex % (cols * rows);
+        return (((i % cols) + ju) / cols, ((i / cols) + jv) / rows);
+    }
+
     public static Vector3 RandomVector3() =>
         new(RandomFloat(), RandomFloat(), RandomFloat());
 
@@ -103,8 +145,7 @@ public static class MathUtils
     /// </summary>
     public static Vector3 RandomUnitVector()
     {
-        float u = RandomFloat();
-        float v = RandomFloat();
+        var (u, v) = Random2D();
         float z = 1f - 2f * u;
         float r = MathF.Sqrt(MathF.Max(0f, 1f - z * z));
         float phi = 2f * Pi * v;
@@ -136,8 +177,9 @@ public static class MathUtils
     /// </summary>
     public static Vector3 RandomInUnitDisk()
     {
-        float a = 2f * RandomFloat() - 1f;
-        float b = 2f * RandomFloat() - 1f;
+        var (ra, rb) = Random2D();
+        float a = 2f * ra - 1f;
+        float b = 2f * rb - 1f;
         if (a == 0f && b == 0f) return Vector3.Zero;
 
         float r, phi;
@@ -154,15 +196,47 @@ public static class MathUtils
         return new Vector3(r * MathF.Cos(phi), r * MathF.Sin(phi), 0f);
     }
 
+    /// <summary>
+    /// Right-handed orthonormal basis (b1, b2, n) around the unit vector
+    /// <paramref name="n"/>: Duff et al. 2017, "Building an Orthonormal Basis,
+    /// Revisited". Branch-free and accurate to float precision everywhere.
+    /// Frisvad's original form, which the engine used before, loses up to 4.5%
+    /// of orthonormality near −Z and needed a guard whose fallback basis was
+    /// not even orthogonal to n (PIANO-REVIEW.md, Phase 1).
+    /// </summary>
+    public static void OrthonormalBasis(Vector3 n, out Vector3 b1, out Vector3 b2)
+    {
+        float sign = MathF.CopySign(1f, n.Z);
+        float a = -1f / (sign + n.Z);
+        float b = n.X * n.Y * a;
+        b1 = new Vector3(1f + sign * n.X * n.X * a, sign * b, -sign * n.X);
+        b2 = new Vector3(b, sign + n.Y * n.Y * a, -n.Y);
+    }
+
+    /// <summary>Maps a vector from the frame with Z = <paramref name="n"/> to world space.</summary>
+    public static Vector3 LocalToWorld(Vector3 local, Vector3 n)
+    {
+        OrthonormalBasis(n, out Vector3 b1, out Vector3 b2);
+        return local.X * b1 + local.Y * b2 + local.Z * n;
+    }
+
     public static Vector3 Reflect(Vector3 v, Vector3 n) =>
         v - 2f * Vector3.Dot(v, n) * n;
 
+    /// <summary>
+    /// Refracts the unit direction <paramref name="uv"/> through the normal
+    /// <paramref name="n"/> (facing the incoming side) with η_i/η_t. Returns
+    /// <see cref="Vector3.Zero"/> under total internal reflection, so callers
+    /// must test it: it used to return a meaningless direction there
+    /// (PIANO-REVIEW.md §3.32).
+    /// </summary>
     public static Vector3 Refract(Vector3 uv, Vector3 n, float etaiOverEtat)
     {
         float cosTheta = MathF.Min(Vector3.Dot(-uv, n), 1f);
         Vector3 rOutPerp = etaiOverEtat * (uv + cosTheta * n);
-        Vector3 rOutParallel = -MathF.Sqrt(MathF.Abs(1f - rOutPerp.LengthSquared())) * n;
-        return rOutPerp + rOutParallel;
+        float k = 1f - rOutPerp.LengthSquared();
+        if (k < 0f) return Vector3.Zero;
+        return rOutPerp - MathF.Sqrt(k) * n;
     }
 
     public static float Schlick(float cosine, float refractionIndex)
@@ -214,10 +288,56 @@ public static class MathUtils
         => 0.2126f * color.X + 0.7152f * color.Y + 0.0722f * color.Z;
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Robust shadow origin: offsets the hit point along the geometric normal
-    // to prevent self-intersection. This is more robust than offsetting along
-    // the shadow ray direction, especially at grazing angles.
+    // Ray offsets (PIANO-REVIEW.md, Phase 1).
+    //
+    // A hit point carries a floating-point error proportional to the size of
+    // its coordinates (and of the ray that found it), so the distance a new
+    // ray must start off the surface is relative, not a fixed length. The old
+    // fixed 1e-4 was larger than a 10 µm scene (black image) and smaller than
+    // the float spacing of a scene 10 km from the origin (self-intersection,
+    // -44% of the light). Now: RelativeOffset of the largest coordinate
+    // (about 256 ulps, the margin of Wächter & Binder, Ray Tracing Gems ch. 6),
+    // never less than RayEpsilon, a floor proportional to the scene radius that
+    // covers the error of a hit near the origin reached by a ray from far away.
+    // SceneScale is per thread: the renderer sets it on its workers and
+    // clears it when they are done (pool threads outlive a render).
     // ─────────────────────────────────────────────────────────────────────────
+    public const float RelativeOffset = 1f / 32768f;          // 2^-15
+    private const float SceneFloorFactor = 1f / 524288f;      // 2^-19
+
+    [ThreadStatic] private static float _sceneScale;
+
+    /// <summary>Scene radius the offsets scale with (1 when unset; 0 unsets).</summary>
+    public static float SceneScale
+    {
+        get => _sceneScale > 0f ? _sceneScale : 1f;
+        set => _sceneScale = value;
+    }
+
+    /// <summary>Smallest ray offset and ray tMin for the current scene.</summary>
+    public static float RayEpsilon => SceneScale * SceneFloorFactor;
+
+    /// <summary>How far a ray spawned at <paramref name="point"/> starts off its surface.</summary>
+    public static float OffsetDistance(Vector3 point)
+    {
+        Vector3 a = Vector3.Abs(point);
+        float m = MathF.Max(a.X, MathF.Max(a.Y, a.Z));
+        return MathF.Max(RayEpsilon, RelativeOffset * m);
+    }
+
+    /// <summary>
+    /// Moves a hit point off its surface along <paramref name="normal"/> (the
+    /// side the new ray leaves on) by <see cref="OffsetDistance"/>.
+    /// </summary>
     public static Vector3 OffsetOrigin(Vector3 point, Vector3 normal)
-        => point + normal * Epsilon;
+        => point + normal * OffsetDistance(point);
+
+    /// <summary>
+    /// Origin of a ray leaving <paramref name="point"/> in direction
+    /// <paramref name="dir"/>: offset along whichever side of the normal the
+    /// ray goes to. A shadow ray toward a light behind a transmissive surface
+    /// must start on the far side (PIANO-REVIEW.md, Phase 5).
+    /// </summary>
+    public static Vector3 OffsetToward(Vector3 point, Vector3 normal, Vector3 dir)
+        => OffsetOrigin(point, Vector3.Dot(normal, dir) >= 0f ? normal : -normal);
 }

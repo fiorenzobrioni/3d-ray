@@ -36,6 +36,8 @@ public class Transform : IHittable, ISamplable
     private readonly Matrix4x4 _transform;
     private readonly Matrix4x4 _inverse;
     private readonly Matrix4x4 _normalMatrix; // Transpose of the inverse
+    private readonly Matrix4x4 _transposed;   // maps a world normal back to object space
+    private readonly bool _similarity;        // rotation × uniform scale: area Jacobian constant
 
     // Precomputed absolute determinant of the 3×3 linear sub-matrix.
     // Used in Sample() to convert object-space area to world-space area.
@@ -56,6 +58,7 @@ public class Transform : IHittable, ISamplable
     // rec.LocalPoint so 3D procedural textures sample in metric object space.
     // See the class summary.
     private readonly Vector3 _localScale;
+    private readonly Quaternion _rotation;
 
     /// <summary>
     /// The wrapped IHittable (in object space). Used by SceneLoader.IsInfinitePlane()
@@ -95,14 +98,24 @@ public class Transform : IHittable, ISamplable
         float ny = Vector3.TransformNormal(Vector3.UnitY, _normalMatrix).Length();
         float nz = Vector3.TransformNormal(Vector3.UnitZ, _normalMatrix).Length();
         _avgNormalLen = (nx + ny + nz) / 3f;
+        _transposed = Matrix4x4.Transpose(_transform);
+        // M Mᵀ = s² I: every normal scales alike, so uniform object samples stay uniform.
+        Vector3 r0 = new(matrix.M11, matrix.M12, matrix.M13), r1 = new(matrix.M21, matrix.M22, matrix.M23),
+                r2 = new(matrix.M31, matrix.M32, matrix.M33);
+        float s2 = (r0.LengthSquared() + r1.LengthSquared() + r2.LengthSquared()) / 3f;
+        float tol = 1e-4f * s2;
+        _similarity = MathF.Abs(r0.LengthSquared() - s2) < tol && MathF.Abs(r1.LengthSquared() - s2) < tol
+                   && MathF.Abs(r2.LengthSquared() - s2) < tol && MathF.Abs(Vector3.Dot(r0, r1)) < tol
+                   && MathF.Abs(Vector3.Dot(r0, r2)) < tol && MathF.Abs(Vector3.Dot(r1, r2)) < tol;
 
         _worldBox = ComputeWorldBox(_object.BoundingBox(), _transform);
 
         // Extract the scale (for the metric-object-space LocalPoint). Decompose
         // handles any proper TRS; the fallback covers sheared/degenerate
         // matrices by taking the row-vector basis lengths of the 3×3 block.
-        if (!Matrix4x4.Decompose(_transform, out Vector3 scale, out _, out _))
+        if (!Matrix4x4.Decompose(_transform, out Vector3 scale, out _rotation, out _))
         {
+            _rotation = Quaternion.Identity;
             scale = new Vector3(
                 new Vector3(_transform.M11, _transform.M12, _transform.M13).Length(),
                 new Vector3(_transform.M21, _transform.M22, _transform.M23).Length(),
@@ -124,7 +137,7 @@ public class Transform : IHittable, ISamplable
         if (!_object.Hit(localRay, tMin, tMax, ref rec))
             return false;
 
-        MapHitToWorld(ref rec, _transform, _normalMatrix, _localScale);
+        MapHitToWorld(ref rec, _transform, _normalMatrix, _localScale, _rotation);
         return true;
     }
 
@@ -160,8 +173,17 @@ public class Transform : IHittable, ISamplable
     /// (matrix interpolated at the ray's time) so the two never drift.
     /// </summary>
     internal static void MapHitToWorld(ref HitRecord rec, in Matrix4x4 transform,
-                                       in Matrix4x4 normalMatrix, Vector3 localScale)
+                                       in Matrix4x4 normalMatrix, Vector3 localScale,
+                                       Quaternion rotation)
     {
+        // LocalPoint keeps the scale and drops the rotation (below): record the
+        // rotation, inner transforms first, so a world direction can be taken
+        // back into LocalPoint's space.
+        rec.LocalToWorld = rec.HasLocalFrame
+            ? Quaternion.Concatenate(rec.LocalToWorld, rotation)
+            : rotation;
+        rec.HasLocalFrame = true;
+
         // Metric object-space texture coordinate: apply ONLY this transform's
         // scale to the child's local point. Rotation and translation are
         // deliberately excluded so a 3D procedural texture stays attached to the
@@ -283,6 +305,28 @@ public class Transform : IHittable, ISamplable
     }
 
     /// <inheritdoc/>
+    public bool UniformArea => _similarity && (_object is not ISamplable inner || inner.UniformArea);
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// The inner shape's density at the object-space point, divided by the
+    /// area Jacobian |det M| |M⁻ᵀ n̂_obj| of its normal: the density
+    /// <see cref="Sample"/> actually draws with (it reports 1 / this as the
+    /// sample's area), exact whatever the scaling.
+    /// </remarks>
+    public float AreaPdf(Vector3 point, Vector3 normal)
+    {
+        if (_object is not ISamplable inner) return 0f;
+        Vector3 nObj = Vector3.TransformNormal(normal, _transposed);
+        float len = nObj.Length();
+        if (!(len > 0f)) return 0f;
+        nObj /= len;
+        float jacobian = _absDetM * Vector3.TransformNormal(nObj, _normalMatrix).Length();
+        if (!(jacobian > 0f)) return 0f;
+        return inner.AreaPdf(Vector3.Transform(point, _inverse), nObj) / jacobian;
+    }
+
+    /// <inheritdoc/>
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         if (_object is not ISamplable inner)
@@ -293,12 +337,12 @@ public class Transform : IHittable, ISamplable
     }
 
     /// <inheritdoc/>
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
         if (_object is not ISamplable inner)
             return (Vector3.Zero, Vector3.UnitY, new Vector2(0.5f, 0.5f), 0f);
 
-        var (pointObj, normalObj, uvObj, areaObj) = inner.SampleStratified(sampleIndex, sqrtSamples);
+        var (pointObj, normalObj, uvObj, areaObj) = inner.SampleStratified(sampleIndex, sampleCount);
         return TransformSample(pointObj, normalObj, uvObj, areaObj);
     }
 

@@ -207,6 +207,26 @@ public class BvhNode : IHittable
 
     public AABB BoundingBox() => _box;
 
+    /// <summary>
+    /// The tree's SAH cost: the expected work of a ray that hits the root box
+    /// (PIANO-REVIEW.md Phase 2), each node weighted by the chance a ray
+    /// through the root also crosses its box (area ratio): <see cref="TraversalCost"/>
+    /// per internal node, one per primitive of a leaf. A measure of the
+    /// build's quality, independent of the machine.
+    /// </summary>
+    public double SahCost()
+    {
+        double root = _box.SurfaceArea();
+        return root > 0 ? SahCost(root) : double.NaN;
+    }
+
+    private double SahCost(double rootArea)
+    {
+        double p = _box.SurfaceArea() / rootArea;
+        if (_primitives is not null) return p * _primitives.Length;
+        return p * TraversalCost + _left!.SahCost(rootArea) + _right!.SahCost(rootArea);
+    }
+
     // ───────────────────────── SAH binning ──────────────────────────────
 
     /// <summary>

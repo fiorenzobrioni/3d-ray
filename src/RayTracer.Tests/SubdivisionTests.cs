@@ -140,20 +140,18 @@ public class SubdivisionTests
             Assert.InRange(p.Z, -1e-5f, 1e-5f);
     }
 
-    [Fact]
-    public void Loop_BoundaryEdge_Midpoint_IsGeometricMidpoint()
+    [Theory]
+    [InlineData(BoundaryInterpolation.EdgeAndCorner)]
+    [InlineData(BoundaryInterpolation.EdgeOnly)]
+    public void Loop_BoundaryEdge_Midpoint_IsGeometricMidpoint(BoundaryInterpolation boundary)
     {
         // A single triangle has 3 boundary edges. The new edge vertex on a
         // boundary edge must be exactly the midpoint of the endpoints
         // (1/2·a + 1/2·b).
         var m = BuildOpenTriangle();
-        // Capture pre-subdivision vertex count to find the first odd vertex
         int preCount = m.Positions.Count;
-        LoopSubdivider.Subdivide(m, 1);
+        LoopSubdivider.Subdivide(m, 1, boundary);
 
-        // After one iteration we expect 3 new odd vertices, each the midpoint
-        // of one of the three original edges. We just verify the three new
-        // positions are 0.5·(endpointA + endpointB).
         var p0 = new Vector3(0, 0, 0);
         var p1 = new Vector3(1, 0, 0);
         var p2 = new Vector3(0, 1, 0);
@@ -163,15 +161,16 @@ public class SubdivisionTests
             0.5f * (p1 + p2),
             0.5f * (p2 + p0),
         };
-        // Each original vertex has *two* boundary neighbors (the open
-        // triangle's two adjacent edges), so Loop applies the cubic
-        // B-spline boundary mask: v' = 6/8·v + 1/8·(v_prev + v_next).
+        // Each original vertex is a corner of the sheet (one face): with
+        // edge-and-corner it stays put; with edge-only it follows the cubic
+        // B-spline boundary mask v' = 6/8·v + 1/8·(v_prev + v_next).
         for (int i = 0; i < preCount; i++)
         {
             Vector3 v = i switch { 0 => p0, 1 => p1, _ => p2 };
             Vector3 a = i switch { 0 => p1, 1 => p0, _ => p0 };
             Vector3 b = i switch { 0 => p2, 1 => p2, _ => p1 };
-            Vector3 expected = (6f / 8f) * v + (1f / 8f) * (a + b);
+            Vector3 expected = boundary == BoundaryInterpolation.EdgeAndCorner
+                ? v : (6f / 8f) * v + (1f / 8f) * (a + b);
             Assert.True((m.Positions[i] - expected).LengthSquared() < 1e-10f,
                 $"Boundary vertex {i} mismatch: {m.Positions[i]} vs {expected}");
         }

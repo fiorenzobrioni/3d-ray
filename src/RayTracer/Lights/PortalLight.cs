@@ -61,8 +61,7 @@ public class PortalLight : ILight
     public bool IsDelta => false;
 
     private readonly SkySettings _sky;
-    private readonly int _sqrtSamples;
-    private readonly float _invSqrtSamples;
+    private readonly bool _rectangular;
 
     public PortalLight(SkySettings sky, Vector3 anchor, Vector3 u, Vector3 v, int shadowSamples = 8)
     {
@@ -75,8 +74,7 @@ public class PortalLight : ILight
         Normal = Area > 1e-8f ? cross / Area : Vector3.UnitY;
 
         ShadowSamples = Math.Max(1, shadowSamples);
-        _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
-        _invSqrtSamples = 1f / _sqrtSamples;
+        _rectangular = SphericalRectangle.IsRectangle(u, v);
     }
 
     /// <summary>
@@ -98,31 +96,27 @@ public class PortalLight : ILight
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
         IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
     {
-        // Stratified sample over the portal rectangle.
-        float xi1, xi2;
-        if (sampleIndex >= 0)
-        {
-            int su = sampleIndex % _sqrtSamples;
-            int sv = sampleIndex / _sqrtSamples;
-            xi1 = (su + MathUtils.RandomFloat()) * _invSqrtSamples;
-            xi2 = (sv + MathUtils.RandomFloat()) * _invSqrtSamples;
-        }
-        else
-        {
-            xi1 = MathUtils.RandomFloat();
-            xi2 = MathUtils.RandomFloat();
-        }
+        // Only the side the portal normal faces looks through it.
+        if (Vector3.Dot(hitPoint - Anchor, Normal) <= 0f)
+            return (true, Vector3.Zero, -Normal, 0f);
 
-        Vector3 portalPoint = Anchor + xi1 * U + xi2 * V;
+        // Stratified sample of the portal: uniform over the solid angle it
+        // subtends when it is a rectangle (Ureña 2013), by area otherwise.
+        var (xi1, xi2) = MathUtils.Stratum2D(sampleIndex, ShadowSamples);
+        Vector3 portalPoint = default;
+        float pdfOmega = 0f;
+        bool spherical = _rectangular && SphericalRectangle.TrySample(hitPoint, Anchor, U, V, xi1, xi2,
+                                                                       out portalPoint, out pdfOmega);
+        if (!spherical) portalPoint = Anchor + xi1 * U + xi2 * V;
         Vector3 toPortal = portalPoint - hitPoint;
         float dist = toPortal.Length();
-        if (dist < MathUtils.Epsilon)
+        if (dist < MathUtils.RayEpsilon)
             return (true, Vector3.Zero, Normal, 0f);
         Vector3 dir = toPortal / dist;
 
         // Receiver geometric horizon (skip when surfaceNormal is degenerate —
         // volumetric scattering points pass Vector3.Zero).
-        if (surfaceNormal.LengthSquared() > 0f && Vector3.Dot(surfaceNormal, dir) <= 0f)
+        if (surfaceNormal.LengthSquared() > 0f && !ShadowRay.ReceiverTransmits && Vector3.Dot(surfaceNormal, dir) <= 0f)
             return (true, Vector3.Zero, dir, dist);
 
         // Portal orientation — only contribute when the receiver is on the
@@ -134,9 +128,9 @@ public class PortalLight : ILight
         // Shadow-trace through the scene up to infinity. The portal itself is
         // intangible — it carries no geometry, so any hit between the receiver
         // and infinity is a real occluder.
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        Vector3 shadowOrigin = MathUtils.OffsetToward(hitPoint, surfaceNormal, dir);
         var shadowRay = new Ray(shadowOrigin, dir, time);
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, MathUtils.Infinity);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, MathUtils.Infinity);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dir, dist);
 
@@ -147,9 +141,8 @@ public class PortalLight : ILight
                                           RayCategory.Shadow,
                                           includeAnalyticalSun: false);
 
-        // Solid-angle PDF of the portal sample, converted from area PDF:
-        //   p_a = 1 / area  →  p_ω = p_a · dist² / cosPortal
-        float pdf = (dist * dist) / (Area * cosPortal);
+        // Solid-angle PDF of the portal sample (by area: p_ω = dist² / (A cos)).
+        float pdf = spherical ? pdfOmega : (dist * dist) / (Area * cosPortal);
         if (pdf <= 0f) return (true, Vector3.Zero, dir, dist);
 
         // NEE contribution: L / (pdf × N), the N·L factor is applied by the
@@ -160,6 +153,11 @@ public class PortalLight : ILight
 
     public float PdfSolidAngle(Vector3 hitPoint, Vector3 wi)
     {
+        // One-sided like the samples: a receiver behind the portal draws none
+        // (a nonzero density there took MIS weight from the BSDF ray for light
+        // no portal sample delivers).
+        if (Vector3.Dot(hitPoint - Anchor, Normal) <= 0f) return 0f;
+        if (_rectangular) return SphericalRectangle.Pdf(hitPoint, Anchor, U, V, wi);
         // Ray-plane intersection on the portal plane.
         Vector3 anchorToHit = hitPoint - Anchor;
         float dirDotN = Vector3.Dot(wi, Normal);

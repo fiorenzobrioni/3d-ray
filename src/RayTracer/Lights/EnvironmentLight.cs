@@ -85,22 +85,22 @@ public class EnvironmentLight : ILight
         // normal (no surface exists); in that case all directions are valid and
         // the phase function handles the directional weight instead.
         bool hasSurfaceNormal = surfaceNormal.LengthSquared() > 0f;
-        if (hasSurfaceNormal)
+        if (hasSurfaceNormal && !ShadowRay.ReceiverTransmits)
         {
             float nDotL = Vector3.Dot(surfaceNormal, dir);
             if (nDotL <= 0f)
                 return (true, Vector3.Zero, dir, distance);
         }
 
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        Vector3 shadowOrigin = MathUtils.OffsetToward(hitPoint, surfaceNormal, dir);
         var shadowRay = new Ray(shadowOrigin, dir, time);
 
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, MathUtils.Infinity);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, MathUtils.Infinity);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dir, distance);
 
         // L / (pdf × ShadowSamples): each sample contributes 1/ShadowSamples of total energy.
-        // The N·L factor is applied by ComputeDirectLighting in Renderer (via EvaluateDirect).
+        // The N·L factor is applied by ComputeDirectLighting in Renderer (Evaluate · |N·L|).
         Vector3 attenuation = color * trans / (pdf * ShadowSamples);
         return (false, attenuation, dir, distance);
     }
@@ -121,4 +121,31 @@ public class EnvironmentLight : ILight
     /// when a BSDF ray escapes the scene and apply the MIS weight.
     /// </summary>
     public SkySettings Sky => _sky;
+
+    // ── Emission (bidirectional integrators) ────────────────────────────────
+    // The direction from the sky's own importance sampling (uniform when it
+    // has none), the origin on the scene's cross-section.
+
+    public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        e = default;
+        if (!_sky.CanSampleDirectly) return false;
+        var (toLight, color, pdf) = _sky.SampleDirectly();
+        if (!_sky.LightingModel.HasImportanceSampling) pdf = 1f / (4f * MathF.PI);
+        if (!(pdf > 0f)) return false;
+        var (origin, pdfPos) = EmissionMath.InfiniteOrigin(ctx, toLight, uPos);
+        e = new LightEmission
+        {
+            Position = origin, Direction = -toLight, Normal = Vector3.Zero, Radiance = color,
+            PdfPos = pdfPos, PdfDir = pdf, Cos = 1f, Infinite = true,
+        };
+        return color != Vector3.Zero;
+    }
+
+    public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight)
+    {
+        if (!_sky.CanSampleDirectly) return 0f;
+        float pdf = _sky.LightingModel.HasImportanceSampling ? _sky.PdfSolidAngle(-dirFromLight) : 1f / (4f * MathF.PI);
+        return EmissionMath.InfiniteDiscPdf(ctx) * pdf;
+    }
 }

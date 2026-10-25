@@ -38,13 +38,21 @@ public enum MisHeuristic
 ///   O(S) per shading point after O(N) construction.</description></item>
 ///   <item><description><b>Uniform</b> — sample one light uniformly at random. Useful
 ///   as a baseline/debug comparison against <c>Power</c>.</description></item>
+///   <item><description><b>Bvh</b> — sample one light per NEE event through a light
+///   BVH (<see cref="LightBvh"/>): the probability follows what each light can
+///   deliver at the shading point (power, distance, orientation). O(log N);
+///   the strategy for scenes with many lights.</description></item>
+///   <item><description><b>Auto</b> — <b>All</b> up to <see cref="Renderer.AutoBvhLightCount"/>
+///   lights, <b>Bvh</b> beyond.</description></item>
 /// </list>
 /// </summary>
 public enum LightSamplingStrategy
 {
     All,
     Power,
-    Uniform
+    Uniform,
+    Bvh,
+    Auto,
 }
 
 /// <summary>
@@ -62,54 +70,6 @@ public enum SssMode
     Off,
 }
 
-/// <summary>
-/// Random-walk integrator configuration. Quality presets (Phase 4 CLI:
-/// <c>--sss-quality preview|normal|high</c>) plug into the Renderer
-/// constructor by selecting one of <see cref="Preview"/>, <see cref="Normal"/>,
-/// or <see cref="High"/>. The defaults below match <see cref="Normal"/> and
-/// are tuned for the median scene (marble bust under area light).
-/// </summary>
-public readonly struct RandomWalkConfig
-{
-    /// <summary>Hard ceiling on volumetric bounces inside one entity walk.
-    /// Caps the worst-case cost on low-albedo / high-density media where
-    /// Russian Roulette alone wouldn't terminate fast enough.</summary>
-    public readonly int MaxVolumeBounces;
-
-    /// <summary>Walk-bounce index at which Russian Roulette kicks in. Earlier
-    /// bounces are guaranteed to run — this is the warmup before RR takes
-    /// over.</summary>
-    public readonly int RrStartBounce;
-
-    /// <summary>Whether to evaluate next-event estimation at internal
-    /// scattering events. Standard production setting (Cycles / Arnold).
-    /// When true, <see cref="NeeMaxBounce"/> caps which bounces actually
-    /// fire a shadow ray — the preview tier uses a small cap to get a
-    /// representative tint at minimal cost. Without NEE inside the walk,
-    /// dense SSS media (σ_t ~ 10–20) render near-black because the walk
-    /// almost never escapes with useful throughput.</summary>
-    public readonly bool NeeInsideWalk;
-
-    /// <summary>Upper bound (exclusive) on the walk bounce index at which
-    /// NEE is evaluated. The exponential attenuation across the medium
-    /// makes deep in-scattering NEE contributions negligible, so a small
-    /// cap retains the visually dominant contribution at a fraction of the
-    /// shadow-ray cost. Used by the preview tier; production tiers leave
-    /// this at <see cref="int.MaxValue"/>.</summary>
-    public readonly int NeeMaxBounce;
-
-    public RandomWalkConfig(int maxVolumeBounces, int rrStartBounce, bool neeInsideWalk, int neeMaxBounce)
-    {
-        MaxVolumeBounces = maxVolumeBounces;
-        RrStartBounce    = rrStartBounce;
-        NeeInsideWalk    = neeInsideWalk;
-        NeeMaxBounce     = neeMaxBounce;
-    }
-
-    public static RandomWalkConfig Preview => new(maxVolumeBounces: 16,  rrStartBounce: 1, neeInsideWalk: true, neeMaxBounce: 2);
-    public static RandomWalkConfig Normal  => new(maxVolumeBounces: 64,  rrStartBounce: 3, neeInsideWalk: true, neeMaxBounce: 8);
-    public static RandomWalkConfig High    => new(maxVolumeBounces: 128, rrStartBounce: 6, neeInsideWalk: true, neeMaxBounce: 16);
-}
 
 public partial class Renderer
 {
@@ -119,136 +79,112 @@ public partial class Renderer
     private readonly SkySettings _sky;
     private readonly int _maxDepth;
     private readonly int _samplesPerPixel;
-    private readonly Dictionary<Emissive, ILight> _emitterToLight;
+    private readonly LightMisTable _mis;
+    private readonly bool _hasEquiangularLights;
     private readonly EnvironmentLight? _envLight;
     private readonly IMedium? _globalMedium;
     private readonly bool _verbose;
     private readonly MisHeuristic _misHeuristic;
     private readonly LightSamplingStrategy _lightSamplingStrategy;
-    private readonly LightDistribution? _lightDist; // non-null when strategy ≠ All
+    private readonly LightDistribution? _lightDist; // non-null for power / uniform
 
-    // ── Caustics (photon mapping) ────────────────────────────────────────────
-    // Built once in the constructor from a photon-emission pre-pass when
-    // --caustics is on. Null (and _causticsActive false) otherwise, so every
-    // non-caustic scene pays exactly zero overhead and is bit-identical to off.
-    private readonly PhotonMap? _photonMap;
-    private readonly bool  _causticsActive;
-    private readonly float _causticGatherRadius;   // gather radius cap (grid cell = half of this)
-    private const    int   CausticGatherK = 40;     // k nearest photons per density estimate
-    // Cone-filter constant k_f (PBRT §16.2): photons are weighted 1 at the gather
-    // point and fall to 0 at the kernel edge, so a lone photon reads as a soft
-    // glow instead of a hard-edged flat disc. CausticConeNorm = 1 − 2/(3·k_f) is
-    // the matching density normalisation that keeps the estimate energy-consistent
-    // with the flat kernel in the dense (focused-caustic) limit.
-    private const    float CausticConeK    = 1f;
-    private const    float CausticConeNorm = 1f - 2f / (3f * CausticConeK);  // = 1/3
+    /// <summary>Above this many lights, <see cref="LightSamplingStrategy.Auto"/> uses the light BVH.</summary>
+    public const int AutoBvhLightCount = 16;
 
-    // Caustic-chain state threaded through the eye path so the photon gather and
-    // the BSDF-sampled emission are counted exactly once. None: no non-delta
-    // bounce yet (camera / pure-specular-from-camera). Diffuse: last bounce was
-    // non-delta. Suppress: a specular chain followed a diffuse vertex — that
-    // L S+ D transport is owned by the photon gather, so its mirror BSDF path
-    // (D S+ L emission) is suppressed here.
-    private const int CausticNone = 0, CausticDiffuse = 1, CausticSuppress = 2;
+    // Specular-chain state threaded through the eye path so a transparent
+    // shadow and the BSDF-sampled emission are counted exactly once. None: no
+    // non-delta bounce yet (camera / pure-specular-from-camera). Diffuse: last
+    // bounce was non-delta. Chain: a specular chain followed a diffuse vertex.
+    private const int ChainNone = 0, ChainDiffuse = 1, ChainSpecular = 2;
+    // Bit on top of the state: every event of the specular chain since the
+    // last diffuse vertex was a transmission a shadow ray also crosses (straight
+    // transmission always, any transmission with transparent shadows). Such a
+    // chain ending on a light is exactly what the light sample already
+    // delivered through the same surfaces, so its emission is dropped.
+    private const int ChainStateMask = 3, ChainShadowPassable = 4;
 
-    // ── Russian Roulette configuration ──────────────────────────────────────
-    //
-    // RR is scene-adaptive AND path-throughput based (PBRT §13.7.1, Veach §10.4):
-    // the survival probability uses the cumulative path throughput β tracked
-    // from the camera, NOT the local single-bounce attenuation. β decays
-    // multiplicatively through every bounce, so paths through dim/dark
-    // surfaces or many lossy bounces get killed aggressively, while paths
-    // that have stayed close to unit throughput are preserved. The local-
-    // attenuation form (used in the previous implementation) could not see
-    // the long-bounce decay — a 50%-grey surface chained four times has
-    // β = 0.0625 yet each local attenuation is still 0.5, so the old test
-    // kept paths alive far longer than they were contributing to the image.
-    //
-    // The renderer also detects whether the scene relies primarily on
-    // indirect/emissive light and tightens both knobs to give those paths
-    // more time to find the (rare) emissive geometry before being culled.
-    //
-    // Normal scenes (bright explicit lights):
-    //   MinBounces = 3, MinSurvival = 0.10 → max boost 10×
-    //   Direct lighting (NEE) carries most energy, indirect is correction.
-    //   Aggressive RR is fine — killed paths lose only the small indirect term.
-    //
-    // Indirect-dominant scenes (emissive-only or very dim lights):
-    //   MinBounces = 6, MinSurvival = 0.40 → max boost 2.5×
-    //   ALL energy comes from indirect bounces hitting emissive surfaces.
-    //   Aggressive RR kills paths BEFORE they find the emissive → dark spots.
-    //   Conservative RR lets more paths survive to find the light source.
-    //
-    private const int   RR_MinBounces_Normal  = 3;
-    private const float RR_MinSurvival_Normal = 0.10f;
+    // ── Transparent shadows (opt-in, PIANO-REVIEW.md §3.21) ─────────────────
+    // Off: surfaces are opaque to NEE shadow rays, except straight transmission
+    // (IOR-1 shells, thin sheets: IMaterial.TransmitsStraight), and light
+    // through glass arrives only along the BSDF paths that actually cross it
+    // (the unbiased, physically correct default; caustics included, noisy).
+    // On: shadow rays
+    // pass straight through glass, tinted by its Fresnel transmittance, a
+    // cheap and noise-free stand-in for the refracted light. To keep that
+    // approximation from adding to the real transport (the old default,
+    // which wiped out the shadow of a glass sphere), the BSDF paths
+    // "diffuse → through glass → light" are suppressed and a light sample
+    // that crossed glass takes the full MIS weight: one estimator per
+    // transport, as production renderers do with caustics disabled.
+    private readonly bool _transparentShadows;
 
-    private const int   RR_MinBounces_Indirect  = 6;
-    private const float RR_MinSurvival_Indirect = 0.40f;
+    // Scene radius the ray offsets scale with (MathUtils.SceneScale), set on
+    // every worker thread before it traces.
+    private readonly float _sceneScale;
 
-    // Below this max-channel throughput the path is numerically dead — its
-    // contribution to the final pixel is below the post-clamp / post-tone-map
-    // noise floor. Skipping the recursive TraceRay (and the BVH traversal
-    // that goes with it) is a pure win, because the radiance the call would
-    // have returned is multiplied back by β at the caller anyway.
-    private const float DeadPathThroughputEpsilon = 1e-4f;
+    // ── Path depths ─────────────────────────────────────────────────────────
+    // A path may have at most _maxDepth vertices, and at most so many
+    // bounces of each kind (PathDepths): glass needs many transmission
+    // bounces, diffuse interreflection few. Cut-outs do not count against
+    // the total, only against their own limit. Russian roulette (unbiased)
+    // ends most paths long before any limit (SurviveRoulette).
+    private readonly PathDepths _depths;
 
-    // Effective values, computed at construction based on scene analysis
-    private readonly int _rrMinBounces;
-    private readonly float _rrMinSurvival;
+    // ── Reference mode (--reference) ────────────────────────────────────────
+    // The "pure" estimator used to validate the engine against an external
+    // reference renderer: every deliberate bias is switched off (per-sample
+    // and indirect clamps, straight-through transparent shadow rays, the
+    // prefiltered HDRI for BSDF rays). Russian roulette stays on: it is
+    // unbiased, it only trades variance for speed. The CLI gives a reference
+    // render one depth for every kind of bounce and refuses the denoiser and
+    // vertex merging.
+    private readonly bool _referenceMode;
 
-    // ── Firefly suppression ─────────────────────────────────────────────────
-    // Maximum per-sample radiance (before tone mapping). Catches outliers from
-    // RR boost, Disney lobe compensation, specular caustics, and NaN/Inf edge
-    // cases. After ACES tone mapping any luminance ≳ 5 already saturates to
-    // white, so a default of 10 leaves all legitimate highlights untouched
-    // while killing the rare bright spikes that produce visible firefly noise.
-    // Aligns with the Cycles `clamp_indirect = 10` and Arnold `AA_clamp ≈ 10`
-    // industry defaults. Override via the constructor (CLI flag --clamp/-C).
-    public const float DefaultMaxSampleRadiance = 10f;
+    // Extra seed mixed into every pixel's sample sequence. 0 keeps the
+    // historical sequences (bit-identical output); any other value gives a
+    // statistically independent render of the same scene, which is what the
+    // unbiasedness test averages.
+    private readonly uint _seedMix;
+
+    // Non-finite (NaN/Inf) radiance values met and zeroed by SanitizeRadiance.
+    // Zeroing hides the symptom; the count keeps the bug visible. Static
+    // because SanitizeRadiance is: renders running concurrently in the same
+    // process (unit tests) share it, which is fine for a diagnostic.
+    private static long s_nonFiniteCount;
+
+    /// <summary>NaN/Inf radiance values zeroed during the last <see cref="Render(int,int,RenderCaptureOptions)"/>
+    /// (process-wide: includes any render running at the same time).</summary>
+    public long LastRenderNonFiniteCount { get; private set; }
+
+    // ── Firefly suppression (opt-in) ────────────────────────────────────────
+    // Maximum per-sample radiance (before tone mapping), enabled only when a
+    // value is passed (CLI flag --clamp/-C). Off by default: the threshold is
+    // an absolute radiance, so it does not single out outliers but cuts every
+    // sample brighter than it, and a scene whose lights are brighter than the
+    // threshold loses real energy (Cornell box with a radiance-20 panel: -22%,
+    // PIANO-REVIEW.md §3.20). Production renderers ship it disabled too.
+    // SuggestedMaxSampleRadiance is the value the docs propose as a starting
+    // point when fireflies must be traded for bias.
+    public const float SuggestedMaxSampleRadiance = 10f;
     private readonly float _maxSampleRadiance;
 
     // ── Depth-aware indirect firefly clamp ──────────────────────────────────
     // A second (typically tighter) clamp is applied to the indirect (bounce ≥ 1)
-    // contribution inside ShadeSurface/ShadeSampleBounce, mirroring the
-    // Cycles/Arnold "indirect clamp" feature. Default 0.25 → indirect clamp =
-    // 0.25 × primary clamp = 2.5 with the default --clamp 10, which targets
-    // caustic / specular-chain fireflies that survive the primary clamp.
-    // Set to 1.0 to disable the extra suppression.
+    // contribution (what arrives through the first vertex's bounce), mirroring the
+    // Cycles/Arnold "indirect clamp" feature. It scales the primary clamp, so
+    // it is active only together with it: 0.25 → indirect clamp = 2.5 with
+    // --clamp 10, targeting caustic / specular-chain fireflies that survive
+    // the primary clamp. Set to 1.0 to disable the extra suppression.
     //
     // CLI: --indirect-clamp-factor <f>   (e.g. 1.0 = same as primary clamp)
     public const float DefaultIndirectClampFactor = 0.25f;
     private readonly float _indirectMaxSampleRadiance;
 
-    // Threshold below which the scene is considered indirect-dominant.
-    // Expressed as the scene-averaged irradiance [Rec.709 luminance]:
-    //
-    //     Ē = Φ_total / (4π · R²)
-    //
-    // where Φ_total is the sum of `ApproximatePower(sceneBounds)` across all
-    // lights and R is the scene bounding-sphere radius. This quantity is the
-    // mean luminance landing on a sphere enclosing the scene and is invariant
-    // to scene translation and — crucially — to uniform scene scaling: point
-    // lights' 4π·I normalised by 4π·R² gives I/R², area lights' π·L·A divided
-    // by 4π·R² gives L·A/(4R²), both of which describe the "light-per-surface"
-    // that actually drives NEE convergence. Identical lighting setups classify
-    // identically regardless of the scene's world-space units.
-    //
-    // Calibration: a Cornell-like enclosed emissive-only scene (∼Ē < 0.3)
-    // stays conservative; a daylight-bright sky (Ē ≈ π/4 ≈ 0.78) or a unit-
-    // intensity directional sun (Ē ≈ 0.25 per scaled-I) in a normal-radius
-    // scene crosses the threshold; 0.5 is the midpoint that preserves the
-    // original classifier's intent on reference scenes without its
-    // scene-scale dependence.
-    private const float IndirectDominantThreshold = 0.5f;
-
-    // Clamp used on the world AABB before scene analysis. InfinitePlane reports
-    // a ±1e6 AABB (its "fake finite box" for BVH compatibility); this would
-    // dominate the bounding sphere and drive DirectionalLight / EnvironmentLight
-    // flux toward ∞ while still dividing by ∞² in the normalisation, so the
-    // classifier would silently collapse to "zero irradiance" on any scene
-    // with an infinite plane. Clamping to ±1e3 recovers a realistic finite
-    // extent for all practical YAML scenes while still accommodating
-    // architectural exteriors hundreds of units across.
+    // Clamp used on the world AABB when no finite geometry exists. InfinitePlane
+    // reports a ±1e6 AABB (its "fake finite box" for BVH compatibility); the
+    // scene radius (ray offsets, merging radius, light power of the
+    // directional and environment lights) would follow it. ±1e3 keeps a
+    // realistic finite extent.
     private const float SceneBoundsClamp = 1.0e3f;
 
     /// <summary>
@@ -261,15 +197,17 @@ public partial class Renderer
 
     private readonly bool _emitRayDifferentials;
 
+    /// <summary>Smallest share of the pixel a camera ray's differentials cover (PBRT-v4).</summary>
+    internal const float DifferentialFloor = 1f / 8f;
+
     // ── Exposure (photographic stops, EV) ──────────────────────────────────
-    // Linear multiplier applied to each pixel BEFORE the ACES tonemap. Matches
-    // the "Exposure" / "Camera exposure" knob found in Arnold (`exposure`
-    // attribute), Cycles ("Film → Exposure") and RenderMan (`exposure` on the
-    // display filter). Without this control, scenes lit above ~1.0 irradiance
-    // get squashed by ACES into a 1.2:1 contrast band where procedural
-    // textures look uniformly bright; with it, the artist dials the linear
-    // gain into the ACES sweet spot (0.4-0.7 linear) where textural variation
-    // reads properly.
+    // Linear multiplier applied to each pixel BEFORE the view transform.
+    // Matches the "Exposure" / "Camera exposure" knob found in Arnold
+    // (`exposure` attribute), Cycles ("Film → Exposure") and RenderMan
+    // (`exposure` on the display filter). Without this control, scenes lit
+    // above ~1.0 irradiance land on the shoulder of the tone curve where
+    // procedural textures look uniformly bright; with it, the artist slides
+    // the linear gain back to where textural variation reads properly.
     //
     // EV semantics: factor = 2^EV. EV = 0 (default) is identity; negative EV
     // darkens, positive brightens. Typical studio compensation for an
@@ -277,15 +215,21 @@ public partial class Renderer
     public const float DefaultExposureEv = 0f;
     private readonly float _exposureScale;
 
+    // Pixel reconstruction filter, applied by filter importance sampling: it
+    // only moves each camera sample inside the filter's footprint.
+    private readonly PixelFilter _pixelFilter;
+
+    // Exposure-scaled linear radiance → display-encoded pixel (view transform).
+    private readonly DisplayTransform _display;
+
     // ── Random-walk subsurface scattering ──────────────────────────────────
-    // Dispatched from ShadeSampleBounce when an entry refraction lands on an
+    // Dispatched from the path loop when an entry refraction lands on an
     // entity bound to a HomogeneousMedium with σ_s > 0. Off mode lets the
     // refraction fall through to the existing Beer-Lambert path (the medium
     // still tracks absorption, but does not scatter — useful for A/B testing
     // the lit appearance and for fast previews of scene composition before
     // the full walk cost). See RandomWalkSss.cs for the integrator.
     private readonly SssMode _sssMode;
-    private readonly RandomWalkConfig _walkConfig;
 
     // ── Motion blur ─────────────────────────────────────────────────────────
     // When active, each camera sample draws ONE extra sampler dimension (right
@@ -313,11 +257,20 @@ public partial class Renderer
         TextureFilteringMode textureFiltering = TextureFilteringMode.Auto,
         float exposureEv = DefaultExposureEv,
         SssMode sssMode = SssMode.Auto,
-        RandomWalkConfig? walkConfig = null,
-        bool enableCaustics = false,
-        int causticPhotons = 0,
-        MotionBlurSettings motionBlur = default)
+        MotionBlurSettings motionBlur = default,
+        bool referenceMode = false,
+        int seed = 0,
+        bool transparentShadows = false,
+        PixelFilter? pixelFilter = null,
+        DisplayTransform? displayTransform = null,
+        PathDepths? depths = null)
     {
+        _depths = depths ?? PathDepths.Uniform(maxDepth);
+        _pixelFilter = pixelFilter ?? PixelFilter.Box;
+        _display = displayTransform ?? DisplayTransform.Legacy;
+        _referenceMode = referenceMode;
+        _transparentShadows = transparentShadows && !referenceMode;
+        _seedMix = seed == 0 ? 0u : MixSeed((uint)seed);
         _world = world;
         _motionActive = motionBlur.Active;
         _shutterOpen = motionBlur.ShutterOpen;
@@ -328,11 +281,16 @@ public partial class Renderer
         _samplesPerPixel = samplesPerPixel;
         _maxDepth = maxDepth;
         _globalMedium = globalMedium;
-        _maxSampleRadiance = maxSampleRadiance ?? DefaultMaxSampleRadiance;
-        _indirectMaxSampleRadiance = _maxSampleRadiance * MathF.Max(0f, indirectClampFactor);
+        _maxSampleRadiance = referenceMode
+            ? float.PositiveInfinity
+            : maxSampleRadiance ?? float.PositiveInfinity;
+        // Without a primary clamp there is no indirect one either (and ∞ · 0
+        // would be NaN).
+        _indirectMaxSampleRadiance = float.IsPositiveInfinity(_maxSampleRadiance)
+            ? float.PositiveInfinity
+            : _maxSampleRadiance * MathF.Max(0f, indirectClampFactor);
         _exposureScale = MathF.Pow(2f, exposureEv);
         _sssMode = sssMode;
-        _walkConfig = walkConfig ?? RandomWalkConfig.Normal;
         _verbose = verbose;
         _misHeuristic = misHeuristic;
         _lightSamplingStrategy = lightSamplingStrategy;
@@ -347,109 +305,36 @@ public partial class Renderer
             _                        => true,
         };
 
-        // ── Scene analysis: detect indirect-dominant lighting ────────────
-        // Sum each light's approximate radiant flux [Rec.709 luminance] and
-        // normalise by the scene's enclosing-sphere surface area (4π R²).
-        // The resulting mean irradiance is invariant to scene scale and
-        // translation — see IndirectDominantThreshold for the full rationale.
-        //
-        // The bounding sphere is computed from the *finite* portion of the
-        // world only: InfinitePlane reports a ±1e6 AABB (a BVH-compatibility
-        // sentinel), which — unclamped — would inflate R until a scene's
-        // physical lights become invisible to the classifier. We fall back
-        // to a hard clamp only if no finite geometry exists at all.
+        // The finite part of the scene (an infinite plane's sentinel box left
+        // out): its radius scales the ray offsets and the merging radius.
         AABB sceneBounds = ComputeFiniteSceneBounds(world);
-
-        float totalFlux = 0f;
-        foreach (var light in lights)
-            totalFlux += light.ApproximatePower(sceneBounds);
-
+        _finiteSceneBounds = sceneBounds;
         Vector3 extent = sceneBounds.Max - sceneBounds.Min;
-        // Guard against degenerate single-point bounds (empty scenes,
-        // synthetic unit tests). 1e-3 floors the radius at 1 mm of world unit
-        // so the division is safe; the normalised irradiance will be huge and
-        // the scene correctly classified as direct-dominant.
         float sceneRadius = MathF.Max(0.5f * extent.Length(), 1e-3f);
-        float sphereArea  = 4f * MathF.PI * sceneRadius * sceneRadius;
-        float meanIrradiance = totalFlux / sphereArea;
+        _sceneScale = sceneRadius;
 
-        bool isIndirectDominant = meanIrradiance < IndirectDominantThreshold;
-        _rrMinBounces  = isIndirectDominant ? RR_MinBounces_Indirect  : RR_MinBounces_Normal;
-        _rrMinSurvival = isIndirectDominant ? RR_MinSurvival_Indirect : RR_MinSurvival_Normal;
-
-        // ── Caustics: emit photons and build the caustic map ─────────────────
-        // The gather radius and grid cell scale with the scene so the estimate
-        // is resolution-independent. Build returns null when no caustic photon
-        // is deposited (no specular caster in the scene) — then the gather is a
-        // no-op and the render is identical to --caustics off.
-        if (enableCaustics && causticPhotons > 0 && lights.Count > 0)
-        {
-            // The cap (~6% of the scene radius) bounds the search; the
-            // *effective* kernel radius is adaptive (the k-th nearest photon),
-            // so the focal spot stays sharp and bright. The grid cell is half
-            // the cap: the shell search probes more (cheap, mostly-empty)
-            // buckets in sparse regions, but inside a dense focal cluster the
-            // nearest-first traversal + cell pruning touch ~an order of
-            // magnitude fewer photons than radius-sized cells would.
-            _causticGatherRadius = MathF.Max(sceneRadius * 0.06f, 1e-4f);
-            // With motion blur active the photon map is a static snapshot at
-            // the shutter midpoint (see CausticPhotonTracer.Build docs).
-            float photonTime = _motionActive ? motionBlur.MidTime : 0f;
-            if (_motionActive)
-                Console.WriteLine("  Caustics:    photons traced at shutter midpoint (motion blur active)");
-            _photonMap = CausticPhotonTracer.Build(world, lights, sceneBounds, causticPhotons,
-                                                   _causticGatherRadius * 0.5f, photonTime);
-            _causticsActive = _photonMap != null;
-            if (_causticsActive)
-                Console.WriteLine($"  Caustics:    photon map ({_photonMap!.Count:N0} caustic photons)");
-            else
-                Console.WriteLine("  Caustics:    on (no caustic photons deposited — no specular casters)");
-        }
-
-        _emitterToLight = new Dictionary<Emissive, ILight>();
-        foreach (var gl in lights.OfType<GeometryLight>())
-        {
-            // Last-write-wins if the same material is shared across multiple
-            // geometry lights — that's degenerate and not expected in practice.
-            _emitterToLight[gl.Material] = gl;
-        }
-        // Sphere/area lights register a visible emissive proxy so BSDF rays
-        // can hit them (closing Veach's MIS estimator on smooth-specular
-        // surfaces — see ILight.ProxyMaterial). The proxy material is bound
-        // to its parent light here so WeightEmission can pull the light's own
-        // PdfSolidAngle for the MIS weight at the next-bounce emission.
-        foreach (var light in lights)
-        {
-            if (light.ProxyMaterial is { } proxy)
-                _emitterToLight[proxy] = light;
-        }
         _envLight = lights.OfType<EnvironmentLight>().FirstOrDefault();
 
         // Light importance sampling: build CDF for power/uniform strategies.
         // The 'all' strategy skips this — it sums every light directly.
-        if (lightSamplingStrategy != LightSamplingStrategy.All && lights.Count > 0)
+        if (lightSamplingStrategy == LightSamplingStrategy.Auto)
+            lightSamplingStrategy = lights.Count > AutoBvhLightCount ? LightSamplingStrategy.Bvh : LightSamplingStrategy.All;
+        LightBvh? lightBvh = null;
+        if (lightSamplingStrategy is LightSamplingStrategy.Power or LightSamplingStrategy.Uniform && lights.Count > 0)
         {
             bool forceUniform = lightSamplingStrategy == LightSamplingStrategy.Uniform;
             _lightDist = new LightDistribution(lights, sceneBounds, forceUniform);
         }
+        else if (lightSamplingStrategy == LightSamplingStrategy.Bvh && lights.Count > 0)
+            lightBvh = new LightBvh(lights, sceneBounds);
+        _mis = new LightMisTable(lights, _lightDist, lightBvh);
+        _hasEquiangularLights = lights.Any(l => EquiangularLight(l, out _));
 
-        // Pre-warm the Kulla-Conty energy-compensation LUT on the construction
-        // thread. Without this, the table is built lazily on first access,
-        // which in the multi-threaded render path can saturate the shared
-        // ThreadPool and deadlock. Pre-warming also moves the (~few-hundred-ms)
-        // build cost out of the wall-clock render time and into Renderer setup.
-        EnergyCompensationLut.Prewarm();
-        
-        if (isIndirectDominant)
-        {
-            Console.WriteLine($"  Lighting:    indirect-dominant (conservative RR)");
-            if (_verbose)
-            {
-                Console.WriteLine($"  RR detail:   irradiance={meanIrradiance:F3}, " +
-                                  $"flux={totalFlux:F1}, R={sceneRadius:F1}, " +
-                                  $"minBounces={_rrMinBounces}, minSurvival={_rrMinSurvival:F2}");
-            }
-        }
+        // MIS compensation of the environment map assumes every light sample
+        // shares its weight with a BSDF sample; straight-through transparent
+        // shadows let light samples own the transport behind glass.
+        if (sky.LightingModel is Sky.HdriSky hdri)
+            hdri.Map.UseMisCompensation = !_transparentShadows;
     }
 
     // Per-axis extent above which an AABB is treated as an "infinite" sentinel
@@ -503,7 +388,7 @@ public partial class Renderer
 
     /// <summary>
     /// Renders the scene using stratified (jittered) sampling for superior anti-aliasing.
-    /// Uses Parallel.For over scanlines for multi-core rendering.
+    /// Parallel over 16×16 tiles for multi-core rendering.
     /// </summary>
     public Vector3[,] Render(int width, int height)
         => Render(width, height, RenderCaptureOptions.None).Pixels;
@@ -521,8 +406,17 @@ public partial class Renderer
     /// </summary>
     public RenderResult Render(int width, int height, RenderCaptureOptions options)
     {
+        if (Integrator != IntegratorKind.Path)
+        {
+            Interlocked.Exchange(ref s_nonFiniteCount, 0);
+            return RenderBidirectional(width, height, options);
+        }
         var pixels = new Vector3[height, width];
+        // Path guiding learns before the render, on its own sample sequences.
+        if (_guide is { CanSample: false })
+            TrainGuide(width, height);
         _captureAovs = options.CaptureAovs;
+        Interlocked.Exchange(ref s_nonFiniteCount, 0);
 
         // Tile-based work partitioning: 16×16 tiles balance load far better than
         // whole scanlines (sky rows are cheap, geometry-dense centre rows
@@ -533,7 +427,7 @@ public partial class Renderer
         int totalTiles = tilesX * tilesY;
         int completedTiles = 0;
 
-        // Two pixel-sampling strategies share the same TraceRay core:
+        // Two pixel-sampling strategies share the same TracePath core:
         //
         //   • PRNG  — needs external sqrt(spp) × sqrt(spp) jittered
         //              stratification to claw back anti-aliasing the
@@ -553,13 +447,20 @@ public partial class Renderer
         //              than PRNG, the exact opposite of what shipping the
         //              sampler is supposed to buy.
         bool useSobol = Sampler.Kind == SamplerKind.Sobol;
-        int sqrtSpp = (int)MathF.Ceiling(MathF.Sqrt(_samplesPerPixel));
+        // With path guiding, the training passes are part of the budget.
+        int renderSpp = Math.Max(1, _samplesPerPixel - _guideTrainCount);
+        int sqrtSpp = (int)MathF.Ceiling(MathF.Sqrt(renderSpp));
         float invSqrtSpp = 1f / sqrtSpp;
-        int actualSamples = useSobol ? _samplesPerPixel : sqrtSpp * sqrtSpp;
+        int actualSamples = useSobol ? renderSpp : sqrtSpp * sqrtSpp;
 
+        // Path-guiding training passes are unbiased estimates of the same
+        // pixels: they join the render's (CombineGuidedPasses), with their own
+        // sample indices first. The render's own sums are kept per pixel for that.
+        int trained = _guideTrainCount;
         RenderBuffers? buffers = options.Any
-            ? new RenderBuffers(width, height, actualSamples, options.CaptureAovs)
+            ? new RenderBuffers(width, height, actualSamples + trained, options.CaptureAovs)
             : null;
+        GuidedPassSums? finalPass = trained > 0 ? new GuidedPassSums(width, height) : null;
         bool captureAovs = _captureAovs;
 
         // Progress is printed by a single dedicated reporter thread, so no worker
@@ -584,11 +485,11 @@ public partial class Renderer
 
         Parallel.For(0, totalTiles, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, tile =>
         {
-            // Per-worker switch: with photon caustics active, smooth specular
-            // transmissive surfaces are opaque to NEE shadow rays (the photon map
-            // owns that refracted light). Set on this worker before any shadow ray
-            // it casts; re-set every tile so it never leaks across renders.
-            ShadowRay.BlockSpecularTransmission = _causticsActive;
+            // Per-worker switches, set before any ray and every tile so they
+            // never leak across renders: shadow rays are opaque to glass unless
+            // transparent shadows were asked for, so light through glass
+            // arrives only along BSDF-sampled paths, the unbiased estimator.
+            PrepareWorker(tile, useSobol);
 
             int tileX = tile % tilesX;
             int tileY = tile / tilesX;
@@ -612,14 +513,16 @@ public partial class Renderer
                 // and the resulting Moiré would be more visible than plain
                 // PRNG noise — the very failure mode Owen scrambling exists
                 // to fix.
-                uint pixelSeed = (uint)(i * 73856093) ^ (uint)(j * 19349663);
+                uint pixelSeed = (uint)(i * 73856093) ^ (uint)(j * 19349663) ^ _seedMix;
 
                 // Pixel-size deltas used to build the differential rays.
-                // Scaled by sqrt(spp) so that as samples per pixel rise, the
-                // analytic filter shrinks proportionally — matching what a
-                // mathematically-correct mip pyramid would do under N×
-                // supersampling (PBRT §10.1.5).
-                float diffShrink = 1f / sqrtSpp;
+                // Scaled by 1/sqrt(spp): the samples of one pixel already
+                // average over its area, so each needs only its share of the
+                // footprint. Floored at 1/8 (PBRT-v4): below that the filter
+                // would drop under an eighth of a pixel, where the texture
+                // aliases between samples and the finest mip level thrashes
+                // the cache for no visible gain.
+                float diffShrink = MathF.Max(DifferentialFloor, 1f / sqrtSpp);
                 float dsdx = diffShrink / width;
                 float dtdy = diffShrink / height;
 
@@ -627,49 +530,26 @@ public partial class Renderer
                 {
                     for (int s = 0; s < actualSamples; s++)
                     {
-                        Sampler.BeginPixelSample(pixelSeed, (uint)s);
+                        // After the path-guiding training passes, if any (they
+                        // took the sequence's first samples).
+                        Sampler.BeginPixelSample(pixelSeed, (uint)(trained + s));
 
-                        // Let Sobol(2D) place the camera-jitter point natively.
-                        // The (0,2,2)-net property guarantees the full set of
-                        // spp points covers the pixel as a perfect stratified
-                        // grid at every power-of-two prefix.
-                        float jitterU = MathUtils.RandomFloat();
-                        float jitterV = MathUtils.RandomFloat();
-
-                        // Motion blur: one shutter-time dimension per camera
-                        // sample, drawn AFTER the pixel jitter and BEFORE the
-                        // lens so dims 0-1 keep their (0,2,2)-net pairing. Not
-                        // drawn at all when inactive — the dimension layout
-                        // (and therefore the output) stays bit-identical.
-                        float rayTime = _motionActive
-                            ? _shutterOpen + (_shutterClose - _shutterOpen) * MathUtils.RandomFloat()
-                            : 0f;
-
-                        float u = (i + jitterU) / width;
-                        float v = (height - j - 1 + jitterV) / height;
-
-                        var ray = _emitRayDifferentials
-                            ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy, rayTime)
-                            : _camera.GetRay(u, v, rayTime);
-                        // Fresh medium stack per camera ray. The camera origin
-                        // is assumed to be in vacuum / the global medium —
-                        // entities along the ray push/pop their interior media
-                        // as the path refracts through them.
-                        var mediums = new MediumStack();
-                        // Per-ray dielectric IOR stack, empty at the camera (the
-                        // camera origin is assumed in air, η = 1); dielectrics
-                        // push/pop their IOR as the path refracts through them.
-                        var iors = new IorStack();
+                        // Sobol(2D) places the camera-jitter point natively:
+                        // the (0,2,2)-net property covers the pixel as a
+                        // stratified grid at every power-of-two prefix, and the
+                        // filter maps each axis monotonically. The shutter time
+                        // (motion blur only) comes after the jitter and before
+                        // the lens, so dims 0-1 keep their pairing.
+                        var ray = CameraSample(i, j, width, height, dsdx, dtdy);
                         if (captureAovs) (t_aovProbe ??= new AovProbe()).Reset();
-                        Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true,
-                                                   ref mediums, ref iors,
-                                                   pathThroughput: Vector3.One);
+                        Vector3 sample = TracePath(ray);
 
                         Sampler.EndPixelSample();
 
                         sample = ClampRadiance(sample);
                         cumulativeColor += sample;
-                        if (buffers != null) capAcc.Add(sample, s, captureAovs);
+                        if (buffers != null) capAcc.Add(sample, trained + s, captureAovs);
+                        finalPass?.Add(i, j, trained + s, sample);
                     }
                 }
                 else
@@ -688,38 +568,35 @@ public partial class Renderer
                                 ? _shutterOpen + (_shutterClose - _shutterOpen) * MathUtils.RandomFloat()
                                 : 0f;
 
-                            float u = (i + jitterU) / width;
-                            float v = (height - j - 1 + jitterV) / height;
+                            float u = (i + _pixelFilter.SamplePosition(jitterU)) / width;
+                            float v = (height - j - 1 + _pixelFilter.SamplePosition(jitterV)) / height;
 
                             var ray = _emitRayDifferentials
                                 ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy, rayTime)
                                 : _camera.GetRay(u, v, rayTime);
-                            var mediums = new MediumStack();
-                            var iors = new IorStack();
                             if (captureAovs) (t_aovProbe ??= new AovProbe()).Reset();
-                            Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true,
-                                                       ref mediums, ref iors,
-                                                       pathThroughput: Vector3.One);
+                            Vector3 sample = TracePath(ray);
 
                             sample = ClampRadiance(sample);
                             cumulativeColor += sample;
-                            if (buffers != null) capAcc.Add(sample, sy * sqrtSpp + sx, captureAovs);
+                            if (buffers != null) capAcc.Add(sample, trained + sy * sqrtSpp + sx, captureAovs);
+                            finalPass?.Add(i, j, trained + sy * sqrtSpp + sx, sample);
                         }
                     }
                 }
 
                 Vector3 linearColor = cumulativeColor / actualSamples;
                 // Apply the photographic exposure (linear gain = 2^EV) BEFORE
-                // ACES. Doing it pre-tonemap means the artist's EV slides the
-                // scene into the linear sweet-spot of the ACES curve where
-                // 0.18 grey maps to ≈ 0.18 grey and procedural textures keep
-                // their full contrast, instead of being squashed into the
-                // 0.85-0.99 plateau when scene irradiance lands above 1.0.
-                pixels[j, i] = AcesToneMap(linearColor * _exposureScale);
+                // the view transform, so the artist's EV slides the scene
+                // along the tone curve instead of rescaling display values.
+                pixels[j, i] = _display.Apply(linearColor * _exposureScale);
                 if (buffers != null)
-                    capAcc.Store(buffers, i, j, linearColor, actualSamples);
+                    capAcc.Store(buffers, i, j, linearColor, actualSamples + trained);
             }
 
+            // Pool threads outlive the render: never leave reference mode or
+            // this scene's ray offsets on for whatever else runs here next.
+            ReleaseWorker();
             Interlocked.Increment(ref completedTiles);
         });
 
@@ -728,13 +605,16 @@ public partial class Renderer
         if (lastReported != totalTiles)
             Console.Write($"\r  Rendering: 100.0% ({totalTiles}/{totalTiles} tiles)   ");
         Console.WriteLine();
+        if (finalPass != null)
+            CombineGuidedPasses(finalPass, actualSamples, trained, pixels, buffers);
         _captureAovs = false;
+        LastRenderNonFiniteCount = Interlocked.Read(ref s_nonFiniteCount);
         return new RenderResult { Pixels = pixels, Buffers = buffers };
     }
 
     /// <summary>
-    /// Applies the renderer's display transform (exposure gain → ACES filmic →
-    /// gamma 2.2) to a linear-HDR beauty buffer. Uses the exact same per-pixel
+    /// Applies the renderer's display transform (exposure gain → white balance
+    /// → view transform → display encoding) to a linear-HDR beauty buffer. Uses the exact same per-pixel
     /// math as the in-loop path, so tone-mapping a captured (or denoised)
     /// beauty buffer reproduces the legacy output for unchanged radiance.
     /// </summary>
@@ -745,7 +625,7 @@ public partial class Renderer
         Parallel.For(0, h, j =>
         {
             for (int i = 0; i < w; i++)
-                pixels[j, i] = AcesToneMap(linearBeauty.GetRgb(i, j) * _exposureScale);
+                pixels[j, i] = _display.Apply(linearBeauty.GetRgb(i, j) * _exposureScale);
         });
         return pixels;
     }
@@ -760,8 +640,8 @@ public partial class Renderer
     // image) is identical with capture on or off.
     private bool _captureAovs;
 
-    // Per-thread probe for the camera path currently being traced. TraceRay
-    // recursion stays on one thread, so thread-static state is safe; the probe
+    // Per-thread probe for the camera path currently being traced. A path
+    // stays on one thread, so thread-static state is safe; the probe
     // object is allocated once per worker and reset per camera sample.
     [ThreadStatic] private static AovProbe? t_aovProbe;
 
@@ -825,12 +705,14 @@ public partial class Renderer
         private Vector3 _albA, _albB, _nrmA, _nrmB;
         private float _depA, _depB;
         private int _depCntA, _depCntB;
+        private int _aovCntA, _aovCntB;
 
         public void Add(Vector3 sample, int sampleIndex, bool aovs)
         {
             bool isA = (sampleIndex & 1) == 0;
             if (isA) _sumA += sample; else _sumB += sample;
             if (!aovs) return;
+            if (isA) _aovCntA++; else _aovCntB++;
 
             var p = t_aovProbe!;
             // Paths that ended without a non-delta vertex (RR kill, emissive
@@ -867,12 +749,15 @@ public partial class Renderer
             buffers.SampleCount[y * buffers.Width + x] = samples;
 
             if (!buffers.HasAovs) return;
-            Vector3 albA = _albA / nA;
-            Vector3 albB = nB > 0 ? _albB / nB : albA;
-            Vector3 nrmA = _nrmA / nA;
-            Vector3 nrmB = nB > 0 ? _nrmB / nB : nrmA;
+            // The guides come from the render's own samples only (training
+            // samples carry no guides), so they divide by their own counts.
+            int aA = Math.Max(_aovCntA, 1), aB = _aovCntB;
+            Vector3 albA = _albA / aA;
+            Vector3 albB = aB > 0 ? _albB / aB : albA;
+            Vector3 nrmA = _nrmA / aA;
+            Vector3 nrmB = aB > 0 ? _nrmB / aB : nrmA;
             float depA = _depCntA > 0 ? _depA / _depCntA : -1f;
-            float depB = nB > 0 ? (_depCntB > 0 ? _depB / _depCntB : -1f) : depA;
+            float depB = aB > 0 ? (_depCntB > 0 ? _depB / _depCntB : -1f) : depA;
             buffers.AlbedoA!.SetRgb(x, y, albA);
             buffers.AlbedoB!.SetRgb(x, y, albB);
             buffers.NormalA!.SetRgb(x, y, nrmA);
@@ -886,40 +771,32 @@ public partial class Renderer
     private static Vector3 Clamp01(Vector3 v) => Vector3.Clamp(v, Vector3.Zero, Vector3.One);
 
     /// <summary>
-    /// ACES filmic tone mapping followed by gamma 2.2 correction.
-    /// Provides natural highlight rolloff and richer colors compared to simple sqrt gamma.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector3 AcesToneMap(Vector3 color)
-    {
-        color = Vector3.Max(color, Vector3.Zero);
-
-        // ACES filmic curve: (x * (2.51x + 0.03)) / (x * (2.43x + 0.59) + 0.14)
-        Vector3 a = color * (2.51f * color + new Vector3(0.03f));
-        Vector3 b = color * (2.43f * color + new Vector3(0.59f)) + new Vector3(0.14f);
-        Vector3 mapped = new Vector3(a.X / b.X, a.Y / b.Y, a.Z / b.Z);
-
-        const float invGamma = 1f / 2.2f;
-        return new Vector3(
-            MathF.Pow(Math.Clamp(mapped.X, 0f, 1f), invGamma),
-            MathF.Pow(Math.Clamp(mapped.Y, 0f, 1f), invGamma),
-            MathF.Pow(Math.Clamp(mapped.Z, 0f, 1f), invGamma));
-    }
-
-    /// <summary>
     /// Replaces NaN/Inf components with zero and floors negatives at zero.
     /// Idempotent — applying it more than once is a no-op — so it is safe to
-    /// run at every returning recursion frame to stop a non-finite value from
-    /// poisoning the throughput-driven dead-path test or the pixel accumulator,
+    /// run on every contribution to stop a non-finite value from poisoning the
+    /// path's sums or the pixel accumulator,
     /// without introducing the bias a repeated *magnitude* clamp would.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector3 SanitizeRadiance(Vector3 color)
     {
-        if (float.IsNaN(color.X) || float.IsInfinity(color.X)) color.X = 0f;
-        if (float.IsNaN(color.Y) || float.IsInfinity(color.Y)) color.Y = 0f;
-        if (float.IsNaN(color.Z) || float.IsInfinity(color.Z)) color.Z = 0f;
+        if (!float.IsFinite(color.X) || !float.IsFinite(color.Y) || !float.IsFinite(color.Z))
+        {
+            Interlocked.Increment(ref s_nonFiniteCount);
+            if (!float.IsFinite(color.X)) color.X = 0f;
+            if (!float.IsFinite(color.Y)) color.Y = 0f;
+            if (!float.IsFinite(color.Z)) color.Z = 0f;
+        }
         return Vector3.Max(color, Vector3.Zero);
+    }
+
+    /// <summary>Murmur3 finaliser: spreads a small user seed over all 32 bits.</summary>
+    private static uint MixSeed(uint x)
+    {
+        x ^= x >> 16; x *= 0x85ebca6bu;
+        x ^= x >> 13; x *= 0xc2b2ae35u;
+        x ^= x >> 16;
+        return x == 0 ? 1u : x;
     }
 
     /// <summary>
@@ -978,8 +855,8 @@ public partial class Renderer
     // ═════════════════════════════════════════════════════════════════════════
     // Multiple Importance Sampling (Veach, balance heuristic)
     //
-    // Each bounce threads forward (prevBsdfPdf, prevIsDelta) to the next
-    // ShadeSurface / sky miss. This encodes three cases:
+    // Each bounce carries forward (PrevPdf, PrevIsDelta) to the next surface
+    // hit or sky miss of the path loop. This encodes two cases:
     //
     //   prevIsDelta = true                 Emission is shown at full weight.
     //                                      Used for camera rays and for pure-
@@ -990,402 +867,15 @@ public partial class Renderer
     //   prevIsDelta = false, pdf > 0       Proper MIS balance-heuristic weight
     //                                      on any emission. w_bsdf = pdf /
     //                                      (pdf + p_light). Used for materials
-    //                                      that expose IMaterial.Sample() and
-    //                                      return a non-delta reflection sample
-    //                                      (Disney BSDF today).
-    //
-    //   prevIsDelta = false, pdf = 0       Legacy "NEE replaced emission" mode
-    //                                      for materials that only expose
-    //                                      Scatter() (Lambert, Metal, Dielectric).
-    //                                      Emission from NEE-registered emitters
-    //                                      is zeroed; unregistered emissives keep
-    //                                      their full emission. This preserves
-    //                                      the pre-MIS behavior without double-
-    //                                      counting until those materials are
-    //                                      migrated to the Sample() API.
+    //                                      return a non-delta sample. Emitters no
+    //                                      light sampler can reach (not
+    //                                      registered) keep their full weight.
     // ═════════════════════════════════════════════════════════════════════════
-
-    private Vector3 ShadeSurface(in Ray ray, ref HitRecord rec, int depth,
-                                  float prevBsdfPdf, bool prevIsDelta,
-                                  Vector3 currentAbsorption,
-                                  Vector3 pathThroughput,
-                                  ref MediumStack mediums,
-                                  ref IorStack iors,
-                                  int causticState)
-    {
-        IMaterial? material = rec.Material;
-
-        // Capture the unperturbed (world-space, post-transform, post-interpolation)
-        // shading normal before the normal/bump/autobump passes overwrite it. This
-        // is the geometric reference for shadow-terminator softening below.
-        rec.ShadingNg = rec.Normal;
-
-        // ── Normal map perturbation ─────────────────────────────────────────
-        if (material?.NormalMap != null && rec.Tangent.LengthSquared() > 0.5f)
-        {
-            ApplyNormalMap(ref rec, material.NormalMap);
-        }
-
-        // ── Bump map perturbation (after normal map, Arnold/Cycles order) ──
-        if (material?.BumpMap != null && rec.Tangent.LengthSquared() > 0.5f)
-        {
-            ApplyBumpMap(ref rec, material.BumpMap);
-        }
-
-        // ── Autobump (mesh-level, step 5 of the surface-displacement stack) ──
-        // Applied AFTER the material's bump map so the composition order is
-        //     normal_map → material.bump_map → mesh.autobump
-        // on top of the already-displaced geometry. This is the
-        // "macro silhouette via displacement, sub-pixel detail via autobump"
-        // workflow Arnold pioneered with autobump_visibility — and it keeps
-        // a clearcoat normal map (Disney) independent, by design.
-        if (rec.AutoBump != null && rec.Tangent.LengthSquared() > 0.5f)
-        {
-            ApplyBumpMap(ref rec, rec.AutoBump);
-        }
-
-        // ── AOV tentative surface ───────────────────────────────────────────
-        // Normal is recorded post normal/bump/autobump perturbation (world
-        // space). Whether this surface actually commits is decided at the
-        // bounce below — delta scatters keep following the specular chain.
-        if (_captureAovs && t_aovProbe is { Pending: true } aovProbe)
-        {
-            aovProbe.TentNormal = rec.Normal;
-            aovProbe.TentAlbedo = material != null ? Clamp01(material.AovAlbedo(in rec)) : Vector3.One;
-        }
-
-        // ── Emission (MIS-weighted) ─────────────────────────────────────────
-        // Suppress emission reached through a diffuse→specular-chain (state
-        // Suppress): that focused L S+ D transport is already supplied by the
-        // photon gather at the originating diffuse vertex, so counting the
-        // mirror BSDF path here would double it.
-        Vector3 emitted = Vector3.Zero;
-        if (material != null && !(_causticsActive && causticState == CausticSuppress))
-        {
-            Vector3 raw = material.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
-            if (raw.X > 0f || raw.Y > 0f || raw.Z > 0f)
-            {
-                emitted = WeightEmission(raw, material, ray, prevBsdfPdf, prevIsDelta);
-            }
-        }
-
-        // viewDir is shared between NEE direct-lighting and the indirect
-        // bounce's material.Sample() — compute it once and pass it down.
-        // Previously each surface hit Normalized -ray.Direction twice
-        // (once in ComputeDirectLighting, once below at the Sample call).
-        Vector3 viewDir = Vector3.Normalize(-ray.Direction);
-
-        // ── Relative-IOR resolution (nested dielectrics) ────────────────────
-        // Stamp the relative refraction ratio η_incident/η_transmitted onto the
-        // hit from the per-ray IorStack so transmissive materials bend/Fresnel
-        // against the medium the ray is actually inside (e.g. wine against
-        // glass), not always air. Resolved here, before Sample/Scatter consume
-        // it. Front face = entering the material (outside = current medium,
-        // IorStack.Top); back face = exiting it into the enclosing medium
-        // (IorStack.Enclosing). With air outside (Top/Enclosing == 1) this
-        // reduces to 1/n (front) and n (back) — bit-identical to legacy.
-        if (material != null && material.TryGetDielectricIor(in rec, out float matIor) && matIor > 0f)
-        {
-            rec.RelativeEta = rec.FrontFace ? (iors.Top / matIor) : (matIor / iors.Enclosing);
-        }
-
-        // ── Direct lighting (Next Event Estimation, MIS-weighted) ───────────
-        bool needsLightSampling = material?.NeedsDirectLighting ?? true;
-        // Resolve the medium the surface sits in (stack top, else global) so
-        // shadow-ray transmittance is attenuated correctly even inside an
-        // entity-bound participating medium — not just the global medium.
-        IMedium? shadowMedium = mediums.Top ?? _globalMedium;
-        IHittable? shadowMediumEntity = mediums.Top != null ? mediums.TopEntity : null;
-        Vector3 directLight = needsLightSampling
-            ? ComputeDirectLighting(in rec, viewDir, material, shadowMedium, shadowMediumEntity)
-            : Vector3.Zero;
-
-        // Focused-caustic radiance from the photon map at this diffuse/glossy
-        // receiver. Folded into directLight so every return path below carries
-        // it and the recursion scales it by the path throughput. Skipped on
-        // delta surfaces (mirror/glass) — no photons land there and the BRDF is
-        // zero — and when caustics are inactive (zero overhead).
-        if (_causticsActive && needsLightSampling && material != null && !material.IsDeltaScatter)
-            directLight += GatherCaustics(in rec, viewDir, material);
-
-        if (material == null)
-            return emitted + directLight;
-
-        // ── Indirect bounce ─────────────────────────────────────────────────
-        // Prefer the Sample() API when the material implements it — it gives
-        // us a well-defined BSDF PDF for MIS at the next bounce. Fall back to
-        // Scatter() for legacy materials (Lambert, Metal, Dielectric, Mix)
-        // which still use the IsDeltaScatter-encoded suppression convention.
-        BsdfSample? mis = material.Sample(viewDir, rec);
-        if (mis.HasValue)
-        {
-            return ShadeSampleBounce(material, in rec, mis.Value, depth, emitted, directLight,
-                                     currentAbsorption, pathThroughput, ref mediums, ref iors,
-                                     causticState);
-        }
-
-        if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
-        {
-            // Motion blur: materials build scattered rays without a time (the
-            // renderer owns time propagation — see Ray.Time); re-stamp the
-            // path time here so the bounce samples the same frozen instant.
-            scattered = scattered.WithTime(ray.Time);
-
-            // ── AOV first-non-delta decision (legacy Scatter path) ──────────
-            // Delta bounces fold their tint into the running albedo weight and
-            // stay pending; the first non-delta bounce commits this surface.
-            // Captured before Russian Roulette boosts attenuation, so the AOV
-            // guides stay RR-noise-free.
-            if (_captureAovs && t_aovProbe is { Pending: true } scatterProbe)
-            {
-                if (material.IsDeltaScatter)
-                    scatterProbe.AlbedoWeight *= Clamp01(attenuation);
-                else
-                    scatterProbe.Commit();
-            }
-
-            // Path-throughput-based RR (PBRT §13.7.1). Survival probability is
-            // driven by the cumulative β projected into this bounce, not the
-            // local single-bounce attenuation. This kills paths whose total
-            // contribution to the image has decayed through repeated dim
-            // bounces, even when the current attenuation is moderate.
-            Vector3 nextThroughput = pathThroughput * attenuation;
-            int bouncesUsed = _maxDepth - depth;
-            if (bouncesUsed >= _rrMinBounces)
-            {
-                float survivalProb = MathF.Max(nextThroughput.X,
-                                       MathF.Max(nextThroughput.Y, nextThroughput.Z));
-                survivalProb = MathF.Max(survivalProb, _rrMinSurvival);
-                survivalProb = MathF.Min(survivalProb, 0.95f);
-                if (MathUtils.RandomFloat() > survivalProb)
-                    return emitted + directLight;
-                float invSurvival = 1f / survivalProb;
-                attenuation *= invSurvival;
-                nextThroughput *= invSurvival;
-            }
-
-            // IsDeltaScatter materials (mirror/refraction) emit a delta bounce,
-            // so emission passes through at full weight at the next hit. Non-
-            // delta Scatter materials rely on the legacy "NEE replaced emission"
-            // convention (prevBsdfPdf = 0) to suppress double-counting.
-            bool nextIsDelta = material.IsDeltaScatter;
-            // Legacy Scatter materials don't participate in volume stacking —
-            // they don't emit medium-switch signals. Pass through the incoming
-            // currentAbsorption so any enclosing Disney-glass interior still
-            // absorbs along the continued ray segment.
-            RayCategory nextCat = ClassifyScatteredRay(rec.Normal, scattered.Direction, nextIsDelta);
-            // Legacy Scatter() materials don't emit a MediumTransition signal,
-            // so the medium stack is forwarded unchanged. Refractive Scatter
-            // bounces through a glass Dielectric continue to use the legacy
-            // currentAbsorption back-compat path until the material is
-            // migrated to BsdfSample (Phase 2 / 3 of the SSS rollout).
-            //
-            // Relative-IOR (nested dielectrics): Scatter materials carry no
-            // transition signal, so detect a refractive crossing here — a
-            // transmission is the only case where the chosen direction ends up
-            // on the far side of the shading normal. On a front-face
-            // transmission push the material's IOR; on a back-face transmission
-            // pop. Copy-on-write so the caller's stack survives the return.
-            // Reflections (and non-dielectrics) leave the stack untouched.
-            IorStack nextIors = iors;
-            if (material.TryGetDielectricIor(in rec, out float scatterIor)
-                && Vector3.Dot(scattered.Direction, rec.Normal) < 0f)
-            {
-                if (rec.FrontFace) nextIors.Push(scatterIor);
-                else               nextIors.Pop();
-            }
-            Vector3 indirect = TraceRay(scattered, depth - 1,
-                                         prevBsdfPdf: 0f, prevIsDelta: nextIsDelta,
-                                         ref mediums, ref nextIors,
-                                         currentAbsorption: currentAbsorption,
-                                         pathThroughput: nextThroughput,
-                                         incomingCategory: nextCat,
-                                         causticState: NextCausticState(causticState, nextIsDelta));
-            // Sanitize NaN/Inf every frame (idempotent — no bias); the magnitude
-            // firefly clamp is applied once, camera-relative, below.
-            indirect = SanitizeRadiance(indirect);
-            // PBRT/Arnold convention: direct lighting is the standalone
-            // rendering-equation integrand at the shadow-ray direction
-            // (computed by ComputeDirectLighting above), and the scatter
-            // attenuation weights ONLY the indirect path. Multiplying
-            // direct lighting by the BSDF importance weight from a
-            // randomly-sampled bounce direction couples two independent
-            // estimators and biases the direct contribution for any
-            // direction-dependent BSDF (Disney diffuse retro-reflection,
-            // GGX specular, Charlie sheen). The legacy multiplied form
-            // happened to be correct only for Lambertian (constant
-            // attenuation == albedo); the new form is unbiased for every
-            // material whose EvaluateDirect returns the full BRDF·cosθ.
-            Vector3 contribution = attenuation * indirect;
-            // Depth-aware indirect clamp applied ONCE at the primary surface on
-            // the post-BSDF contribution (see ClampRadianceIndirect).
-            if (depth == _maxDepth)
-                contribution = ClampRadianceIndirect(contribution);
-            return emitted + directLight + contribution;
-        }
-
-        return emitted + directLight;
-    }
-
-    /// <summary>
-    /// Handles an indirect bounce using the material.Sample() path — produces
-    /// a direction with an explicit BSDF PDF, applies Russian Roulette, and
-    /// recurses into TraceRay with the MIS metadata.
-    /// </summary>
-    private Vector3 ShadeSampleBounce(IMaterial material, in HitRecord rec,
-                                       BsdfSample s, int depth,
-                                       Vector3 emitted, Vector3 directLight,
-                                       Vector3 currentAbsorption,
-                                       Vector3 pathThroughput,
-                                       ref MediumStack mediums,
-                                       ref IorStack iors,
-                                       int causticState)
-    {
-        Vector3 attenuation;
-        if (s.IsDelta)
-        {
-            // Delta lobe: F already carries the full attenuation (Fresnel ×
-            // baseColor tint for transmission, etc.). No cos or pdf factor.
-            attenuation = s.F;
-        }
-        else
-        {
-            // Non-delta sample. |NdotWo| handles both reflection (upper
-            // hemisphere) and diffuse-transmission samples (lower hemisphere
-            // for Disney's diff_trans lobe — Lambertian back-side scattering
-            // through foliage / paper / fabric). The BSDF importance weight
-            // is f · |cosθ| / pdf in both cases; the sign of NdotWo is
-            // already captured by the BRDF / Pdf branch on hemisphere.
-            float NdotWo = Vector3.Dot(rec.Normal, s.Wo);
-            float absNdotWo = MathF.Abs(NdotWo);
-            if (absNdotWo <= 0f || s.Pdf <= 0f)
-                return emitted + directLight;
-            attenuation = s.F * absNdotWo / s.Pdf;
-        }
-
-        // ── AOV first-non-delta decision (Sample path) ──────────────────────
-        // Mirrors the legacy Scatter hook: delta lobes accumulate their tint
-        // (s.F carries the full delta attenuation) and stay pending, the first
-        // non-delta lobe commits the tentative surface. Before RR, so the AOV
-        // guides stay RR-noise-free.
-        if (_captureAovs && t_aovProbe is { Pending: true } aovProbe)
-        {
-            if (s.IsDelta)
-                aovProbe.AlbedoWeight *= Clamp01(s.F);
-            else
-                aovProbe.Commit();
-        }
-
-        // Path-throughput-based RR (PBRT §13.7.1). See ShadeSurface above for
-        // the full rationale.
-        Vector3 nextThroughput = pathThroughput * attenuation;
-        int bouncesUsed = _maxDepth - depth;
-        if (bouncesUsed >= _rrMinBounces)
-        {
-            float survivalProb = MathF.Max(nextThroughput.X,
-                                   MathF.Max(nextThroughput.Y, nextThroughput.Z));
-            survivalProb = MathF.Max(survivalProb, _rrMinSurvival);
-            survivalProb = MathF.Min(survivalProb, 0.95f);
-            if (MathUtils.RandomFloat() > survivalProb)
-                return emitted + directLight;
-            float invSurvival = 1f / survivalProb;
-            attenuation *= invSurvival;
-            nextThroughput *= invSurvival;
-        }
-
-        // Offset ray origin on the side of the normal that matches the outgoing
-        // direction — transmission bounces sit on the far side of the surface.
-        Vector3 offsetDir = Vector3.Dot(s.Wo, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
-        var scattered = new Ray(MathUtils.OffsetOrigin(rec.Point, offsetDir), s.Wo, rec.Time);
-
-        float nextPdf = s.IsDelta ? 0f : s.Pdf;
-        bool nextIsDelta = s.IsDelta;
-        // Interior-medium switch: refraction samples emit NextSegmentAbsorption
-        // to tell the renderer to switch the σ_a tracked along the next segment
-        // (entering glass → σ_a; exiting → vacuum). Reflection samples keep
-        // the caller's currentAbsorption untouched.
-        Vector3 nextAbsorption = s.NextSegmentAbsorption ?? currentAbsorption;
-        RayCategory nextCat = ClassifyScatteredRay(rec.Normal, s.Wo, s.IsDelta);
-
-        // ── SSS dispatch (Phase 3: Random Walk integrator) ──────────────────
-        // On entry into geometry bound to a scattering HomogeneousMedium, the
-        // sample's refraction direction enters that medium's volume. Instead
-        // of letting TraceRay drive a single-channel free-flight sampler we
-        // hand off to the dedicated hero-wavelength + MIS random walk, which
-        // is restricted to the bound entity and produces the spectrally
-        // unbiased subsurface contribution. See RandomWalkSss.cs.
-        Vector3 indirect;
-        if (s.Transition == MediumTransition.Enter || s.Transition == MediumTransition.Exit)
-        {
-            // Medium-stack transition (MediumInterface, Phase 1): copy-on-write
-            // so the caller's stack stays intact when the recursion returns.
-            // Entering a refractive boundary pushes the geometry's interior
-            // medium (carrying rec.EntityRoot, stamped by MediumBoundHittable,
-            // so NEE from inside the medium can clip its shadow-ray
-            // transmittance to the in-medium segment); exiting pops the top.
-            // Only refractive transitions need the ~struct copy — reflection /
-            // opaque samples leave the stack unchanged and skip it below.
-            MediumStack nextMediums = mediums;
-            if (s.Transition == MediumTransition.Enter)
-                nextMediums.Push(ResolvePushedMedium(rec.MediumIface.Interior), rec.EntityRoot);
-            else
-                nextMediums.Pop();
-
-            // Relative-IOR (nested dielectrics): the same refractive transition
-            // pushes/pops the material's IOR on the dedicated IorStack, sourced
-            // from the material (not from MediumIface, which is null for plain
-            // glass). Copy-on-write so the caller's stack survives the return.
-            IorStack nextIors = iors;
-            if (s.Transition == MediumTransition.Enter)
-                nextIors.Push(material.TryGetDielectricIor(in rec, out float pushIor) ? pushIor : iors.Top);
-            else
-                nextIors.Pop();
-
-            if (_sssMode == SssMode.Auto
-                && s.Transition == MediumTransition.Enter
-                && nextMediums.Top is HomogeneousMedium hmInterior
-                && IsScatteringMedium(hmInterior)
-                && rec.EntityRoot is { } entityRoot)
-            {
-                indirect = RandomWalkSubsurface(scattered, hmInterior, entityRoot,
-                                                 ref nextMediums, ref nextIors, depth - 1, nextThroughput);
-            }
-            else
-            {
-                indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
-                                     ref nextMediums, ref nextIors,
-                                     currentAbsorption: nextAbsorption,
-                                     pathThroughput: nextThroughput,
-                                     incomingCategory: nextCat,
-                                     causticState: NextCausticState(causticState, s.IsDelta));
-            }
-        }
-        else
-        {
-            // No medium transition (reflection / opaque sample): the stack is
-            // unchanged, so recurse against the caller's stack directly rather
-            // than copying the whole MediumStack on every such bounce — exactly
-            // what the legacy Scatter() path already does.
-            indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
-                                 ref mediums, ref iors,
-                                 currentAbsorption: nextAbsorption,
-                                 pathThroughput: nextThroughput,
-                                 incomingCategory: nextCat,
-                                 causticState: NextCausticState(causticState, s.IsDelta));
-        }
-        // Sanitize NaN/Inf every frame (idempotent); magnitude clamp applied
-        // once, camera-relative, below — see ShadeSurface's Scatter path.
-        indirect = SanitizeRadiance(indirect);
-        Vector3 contribution = attenuation * indirect;
-        if (depth == _maxDepth)
-            contribution = ClampRadianceIndirect(contribution);
-        return emitted + directLight + contribution;
-    }
 
     /// <summary>
     /// Maps a <see cref="RayCategory"/> to the matching
     /// <see cref="HitVisibilityMask"/> bit. Used by the visibility-skip loop
-    /// at the top of <see cref="TraceRay"/> and by
+    /// of <see cref="FindVisibleHit"/> and by
     /// <see cref="Geometry.ShadowRay.Transmittance"/> to translate "the ray
     /// the caller is tracing" into "the bit that, if set on a hit, means
     /// skip this surface".
@@ -1405,7 +895,7 @@ public partial class Renderer
     /// Picks a <see cref="RayCategory"/> for a recursive bounce given the
     /// direction it scattered into and whether the BSDF lobe was a delta
     /// (mirror / perfect refraction). Used by the indirect bounce paths to
-    /// label the next <see cref="TraceRay"/> call so the
+    /// label the next ray of the path so the
     /// <see cref="HitVisibilityMask"/> skip works one bounce later.
     ///
     /// <para>Best-effort approximation: non-delta reflection rays are
@@ -1424,379 +914,101 @@ public partial class Renderer
     }
 
     /// <summary>
-    /// Advances the caustic-chain state across a bounce. A non-delta bounce
-    /// (re)starts a diffuse vertex; a delta bounce promotes a diffuse vertex
-    /// into the suppress state (specular chain after a diffuse hit) and keeps a
-    /// pure-from-camera specular chain in <see cref="CausticNone"/> so a mirror's
-    /// view of a light is never suppressed.
+    /// Advances the specular-chain state across a bounce. A non-delta bounce
+    /// (re)starts a diffuse vertex; a delta bounce turns a diffuse vertex into
+    /// a chain (specular after a diffuse hit) and keeps a pure-from-camera
+    /// specular chain in <see cref="ChainNone"/> so a mirror's view of a light
+    /// is never suppressed.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int NextCausticState(int state, bool isDelta)
+    private static int NextChainState(int state, bool isDelta, bool shadowPassable)
     {
-        if (!isDelta) return CausticDiffuse;
-        return state == CausticNone ? CausticNone : CausticSuppress;
+        if (!isDelta) return ChainDiffuse;
+        int s = state & ChainStateMask;
+        if (s == ChainNone) return ChainNone;
+        bool chainPassable = shadowPassable && (s == ChainDiffuse || (state & ChainShadowPassable) != 0);
+        return ChainSpecular | (chainPassable ? ChainShadowPassable : 0);
     }
 
     /// <summary>
-    /// Density estimate of the focused-caustic radiance reflected toward
-    /// <paramref name="viewDir"/> at a diffuse/glossy receiver: gathers the
-    /// k nearest caustic photons and sums <c>f_r(ω_p, ω_o)·Φ_p</c> over the disc
-    /// of the adaptive kernel radius (Jensen's estimator,
-    /// <c>L = Σ f_r·Φ / (π r²)</c>). Returns zero when caustics are inactive or
-    /// no photon lies within the radius cap. Allocation-free (the bounded
-    /// max-heap lives in stack spans).
-    /// </summary>
-    private Vector3 GatherCaustics(in HitRecord rec, Vector3 viewDir, IMaterial material)
-    {
-        PhotonMap? map = _photonMap;
-        if (map == null) return Vector3.Zero;
-
-        // Adaptive-radius gather: expanding-shell search over the cell
-        // neighbourhood (nearest cells first, whole cells pruned once the heap
-        // is full) using the distance to the k-th nearest photon as the kernel
-        // radius, so the focal spot — where photons cluster tightly — gets a
-        // small radius and a bright, sharp caustic, while sparse regions stay
-        // dim. Fast in empty regions (empty buckets) and returns zero where
-        // there is nothing to gather.
-        Span<int>   idx  = stackalloc int[CausticGatherK];
-        Span<float> heap = stackalloc float[CausticGatherK];
-        int count = map.GatherCaustic(rec.Point, CausticGatherK, _causticGatherRadius,
-                                      idx, heap, out float radius);
-        if (count == 0) return Vector3.Zero;
-
-        // Under-occupied gather: fewer than k photons exist in the whole search
-        // sphere, so the region is sparse. Keep the searched cap as the kernel
-        // radius (PBRT's convention — shrinking it around the few stray photons
-        // would inflate the density into a bright dot) AND fade the estimate by
-        // the gather occupancy below. Together with the cone filter this stops an
-        // isolated reflective photon from stamping a flat full-radius disc on the
-        // floor — the "ring of discs" artefact under glossy near-specular casters
-        // (e.g. clearcoat spheres) whose weak caustics deposit only a few photons.
-        bool underOccupied = count < CausticGatherK;
-        if (underOccupied) radius = _causticGatherRadius;
-        if (radius <= 0f) return Vector3.Zero;
-
-        // Cone-filter density estimate: weight each photon by its distance to the
-        // gather point (1 at the centre, → 0 at the kernel edge) so the caustic
-        // has a smooth radial falloff instead of a hard disc edge. The cone
-        // normalisation keeps the energy identical to the flat kernel where
-        // photons fill the disc, so focused caustics keep their brightness.
-        float invR = 1f / radius;
-        ReadOnlySpan<Photon> photons = map.Photons;
-        Vector3 sum = Vector3.Zero;
-        for (int i = 0; i < count; i++)
-        {
-            ref readonly Photon p = ref photons[idx[i]];
-            // Light-leak guard: ignore photons arriving from behind the surface.
-            if (Vector3.Dot(p.IncidentDir, rec.Normal) <= 0f) continue;
-            float w = 1f - Vector3.Distance(p.Position, rec.Point) * invR / CausticConeK;
-            if (w <= 0f) continue;
-            // BRDF without cosine — the photon flux already carries the incident
-            // geometry through the surface photon density.
-            sum += material.Evaluate(viewDir, p.IncidentDir, rec) * (p.Power * w);
-        }
-
-        Vector3 estimate = sum * (1f / (CausticConeNorm * MathF.PI * radius * radius));
-
-        // Occupancy confidence: a focused caustic fills the gather (count == k)
-        // and passes through untouched; a sparse region (count ≪ k) is faded out
-        // smoothly so weak stray reflective photons stop painting visible discs
-        // while genuine, dense caustics keep their full strength.
-        if (underOccupied)
-            estimate *= CausticOccupancyWeight(count, CausticGatherK);
-        return estimate;
-    }
-
-    /// <summary>
-    /// Confidence weight for an under-occupied caustic gather. A full gather
-    /// (<paramref name="count"/> ≥ <paramref name="k"/>, i.e. a dense focused
-    /// caustic) returns 1 and is left untouched; a sparse gather (count ≪ k, a
-    /// region holding only a few weak stray reflective photons) is faded out by a
-    /// smoothstep on the occupancy ratio, so a near-isolated photon no longer
-    /// stamps a flat full-radius disc on the receiver — the "ring of discs"
-    /// artefact under glossy near-specular casters. Monotonic non-decreasing in
-    /// <paramref name="count"/>.
-    /// </summary>
-    internal static float CausticOccupancyWeight(int count, int k)
-    {
-        if (count >= k) return 1f;
-        if (count <= 0) return 0f;
-        float t = (float)count / k;
-        return t * t * (3f - 2f * t);   // smoothstep(0,1,t)
-    }
-
-    /// <summary>
-    /// Computes the MIS weight w(p, q) under the configured heuristic
-    /// (balance or power, see <see cref="MisHeuristic"/>). The denominator
-    /// epsilon prevents 0/0 when both samplers report zero density.
+    /// Whether a sampled direction crosses the surface the way a shadow ray
+    /// would also cross it (see <see cref="ChainShadowPassable"/>).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private float MisWeight(float p, float q)
+    private bool ShadowPassable(IMaterial material, in HitRecord rec, Vector3 wo)
     {
-        if (_misHeuristic == MisHeuristic.Power)
-        {
-            float p2 = p * p;
-            float q2 = q * q;
-            return p2 / (p2 + q2 + 1e-30f);
-        }
-        return p / (p + q + 1e-30f);
+        if (Vector3.Dot(wo, rec.Normal) >= 0f) return false;   // reflection
+        return _transparentShadows || material.TransmitsStraight(rec);
+    }
+
+    /// <summary>
+    /// Emission reached through a specular chain after a diffuse vertex is
+    /// already counted by the light sample when every surface of the chain
+    /// passes shadow rays (straight transmission, or any transmission with
+    /// transparent shadows).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool SuppressChainEmission(int state)
+        => (state & ChainStateMask) == ChainSpecular && (state & ChainShadowPassable) != 0;
+
+    /// <summary>
+    /// True when the light sample just taken reached the shading point through
+    /// a transparent shadow: its BSDF counterpart is suppressed
+    /// (<see cref="SuppressChainEmission"/>), so it must keep the full weight.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool LightSampleOwnsTransport() => ShadowRay.LastCrossedTransparent;
+
+    /// <summary>
+    /// MIS weight of a light sample whose own density is <paramref name="own"/>,
+    /// against every light strategy that samples the same emitter in that
+    /// direction (<paramref name="sum"/>, <paramref name="sumSq"/>, own included)
+    /// and the BSDF or phase density <paramref name="pBsdf"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private float NeeWeight(float own, float sum, float sumSq, float pBsdf)
+        => _misHeuristic == MisHeuristic.Power
+            ? own * own / (sumSq + pBsdf * pBsdf + 1e-30f)
+            : own / (sum + pBsdf + 1e-30f);
+
+    /// <summary>MIS weight of emission reached by a BSDF sample: the complement of <see cref="NeeWeight"/>.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private float BsdfWeight(float pBsdf, float sum, float sumSq)
+        => _misHeuristic == MisHeuristic.Power
+            ? pBsdf * pBsdf / (pBsdf * pBsdf + sumSq + 1e-30f)
+            : pBsdf / (pBsdf + sum + 1e-30f);
+
+    /// <summary>
+    /// MIS weight for a light sample at a surface or medium vertex: 1 when no
+    /// BSDF sample can deliver this light (delta lights, a directional disc,
+    /// a proxy-less area light), otherwise the share of the light strategies.
+    /// </summary>
+    private float LightSampleWeight(ILight light, float pPick, Vector3 origin, Vector3 dir, float pBsdf)
+    {
+        if (pBsdf <= 0f || !_mis.PairsWithBsdf(light)) return 1f;
+        var (own, sum, sumSq) = _mis.NeeDensity(light, pPick, origin, dir);
+        return NeeWeight(own, sum, sumSq, pBsdf);
     }
 
     /// <summary>
     /// Applies the MIS weight to surface emission at the current hit — the
-    /// "BSDF-sample hit a light" half of Veach's estimator.
+    /// "BSDF-sample hit a light" half of Veach's estimator. The light is the
+    /// one that owns the surface hit at <paramref name="t"/>.
     /// </summary>
-    private Vector3 WeightEmission(Vector3 rawEmission, IMaterial material, Ray ray,
+    private Vector3 WeightEmission(Vector3 rawEmission, IMaterial material, Ray ray, float t,
                                     float prevBsdfPdf, bool prevIsDelta)
     {
         if (prevIsDelta)
             return rawEmission;
 
-        if (material is Emissive em && _emitterToLight.TryGetValue(em, out var light))
-        {
-            float pLight = light.PdfSolidAngle(ray.Origin, ray.Direction);
-            if (prevBsdfPdf + pLight <= 1e-20f)
-                return Vector3.Zero;
-            return rawEmission * MisWeight(prevBsdfPdf, pLight);
-        }
+        ILight? light = _mis.EmitterOwner(material, ray, t);
+        if (light == null)
+            return rawEmission;   // no next-event sampler covers it: full weight
 
-        // Unregistered emitter (no NEE sampler could reach it) — full weight.
-        return rawEmission;
-    }
-
-    /// <summary>
-    /// Top-level radiance estimator. Decides between the surface-only path
-    /// (no medium → bit-identical to pre-volumetric builds) and the volumetric
-    /// path (homogeneous global medium with Beer-Lambert + free-path sampling).
-    ///
-    /// <paramref name="currentAbsorption"/> is the Beer-Lambert coefficient
-    /// σ_a of whatever medium the ray is currently traversing (zero vector
-    /// = vacuum, populated by refractive Disney samples when the ray enters
-    /// a dielectric interior). A non-zero value multiplies the returned
-    /// radiance by exp(-σ_a · t) where t is the distance the ray travelled
-    /// before its next interaction. The global <see cref="_globalMedium"/>
-    /// stacks multiplicatively with this interior absorption — they track
-    /// independent media and are accumulated in series.
-    /// </summary>
-    private Vector3 TraceRay(Ray ray, int depth, float prevBsdfPdf, bool prevIsDelta,
-                             ref MediumStack mediums,
-                             ref IorStack iors,
-                             Vector3 currentAbsorption = default,
-                             Vector3 pathThroughput = default,
-                             RayCategory incomingCategory = RayCategory.Camera,
-                             int causticState = CausticNone)
-    {
-        if (depth <= 0) return Vector3.Zero;
-
-        // Dead-path early-out. Once the cumulative β has decayed below the
-        // post-tone-map noise floor on every channel, the radiance this call
-        // would return is multiplied back by β at the caller anyway, so the
-        // BVH traversal + shading are pure waste. Cheap test, large win on
-        // long bounce paths through dim/coloured surfaces.
-        //
-        // All call sites (camera rays in Render, every recursive Shade* /
-        // volumetric branch) pass an explicit pathThroughput, so default
-        // (zero) here genuinely means "no throughput" and short-circuits.
-        float betaMax = MathF.Max(pathThroughput.X,
-                          MathF.Max(pathThroughput.Y, pathThroughput.Z));
-        if (betaMax < DeadPathThroughputEpsilon)
+        float pLight = _mis.Pick(light, ray.Origin) * light.PdfSolidAngle(ray.Origin, ray.Direction);
+        if (prevBsdfPdf + pLight <= 1e-20f)
             return Vector3.Zero;
-
-        // ── Visibility filter (Arnold <c>visibility.*</c> / Cycles "Ray
-        //    Visibility") ───────────────────────────────────────────────────
-        // Generalised version of the historic camera-invisible skip: walks
-        // past any hit whose <see cref="HitRecord.VisibilityMask"/> hides it
-        // from the current ray category. The legacy camera-only branch is
-        // preserved by the `incomingCategory == Camera` default plus the
-        // bridge that maps <c>CameraInvisible</c> ↔ <c>VisibilityMask.Camera</c>.
-        // The underlying emitter / surface stays in the BVH and other
-        // categories see it unchanged — a ground with <c>visibility.diffuse:
-        // false</c> still bounces specular reflections, NEE shadows still
-        // hit it for `shadow:true`, etc.
-        HitVisibilityMask ignoreMask = CategoryToMask(incomingCategory);
-        const int MaxVisibilitySkips = 8;
-        Ray currentRay = ray;
-        // Declared without a redundant zero-init — the loop below assigns a
-        // fresh record on its first (always-executed) iteration before any use.
-        HitRecord rec;
-        bool hit;
-        int skipCount = 0;
-        while (true)
-        {
-            // Re-zero per iteration so a skipped hit's fields (VisibilityMask,
-            // etc.) never leak into the next probe.
-            rec = new HitRecord();
-            hit = _world.Hit(currentRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
-            if (!hit || ignoreMask == HitVisibilityMask.None
-                     || (rec.VisibilityMask & ignoreMask) == 0)
-                break;
-            // Visibility-skip advance: keep the same differentials so the
-            // texture footprint on the underlying emitter still tracks the
-            // pixel area, not the (zero) area of the proxy surface.
-            currentRay = currentRay.HasDifferentials
-                ? new Ray(
-                    MathUtils.OffsetOrigin(rec.Point, currentRay.Direction),
-                    currentRay.Direction,
-                    currentRay.Differentials,
-                    currentRay.Time)
-                : new Ray(
-                    MathUtils.OffsetOrigin(rec.Point, currentRay.Direction),
-                    currentRay.Direction,
-                    currentRay.Time);
-            if (++skipCount >= MaxVisibilitySkips) break;
-        }
-
-        // Path time (motion blur): the single point this is stamped — every
-        // shadow/NEE/bounce ray downstream of this hit inherits rec.Time so
-        // the whole path samples the scene at one frozen instant.
-        rec.Time = currentRay.Time;
-
-        // ── AOV depth: first surface hit of the camera ray ──────────────────
-        // Captured regardless of specularity (a mirror pixel's depth is the
-        // mirror's distance). Camera rays are not normalised, so scale rec.T
-        // by |direction| to get a world-space distance.
-        if (_captureAovs && hit && incomingCategory == RayCategory.Camera
-            && t_aovProbe is { Pending: true, HaveDepth: false } depthProbe)
-        {
-            depthProbe.Depth = rec.T * currentRay.Direction.Length();
-            depthProbe.HaveDepth = true;
-        }
-
-        // ── Compute analytic filter footprint at the hit ────────────────────
-        // Once per hit, project the auxiliary rays onto the tangent plane and
-        // solve for the UV partials (PBRT §10.1.1). Textures consume the
-        // result through rec.Footprint in their footprint-aware Value overload.
-        // Skipped when the ray carries no differentials — shadow / NEE / BSDF
-        // bounces stay point-sampled (correct: their anti-aliasing is
-        // stochastic, not analytic).
-        if (hit && currentRay.HasDifferentials)
-        {
-            Vector3 dpdu = rec.DpDu.LengthSquared() > 0f ? rec.DpDu : rec.Tangent;
-            Vector3 dpdv = rec.DpDv.LengthSquared() > 0f ? rec.DpDv : rec.Bitangent;
-            rec.Footprint = FootprintMath.Compute(currentRay, rec.Point, rec.Normal, dpdu, dpdv);
-        }
-
-        // ── Active medium: stack overrides the global, vacuum falls through ──
-        // The MediumStack (Phase 1) tracks per-object participating media
-        // pushed by refractive transitions through entities bound to an
-        // interior_medium. When non-empty, its top dominates this segment's
-        // volumetric behaviour, overriding _globalMedium (which models the
-        // outer atmosphere / global fog). An empty stack with no global
-        // medium routes to the surface-only fast path — bit-identical to
-        // pre-volumetric output for legacy scenes.
-        IMedium? activeMedium = mediums.Top ?? _globalMedium;
-
-        // ── Surface-only fast path (no medium) ──────────────────────────────
-        if (activeMedium == null)
-        {
-            Vector3 result = !hit
-                ? SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
-                : ShadeSurface(currentRay, ref rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
-                               pathThroughput, ref mediums, ref iors, causticState);
-            // Beer-Lambert along the segment just traversed. Sky miss with
-            // non-zero σ_a means the ray escaped the bounded medium — the
-            // exp(-σ_a · ∞) is zero for any absorbing channel, so we collapse
-            // it to black; the common vacuum case skips this entirely.
-            return ApplyBeerLambert(result, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
-        }
-
-        // ── Volumetric path ─────────────────────────────────────────────────
-        float tMax = hit ? rec.T : 1e30f;
-        bool didScatter = activeMedium.Sample(currentRay, tMax, out float tMed, out Vector3 beta, out _);
-
-        if (didScatter)
-        {
-            // Medium scattering event at p = ray(tMed).
-            Vector3 p = currentRay.Origin + currentRay.Direction * tMed;
-
-            // ── AOV: commit featureless guides at a medium scatter ──────────
-            // Volumes have no meaningful albedo/normal; committing white (times
-            // any specular tint accumulated so far) and a zero normal lets the
-            // denoiser fall back to colour similarity in media regions.
-            if (_captureAovs && t_aovProbe is { Pending: true } medProbe)
-            {
-                if (!medProbe.HaveDepth)
-                {
-                    medProbe.Depth = tMed * currentRay.Direction.Length();
-                    medProbe.HaveDepth = true;
-                }
-                medProbe.CommitAs(Vector3.One, Vector3.Zero);
-            }
-
-            // NEE in-scattering: shadow ray to each light, weighted by phase × Tr.
-            // When the active medium is bound to an entity (stack top), clip the
-            // shadow-ray transmittance to the in-medium segment, mirroring the
-            // surface path and the random-walk SSS NEE.
-            IHittable? medEntity = mediums.Top != null ? mediums.TopEntity : null;
-            Vector3 Lnee = ComputeDirectLightingMedium(p, currentRay.Direction, activeMedium, medEntity,
-                                                       currentRay.Time);
-
-            // ── Russian Roulette on the indirect (phase-sampled) bounce ─────
-            // Throughput-based: β_after = pathThroughput · medium-β. Same
-            // motivation as the surface RR — a path that has already lost
-            // most of its energy on the way to this scattering event should
-            // be killed before spending another phase-sampled bounce.
-            Vector3 Lind = Vector3.Zero;
-            Vector3 medThroughput = pathThroughput * beta;
-            int bouncesUsedS = _maxDepth - depth;
-            float indirectScale = 1f;
-            bool killIndirect = false;
-            if (bouncesUsedS >= _rrMinBounces)
-            {
-                float survivalProb = MathF.Max(medThroughput.X,
-                                       MathF.Max(medThroughput.Y, medThroughput.Z));
-                survivalProb = MathF.Max(survivalProb, _rrMinSurvival);
-                survivalProb = MathF.Min(survivalProb, 0.95f);
-                if (MathUtils.RandomFloat() > survivalProb) killIndirect = true;
-                else indirectScale = 1f / survivalProb;
-            }
-
-            if (!killIndirect)
-            {
-                // Indirect: importance-sample the phase function. The sampled
-                // phase PDF is threaded forward as prevBsdfPdf so that the
-                // next hit's emission / sky miss is MIS-weighted against the
-                // NEE light PDF, mirroring the surface-side MIS.
-                var (wi, phasePdf) = activeMedium.Phase.Sample(currentRay.Direction);
-                float phaseVal = activeMedium.Phase.Evaluate(currentRay.Direction, wi);
-                float phaseWeight = phasePdf > 1e-20f ? phaseVal / phasePdf : 0f;
-                Vector3 nextThroughput = medThroughput * (phaseWeight * indirectScale);
-                Lind = phaseWeight * indirectScale
-                     * TraceRay(new Ray(p, wi, currentRay.Time), depth - 1,
-                                 prevBsdfPdf: phasePdf, prevIsDelta: false,
-                                 ref mediums, ref iors,
-                                 currentAbsorption: currentAbsorption,
-                                 pathThroughput: nextThroughput,
-                                 causticState: NextCausticState(causticState, isDelta: false));
-            }
-
-            return ApplyBeerLambert(beta * (Lnee + Lind), currentAbsorption, tMed);
-        }
-
-        // No medium event before tMax → continue with surface (or sky) shading,
-        // attenuated by the medium throughput beta = Tr / pdf.
-        Vector3 surfaceOrSky = !hit
-            ? beta * SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
-            : beta * ShadeSurface(currentRay, ref rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
-                                   pathThroughput * beta, ref mediums, ref iors, causticState);
-        return ApplyBeerLambert(surfaceOrSky, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
-    }
-
-    /// <summary>
-    /// exp(-σ_a · t) per channel. Vacuum (σ_a = 0) short-circuits the exp()
-    /// calls; an infinite segment with any non-zero σ_a collapses the channel
-    /// to zero (the ray was inside a bounded medium but didn't hit its
-    /// boundary — treat as fully absorbed).
-    /// </summary>
-    private static Vector3 ApplyBeerLambert(Vector3 radiance, Vector3 sigma, float t)
-    {
-        if (sigma.X <= 0f && sigma.Y <= 0f && sigma.Z <= 0f) return radiance;
-        if (float.IsPositiveInfinity(t)) return Vector3.Zero;
-        if (t <= 0f) return radiance;
-        return radiance * new Vector3(
-            sigma.X > 0f ? MathF.Exp(-sigma.X * t) : 1f,
-            sigma.Y > 0f ? MathF.Exp(-sigma.Y * t) : 1f,
-            sigma.Z > 0f ? MathF.Exp(-sigma.Z * t) : 1f);
+        return rawEmission * BsdfWeight(prevBsdfPdf, pLight, pLight * pLight);
     }
 
     /// <summary>
@@ -1817,18 +1029,34 @@ public partial class Renderer
     /// solid-angle-to-texel-count of a uniform cone with the BSDF's effective
     /// width. Sharp specular (delta) bounces use LOD 0.</para>
     /// </summary>
-    private Vector3 SampleSky(Ray ray, float prevBsdfPdf, bool prevIsDelta)
+    private Vector3 SampleSky(Ray ray, float prevBsdfPdf, bool prevIsDelta, int chainState, RayCategory category)
     {
-        // Camera rays + delta-mirror bounces see the full sky (sun included).
-        // Non-delta indirect bounces see the sky body only.
-        bool showSun = prevIsDelta;
-        var cat = prevIsDelta ? RayCategory.Camera : RayCategory.Diffuse;
+        // A sky NEE-sampled through the same transparent surfaces already
+        // delivered this transport (see SuppressChainEmission).
+        bool skyIsNeeSampled = _envLight != null && _envLight.Sky.CanSampleDirectly;
+        if (skyIsNeeSampled && SuppressChainEmission(chainState))
+            return Vector3.Zero;
 
-        // LOD heuristic for glossy HDRI lookups. The sky body handles the
-        // is-HDRI / not check internally — passing a non-zero LOD on a
-        // gradient/Preetham sky is a no-op.
+        // Camera rays + delta-mirror bounces see the full sky (sun included).
+        // Non-delta indirect bounces see the sky body only. Visibility flags
+        // and the background plate follow the ray's own category: a mirror
+        // reflects the sky its glossy flag shows, not the camera's plate (a
+        // delta bounce used to count as a camera ray here).
+        bool showSun = prevIsDelta;
+        var cat = category;
+
+        // LOD heuristic for glossy HDRI lookups: a prefiltered (blurred) sky
+        // tames the fireflies of a bright HDRI that only BSDF rays find. It
+        // is not the sky the light samples see: when the environment is a
+        // next-event light the MIS weights pair the two, and the blur spread
+        // the bright features' light into directions weighted for the BSDF,
+        // counting it twice (+26% on a diffuse floor under a bright patch,
+        // PIANO-REVIEW.md Phase 6). There MIS already removes the fireflies,
+        // so the prefilter is kept for a sky no light samples, never in the
+        // reference estimator. The sky body handles the is-HDRI / not check
+        // internally: a non-zero LOD on a gradient/Preetham sky is a no-op.
         float lod = 0f;
-        if (!prevIsDelta && prevBsdfPdf > 1e-6f
+        if (!prevIsDelta && prevBsdfPdf > 1e-6f && !_mis.HasSkyLights && !_referenceMode
             && _sky.LightingModel is Sky.HdriSky hdriSky)
         {
             int W = hdriSky.Map.Width;
@@ -1849,15 +1077,33 @@ public partial class Renderer
         if (_captureAovs && t_aovProbe is { Pending: true } aovProbe)
             aovProbe.CommitAs(Clamp01(sky), Vector3.Zero);
 
-        // When the sky isn't registered as an NEE light, or this is a delta
-        // bounce / camera ray, show it at full weight — nothing else sampled it.
-        if (prevIsDelta || _envLight == null || !_envLight.Sky.CanSampleDirectly)
+        // A delta bounce or a camera ray sees the sky (sun included) at full
+        // weight: no light sampler produces its direction.
+        if (prevIsDelta)
             return sky;
 
-        float pLight = _envLight.PdfSolidAngle(ray.Origin, ray.Direction);
-        if (prevBsdfPdf + pLight <= 1e-20f)
-            return Vector3.Zero;
-        return sky * MisWeight(prevBsdfPdf, pLight);
+        // The sky body, weighted against the environment and every portal
+        // (they all sample it), when any of them is a next-event light.
+        Vector3 result = sky;
+        if (_mis.HasSkyLights)
+        {
+            var (sum, sumSq) = _mis.SkyDensity(ray.Origin, ray.Direction);
+            result = prevBsdfPdf + sum <= 1e-20f ? Vector3.Zero : sky * BsdfWeight(prevBsdfPdf, sum, sumSq);
+        }
+
+        // The analytic sun is left out of the sky body above: it is a light of
+        // its own, sampled by its own NEE, and a BSDF ray inside its disc
+        // collects it here with the matching weight (it used to collect
+        // nothing while the sun's samples were still weighted, losing light
+        // on glossy surfaces).
+        foreach (var sun in _mis.Suns)
+        {
+            Vector3 Ls = sun.RadianceToward(ray.Direction);
+            if (Ls == Vector3.Zero) continue;
+            float pSun = _mis.Pick(sun, ray.Origin) * sun.PdfSolidAngle(ray.Origin, ray.Direction);
+            result += Ls * BsdfWeight(prevBsdfPdf, pSun, pSun * pSun);
+        }
+        return result;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -1870,20 +1116,17 @@ public partial class Renderer
     /// 0. Ambient fill — applied unconditionally to all materials.
     /// 1. Per-light, per-shadow-sample:
     ///    - shadow test + stratified emitter sample
-    ///    - material.EvaluateDirect(toLight, toEye, normal) for the BRDF shape
+    ///    - material.Evaluate(toEye, toLight) · |N·L| for the BSDF shape
     ///    - balance-heuristic MIS weight w_nee = p_light / (p_light + p_bsdf)
     ///      using the material's own IMaterial.Pdf() in solid angle.
     ///
     /// For delta lights (point/directional/spot) no BSDF sampler can reach them,
-    /// so w_nee = 1 unconditionally. For materials that do not implement Pdf()
-    /// (Lambert, Metal, Dielectric, Mix) the default IMaterial.Pdf returns 0,
-    /// which also yields w_nee = 1 — equivalent to the pre-MIS behavior and
-    /// unbiased when paired with those materials' Scatter() legacy emission
-    /// suppression.
+    /// so w_nee = 1 unconditionally. A pure-delta material has Pdf 0 for every
+    /// light direction and Evaluate 0 there too, so it gets no direct light.
     ///
     /// PBRT/Arnold direct-lighting convention:
-    /// EvaluateDirect returns the FULL rendering-equation integrand at the
-    /// shadow-ray direction — <c>f(V, L) · max(N·L, 0) · visibility</c> — with
+    /// The integrand at the shadow-ray direction is
+    /// <c>f(V, L) · |N·L| · visibility</c>, with
     /// every material colour factor (baseColor, metallic Fresnel, sheen tint,
     /// subsurface tint) baked in. The caller adds this contribution directly
     /// to the radiance estimator: <c>L = Le + L_direct + scatter_attn × L_indirect</c>.
@@ -1891,22 +1134,63 @@ public partial class Renderer
     /// couple the indirect importance sample to the shadow estimator and
     /// bias the result for any direction-dependent BSDF.
     /// </summary>
-    private Vector3 ComputeDirectLighting(in HitRecord rec, Vector3 viewDir, IMaterial? material,
-                                          IMedium? shadowMedium = null,
-                                          IHittable? shadowMediumEntity = null)
+    /// <summary>
+    /// NEE at a surface. A surface that transmits (rough glass, diffuse
+    /// transmission) also receives light from behind: the lights keep those
+    /// samples and start the shadow ray on the far side while the switch is up
+    /// (PIANO-REVIEW.md §3.36).
+    /// </summary>
+    private Vector3 DirectLightingAt(in HitRecord rec, Vector3 viewDir, IMaterial? material, in MediumStack media)
+    {
+        bool transmits = material?.HasTransmission(in rec) ?? false;
+        ShadowRay.ReceiverTransmits = transmits;
+        // The shadow rays start in the media the path is in, and cross this
+        // surface's boundary when they leave from its far side.
+        ShadowRay.BeginMedia(in media, _globalMedium);
+        if (transmits && material!.TryGetDielectricIor(in rec, out _) || rec.MediumIface.Interior != null)
+            ShadowRay.SetReceiver(Vector3.Dot(rec.Normal, viewDir) >= 0f ? rec.Normal : -rec.Normal,
+                                  rec.FrontFace, rec.MediumIface.Interior, rec.EntityRoot);
+        try
+        {
+            return ComputeDirectLighting(in rec, viewDir, material);
+        }
+        finally
+        {
+            ShadowRay.ReceiverTransmits = false;
+            ShadowRay.EndMedia();
+        }
+    }
+
+    /// <summary>
+    /// The direct-lighting integrand f(V, L) |N·L| for one light direction:
+    /// the material's own BSDF, the same the indirect bounce samples
+    /// (PIANO-REVIEW.md §3.12). A surface with no material is Lambert white.
+    /// </summary>
+    private static Vector3 DirectIntegrand(IMaterial? material, in HitRecord rec, Vector3 viewDir, Vector3 dirToLight)
+    {
+        float cos = Vector3.Dot(rec.Normal, dirToLight);
+        if (material == null) return new Vector3(MathF.Max(cos, 0f) / MathF.PI);
+        return material.Evaluate(viewDir, dirToLight, in rec) * MathF.Abs(cos);
+    }
+
+    /// <summary>
+    /// Shadow-terminator factor for the light direction, on the side of the
+    /// surface the light is: for a light behind a transmissive surface the
+    /// horizon is the back one (it used to read 0 there, so NEE never lit
+    /// anything through rough glass, §3.36).
+    /// </summary>
+    private static float LightSideTerminator(in HitRecord rec, Vector3 dirToLight)
+        => Vector3.Dot(rec.ShadingNg, dirToLight) >= 0f
+            ? MathUtils.ShadowTerminatorTerm(rec.ShadingNg, rec.Normal, dirToLight)
+            : MathUtils.ShadowTerminatorTerm(-rec.ShadingNg, -rec.Normal, dirToLight);
+
+    private Vector3 ComputeDirectLighting(in HitRecord rec, Vector3 viewDir, IMaterial? material)
     {
         Vector3 result = Vector3.Zero;
 
-        // View-side shadow-terminator factor: when a normal/bump map has tilted
-        // the shading normal toward the eye, the grazing-view Fresnel of the BSDF
-        // (e.g. Disney's diffuse retro-reflection) fabricates energy. This culls
-        // it symmetrically with the light-side factor applied per sample below.
-        // Unity (no-op) wherever the shading normal is unperturbed.
-        float viewTerm = MathUtils.ShadowTerminatorTerm(rec.ShadingNg, rec.Normal, viewDir);
-
-        if (_lightDist != null)
+        if (_mis.PicksOneLight)
         {
-            // ── Single-light picking (power or uniform) ──────────────────────
+            // ── Single-light picking (power, uniform or light BVH) ───────────
             // Unbiased single-sample estimator (PBRT §16.3.2):
             //   contribution = lightAccum / pPick
             // MIS uses pdf_combined = pPick × pLightSample for non-delta lights.
@@ -1915,7 +1199,8 @@ public partial class Renderer
                 return result;
             }
             float xi = MathUtils.RandomFloat();
-            var (lightIdx, pPick) = _lightDist.Sample(xi);
+            var (lightIdx, pPick) = _mis.Choose(rec.Point, xi);
+            if (lightIdx < 0) return result;
             ILight light = _lights[lightIdx];
 
             int samples = light.ShadowSamples;
@@ -1928,14 +1213,13 @@ public partial class Renderer
 
                 if (inShadow) continue;
 
-                Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
-                               ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
+                Vector3 brdf = DirectIntegrand(material, in rec, viewDir, dirToLight);
 
-                // Shadow-terminator softening on both the light and the view
-                // directions: cull the energy a perturbed shading normal would
-                // fabricate where either grazes below the true surface horizon
-                // (no-op where the normal is unperturbed).
-                brdf *= viewTerm * MathUtils.ShadowTerminatorTerm(rec.ShadingNg, rec.Normal, dirToLight);
+                // Shadow-terminator softening on the light side (Chiang 2019):
+                // cull the energy a perturbed shading normal would fabricate where
+                // the light grazes below the true surface horizon (no-op where the
+                // normal is unperturbed). The BSDF-sampled bounce carries it too.
+                brdf *= LightSideTerminator(in rec, dirToLight);
 
                 // The contribution is wNee · lightColor · brdf · Tr. When the
                 // BRDF integrand is zero (light below the shading hemisphere,
@@ -1943,29 +1227,13 @@ public partial class Renderer
                 // transmittance walk and the BSDF-pdf MIS evaluation entirely.
                 if (brdf == Vector3.Zero) continue;
 
-                Vector3 Tr = Vector3.One;
-                if (shadowMedium != null)
-                {
-                    float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                    float mediumDist = ClipShadowToBoundary(rec.Point, dirToLight, shadowDist,
-                                                            shadowMediumEntity, time: rec.Time);
-                    Tr = shadowMedium.Transmittance(new Ray(rec.Point, dirToLight, rec.Time), mediumDist);
-                }
+                // MIS: the NEE density carries the pick probability.
+                float wNee = material != null && _mis.PairsWithBsdf(light)
+                    ? LightSampleWeight(light, pPick, rec.Point, dirToLight, MisBsdfPdf(material, viewDir, dirToLight, in rec))
+                    : 1f;
 
-                // MIS: combined NEE pdf = pPick × pLightSample
-                float wNee = 1f;
-                if (!light.IsDelta && material != null)
-                {
-                    float pBsdf = material.Pdf(viewDir, dirToLight, rec);
-                    if (pBsdf > 0f)
-                    {
-                        float pLightSample = light.PdfSolidAngle(rec.Point, dirToLight);
-                        float pNee = pPick * pLightSample; // combined pdf for this direction
-                        wNee = (pNee + pBsdf > 0f) ? MisWeight(pNee, pBsdf) : 1f;
-                    }
-                }
-
-                lightAccum += wNee * lightColor * brdf * Tr;
+                if (LightSampleOwnsTransport()) wNee = 1f;
+                lightAccum += wNee * lightColor * brdf;
             }
 
             // Divide by pPick to get the unbiased estimator (1 light sampled, not all).
@@ -1987,45 +1255,29 @@ public partial class Renderer
 
                     if (inShadow) continue;
 
-                    Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
-                                   ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
+                    Vector3 brdf = DirectIntegrand(material, in rec, viewDir, dirToLight);
 
-                    // Shadow-terminator softening on both the light and the view
-                    // directions: cull the energy a perturbed shading normal would
-                    // fabricate where either grazes below the true surface horizon
-                    // (no-op where the normal is unperturbed).
-                    brdf *= viewTerm * MathUtils.ShadowTerminatorTerm(rec.ShadingNg, rec.Normal, dirToLight);
+                    // Shadow-terminator softening on the light side (Chiang 2019):
+                    // cull the energy a perturbed shading normal would fabricate where
+                    // the light grazes below the true surface horizon (no-op where the
+                    // normal is unperturbed). The BSDF-sampled bounce carries it too.
+                    brdf *= LightSideTerminator(in rec, dirToLight);
 
                     // Zero integrand (light below the hemisphere / delta lobe) →
                     // the sample contributes nothing; skip the medium walk and
                     // the BSDF-pdf MIS evaluation. See the single-light branch.
                     if (brdf == Vector3.Zero) continue;
 
-                    Vector3 Tr = Vector3.One;
-                    if (shadowMedium != null)
-                    {
-                        float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                        float mediumDist = ClipShadowToBoundary(rec.Point, dirToLight, shadowDist,
-                                                                shadowMediumEntity, time: rec.Time);
-                        Tr = shadowMedium.Transmittance(new Ray(rec.Point, dirToLight, rec.Time), mediumDist);
-                    }
-
                     // ── MIS weight (balance or power, configured per-renderer) ──
                     // Delta lights: always weight 1 (no BSDF sampler can hit them).
                     // Non-delta lights: if the material exposes Pdf() > 0, the
                     // weight reduces variance via Veach's combined estimator.
-                    float wNee = 1f;
-                    if (!light.IsDelta && material != null)
-                    {
-                        float pBsdf = material.Pdf(viewDir, dirToLight, rec);
-                        if (pBsdf > 0f)
-                        {
-                            float pLight = light.PdfSolidAngle(rec.Point, dirToLight);
-                            wNee = (pLight + pBsdf > 0f) ? MisWeight(pLight, pBsdf) : 1f;
-                        }
-                    }
+                    float wNee = material != null && _mis.PairsWithBsdf(light)
+                        ? LightSampleWeight(light, 1f, rec.Point, dirToLight, MisBsdfPdf(material, viewDir, dirToLight, in rec))
+                        : 1f;
 
-                    lightAccum += wNee * lightColor * brdf * Tr;
+                    if (LightSampleOwnsTransport()) wNee = 1f;
+                lightAccum += wNee * lightColor * brdf;
                 }
 
                 result += lightAccum;
@@ -2046,59 +1298,36 @@ public partial class Renderer
         // single-sample behaviour (directional sun-disc and multi-sample spots
         // guard on their own parameters internally). Replaces the former
         // per-sample type-ladder. See ILight.IlluminateAndTestStratified.
-        => light.IlluminateAndTestStratified(point, normal, _world, sampleIndex, time);
-
-    /// <summary>
-    /// Distance the medium attenuates over for a shadow ray fired from a point
-    /// inside a bound entity. Without a bound entity (global / world medium)
-    /// the medium fills the entire scene and the full shadow distance is used.
-    /// With one, the medium only exists between <paramref name="p"/> and the
-    /// first entity-boundary intersection along <paramref name="dir"/> — past
-    /// that, transmittance is unity (outside the medium). Falls back to the
-    /// full distance if the boundary query fails (numerical edge case at the
-    /// origin sitting within ε of a surface).
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float ClipShadowToBoundary(Vector3 p, Vector3 dir, float shadowDist,
-                                               IHittable? boundEntity, float tMin = 1e-4f,
-                                               float time = 0f)
     {
-        if (boundEntity == null) return shadowDist;
-        var rec = new HitRecord();
-        if (boundEntity.Hit(new Ray(p, dir, time), tMin, shadowDist, ref rec))
-            return rec.T;
-        return shadowDist;
+        // Lights without a shadow walk (none today) must not inherit a stale flag.
+        ShadowRay.LastCrossedTransparent = false;
+        return light.IlluminateAndTestStratified(point, normal, _world, sampleIndex, time);
     }
 
     /// <summary>
-    /// Direct lighting at a medium scattering event.
-    /// Mirrors ComputeDirectLighting but uses the phase function in place of
-    /// the BRDF and attenuates each shadow ray by the medium transmittance.
+    /// Next-event estimation at a scattering event in a medium, with the
+    /// event's phase function in the BSDF's place. The shadow rays start in
+    /// <paramref name="media"/> (the path's stack, the global medium when it
+    /// is empty) and are attenuated by every medium they cross on the way
+    /// (<see cref="ShadowRay.BeginMedia"/>).
     /// </summary>
-    /// <param name="p">Scattering point in world space (along the ray at tMed).</param>
-    /// <param name="wo">Direction of the ray that produced the scattering event
-    ///                  (i.e. ray.Direction). Passed to the phase function as-is —
-    ///                  IsotropicPhase / HenyeyGreensteinPhase use the convention
-    ///                  that wo points "into" the event.</param>
-    /// <param name="medium">The medium hosting this scattering event. Drives
-    ///                  the phase function used by NEE and the shadow-ray
-    ///                  transmittance. Caller resolves from the MediumStack
-    ///                  (Phase 1) — falls back to <see cref="_globalMedium"/>
-    ///                  when the stack is empty.</param>
-    /// <param name="boundEntity">When non-null, the medium is bound to this
-    ///                  entity (random-walk SSS dispatch from
-    ///                  <see cref="RandomWalkSubsurface"/>). The shadow ray's
-    ///                  in-medium segment is then clipped to the distance from
-    ///                  <paramref name="p"/> to the entity boundary along
-    ///                  <c>dirToLight</c> — beyond that, the ray is back in the
-    ///                  outer world and the bound medium no longer attenuates.
-    ///                  Without this clip, a dense scattering medium (σ_t ~ 10
-    ///                  for skin / wax) would collapse NEE to zero over any
-    ///                  shadow distance &gt; 1 unit, even though the actual
-    ///                  in-medium segment is only a fraction of a sphere radius.</param>
-    private Vector3 ComputeDirectLightingMedium(Vector3 p, Vector3 wo, IMedium medium,
-                                                 IHittable? boundEntity = null,
-                                                 float time = 0f)
+    /// <param name="wo">Direction of the ray that produced the event (it points
+    ///                  into the event, the phase functions' convention).</param>
+    private Vector3 ComputeDirectLightingMedium(Vector3 p, Vector3 wo, IPhaseFunction phase,
+                                                in MediumStack media, float time)
+    {
+        ShadowRay.BeginMedia(in media, _globalMedium);
+        try
+        {
+            return DirectLightingInMedium(p, wo, phase, time);
+        }
+        finally
+        {
+            ShadowRay.EndMedia();
+        }
+    }
+
+    private Vector3 DirectLightingInMedium(Vector3 p, Vector3 wo, IPhaseFunction phase, float time)
     {
         Vector3 result = Vector3.Zero;
 
@@ -2108,12 +1337,13 @@ public partial class Renderer
         // Passing Zero ensures OffsetOrigin returns the point unchanged.
         Vector3 dummyNormal = Vector3.Zero;
 
-        if (_lightDist != null)
+        if (_mis.PicksOneLight)
         {
             // ── Single-light picking in volumetric path ──────────────────────
             if (_lights.Count == 0) return result;
             float xi = MathUtils.RandomFloat();
-            var (lightIdx, pPick) = _lightDist.Sample(xi);
+            var (lightIdx, pPick) = _mis.Choose(p, xi);
+            if (lightIdx < 0) return result;
             ILight light = _lights[lightIdx];
 
             int samples = light.ShadowSamples;
@@ -2126,25 +1356,15 @@ public partial class Renderer
 
                 if (inShadow) continue;
 
-                float phaseVal = medium.Phase.Evaluate(wo, dirToLight);
-                float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity, 1e-7f, time);
-                Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight, time), mediumDist);
+                float phaseVal = phase.Evaluate(wo, dirToLight);
 
-                float wNee = 1f;
-                if (!light.IsDelta)
-                {
-                    float phasePdf = medium.Phase.Pdf(wo, dirToLight);
-                    if (phasePdf > 0f)
-                    {
-                        float pLightSample = light.PdfSolidAngle(p, dirToLight);
-                        float pNee = pPick * pLightSample;
-                        if (pNee + phasePdf > 0f)
-                            wNee = MisWeight(pNee, phasePdf);
-                    }
-                }
+                float wNee = _mis.PairsWithBsdf(light)
+                    ? LightSampleWeight(light, pPick, p, dirToLight, MisPhasePdf(phase, wo, dirToLight))
+                    : 1f;
 
-                lightAccum += wNee * lightColor * phaseVal * Tr;
+                if (LightSampleOwnsTransport()) wNee = 1f;
+                wNee *= EquiangularNeeWeight(light, pPick);
+                lightAccum += wNee * lightColor * phaseVal;
             }
 
             if (pPick > 0f)
@@ -2171,31 +1391,19 @@ public partial class Renderer
                     if (inShadow) continue;
 
                     // Phase function value for this in-scattering direction.
-                    float phaseVal = medium.Phase.Evaluate(wo, dirToLight);
-
-                    // Beer-Lambert attenuation along the shadow ray, clipped to
-                    // the bound-entity boundary when the medium is bound.
-                    float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                    float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity, 1e-7f, time);
-                    Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight, time), mediumDist);
+                    float phaseVal = phase.Evaluate(wo, dirToLight);
 
                     // ── MIS weight (phase-function vs light sampler) ────────────
                     // Delta lights cannot be reached by phase sampling; emit at
                     // full weight. Otherwise pair the analytic phase PDF against
                     // the light PDF using the configured heuristic.
-                    float wNee = 1f;
-                    if (!light.IsDelta)
-                    {
-                        float phasePdf = medium.Phase.Pdf(wo, dirToLight);
-                        if (phasePdf > 0f)
-                        {
-                            float pLight = light.PdfSolidAngle(p, dirToLight);
-                            if (pLight + phasePdf > 0f)
-                                wNee = MisWeight(pLight, phasePdf);
-                        }
-                    }
+                    float wNee = _mis.PairsWithBsdf(light)
+                        ? LightSampleWeight(light, 1f, p, dirToLight, MisPhasePdf(phase, wo, dirToLight))
+                        : 1f;
 
-                    lightAccum += wNee * lightColor * phaseVal * Tr;
+                    if (LightSampleOwnsTransport()) wNee = 1f;
+                    wNee *= EquiangularNeeWeight(light, 1f);
+                lightAccum += wNee * lightColor * phaseVal;
                 }
 
                 result += lightAccum;
@@ -2267,6 +1475,48 @@ public partial class Renderer
     }
 
     /// <summary>
+    /// How a unit step along the world tangent <paramref name="t"/> and
+    /// bitangent <paramref name="b"/> moves a texture's inputs at this hit:
+    /// (u, v) through the inverse of the surface's ∂P/∂u, ∂P/∂v (least
+    /// squares on the tangent plane), and the 3D point through the inverse of
+    /// the rotation the transforms took it out of (<see cref="HitRecord.LocalToWorld"/>).
+    /// A primitive without ∂P/∂u reads as one UV unit per unit of length.
+    /// </summary>
+    internal static BumpFrame BumpFrameAt(in HitRecord rec, Vector3 t, Vector3 b)
+    {
+        Vector2 uvT, uvB;
+        Vector3 dpdu = rec.DpDu, dpdv = rec.DpDv;
+        float a00 = Vector3.Dot(dpdu, dpdu), a01 = Vector3.Dot(dpdu, dpdv), a11 = Vector3.Dot(dpdv, dpdv);
+        float det = a00 * a11 - a01 * a01;
+        if (det > 1e-12f * MathF.Max(a00 * a11, 1e-30f) && a00 > 0f && a11 > 0f)
+        {
+            float inv = 1f / det;
+            Vector2 Solve(Vector3 x)
+            {
+                float r0 = Vector3.Dot(dpdu, x), r1 = Vector3.Dot(dpdv, x);
+                return new Vector2((a11 * r0 - a01 * r1) * inv, (a00 * r1 - a01 * r0) * inv);
+            }
+            uvT = Solve(t);
+            uvB = Solve(b);
+        }
+        else
+        {
+            float side = rec.FrontFace ? 1f : -1f;
+            uvT = new Vector2(side, 0f);
+            uvB = new Vector2(0f, side);
+        }
+
+        Vector3 pT = t, pB = b;
+        if (rec.HasLocalFrame)
+        {
+            Quaternion toLocal = Quaternion.Conjugate(rec.LocalToWorld);
+            pT = Vector3.Transform(t, toLocal);
+            pB = Vector3.Transform(b, toLocal);
+        }
+        return new BumpFrame { UvT = uvT, UvB = uvB, PointT = pT, PointB = pB };
+    }
+
+    /// <summary>
     /// Bump-map perturbation. Mirrors <see cref="ApplyNormalMap"/> but the
     /// tangent-space normal comes from finite-difference gradients of a
     /// luminance height field rather than an RGB-encoded normal texture.
@@ -2299,11 +1549,8 @@ public partial class Renderer
             B = -B;
         }
 
-        // Sample with the unit T/B so the bump texture can perturb both UV
-        // and 3D position consistently (3D procedurals like noise/marble
-        // sample on p; image textures sample on u,v).
         Vector3 tsNormal = bump.SampleTangentNormal(
-            rec.U, rec.V, rec.LocalPoint, T, B, rec.ObjectSeed);
+            rec.U, rec.V, rec.LocalPoint, BumpFrameAt(in rec, T, B), rec.ObjectSeed);
 
         Vector3 perturbedNormal = Vector3.Normalize(
             T * tsNormal.X + B * tsNormal.Y + N * tsNormal.Z

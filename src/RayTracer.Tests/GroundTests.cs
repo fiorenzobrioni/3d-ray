@@ -201,9 +201,9 @@ public class GroundTests
             dir:    new Vector3(0, -1, 0));
         Assert.True(rec.T > 0);
         Assert.NotNull(rec.Material);
-        // The anonymous material must be a DisneyBsdf since metallic/roughness
+        // The anonymous material must be a OpenPbr since metallic/roughness
         // were specified.
-        Assert.IsType<DisneyBsdf>(rec.Material);
+        Assert.IsType<OpenPbr>(rec.Material);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

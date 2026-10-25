@@ -182,10 +182,11 @@ public sealed class Lathe : IHittable, ISamplable
             // segments where the alternative is a Sturm chain build.
             if (!seg.LocalBounds.Hit(ray, tMin, closestT)) continue;
 
-            if (seg.Hit(ray, tMin, closestT, out float tSeg, out Vector3 n, out float vSeg))
+            if (seg.Hit(ray, tMin, closestT, out float tSeg, out Vector3 n, out float vSeg,
+                        out Vector2 meridianDv))
             {
                 closestT = tSeg;
-                FillHit(ref rec, ray, tSeg, n, vSeg, i);
+                FillHit(ref rec, ray, tSeg, n, vSeg, meridianDv, i);
                 hitAnything = true;
             }
         }
@@ -283,7 +284,7 @@ public sealed class Lathe : IHittable, ISamplable
     }
 
     private void FillHit(ref HitRecord rec, Ray ray, float t, Vector3 outwardNormal,
-                         float vSegment, int segmentIndex)
+                         float vSegment, Vector2 meridianDv, int segmentIndex)
     {
         rec.T = t;
         Vector3 p = ray.At(t);
@@ -297,12 +298,29 @@ public sealed class Lathe : IHittable, ISamplable
         float segArc = _segments[segmentIndex].ArcLength;
         rec.V = (_vBase[segmentIndex] + vSegment * segArc) / _totalArc;
 
+        // P = (r cos θ, y, r sin θ), θ = 2πU − π:
+        //   ∂P/∂u = 2π·(−z, 0, x)
+        //   ∂P/∂v = (r' cos θ, y', r' sin θ) · totalArc / segArc,
+        // with (r', y') the segment's own ∂(r, y)/∂vSegment.
+        rec.DpDu = new Vector3(-p.Z, 0f, p.X) * (2f * MathF.PI);
+        float rho = MathF.Sqrt(p.X * p.X + p.Z * p.Z);
+        float cosT = rho > 1e-12f ? p.X / rho : 1f;
+        float sinT = rho > 1e-12f ? p.Z / rho : 0f;
+        Vector2 dv = segArc > 0f ? meridianDv * (_totalArc / segArc) : Vector2.Zero;
+        rec.DpDv = new Vector3(dv.X * cosT, dv.Y, dv.X * sinT);
+
         // Azimuthal tangent, same convention as Cone/Cylinder.
         Vector3 tDir = new Vector3(-p.Z, 0f, p.X);
         rec.Tangent = tDir.LengthSquared() < 1e-8f
             ? Vector3.UnitX
             : Vector3.Normalize(tDir);
-        rec.Bitangent = Vector3.Normalize(Vector3.Cross(outwardNormal, rec.Tangent));
+        // Bitangent along increasing V. N × T would run against the profile on
+        // the sides (the outward normal turns the meridian clockwise) and
+        // follow the normal's facing, not V, on horizontal steps; ∂P/∂v gives
+        // V's own direction, with N × T kept only where it vanishes.
+        rec.Bitangent = rec.DpDv.LengthSquared() > 1e-16f
+            ? Vector3.Normalize(rec.DpDv)
+            : Vector3.Normalize(Vector3.Cross(outwardNormal, rec.Tangent));
 
         rec.ObjectSeed = Seed;
         rec.Material = _material;
@@ -320,6 +338,8 @@ public sealed class Lathe : IHittable, ISamplable
         rec.V = (p.Z + capRadius) / (2f * capRadius);
         rec.Tangent = Vector3.UnitX;
         rec.Bitangent = Vector3.UnitZ;
+        rec.DpDu = new Vector3(2f * capRadius, 0f, 0f);
+        rec.DpDv = new Vector3(0f, 0f, 2f * capRadius);
         rec.ObjectSeed = Seed;
         rec.Material = _material;
     }
@@ -329,19 +349,21 @@ public sealed class Lathe : IHittable, ISamplable
     // ─────────────────────────────────────────────────────────────────────────
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
-        => SampleImpl(MathUtils.RandomFloat(), MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        float part = MathUtils.RandomFloat();
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleImpl(part, r2u, r2v);
+    }
 
     /// <inheritdoc/>
     public float SurfaceArea => _totalArea;
 
-    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sampleCount)
     {
-        float inv = 1f / sqrtSamples;
-        int su = sampleIndex % sqrtSamples;
-        int sv = sampleIndex / sqrtSamples;
         float xiPart = MathUtils.RandomFloat();
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (xs1, xs2) = MathUtils.Stratum2D(sampleIndex, sampleCount);
+        float xi1 = xs1;
+        float xi2 = xs2;
         return SampleImpl(xiPart, xi1, xi2);
     }
 
@@ -357,7 +379,7 @@ public sealed class Lathe : IHittable, ISamplable
             var (p, nrm, vSeg, theta) = _segments[idx].Sample(xi1, xi2);
             float segArc = _segments[idx].ArcLength;
             float v = (_vBase[idx] + vSeg * segArc) / _totalArc;
-            float u = theta / (2f * MathF.PI);
+            float u = (MathF.Atan2(MathF.Sin(theta), MathF.Cos(theta)) + MathF.PI) / (2f * MathF.PI);   // as Hit()
             return (p, nrm, new Vector2(u, v), _totalArea);
         }
 

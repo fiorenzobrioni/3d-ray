@@ -96,7 +96,7 @@ public class FireflyRegressionTests
             samplesPerPixel:    Spp,
             maxDepth:           Depth,
             globalMedium:       medium,
-            maxSampleRadiance:  Renderer.DefaultMaxSampleRadiance,
+            maxSampleRadiance:  Renderer.SuggestedMaxSampleRadiance,
             verbose:            false);
 
         var pixels = renderer.Render(Width, Height);
@@ -250,7 +250,7 @@ public class FireflyRegressionTests
 
         // Marble surface: transparent boundary; the colour comes from the
         // volume.
-        var marbleSurface = new DisneyBsdf(
+        var marbleSurface = DisneyMaterial.Create(
             baseColor: new SolidColor(Vector3.One),
             roughness: new FloatTexture(0.18f),
             specular:  new FloatTexture(0.5f),
@@ -292,7 +292,10 @@ public class FireflyRegressionTests
             lights:          new List<ILight> { areaLight },
             sky:             new SkySettings(Vector3.Zero),
             samplesPerPixel: Spp,
-            maxDepth:        Depth);
+            maxDepth:        Depth,
+            // The firefly clamp is opt-in since PIANO-REVIEW.md §3.20; this
+            // test pins the clamp pipeline, so it turns it on.
+            maxSampleRadiance: Renderer.SuggestedMaxSampleRadiance);
         var pixels = renderer.Render(Width, Height);
 
         // Count post-tonemap near-saturation pixels (same definition as the
@@ -338,7 +341,7 @@ public class FireflyRegressionTests
         Sampler.SetKind(SamplerKind.Prng);
 
         // Milk surface: Disney transparent + low IOR (1.35).
-        var milkSurface = new DisneyBsdf(
+        var milkSurface = DisneyMaterial.Create(
             baseColor: new SolidColor(Vector3.One),
             roughness: new FloatTexture(0.05f),
             specular:  new FloatTexture(0.5f),
@@ -383,7 +386,10 @@ public class FireflyRegressionTests
             lights:          new List<ILight> { ceilingLight },
             sky:             new SkySettings(Vector3.Zero),
             samplesPerPixel: Spp,
-            maxDepth:        Depth);
+            maxDepth:        Depth,
+            // The firefly clamp is opt-in since PIANO-REVIEW.md §3.20; this
+            // test pins the clamp pipeline, so it turns it on.
+            maxSampleRadiance: Renderer.SuggestedMaxSampleRadiance);
         var pixels = renderer.Render(Width, Height);
 
         int spikes = 0;

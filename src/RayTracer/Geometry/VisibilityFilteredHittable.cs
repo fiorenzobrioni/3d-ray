@@ -5,7 +5,7 @@ namespace RayTracer.Geometry;
 /// <summary>
 /// Wraps an <see cref="IHittable"/> and OR's a fixed
 /// <see cref="HitVisibilityMask"/> into every reported hit. The renderer reads
-/// the mask back in <see cref="Rendering.Renderer.TraceRay"/> /
+/// the mask back in the path loop (<see cref="Rendering.Renderer.TracePath"/>) /
 /// <see cref="ShadowRay"/> and skips the surface for any ray category whose
 /// bit is set — implementing the full Arnold <c>visibility.*</c> /
 /// Cycles "Ray Visibility" matrix for surface primitives.

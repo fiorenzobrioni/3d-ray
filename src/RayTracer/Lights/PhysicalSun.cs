@@ -7,7 +7,7 @@ namespace RayTracer.Lights;
 /// <summary>
 /// Physically-grounded sun: a directional emitter with a finite angular
 /// radius (the real sun subtends 0.265° half-angle), MIS-correct cone
-/// sampling, and optional Hestroffer (1997) limb darkening.
+/// sampling, and optional limb darkening.
 ///
 /// <para>This light is decoupled from the sky model: it can be paired with
 /// Hosek-Wilkie / Preetham (analytical sun direction inherited from the model),
@@ -20,16 +20,16 @@ namespace RayTracer.Lights;
 /// <c>cosθ = 1 − ξ₁(1 − cosα)</c>, <c>φ = 2πξ₂</c>, PDF = <c>1 / (2π(1 − cosα))</c>.
 /// Stratified over <c>ShadowSamples</c> for low-variance penumbras.</para>
 ///
-/// <para><b>Limb darkening.</b> When enabled, multiplies the per-sample
-/// radiance by Hestroffer's 5-parameter polynomial in <c>μ = cos(angle from disc centre)</c>,
-/// reproducing the observed ~40% intensity drop from disc centre to limb.</para>
+/// <para><b>Limb darkening.</b> When enabled, the disc is brighter at its
+/// centre and darker at its rim (<see cref="LimbFactor"/>), with the same
+/// mean.</para>
 /// </summary>
 public class PhysicalSun : ILight
 {
     /// <summary>Unit vector pointing FROM the scene TO the sun, sky-space (Y up).</summary>
     public Vector3 Direction { get; }
 
-    /// <summary>Linear HDR radiance at the disc centre (W/m²/sr units, relative).</summary>
+    /// <summary>Mean radiance over the disc (limb darkening redistributes it, <see cref="LimbFactor"/>).</summary>
     public Vector3 Color { get; }
 
     /// <summary>Multiplicative intensity scale; folded into <see cref="Color"/> at NEE time.</summary>
@@ -38,13 +38,11 @@ public class PhysicalSun : ILight
     /// <summary>Disc half-angle in degrees. 0.265° = real Sun.</summary>
     public float AngularRadiusDeg { get; }
 
-    /// <summary>Apply Hestroffer (1997) limb-darkening to per-sample radiance.</summary>
+    /// <summary>Darken the disc toward its rim (<see cref="LimbFactor"/>).</summary>
     public bool LimbDarkening { get; }
 
     private readonly float _cosHalfAngle;
     private readonly float _solidAngle;
-    private readonly int _sqrtSamples;
-    private readonly float _invSqrtSamples;
 
     public int ShadowSamples { get; }
 
@@ -65,8 +63,6 @@ public class PhysicalSun : ILight
         _solidAngle = 2f * MathF.PI * (1f - _cosHalfAngle);
 
         ShadowSamples = shadowSamples > 0 ? shadowSamples : 4;
-        _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
-        _invSqrtSamples = 1f / _sqrtSamples;
     }
 
     // Φ = E · π · R². For a directional emitter the irradiance on a
@@ -90,15 +86,11 @@ public class PhysicalSun : ILight
         float xi1, xi2;
         if (sampleIndex >= 0)
         {
-            int su = sampleIndex % _sqrtSamples;
-            int sv = sampleIndex / _sqrtSamples;
-            xi1 = (su + MathUtils.RandomFloat()) * _invSqrtSamples;
-            xi2 = (sv + MathUtils.RandomFloat()) * _invSqrtSamples;
+            (xi1, xi2) = MathUtils.Stratum2D(sampleIndex, ShadowSamples);
         }
         else
         {
-            xi1 = MathUtils.RandomFloat();
-            xi2 = MathUtils.RandomFloat();
+            (xi1, xi2) = MathUtils.Random2D();
         }
 
         float cosTheta = 1f - xi1 * (1f - _cosHalfAngle);
@@ -110,18 +102,18 @@ public class PhysicalSun : ILight
 
         // Optional surface-normal early-out
         bool hasNormal = surfaceNormal.LengthSquared() > 0f;
-        if (hasNormal && Vector3.Dot(surfaceNormal, toLight) <= 0f)
+        if (hasNormal && !ShadowRay.ReceiverTransmits && Vector3.Dot(surfaceNormal, toLight) <= 0f)
             return (true, Vector3.Zero, toLight, MathUtils.Infinity);
 
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        Vector3 shadowOrigin = MathUtils.OffsetToward(hitPoint, surfaceNormal, toLight);
         var shadowRay = new Ray(shadowOrigin, toLight, time);
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, MathUtils.Infinity);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, MathUtils.Infinity);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, toLight, MathUtils.Infinity);
 
         Vector3 sampleRadiance = Color * Intensity;
         if (LimbDarkening)
-            sampleRadiance *= HestrofferLimb(cosTheta);
+            sampleRadiance *= LimbFactor(cosTheta, _cosHalfAngle);
 
         // Per-sample contribution: L * Ω / N (radiance × disc solid angle,
         // divided by sample count). The cone PDF is 1/Ω, so dividing by Ω
@@ -130,6 +122,21 @@ public class PhysicalSun : ILight
         // mean across N stratified samples.
         Vector3 contribution = sampleRadiance * _solidAngle * trans / ShadowSamples;
         return (false, contribution, toLight, MathUtils.Infinity);
+    }
+
+    /// <summary>
+    /// Radiance the sun shows in direction <paramref name="dir"/>, zero off its
+    /// disc: what a BSDF ray that reaches the sun collects, the same function
+    /// the light samples.
+    /// </summary>
+    public Vector3 RadianceToward(Vector3 dir)
+    {
+        float len = dir.Length();
+        if (len < MathUtils.Epsilon) return Vector3.Zero;
+        float cosTheta = Vector3.Dot(dir / len, Direction);
+        if (cosTheta < _cosHalfAngle) return Vector3.Zero;
+        Vector3 radiance = Color * Intensity;
+        return LimbDarkening ? radiance * LimbFactor(cosTheta, _cosHalfAngle) : radiance;
     }
 
     public float PdfSolidAngle(Vector3 hitPoint, Vector3 wi)
@@ -142,39 +149,46 @@ public class PhysicalSun : ILight
     }
 
     /// <summary>
-    /// Hestroffer 1997 5-parameter limb darkening polynomial in
-    /// μ = cos(angle from disc centre). Values for the visible band; produces
-    /// a ~40% dim from centre to limb that matches solar photographs.
+    /// Limb darkening of the solar disc, normalised so that its mean over the
+    /// disc is 1: the disc delivers the same irradiance with it or without it,
+    /// <see cref="Color"/> being the disc's mean radiance. Linear law
+    /// I(μ)/I(1) = 1 − u(1 − μ) with u = 0.6 (visible band), μ the cosine of
+    /// the angle on the solar surface, √(1 − (r/R)²) at a fraction r/R of the
+    /// disc's radius; the mean of μ over the disc is 2/3.
+    ///
+    /// <para>The law used to take μ as the cosine of the angle in the sky from
+    /// the disc's centre, which never drops below cos 0.265° on the real sun:
+    /// the darkening did nothing.</para>
     /// </summary>
-    private static float HestrofferLimb(float mu)
+    public static float LimbFactor(float cosAngle, float cosHalfAngle)
     {
-        // Coefficients from Hestroffer & Magnan (1997), V-band fit:
-        //   I(μ)/I(1) = 1 − u₁(1 − μ) − u₂(1 − μ)² ...
-        // We use the two-coefficient form with u₁ = 0.6, u₂ = 0.0 (Eddington-ish).
-        const float u1 = 0.6f;
-        const float u2 = 0.0f;
-        float one_mu = 1f - mu;
-        float darkening = 1f - u1 * one_mu - u2 * one_mu * one_mu;
-        return MathF.Max(0f, darkening);
+        const float u = 0.6f;
+        float r2 = Math.Clamp((1f - cosAngle) / MathF.Max(1e-12f, 1f - cosHalfAngle), 0f, 1f);
+        float mu = MathF.Sqrt(1f - r2);
+        return (1f - u * (1f - mu)) / (1f - u / 3f);
     }
 
     private static Vector3 LocalToWorld(Vector3 local, Vector3 w)
     {
-        Vector3 u, v;
-        if (w.Z < -0.999f)
-        {
-            u = new Vector3(0f, -1f, 0f);
-            v = new Vector3(-1f, 0f, 0f);
-        }
-        else
-        {
-            float a = 1f / (1f + w.Z);
-            float b = -w.X * w.Y * a;
-            u = new Vector3(1f - w.X * w.X * a, b, -w.X);
-            v = new Vector3(b, 1f - w.Y * w.Y * a, -w.Y);
-        }
-        Vector3 result = local.X * u + local.Y * v + local.Z * w;
+        Vector3 result = MathUtils.LocalToWorld(local, w);
         float lenSq = result.LengthSquared();
         return lenSq > 1e-8f ? result / MathF.Sqrt(lenSq) : w;
     }
+
+    // ── Emission (bidirectional integrators) ────────────────────────────────
+
+    public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
+    {
+        Vector3 toLight = EmissionMath.UniformCone(Direction, _cosHalfAngle, uDir);
+        var (origin, pdfPos) = EmissionMath.InfiniteOrigin(ctx, toLight, uPos);
+        e = new LightEmission
+        {
+            Position = origin, Direction = -toLight, Normal = Vector3.Zero, Radiance = RadianceToward(toLight),
+            PdfPos = pdfPos, PdfDir = 1f / _solidAngle, Cos = 1f, Infinite = true,
+        };
+        return e.Radiance != Vector3.Zero;
+    }
+
+    public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight)
+        => EmissionMath.InfiniteDiscPdf(ctx) * PdfSolidAngle(point, -dirFromLight);
 }
