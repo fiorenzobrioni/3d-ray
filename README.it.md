@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/ci.yml/badge.svg)](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/ci.yml)
 
-Un'esplorazione personale del ray tracing cresciuta, una feature alla volta, in un path tracer CPU completo, scritto in C#/.NET 10 (l'unica libreria nativa è il denoiser opzionale Intel Open Image Denoise). Disney Principled BSDF, NEE+MIS, path tracing bidirezionale e VCM, denoiser appreso e feature-guided, volumetria completa, caustiche, displacement - tutto da un singolo file YAML.
+Un'esplorazione personale del ray tracing cresciuta, una feature alla volta, in un path tracer CPU completo, scritto in C#/.NET 10 (l'unica libreria nativa è il denoiser opzionale Intel Open Image Denoise). Materiali OpenPBR, NEE+MIS, path tracing bidirezionale e VCM, denoiser appreso e feature-guided, volumetria completa, caustiche, displacement - tutto da un singolo file YAML.
 
 ![Spheres Classic](renders/spheres-classic.png)
 
@@ -18,7 +18,7 @@ Un'esplorazione personale del ray tracing cresciuta, una feature alla volta, in 
 
 3D-Ray è un path tracer nato dalla curiosità e dalla passione per il rendering. Quello che è iniziato come uno studio personale degli algoritmi di trasporto della luce ha accumulato nel tempo un feature set solido, scritto interamente in C#/.NET 10, che sfrutta tutti i core della CPU tramite le primitive parallele di .NET, senza dipendenze da engine esterni (l'unica libreria nativa, Intel Open Image Denoise, è un denoiser opzionale). Descrivi la scena (luci, materiali, geometria, camera) in un file YAML e ottieni un'immagine fisicamente accurata con un look cinematografico. Niente codice. Niente boilerplate.
 
-Il sistema di materiali ruota attorno a un **Disney Principled BSDF completo**: un singolo tipo che copre l'intera gamma, dall'intonaco opaco all'oro a specchio, dal vetro d'acqua profonda con assorbimento Beer-Lambert dipendente dallo spessore alla pellicola di sapone iridescente con interferenza thin-film, con energy compensation per metalli rugosi, subsurface shaping per pelle e cera, Charlie sheen per velluto e microfibre. Un Mix Material a livelli con mask spaziali gestisce usura, ruggine, invecchiamento e composizioni ricorsive senza limiti di profondità.
+Il sistema di materiali ruota attorno a **OpenPBR Surface**, il materiale a strati dello standard della Academy Software Foundation: un singolo tipo che copre l'intera gamma, dall'intonaco opaco all'oro a specchio, dal vetro d'acqua profonda con assorbimento Beer-Lambert dipendente dallo spessore alla pellicola di sapone iridescente con interferenza thin-film, con energy compensation per metalli rugosi, subsurface scattering a random walk per pelle e cera e fuzz per velluto e microfibre, conservando l'energia in ogni combinazione di strati. Un Mix Material a livelli con mask spaziali gestisce usura, ruggine, invecchiamento e composizioni ricorsive senza limiti di profondità.
 
 Il sistema di illuminazione è di classe professionale. **Next Event Estimation con Multiple Importance Sampling** converge velocemente anche su illuminazioni complesse e occluse. Il **path tracing bidirezionale** e il **vertex connection and merging** (`--integrator bdpt` o `vcm`) rendono la luce che il path tracing trova solo per caso: caustiche focalizzate da qualsiasi geometria speculare (vetro, acqua, cristalli, specchi) e da ogni tipo di luce, senza configurazione per-oggetto, e con il VCM anche le caustiche viste attraverso un vetro o l'acqua. Il **motion blur** segue il tempo di esposizione per-camera, dal freeze-frame alle lunghe esposizioni cinematografiche. Lo **stack volumetrico completo** (nebbia omogenea, height fog, atmosfera Nishita, nubi fBm, media partecipanti) si integra direttamente con la NEE all'interno del volume.
 
@@ -75,31 +75,27 @@ Per la roadmap dettagliata e le feature in corso consulta il [**PLANNING**](./PL
 - 🌳 **Scene Graph (Gruppi)** - Composizione gerarchica di oggetti con trasformazioni ereditate. Gruppi annidabili con primitive, CSG, mesh e altri gruppi.
 - 🏭 **Template / Istanze** - Definisci oggetti composti una volta come template, istanzia N volte con trasformazioni e materiali indipendenti. Librerie di oggetti importabili da file YAML separati.
 - 📦 **Import YAML** - Scomposizione di scene complesse in file separati. Librerie riutilizzabili di materiali, template, oggetti e luci con import annidati e protezione ciclica.
+- 📝 **Formato di scena 2** - un nome per concetto, nessun alias, e un loader rigoroso: una chiave sconosciuta, un valore sbagliato o un tipo scritto male è un errore con riga, colonna e un suggerimento, una chiave senza effetto sul suo tipo un avviso. Un JSON Schema generato dal motore (`docs/reference/scene-schema.json`) dà completamento e controllo in qualunque editor con un language server YAML. Le scene portano le proprie impostazioni di render (`render:`, i flag della riga di comando con i trattini bassi) e la loro unità di lunghezza (`units: { length: cm }`). Le scene del formato 1 si convertono con **SceneMigrate**, commenti compresi.
 ### Materiali
 - 🎨 **Lambertian** - diffuso opaco
-- 🪞 **Metal** - riflesso a microfacette GGX con rugosità (`fuzz`) configurabile, scattering multiplo fra le microfacette (un metallo ruvido mantiene la sua luminosità), colore a incidenza normale e sul bordo (`color`, `edge_color`), oppure un metallo misurato per nome (`preset: gold`, `silver`, `copper`, `aluminium`, ...) con il suo Fresnel complesso esatto.
+- 🪞 **Metal** - riflesso a microfacette GGX con `roughness` configurabile, scattering multiplo fra le microfacette (un metallo ruvido mantiene la sua luminosità), colore a incidenza normale e sul bordo (`color`, `edge_color`), oppure un metallo misurato per nome (`preset: gold`, `silver`, `copper`, `aluminium`, ...) con il suo Fresnel complesso esatto.
 - 💎 **Dielectric** - vetro e trasparenti con rifrazione e riflesso di Fresnel esatto; `roughness` dà il vetro satinato, illuminato direttamente attraverso la superficie.
-- 🧬 **OpenPBR Surface** - il materiale a strati dello standard della Academy Software Foundation (`"openpbr"`), con i nomi e i default dei suoi parametri: metallo con tinta al bordo, dielettrico con diffuso ruvido che conserva l'energia, vetro, subsurface con random walk, coat che assorbe, fuzz per velluto e polvere, film sottile, emissione, fogli thin-walled e ritagli. Ogni ingresso accetta un numero, un colore o una texture, e un materiale bianco conserva l'energia in ogni combinazione di strati.
+- 🧬 **OpenPBR Surface** - il materiale a strati dello standard della Academy Software Foundation (`"openpbr"`), con i nomi e i default dei suoi parametri: un singolo tipo copre plastica, metallo, vetro, vernice auto, tessuto, pelle, bolle di sapone e qualsiasi combinazione. Ogni ingresso accetta un numero, un colore (anche `"#rrggbb"`) o una texture, e un materiale bianco conserva l'energia in ogni combinazione di strati:
+  - **Metallo** con tinta al bordo (F82) e **multi-scattering energy compensation** per metalli rugosi convincenti.
+  - **Dielettrico** con diffuso ruvido che conserva l'energia (EON) e riflessi **anisotropi** per metallo spazzolato, capelli e vinile.
+  - **Vetro** con assorbimento Beer-Lambert dipendente dallo spessore o un interno che diffonde: liquori, bottiglie colorate, acque profonde.
+  - **Subsurface** con random walk in un mezzo costruito dal colore e dal raggio: pelle, cera, marmo.
+  - **Coat** con IOR, tinta, rugosità e normal map proprie per carrozzerie, lacche e vinile protetto.
+  - **Fuzz** per microfibre realistiche (velluto, pesca, muschio), **iridescenza thin-film** per bolle di sapone, opale e rivestimenti dicroici.
+  - Fogli **thin-walled** per foglie, tendaggi e paralumi, **ritagli** con l'opacità.
 - 💡 **Emissive** - materiale auto-luminoso; gli oggetti emissivi partecipano automaticamente alla NEE come sorgenti di luce geometriche
-- 🌟 **Disney Principled BSDF** - materiale PBR unificato (`"disney"` / `"pbr"`): un singolo tipo copre plastica, metallo, vetro, vernice auto, tessuto, pelle, bolle di sapone e qualsiasi combinazione. Oltre ai parametri classici (`metallic`, `roughness`, `specular`, `sheen`, `clearcoat`, `spec_trans`, `ior`) supporta:
-  - **Anisotropia** per highlight allungati stile metallo spazzolato, capelli e vinile.
-  - **Multi-scattering energy compensation** per metalli rugosi convincenti (oro e rame anche a roughness alta).
-  - **Beer-Lambert per il vetro** con assorbimento dipendente dallo spessore: liquori, bottiglie colorate, acque profonde.
-  - **Diffuse transmission & thin-walled** per fogli, foglie, tendaggi e paralumi.
-  - **Subsurface shaping** con tinte sotto-pelle dedicate per pelle, cera e marmo.
-  - **Clearcoat avanzato** con IOR e normal map proprie per carrozzerie, lacche e vinile protetto.
-  - **Sheen** per microfibre realistiche (velluto, pesca, muschio).
-  - **Thin-film iridescence** per bolle di sapone, opal e rivestimenti dicroici.
-
-  I parametri Disney sono tradotti sul materiale OpenPBR, così ogni combinazione di strati conserva l'energia (niente bordi luminosi da sheen o clearcoat).
-
 - 🔀 **Mix Material** - blending tra due materiali qualsiasi con peso costante o texture mask spaziale (noise, marble, image…). Per effetti di ruggine, usura, transizioni graduali, decal e composizioni ricorsive (mix-of-mix)
 
 ### Texture
 - ♟ **Checker** - scacchiera 3D procedurale
-- 🌀 **Noise** - improved Perlin noise (`noise_basis: classic` mantiene il disegno precedente), liscio o turbolento, con `noise_type`, `octaves`, `lacunarity`, `gain`, `distortion`; modalità `perlin` / `fbm` / `turbulence` / `ridged` / `billow` più i due multifrattali **Musgrave** `hetero_terrain` e `hybrid_multifractal` per terreni erosi e roccia stratificata
+- 🌀 **Noise** - improved Perlin noise, liscio o turbolento, con `noise_type`, `octaves`, `lacunarity`, `gain`, `distortion`; modalità `perlin` / `fbm` / `turbulence` / `ridged` / `billow` più i due multifrattali **Musgrave** `hetero_terrain` e `hybrid_multifractal` per terreni erosi e roccia stratificata
 - 🏔 **Marble** - marmo procedurale realistico con venature multi-strato, distorsione che elimina il tiling visibile, pieghe geologiche, variazione cromatica di fondo e impurità minerali.
-- 🪵 **Wood** - legno procedurale realistico con anelli di crescita asimmetrici e variabili, venatura e figure del taglio, pori, gradiente alburno/durame e nodi. Il pattern degli anelli può pilotare anche `roughness` e `sheen` del Disney BSDF.
+- 🪵 **Wood** - legno procedurale realistico con anelli di crescita asimmetrici e variabili, venatura e figure del taglio, pori, gradiente alburno/durame e nodi. Il pattern degli anelli può pilotare anche la rugosità speculare e il fuzz di un materiale OpenPBR.
 - 🔷 **Voronoi / Worley** - pattern cellulari con dieci canali di output e metriche euclidean/manhattan/chebyshev, ideali per rocce, scaglie, mosaici e ciottoli. Colore per-cella libero o pilotato da palette/color ramp, con bordi netti o ammorbiditi (`smoothness`).
 - 🧱 **Brick** - pattern mattoni running-bond con variazione per-mattone e weathering
 - 🌈 **Gradient** - sfumature lineari, quadratiche, easing, sferiche e radiali
@@ -130,7 +126,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🔄 **Transform** - scala, rotazione e traslazione applicabili a qualsiasi primitiva, inclusi i nodi CSG.
 
 ### Sistema di Illuminazione
-- 📏 **Unità fotometriche** - ogni luce si può scrivere in unità fisiche invece che con un'intensità senza unità: potenza in watt o lumen, candele, luminanza in nit, illuminamento in lux, e una temperatura di colore in kelvin (corpo nero). Con l'esposizione EV100 della camera, una lampadina da 800 lm, un pannello LED da 3000 nit e il sole da 100 000 lux illuminano una scena come farebbero nella realtà.
+- 📏 **Unità fotometriche** - ogni luce è in unità fisiche: luci puntiformi e spot in candele (`intensity`), luci area e sphere in nit (`luminance`), la luce direzionale in lux (`illuminance`), oppure ogni luce finita con la sua potenza in watt o lumen; il colore è una tinta, una temperatura in kelvin dà un corpo nero. Con l'esposizione EV100 della camera, una lampadina da 800 lm, un pannello LED da 3000 nit e il sole da 100 000 lux illuminano una scena come farebbero nella realtà.
 - 📐 **Profili IES** - le luci puntiformi e gli spot possono emettere la distribuzione misurata di un apparecchio da un file IES LM-63, al suo flusso o riscalata.
 - 💡 **Point Light** - luce puntiforme con attenuazione quadratica
 - ☀️ **Directional Light** - luce parallela (sole), senza attenuazione
@@ -142,9 +138,9 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🌳 **Molte luci** - con molte luci un BVH delle luci manda ogni campione alle luci che contano per quel punto (vicine e rivolte verso di lui), così una strada di lampioni o una stanza piena di faretti converge veloce come una scena con poche luci. Ogni strategia di scelta delle luci è non distorta.
 
 ### Ambiente
-- ☁️ **Flat Sky** - cielo a colore uniforme. Default `[0.5, 0.7, 1.0]` quando `world.sky` è omesso; partecipa a NEE quando luminanza > 0.
+- ☁️ **Flat Sky** - cielo a colore uniforme; partecipa a NEE quando luminanza > 0. Una scena senza cielo ha un ambiente nero.
 - 🌅 **Gradient Sky** - cielo procedurale con gradiente verticale a 3 bande (zenith, orizzonte, terreno) e sole analitico opzionale agganciato a un `PhysicalSun` con cone sampling stratificato e limb darkening fisicamente corretto.
-- ☀️ **Physical Sky (Hosek-Wilkie, Preetham)** - cielo diurno sereno analitico parametrizzato da `turbidity` e `ground_albedo`: `type: hosek_wilkie` (adattato a cieli misurati, anche con il sole basso) o `type: preetham`. Il sole viene dalla stessa luce del cielo: il suo disco è la luce solare al limite dell'atmosfera, attenuata lungo il suo percorso, così sole e cielo illuminano una scena nella proporzione reale. In unità relative o in nit, da esporre con l'EV100 come una fotografia.
+- ☀️ **Physical Sky (Hosek-Wilkie, Preetham)** - cielo diurno sereno analitico parametrizzato da `turbidity` e `ground_albedo`: `type: hosek_wilkie` (adattato a cieli misurati, anche con il sole basso) o `type: preetham`. Il sole viene dalla stessa luce del cielo: il suo disco è la luce solare al limite dell'atmosfera, attenuata lungo il suo percorso, così sole e cielo illuminano una scena nella proporzione reale. In nit, da esporre con l'EV100 come una fotografia (o attenuato con un'`exposure`).
 - 🌌 **Nishita Sky** - atmosfera fisica con Rayleigh, Mie e ozono, tabella di trasmittanza precomputata e integrazione single-scattering. Alba e tramonto fisicamente corretti: disco rosso, halo arancione e zenith blu emergono dalla simulazione fisica, non da fitting.
 - 🪟 **Portal Light** - finestra o lucernario che si affaccia sull'environment. Concentra il campionamento luminoso nell'apertura per ridurre significativamente il rumore negli interni illuminati dalla luce naturale.
 - 🔍 **Importance sampling dell'HDRI** - l'immagine dell'ambiente è campionata in proporzione alla sua luminosità, con la compensazione per l'importance sampling multiplo di Karlík et al. 2019: la luce che la BSDF trova bene resta alla BSDF, i campioni vanno ai punti luminosi.
@@ -152,8 +148,8 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🌍 **IBL / HDRI** - illuminazione ambientale da panoramiche ad alta gamma dinamica (`.hdr` o `.exr`): cattura riflessioni e luce diffusa dall'ambiente reale o sintetico. L'**estrazione automatica del sole** rileva il picco luminoso nella HDRI e lo converte in una sorgente separata per ombre nitide e meno rumore.
 - 🎛️ **Visibility flags** - controllo granulare della visibilità per ogni sorgente di luce: può essere visibile dalla camera, proiettare ombre, contribuire alle superfici diffuse, alle riflessioni glossy o alla trasmissione, ognuno in modo indipendente.
 - 🖼️ **Background plate** - illumina la scena con un'HDRI e mostra alla camera un'immagine di sfondo diversa: utile per compositing con riprese reali o per sostituire il cielo senza ri-renderizzare l'illuminazione.
-- 🧭 **Orientation** quaternion / Euler XYZ - rotazioni complete in 3D per tutti gli oggetti della scena: asse qualunque via angoli Eulero o quaternioni per interpolazione corretta senza gimbal lock.
-- 🏞️ **Ground production-grade** - terreno dedicato con quattro forme (piano infinito, quad, disco, heightfield), posizione e normale configurabili, materiale PBR inline, UV transform completa e visibilità granulare per categoria di raggio. Il colore si sincronizza automaticamente con il cielo quando nessun materiale è specificato.
+- 🧭 **Rotazioni** - angoli di Eulero in qualunque ordine (`rotate_order`) o una `matrix` 4×4 completa su ogni entità; il cielo ruota con lo stesso `rotate` di un'entità.
+- 🏞️ **Ground production-grade** - terreno dedicato con tre forme (piano infinito, quad, disco), posizione e normale configurabili, qualunque materiale, UV transform completa e visibilità granulare per categoria di raggio. Il colore si sincronizza automaticamente con il cielo quando nessun materiale è specificato.
 
 ### Volumetria (Participating Media)
 - 🌫️ **Homogeneous Medium** - mezzo partecipante uniforme globale per nebbia densa, foschia e effetti subacquei. Beer-Lambert analitico, economico, adatto come base di partenza.
@@ -164,7 +160,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🎇 **Cinque phase function** - `isotropic` (scattering uniforme), `hg` (Henyey-Greenstein, asimmetria direzionale), `rayleigh` (scattering atmosferico), `double_hg` (due lobi misti per nubi realistiche) e `schlick` (approssimazione fast-HG). Ogni mezzo combinabile con qualsiasi phase function.
 - 🧬 **MediumInterface per-entity** - mezzo partecipante assegnato alla singola entità: nebbia locale in una stanza, fumo in una teiera, acqua in un acquario, atmosfera di un pianeta - senza riempire l'intera scena. Gestisce correttamente volumi trasmissivi annidati, come un vetro che contiene un liquido.
 - 🪨 **Subsurface scattering volumetrico (Random Walk)** - diffusione sotto-superficie fisica per marmo, pelle, cera, latte e giada: la luce penetra il volume, si diffonde e riemerge con la traslucenza caratteristica di questi materiali. Senza distorsioni: un campione di luce a ogni rimbalzo e nessun tetto ai rimbalzi, il walk lo chiude la roulette russa.
-- 🧪 **Material-embedded SSS** - subsurface scattering volumetrico dichiarato direttamente sul materiale Disney, senza configurazione separata dei volumi: bastano un colore (l'albedo che mostra la superficie, invertito nell'albedo di singolo scattering del mezzo) e un raggio di diffusione per ottenere traslucenza fisica su marmo, cera, latte, pelle e altri materiali organici.
+- 🧪 **Material-embedded SSS** - subsurface scattering volumetrico dichiarato direttamente sul materiale OpenPBR, senza configurazione separata dei volumi: bastano un colore (l'albedo che mostra la superficie, invertito nell'albedo di singolo scattering del mezzo) e un raggio di diffusione per ottenere traslucenza fisica su marmo, cera, latte, pelle e altri materiali organici.
 
 ---
 
@@ -246,6 +242,7 @@ Crea il file `scenes/hello.yaml`:
 ```yaml
 # Hello World - una sfera rossa su un pavimento a scacchi, illuminata dal cielo.
 
+format_version: 2
 world:
   # Cielo a gradiente: fa anche da luce ambientale (illumina la scena).
   sky:
@@ -254,9 +251,10 @@ world:
     horizon_color: [0.8, 0.9, 1.0]   # chiaro all'orizzonte
     sun:                             # sole analitico per ombre nette
       direction: [-0.5, -1.0, -0.3]
-      intensity: 8.0
-  # Pavimento infinito a scacchi; "y: 0" lo appoggia all'altezza zero.
-  ground: { type: "infinite_plane", material: "floor", y: 0 }
+      luminance:  8
+      angular_radius: 1.5
+  # Pavimento infinito a scacchi passante per il punto [0, 0, 0].
+  ground: { type: "infinite_plane", material: "floor", point: [0, 0, 0] }
 
 cameras:
   - name: "main"
@@ -267,7 +265,7 @@ cameras:
 materials:
   - id: "floor"              # pavimento: scacchiera procedurale
     type: "lambertian"       # diffuso opaco
-    texture:
+    color:
       type: "checker"
       scale: 2.0                              # dimensione delle caselle
       colors: [[0.8, 0.8, 0.8], [0.15, 0.15, 0.15]]
@@ -315,9 +313,9 @@ Il risultato è in `renders/hello.png`. Da qui puoi cambiare `color`, aggiungere
 │   │   ├── Denoising/          # Denoiser (binding di Open Image Denoise, NLM, NFOR)
 │   │   ├── Geometry/           # Primitive (Sphere, Box, Cylinder, CsgObject, Group...)
 │   │   ├── Lights/             # Point, Directional, Spot, Area, Sphere, GeometryLight, EnvironmentLight
-│   │   ├── Materials/          # Lambertian, Metal, Dielectric, Emissive, OpenPBR, Disney BSDF, MixMaterial
+│   │   ├── Materials/          # Lambertian, Metal, Dielectric, Emissive, OpenPBR, MixMaterial
 │   │   ├── Rendering/          # Renderer, SkySettings, EnvironmentMap
-│   │   ├── Scene/              # SceneLoader, SceneData
+│   │   ├── Scene/              # SceneData (il formato), SceneValidator, SceneSchema, SceneLoader
 │   │   ├── Textures/           # Checker, Noise, Marble, Wood, Image, NormalMap
 │   │   └── Volumetrics/        # Homogeneous, HeightFog, Procedural, GridMedium e phase function
 │   ├── RayTracer.Tests/        # Suite xUnit (equivalenza BVH, AABB, ...)
@@ -328,6 +326,7 @@ Il risultato è in `renders/hello.png`. Da qui puoi cambiare `color`, aggiungere
 │       ├── TextureGen/         # Generatore texture procedurali (PNG)
 │       ├── NormalMapGen/       # Generatore flat normal map per test
 │       ├── ImageCompare/       # Confronto di immagini HDR lineari (relMSE, rapporto delle medie, mappa differenza)
+│       ├── SceneMigrate/       # Convertitore di scene dal formato 1 al formato 2
 │       ├── ChessGen/           # Generatore scena scacchiera chess.yaml
 │       └── TempleGen/          # Generatore scena tempio-romano.yaml
 ├── scenes/                     # File YAML di scene
@@ -396,6 +395,12 @@ dotnet run --project src/Tools/ImageCompare/ImageCompare.csproj -- \
   test.beauty.pfm reference.pfm [--diff diff.png] [--diff-scale 0.25] [--crop x,y,w,h] [--json]
 ```
 
+### SceneMigrate
+Converte sul posto le scene del formato 1 (scritte prima di `format_version: 2`) nel formato 2, mantenendo commenti e impaginazione: chiavi rinominate, materiali Disney come i materiali OpenPBR che costruivano, intensità delle luci senza unità come grandezze fotometriche, intensità del cielo come esposizioni. Ogni risultato è controllato con il validatore del motore; i valori che non si possono riportare esattamente sono segnalati come note. Vedi il [riferimento delle scene §13](./docs/reference/riferimento-scene.md).
+```bash
+dotnet run --project src/Tools/SceneMigrate -- scenes/vecchia-scena.yaml   # o una cartella; --dry-run non scrive nulla
+```
+
 ---
 
 ## 📖 Guida all'Uso e CLI
@@ -406,7 +411,7 @@ dotnet run --project src/Tools/ImageCompare/ImageCompare.csproj -- \
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | - (**obbligatorio**) | Percorso del file YAML della scena. L'estensione `.yaml` (o `.yml`) è **opzionale**: se il path non esiste così com'è, il loader prova ad aggiungerla automaticamente (es. `-i scenes/chess` ⇒ `scenes/chess.yaml`). |
 | `--output` | `-o` | `renders/render-<scena>.png` | File di output. Se omesso, generato dal nome della scena. L'estensione sceglie il formato: `.png`/`.jpg`/`.bmp` = immagine display tone-mapped; `.exr` = radianza **scene-linear pre-tone-mapping** (OpenEXR multilayer, RGB half + eventuali layer AOV, compressione ZIP) per compositing e grading in post. |
-| `--quality` | `-q` | `draft-small` | Preset di qualità che riempie in un colpo `-w -H -s -d -S` (più i limiti di rimbalzo per tipo e, per `standard`, SSS spento e il fattore del clamp indiretto). **Quando omesso il renderer usa `draft-small`** (960×540, 16 spp, depth 8, denoiser OIDN): un check di composizione veloce e già denoised è un default di primo lancio migliore di una passata lenta e rumorosa. Scala: `draft` → `standard` → `pre-final` → `final` → `ultra`. I primi quattro livelli hanno varianti `-tiny` (480×270) e `-small` (960×540); `ultra` è fisso a 3840×2160. I preset `draft*`/`standard*`/`pre-final*` attivano anche il denoiser (`--denoiser oidn`, `nfor` dove Open Image Denoise non si carica); `final`/`ultra` no. Da `standard*` in su i preset attivano anche l'adaptive sampling (`--adaptive on`: `-s` diventa il tetto). **Qualunque flag esplicito vince sul preset** (es. `-q final -d 16` per scene con vetri impilati). `standard` = qualità final su scene classiche (Lambertian/Disney, vetri non annidati, marmo procedurale) senza gli extra costosi; `pre-final` = anteprima fedele di `final` (feature complete, 256 spp + denoiser, ~4-6× più veloce) - vedi i [Profili di Rendering](./docs/reference/profili-di-rendering.md). |
+| `--quality` | `-q` | `draft-small` | Preset di qualità che riempie in un colpo `-w -H -s -d -S` (più i limiti di rimbalzo per tipo e, per `standard`, SSS spento e il fattore del clamp indiretto). **Quando omesso il renderer usa `draft-small`** (960×540, 16 spp, depth 8, denoiser OIDN): un check di composizione veloce e già denoised è un default di primo lancio migliore di una passata lenta e rumorosa. Scala: `draft` → `standard` → `pre-final` → `final` → `ultra`. I primi quattro livelli hanno varianti `-tiny` (480×270) e `-small` (960×540); `ultra` è fisso a 3840×2160. I preset `draft*`/`standard*`/`pre-final*` attivano anche il denoiser (`--denoiser oidn`, `nfor` dove Open Image Denoise non si carica); `final`/`ultra` no. Da `standard*` in su i preset attivano anche l'adaptive sampling (`--adaptive on`: `-s` diventa il tetto). **Qualunque flag esplicito vince sul preset** (es. `-q final -d 16` per scene con vetri impilati). `standard` = qualità final su scene classiche (Lambertian/OpenPBR, vetri non annidati, marmo procedurale) senza gli extra costosi; `pre-final` = anteprima fedele di `final` (feature complete, 256 spp + denoiser, ~4-6× più veloce) - vedi i [Profili di Rendering](./docs/reference/profili-di-rendering.md). |
 | `--width` | `-w` | `960` (da `draft-small`) | Larghezza in pixel. |
 | `--height` | `-H` | `540` (da `draft-small`) | Altezza in pixel. |
 | `--samples` | `-s` | `16` (da `draft-small`) | Campioni per pixel. Con il sampler Sobol (default) viene usato il conteggio esatto; con `--sampler prng` viene arrotondato al quadrato perfetto superiore (`√N × √N`). |
@@ -419,9 +424,9 @@ dotnet run --project src/Tools/ImageCompare/ImageCompare.csproj -- \
 | `--shadow-samples` | `-S` | *(da YAML)* | Override globale dei shadow samples per tutte le area light. Usa quadrati perfetti (`1, 4, 9, 16`). |
 | `--clamp` | `-C` | spento | Firefly clamp opzionale: massima radianza per-campione prima del tone mapping. Spento per default perché introduce bias: il tetto è una radianza assoluta, quindi toglie anche luce legittima delle sorgenti luminose. Aggiungilo (parti da `10`, abbassa per vetro/nebbia) solo se restano fireflies isolati dopo più campioni o il denoiser. |
 | `--indirect-clamp-factor` | - | `0.25` | Fattore di clamp per i bounce indiretti (depth ≥ 1), attivo solo con `-C`: clamp indiretto = `-C` × fattore (`2.5` con `-C 10`); `1.0` = nessuna soppressione aggiuntiva. Applicato una volta, relativo alla camera. |
-| `--transparent-shadows` | - | `off` | `off`: il vetro proietta la sua ombra fisica e la sua caustica (rumorosa in path tracing con pochi campioni; `--integrator bdpt` o `vcm` la risolvono). I gusci con indice adattato (`refraction_index: 1`) e i fogli `thin_walled` lisci lasciano sempre passare i raggi d'ombra, ed è esatto. `on`: approssimazione artistica, i raggi d'ombra attraversano il vetro in linea retta tinti dalla trasmittanza di Fresnel (mezz'ombra morbida, niente caustica, niente rumore) e i cammini rifratti vengono scartati per non contare due volte la luce. |
+| `--transparent-shadows` | - | `off` | `off`: il vetro proietta la sua ombra fisica e la sua caustica (rumorosa in path tracing con pochi campioni; `--integrator bdpt` o `vcm` la risolvono). I gusci con indice adattato (`ior: 1`) e i fogli `geometry_thin_walled` lisci lasciano sempre passare i raggi d'ombra, ed è esatto. `on`: approssimazione artistica, i raggi d'ombra attraversano il vetro in linea retta tinti dalla trasmittanza di Fresnel (mezz'ombra morbida, niente caustica, niente rumore) e i cammini rifratti vengono scartati per non contare due volte la luce. |
 | `--exposure` | - | `0` EV | Compensazione fotografica in stop, applicata come `2^EV` **prima** della trasformazione di visualizzazione. Negativo scurisce (`-1` = ½, `-2` = ¼), positivo schiarisce. Usalo per riportare scene troppo luminose fuori dalla spalla della curva tonale, dove il contrasto delle texture si perde. |
-| `--view` | - | `agx` | Trasformazione dalla radianza lineare della scena all'immagine per lo schermo: `agx` (default; i colori molto luminosi e saturi sfumano verso il bianco come sulla pellicola, senza viraggi di tinta), `aces` (ACES 1.x RRT + ODT per schermo sRGB, 100 nit: più contrasto, toni medi più scuri), `standard` (nessun tone mapping: taglio a [0, 1] e curva sRGB, per controllare i valori lineari), `legacy` (la curva usata prima di ottobre 2026, un'approssimazione di ACES per canale con gamma 2.2, per riprodurre render precedenti). Non tocca l'output EXR. |
+| `--view` | - | `agx` | Trasformazione dalla radianza lineare della scena all'immagine per lo schermo: `agx` (default; i colori molto luminosi e saturi sfumano verso il bianco come sulla pellicola, senza viraggi di tinta), `aces` (ACES 1.x RRT + ODT per schermo sRGB, 100 nit: più contrasto, toni medi più scuri), `standard` (nessun tone mapping: taglio a [0, 1] e curva sRGB, per controllare i valori lineari). Non tocca l'output EXR. |
 | `--look` | - | `none` | Look creativo della vista `agx`: `punchy` (più contrasto e saturazione), `golden` (caldo, saturo). |
 | `--white-balance` | - | `white_balance` della camera | Bilanciamento del bianco in kelvin (1667-25000): una luce di questa temperatura di colore appare neutra, come con una fotocamera impostata così. `3200` neutralizza la luce al tungsteno, `6504` non cambia nulla. Solo sull'immagine per lo schermo. |
 | `--filter` | - | `gaussian` | Filtro di ricostruzione dei pixel: `gaussian` (σ = 0.5 px, raggio 2 px), `blackman-harris` (raggio 1.5 px, un po' più nitido), `box` (ogni campione conta solo per il suo pixel: il più nitido e il più soggetto ad aliasing). Applicato per importance sampling del filtro, così il rumore dei pixel vicini resta indipendente. |
@@ -450,6 +455,8 @@ dotnet run --project src/Tools/ImageCompare/ImageCompare.csproj -- \
 | `--verbose` | `-v` | - | Mostra informazioni dettagliate durante il caricamento e l'analisi della scena (import, template, σ del medium, setup delle luci). Utile per debug e sviluppo scene. |
 | `--help` | `-h` | - | Mostra il messaggio di aiuto ed esce. |
 
+> **Flag nella scena:** una scena può portare queste impostazioni nel suo blocco `render:`, con il nome del flag con i trattini bassi (`light_sampling: bvh`, `quality: final`, `width: 2048`). La riga di comando vince sul blocco; un `-q` dato da riga di comando vince anche sulle chiavi del blocco che il preset fissa. Vedi il [riferimento delle scene §2](./docs/reference/riferimento-scene.md).
+
 > **Nota:** `-H` è maiuscola perché `-h` è riservato a `--help`. Le maiuscole sono usate per gli "override avanzati": `-S` (`--shadow-samples`) e `-C` (`--clamp`); `-s` minuscola per `--samples`, `-c` minuscola per `--camera`.
 
 > **Profili di rendering pronti all'uso:** vedi [Profili di Rendering](./docs/reference/profili-di-rendering.md) · [Rendering Profiles (EN)](./docs/reference/rendering-profiles.md).
@@ -469,7 +476,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q draft-
 ```
 
 ### Preset `standard` (render di qualità quotidiano - Full HD)
-Qualità da final su scene classiche (Lambertian/Disney, vetri non annidati,
+Qualità da final su scene classiche (Lambertian/OpenPBR, vetri non annidati,
 marmo procedurale): SSS volumetrico disattivato, 512 spp, 1
 shadow sample, NEE power-weighted, clamp indiretto rilassato e denoiser
 sulla grana residua. Molto più veloce di `final` su questo tipo di scene.
@@ -555,7 +562,7 @@ Riferimento tecnico completo di ogni chiave YAML accettata dal motore: world, ca
 Per chi vuole approfondire gli aspetti matematici e le scelte implementative:
 
 - [**Pipeline di Rendering**](./docs/technical/rendering-pipeline.md) - Flusso completo dall'YAML al pixel: inizializzazione, il loop del path e post-processing.
-- [**Modello di Shading e Materiali**](./docs/technical/shading-model.md) - Disney BSDF, Fresnel (Schlick) e Normal Mapping (TBN).
+- [**Modello di Shading e Materiali**](./docs/technical/shading-model.md) - OpenPBR, microfacette, Fresnel e Normal Mapping (TBN).
 - [**Path Tracing e Illuminazione**](./docs/technical/path-tracing-and-lighting.md) - NEE, Russian Roulette, campionamento HDRI e Sphere Light.
 - [**Multiple Importance Sampling (MIS)**](./docs/technical/multiple-importance-sampling.md) - Estimatore di Veach, heuristiche balance/power, contratti `Sample`/`Pdf`/`Evaluate` e casi limite (lobi delta, MixMaterial, phase function in volumi).
 - [**Strutture di Accelerazione (BVH)**](./docs/technical/acceleration-structures.md) - Bounding Volume Hierarchy e SAH.

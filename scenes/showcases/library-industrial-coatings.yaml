@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Industrial Coatings Showcase — Vernici Industriali Speciali
 #
@@ -14,24 +15,25 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.05, 0.05, 0.06]
 
-camera:
-  position: [0, 1.8, -11.0]
-  look_at:  [0, 0.9, 0]
-  fov: 50
+cameras:
+  - position: [0, 1.8, -11.0]
+    look_at:  [0, 0.9, 0]
+    fov: 50
 
 materials:
 
   - id: "dis_chassis_matte_nero"
-    type: "disney"
-    color: [0.04, 0.04, 0.04]
-    roughness: 0.65
-    specular: 0.32
-    clearcoat: 0.20
+    type: openpbr
+    base_color: [0.04, 0.04, 0.04]
+    specular_roughness: 0.65
+    specular_weight: 0.64
+    coat_weight: 0.20
     coat_roughness: 0.55
     coat_ior: 1.5
     bump_map:
@@ -43,30 +45,30 @@ materials:
       strength: 0.3
 
   - id: "dis_ral5015_blu_cielo"
-    type: "disney"
-    color: [0.10, 0.42, 0.65]
-    roughness: 0.42
-    specular: 0.40
-    clearcoat: 0.50
+    type: openpbr
+    base_color: [0.10, 0.42, 0.65]
+    specular_roughness: 0.42
+    specular_weight: 0.8
+    coat_weight: 0.50
     coat_roughness: 0.18
     coat_ior: 1.5
 
   - id: "dis_anodizzato_oro"
-    type: "disney"
-    metallic: 1.0
-    color: [0.91, 0.91, 0.92]
-    roughness: 0.25
-    specular: 0.55
-    anisotropic: 0.40
-    thin_film_thickness: 380
+    type: openpbr
+    base_metalness: 1.0
+    base_color: [0.91, 0.91, 0.92]
+    specular_roughness: 0.25
+    specular_roughness_anisotropy: 0.36
+    thin_film_thickness: 0.38
     thin_film_ior: 1.55
+    thin_film_weight: 1
 
   - id: "dis_gelcoat_blu_marino"
-    type: "disney"
-    color: [0.05, 0.10, 0.32]
-    roughness: 0.10
-    specular: 0.55
-    clearcoat: 0.90
+    type: openpbr
+    base_color: [0.05, 0.10, 0.32]
+    specular_roughness: 0.10
+    specular_weight: 1.1
+    coat_weight: 0.90
     coat_roughness: 0.06
     coat_ior: 1.5
     bump_map:
@@ -78,14 +80,13 @@ materials:
       strength: 0.18
 
   - id: "dis_termocromica"
-    type: "disney"
-    color: [0.42, 0.55, 0.72]
-    roughness: 0.32
-    specular: 0.42
-    clearcoat: 0.55
+    type: openpbr
+    specular_roughness: 0.32
+    specular_weight: 0.84
+    coat_weight: 0.55
     coat_roughness: 0.15
     coat_ior: 1.5
-    texture:
+    base_color:
       type: "gradient"
       mode: "linear"
       axis: [0, 1, 0]
@@ -96,14 +97,14 @@ materials:
         - { position: 1.00, color: [0.98, 0.85, 0.18], interp: "linear" }
 
   - id: "floor"
-    type: "disney"
-    color: [0.16, 0.16, 0.17]
-    roughness: 0.55
+    type: openpbr
+    base_color: [0.16, 0.16, 0.17]
+    specular_roughness: 0.55
 
   - id: "backdrop"
-    type: "disney"
-    color: [0.08, 0.08, 0.09]
-    roughness: 0.92
+    type: openpbr
+    base_color: [0.08, 0.08, 0.09]
+    specular_roughness: 0.92
 
 entities:
 
@@ -166,15 +167,15 @@ lights:
   - type: "directional"
     direction: [-0.45, -0.75, 0.4]
     color: [1.00, 0.98, 0.95]
-    intensity: 6.0
+    illuminance: 5.892516
     angular_radius: 0.4
 
   - type: "point"
     position: [-6, 7, -3]
     color: [0.88, 0.92, 1.00]
-    intensity: 70
+    intensity: 64.209045
 
   - type: "point"
     position: [0, 3, 5]
     color: [1.0, 0.88, 0.68]
-    intensity: 55
+    intensity: 49.008957

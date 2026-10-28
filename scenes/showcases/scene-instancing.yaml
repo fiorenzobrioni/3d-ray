@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Instancing Forest Showcase — Bosco con template e istanze condivise
 #
@@ -24,6 +25,7 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -38,7 +40,7 @@ cameras:
     look_at:    [2, 2.5, 2]
     fov:        55
     aperture:   0.05
-    focal_dist: 18.0
+    focus_distance: 18.0
 
   # ── Aerea — vista d'insieme, mostra la distribuzione degli alberi ─────
   - name:       aerea
@@ -46,7 +48,7 @@ cameras:
     look_at:    [0, 0, 0]
     fov:        50
     aperture:   0.0
-    focal_dist: 26.0
+    focus_distance: 26.0
 
   # ── Close-up — per ispezionare la struttura CSG di un singolo albero ──
   - name:       closeup
@@ -54,7 +56,7 @@ cameras:
     look_at:    [-3, 2.8, -7]
     fov:        35
     aperture:   0.08
-    focal_dist: 4.0
+    focus_distance: 4.0
 
   # ── Radente — camminata fra i tronchi, forte profondità di campo ─────
   - name:       radente
@@ -62,7 +64,7 @@ cameras:
     look_at:    [-1, 1.8, -2]
     fov:        50
     aperture:   0.12
-    focal_dist: 12.0
+    focus_distance: 12.0
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -72,7 +74,7 @@ materials:
   # ── Terreno: prato con marble procedurale (mottled verde) ─────────────
   - id: "terreno"
     type: "lambertian"
-    texture:
+    color:
       type: "marble"
       scale: 3.0
       noise_strength: 6.0
@@ -82,14 +84,14 @@ materials:
   # ── TRONCHI (marroni, una variante per specie) ─────────────────────────
   #   Pino: corteccia scura, opaca
   - id: "tronco_pino"
-    type: "disney"
-    color: [0.22, 0.14, 0.08]
-    roughness: 0.88
+    type: openpbr
+    base_color: [0.22, 0.14, 0.08]
+    specular_roughness: 0.88
 
   #   Quercia: texture wood → anelli visibili, texture più "nobile"
   - id: "tronco_quercia"
     type: "lambertian"
-    texture:
+    color:
       type: "wood"
       scale: 4.0
       noise_strength: 2.5
@@ -99,9 +101,9 @@ materials:
 
   #   Betulla: corteccia chiara, tipico bianco-grigio
   - id: "tronco_betulla"
-    type: "disney"
-    color: [0.82, 0.80, 0.75]
-    roughness: 0.75
+    type: openpbr
+    base_color: [0.82, 0.80, 0.75]
+    specular_roughness: 0.75
 
   # ── CHIOME (verdi, una variante per specie) ────────────────────────────
   #   Pino: verde scuro, opaco
@@ -112,7 +114,7 @@ materials:
   #   Quercia: verde medio con texture marble per mottled fogliame
   - id: "fogliame_quercia"
     type: "lambertian"
-    texture:
+    color:
       type: "marble"
       scale: 4.0
       noise_strength: 3.0
@@ -510,10 +512,10 @@ lights:
   - type: "directional"
     direction: [-0.45, -0.80, -0.40]
     color: [1.0, 0.92, 0.78]
-    intensity: 1.4
+    illuminance: 1.29766
 
   # ── Fill freddo da nord (cielo aperto) ─────────────────────────────────
   - type: "directional"
     direction: [0.35, -0.40, 0.85]
     color: [0.70, 0.82, 1.0]
-    intensity: 0.35
+    illuminance: 0.2826194

@@ -97,6 +97,7 @@ internal static class Program
 
     private static void WriteHeader(StringWriter sw, string fontName, string fontSlug, float height)
     {
+        sw.WriteLine("# yaml-language-server: $schema=../../../docs/reference/scene-schema.json");
         sw.WriteLine("# ============================================================================");
         sw.WriteLine($"# Libreria Oggetti — Font 3D \"{fontName}\" (Alfabeto e Numeri)");
         sw.WriteLine("# ============================================================================");
@@ -107,6 +108,7 @@ internal static class Program
         sw.WriteLine("# Materiale di default (font_material) da sovrascrivere nella scena.");
         sw.WriteLine($"# Naming: lettera_<char>_<maiusc|minusc>_{fontSlug}, numero_<digit>_{fontSlug}.");
         sw.WriteLine("#");
+        sw.WriteLine("format_version: 2");
         sw.WriteLine("templates:");
     }
 

@@ -126,7 +126,9 @@ public sealed partial class Migrator
 
     // ── Driver ───────────────────────────────────────────────────────────────
 
-    public string Migrate(string? schemaComment)
+    /// <param name="schemaComment">An editor comment to put first (the JSON Schema), or null.</param>
+    /// <param name="fragment">A piece of a scene (documentation): no version header, no defaults added.</param>
+    public string Migrate(string? schemaComment, bool fragment = false)
     {
         if (Key(_root, "format_version") != null)
             throw new InvalidOperationException("already has a format_version");
@@ -168,7 +170,7 @@ public sealed partial class Migrator
 
         // A file with neither camera nor world is a library imported by scenes:
         // the defaults below belong to the scene that imports it.
-        bool isScene = Key(_root, "camera") != null || Key(_root, "cameras") != null || Key(_root, "world") != null;
+        bool isScene = !fragment && (Key(_root, "camera") != null || Key(_root, "cameras") != null || Key(_root, "world") != null);
         if (isScene && Key(_root, "lights") == null && NeedsDefaultLights())
         {
             AppendRoot("# Format 1 added these two lights to a scene without 'lights:' and no other light.\n" +
@@ -199,10 +201,9 @@ public sealed partial class Migrator
 
         // format_version (and units) as the first keys of the file.
         var firstKey = _root.Children.Keys.First();
-        string header = "format_version: 2\n";
+        string header = fragment ? "" : "format_version: 2\n";
         if (MathF.Abs(_mpu - 1f) > 1e-6f) header += $"units: {{ length: {Num(_mpu)} }}\n";
-        int pos = _ed.LineStart(Start(firstKey));
-        _ed.Insert(pos, header);
+        if (header.Length > 0) _ed.Insert(_ed.LineStart(Start(firstKey)), header);
         string result = _ed.Apply();
         if (schemaComment != null && !result.StartsWith("# yaml-language-server"))
             result = schemaComment + "\n" + result;

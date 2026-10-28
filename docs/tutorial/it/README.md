@@ -18,7 +18,7 @@ pavimento, comprendendo ogni riga del file YAML.
 
 ### [03 -- I materiali in dettaglio](./03-materials.md)
 Tutti e sei i tipi di materiale spiegati parametro per parametro: Lambertian, Metal,
-Dielectric (vetro), Emissive, Disney/PBR e Mix. Incluse le texture procedurali
+Dielectric (vetro), Emissive, OpenPBR e Mix. Incluse le texture procedurali
 (checker, noise, marble, wood), le texture da immagine e le normal map.
 
 ### [04 -- Tutte le forme](./04-geometric-primitives.md)

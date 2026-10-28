@@ -26,7 +26,7 @@ Leggi la scena e produci un inventario:
 | Metrica | Valore |
 |---------|--------|
 | Entità totali | — |
-| Materiali (Disney / Classic / altro) | — / — / — |
+| Materiali (OpenPBR / Classic / altro) | — / — / — |
 | Luci (per tipo) | — |
 | Texture usate | sì/no, quali |
 | Gruppi / CSG | sì/no, conteggio |
@@ -41,7 +41,7 @@ Presenta un piano strutturato con **livelli di intervento**, dal meno al più in
 
 ### Livello 1 — Materiali (non tocca la geometria)
 
-- Convertire lambertian/metal su hero objects in `disney` con parametri PBR coerenti
+- Convertire lambertian/metal su hero objects in `openpbr` con parametri PBR coerenti
 - Aggiungere texture procedurali (marble, wood, checker, noise) dove c'è tinta piatta
 - Introdurre `mix_material` per effetti di usura (ruggine, polvere, muschio) su superfici che beneficiano del realismo
 - Aggiungere normal map su superfici piatte che dovrebbero avere micro-dettaglio (pietra, tessuto, intonaco)
@@ -88,7 +88,7 @@ Se l'utente ha già indicato l'aspetto in `$ARGUMENTS`, salta questa domanda e v
 Regole durante l'upgrade:
 
 - **Preserva ID esistenti** quando possibile — evita di rompere riferimenti in `entities`
-- **Aggiungi, non sostituire** — se un materiale classico è usato in 10 entità, affianca la versione Disney (`dis_<nome>`) e aggiornala selettivamente sugli hero objects, lasciando il Classic per le istanze secondarie
+- **Aggiungi, non sostituire** — se un materiale classico è usato in 10 entità, affianca la versione OpenPBR (`pbr_<nome>`) e aggiornala selettivamente sugli hero objects, lasciando il Classic per le istanze secondarie
 - **Preserva le camere esistenti** — non cambiare `position`/`look_at` senza chiedere
 - **Preserva il mood** — se la scena è notturna, non spostarla in pieno giorno; arricchisci mantenendo l'atmosfera
 - **Commenti**: aggiungi una sezione in testa al file (o sotto l'header esistente) con la nota `# UPGRADE: <data/descrizione>` che elenca cosa è stato arricchito

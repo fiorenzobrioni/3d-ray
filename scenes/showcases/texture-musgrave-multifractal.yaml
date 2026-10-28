@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Musgrave Multifractal Showcase — VFX Production-Grade Textures, Step 4/7
 #
@@ -43,6 +44,7 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -50,19 +52,18 @@ world:
     horizon_color: [0.06, 0.08, 0.12]
     ground_color:  [0.02, 0.02, 0.02]
 
-camera:
-  position: [0, 1.6, -6.2]
-  look_at:  [0, 1.4, 0]
-  fov: 52
+cameras:
+  - position: [0, 1.6, -6.2]
+    look_at:  [0, 1.4, 0]
+    fov: 52
 
 materials:
 
   # ── A: fBm reference (statistica omogenea a ogni quota) ────────────────
   - id: "panel_fbm"
-    type: "disney"
-    color: [0.85, 0.85, 0.86]
-    roughness: 0.55
-    texture:
+    type: openpbr
+    specular_roughness: 0.55
+    base_color:
       type: "noise"
       noise_type: "fbm"
       scale: 3.2
@@ -80,10 +81,9 @@ materials:
 
   # ── B: hetero_terrain — creste rugose dove l'accumulo è alto ───────────
   - id: "panel_hetero"
-    type: "disney"
-    color: [0.85, 0.85, 0.86]
-    roughness: 0.55
-    texture:
+    type: openpbr
+    specular_roughness: 0.55
+    base_color:
       type: "noise"
       noise_type: "hetero_terrain"
       scale: 3.2
@@ -102,10 +102,9 @@ materials:
 
   # ── C: hybrid_multifractal — strati rocciosi stratificati ──────────────
   - id: "panel_hybrid"
-    type: "disney"
-    color: [0.85, 0.85, 0.86]
-    roughness: 0.55
-    texture:
+    type: openpbr
+    specular_roughness: 0.55
+    base_color:
       type: "noise"
       noise_type: "hybrid_multifractal"
       scale: 3.2
@@ -127,10 +126,9 @@ materials:
   # valli — il running value cresce lentamente quasi ovunque, quindi le
   # ottave alte contribuiscono dovunque (look "high-altitude alpine").
   - id: "panel_hetero_alpine"
-    type: "disney"
-    color: [0.85, 0.85, 0.86]
-    roughness: 0.55
-    texture:
+    type: openpbr
+    specular_roughness: 0.55
+    base_color:
       type: "noise"
       noise_type: "hetero_terrain"
       scale: 3.2
@@ -201,17 +199,17 @@ lights:
   - type: "directional"
     direction: [-0.3, -0.6, 0.7]
     color: [1.0, 0.95, 0.86]
-    intensity: 3.4
+    illuminance: 3.2440488
     angular_radius: 0.5
 
   # ── Fill morbido dall'alto-sinistra (riempie le ombre) ─────────────────
   - type: "point"
     position: [-6, 5, -3]
     color: [0.7, 0.78, 0.95]
-    intensity: 60
+    intensity: 46.515957
 
   # ── Rim debole dal retro ───────────────────────────────────────────────
   - type: "point"
     position: [0, 3, 5]
     color: [1.0, 0.85, 0.70]
-    intensity: 30
+    intensity: 26.1318

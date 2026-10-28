@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  openpbr-white-furnace.yaml - fornace bianca del materiale OpenPBR
 #  (PIANO-REVIEW.md, Fase 5)
@@ -20,6 +21,7 @@
 #  Con -o *.exr i pixel delle sfere devono valere 1 (entro il rumore).
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -30,10 +32,10 @@ world:
 # Nessuna luce: senza questa riga il loader aggiunge due luci di default.
 lights: []
 
-camera:
-  position: [0, 0, -12]
-  look_at: [0, 0, 0]
-  fov: 40
+cameras:
+  - position: [0, 0, -12]
+    look_at: [0, 0, 0]
+    fov: 40
 
 materials:
   - { id: "diffuse",  type: "openpbr", base_color: 1, base_diffuse_roughness: 0.8, specular_roughness: 0.5 }

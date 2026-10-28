@@ -59,7 +59,7 @@ so the bounce-2 NEE is clamped at the global indirect limit, but the bounce-32 N
 
 | Flag | Default | Notes |
 |---|---|---|
-| `--sss-mode auto\|off` | `auto` | `off` declasses pushed media to absorption-only (legacy Beer-Lambert), useful for preview / A/B. |
+| `--sss-mode auto\|off` | `auto` | `off` declasses pushed media to absorption-only (Beer-Lambert), useful for preview / A/B. |
 
 ## Artistic parametrisation
 
@@ -104,7 +104,7 @@ The artist defines a `homogeneous` medium in the top-level `mediums:`
 block (or inline in the scene) and binds it on the entity via
 `interior_medium: <id>`. The surface material only needs a refractive
 interface that emits `MediumTransition.Enter`: `transmission_weight > 0` on
-`openpbr`, `spec_trans > 0` on `disney`, or a `dielectric`, with its IOR.
+`openpbr`, or a `dielectric`, with its IOR.
 
 ```yaml
 mediums:
@@ -115,10 +115,11 @@ mediums:
 
 materials:
   - id: marble_surface
-    type: disney
-    color: [1, 1, 1]
-    spec_trans: 1.0
-    ior: 1.5
+    type: openpbr
+    base_color: [1, 1, 1]
+    transmission_weight: 1.0
+    specular_roughness: 0.5
+    transmission_color: [1, 1, 1]
 
 entities:
   - type: sphere
@@ -157,39 +158,8 @@ materials:
     specular_roughness: 0.2
 ```
 
-**On `disney`**, `subsurface_radius` builds the medium as below, and
-`spec_trans` is the share of light that enters it (the translation onto
-OpenPBR maps it to `subsurface_weight`).
-
-```yaml
-materials:
-  - id: dis_marmo_carrara
-    type: disney
-    color: [0.92, 0.89, 0.85]
-    subsurface_color:  [0.95, 0.90, 0.85]
-    subsurface_radius: [0.45, 0.35, 0.22]
-    subsurface_scale:  1.0
-    subsurface_anisotropy: 0.0
-    # spec_trans + transmission_color are auto-set by the loader only when you
-    # leave them unset; an explicit spec_trans: 0 keeps the surface opaque
-
-entities:
-  - type: sphere
-    material: dis_marmo_carrara
-    # no interior_medium, no mediums: section — SSS still works
-```
-
-For `disney` the medium is built from the per-channel formula
-
-```
-σ_t = 1 / (radius · scale)
-σ_s = α · σ_t                   # α = subsurface_color (or color)
-σ_a = (1 − α) · σ_t
-phase = HG(g = subsurface_anisotropy)
-```
-
-so it occupies the same `HomogeneousMedium` slot as a hand-written
-`mediums:` entry — the integrator is unaware of the origin.
+The medium occupies the same `HomogeneousMedium` slot as a hand-written
+`mediums:` entry: the integrator is unaware of the origin.
 
 ### Comparison
 
@@ -198,7 +168,7 @@ so it occupies the same `HomogeneousMedium` slot as a hand-written
 | Where the σ values live | `mediums:` block entry | Material `subsurface_*` fields |
 | Configuration on the entity | `interior_medium: <id>` required | Nothing — auto-injected |
 | Two entities sharing the surface, different volumes | Trivial — bind a different `interior_medium` per entity | Override one entity with `interior_medium` (always wins) |
-| Heterogeneous media (procedural / grid / nishita) | Supported | Not applicable — embedded path is `homogeneous` only |
+| Heterogeneous media (procedural / grid) | Supported | Not applicable: the embedded path is `homogeneous` only |
 | Reuse | Paste the `mediums:` block plus the material block | Paste a single self-contained material preset |
 | Setup style | Entity-bound explicit medium | Material-embedded shortcut |
 
@@ -209,39 +179,16 @@ default that the artist can swap out per-entity without touching the material.
 **When to use which.** Reach for the embedded path when you want
 self-contained materials (the `scenes/presets/materials-stone.md`,
 `materials-organic.md` and `materials-glass.md` catalogues ship pre-tuned
-`subsurface_radius` for translucent marble, wax, skin, gems). Reach for the
+subsurface radii for translucent marble, wax, skin, gems). Reach for the
 entity-bound path when you need maximum control: shared volumes across
 many entities, heterogeneous media, or different volumes behind the
 same surface look.
 
-## Migration from legacy Disney `subsurface`
+## Scenes of format 1
 
-Pre-Phase-2 scenes that set `subsurface > 0` on Disney materials are no longer SSS — the parameter is parsed but ignored, and the loader emits a warning. Replace it with an `interior_medium` binding:
-
-```yaml
-# BEFORE (Phase 1)
-materials:
-  - id: marble
-    type: disney
-    color: [1.0, 1.0, 1.0]
-    subsurface: 0.8                     # legacy "flat HK" lobe blend
-
-# AFTER (Phase 3+)
-mediums:
-  - id: marble_int
-    type: homogeneous
-    sigma_a: [0.0021, 0.0041, 0.0071]
-    sigma_s: [2.19, 2.62, 3.00]
-
-materials:
-  - id: marble_surface
-    type: disney
-    color: [1.0, 1.0, 1.0]
-    spec_trans: 1.0
-    ior: 1.5
-
-entities:
-  - type: sphere
-    material: marble_surface
-    interior_medium: marble_int
-```
+Format 1 had a `disney` type whose `subsurface_radius` built the medium (with
+`spec_trans` the share of light entering it); its fake-SSS lobes (`subsurface`,
+`flatness`) had been removed earlier and were ignored. `SceneMigrate` writes
+these materials as `openpbr` with `subsurface_weight`, `subsurface_color` and
+`subsurface_radius_scale` (the radius times its scale), the same medium
+(reference §5.5 and §13).

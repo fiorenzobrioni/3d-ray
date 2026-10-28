@@ -6,16 +6,19 @@ L'illuminazione definisce l'atmosfera, la profondità e il realismo di una scena
 
 ## 6.1 Panoramica
 
-| Tipo          | Alias                                        | Ombre    | Utilizzo principale       |
-|---------------|----------------------------------------------|----------|---------------------------|
-| `point`       | --                                           | Nette    | Lampade, candele, riempimento |
-| `directional` | `sun`                                        | Nette    | Luce solare, sorgenti lontane |
-| `spot`        | `spotlight`                                  | Nette    | Luci da palco, torce      |
-| `area`        | `area_light`, `rect`, `rect_light`           | Morbide  | Softbox, finestre         |
-| `sphere`      | `sphere_light`, `ball`, `ball_light`         | Morbide  | Lampadine, lanterne       |
-| *(geometry)*  | *(automatico da entità emissive)*            | Morbide  | Insegne al neon, pannelli luminosi |
+| Tipo          | Luminosità            | Ombre    | Utilizzo principale       |
+|---------------|-----------------------|----------|---------------------------|
+| `point`       | `intensity` (cd)      | Nette    | Lampade, candele, riempimento |
+| `directional` | `illuminance` (lux)   | Nette    | Luce solare, sorgenti lontane |
+| `spot`        | `intensity` (cd)      | Nette    | Luci da palco, torce      |
+| `area`        | `luminance` (nit)     | Morbide  | Softbox, finestre         |
+| `sphere`      | `luminance` (nit)     | Morbide  | Lampadine, lanterne       |
+| `portal`      | *(il cielo dietro)*   | Morbide  | Finestre sul cielo        |
+| *(geometry)*  | *(automatico da entità emissive)* | Morbide | Insegne al neon, pannelli luminosi |
 
-Tutte le luci sono definite nella sezione `lights:`. Se ometti completamente la sezione `lights:`, il motore aggiunge delle luci predefinite (una direzionale e una puntiforme). Se includi una sezione `lights: []` vuota, la scena non avrà luci esplicite -- utile quando ci si affida interamente a oggetti emissivi o all'illuminazione ambientale HDRI.
+Tutte le luci sono definite nella sezione `lights:`. Una scena senza luci (e senza cielo né oggetti emissivi) è nera: il motore non aggiunge luci predefinite.
+
+**Luminosità e colore.** Ogni tipo ha una sola chiave di luminosità, in unità fotometriche: `intensity` in candele per le luci point e spot, `luminance` in nit per le luci area e sphere, `illuminance` in lux per la luce direzionale; le luci finite possono dare invece la loro `power` in watt o lumen (Sezione 6.14). Il `color` è solo una tinta: è portato a luminanza 1, quindi `[1, 0.5, 0.2]` e `[2, 1, 0.4]` sono la stessa luce, e solo la chiave di luminosità cambia quanto è luminosa. Una scena senza esposizione della camera funziona con valori piccoli (gli intervalli di questo capitolo); la Sezione 6.14 mostra i valori reali con l'`ev100` della camera.
 
 ### Da dove viene la luce ambientale
 
@@ -37,14 +40,14 @@ Le scene d'interni di solito stanno meglio con un cielo flat basso (oppure un ci
 - type: "point"
   position: [2, 3, -1]
   color: [1.0, 0.95, 0.85]
-  intensity: 25.0
+  intensity: 23.8
 ```
 
 | Parametro     | Predefinito | Descrizione                                                        |
 |---------------|-------------|--------------------------------------------------------------------|
 | `position`    | --          | Posizione nello spazio world                                       |
-| `color`       | --          | Colore della luce `[R, G, B]`                                      |
-| `intensity`   | --          | Moltiplicatore di luminosità                                       |
+| `color`       | bianco      | Tinta della luce `[R, G, B]`                                       |
+| `intensity`   | `1`         | Intensità luminosa, candele                                        |
 | `soft_radius` | `0`         | Opzionale. >0 clampa d² a r² per eliminare i fireflies in nebbia    |
 
 Una luce puntiforme irradia uniformemente in tutte le direzioni da un singolo punto. La sua luminosità diminuisce con l'**inverso del quadrato** della distanza: raddoppiando la distanza, l'intensità diventa un quarto.
@@ -63,15 +66,15 @@ Poiché le luci puntiformi sono infinitamente piccole, producono **ombre nette**
 - type: "directional"
   direction: [-0.5, -1, 0.3]
   color: [1, 0.98, 0.92]
-  intensity: 3.0
+  illuminance: 2.94
   angular_radius: 0.0            # Opzionale. 0.27 = disco solare reale (ombre morbide)
 ```
 
 | Parametro        | Predefinito | Descrizione                                     |
 |------------------|-------------|-------------------------------------------------|
 | `direction`      | --          | Direzione *verso* la scena (dalla luce)         |
-| `color`          | --          | Colore della luce                               |
-| `intensity`      | --          | Moltiplicatore di luminosità                    |
+| `color`          | bianco      | Tinta della luce                                |
+| `illuminance`    | `1`         | Illuminamento su una superficie rivolta verso la luce, lux |
 | `angular_radius` | `0`         | Opzionale. Raggio angolare del disco (gradi). 0 = ombre nette |
 
 Una luce direzionale invia raggi paralleli -- tutti viaggiano nella stessa direzione. Non ha posizione (pensa ad essa come se fosse infinitamente lontana) e non ha decadimento con la distanza. È il modo standard per simulare la luce solare.
@@ -83,14 +86,13 @@ Come le luci puntiformi, le luci direzionali producono **ombre nette** per defau
 **Disco solare (`angular_radius`):** quando > 0, il renderer perturba ogni raggio d'ombra all'interno di un cono dell'ampiezza specificata, producendo una penombra morbida realistica. Il valore `shadow_samples` viene portato automaticamente a 4 quando il disco è attivo. Il Sole reale sottende circa 0.27°.
 
 ```yaml
-- type: "sun"
+- type: directional
   direction: [-0.5, -1, 0.3]
   color: [1.0, 0.95, 0.80]
-  intensity: 2.0
+  illuminance: 1.9
   angular_radius: 0.27    # Disco solare reale — penombra morbida
 ```
 
-Disponibile anche come `type: "sun"`.
 
 ---
 
@@ -111,8 +113,8 @@ Disponibile anche come `type: "sun"`.
 |------------------|-------------|------------------------------------------------------|
 | `position`       | --          | Posizione nello spazio world                         |
 | `direction`      | --          | Direzione verso cui è puntato lo spot                |
-| `color`          | --          | Colore della luce                                    |
-| `intensity`      | --          | Moltiplicatore di luminosità                         |
+| `color`          | bianco      | Tinta della luce                                     |
+| `intensity`      | `1`         | Intensità luminosa sull'asse, candele (il cono taglia la luce di una point light, non la concentra) |
 | `inner_angle`    | `15`        | Semiampiezza del cono a piena intensità (gradi)      |
 | `outer_angle`    | `30`        | Semiampiezza del cono a intensità zero (gradi)       |
 | `soft_radius`    | `0`         | Opzionale. Stesso ruolo della point light — fortemente raccomandato per spot dentro un medium/nebbia |
@@ -124,7 +126,6 @@ Le luci spot sono ideali per effetti teatrali, esposizioni museali e torce. Prod
 
 **Multi-sample spot + soft radius:** con `shadow_samples: 4` e `soft_radius: 0.15` il motore campiona un disco di raggio 0.15 m per ogni raggio d'ombra, creando una penombra morbida ed eliminando i fireflies 1/d² in nebbia. Se `soft_radius == 0`, campioni aggiuntivi non hanno effetto — tenere a 1 per efficienza.
 
-Disponibile anche come `type: "spotlight"`.
 
 ---
 
@@ -136,7 +137,7 @@ Disponibile anche come `type: "spotlight"`.
   u: [2, 0, 0]
   v: [0, 0, 2]
   color: [1, 0.97, 0.93]
-  intensity: 35.0
+  luminance: 34.1
 ```
 
 | Parametro           | Predefinito | Descrizione                                          |
@@ -144,11 +145,11 @@ Disponibile anche come `type: "spotlight"`.
 | `corner`            | --          | Un angolo del rettangolo                             |
 | `u`                 | --          | Primo vettore lato (dall'angolo)                     |
 | `v`                 | --          | Secondo vettore lato (dall'angolo)                   |
-| `color`             | --          | Colore della luce                                    |
-| `intensity`         | --          | Moltiplicatore di luminosità                         |
+| `color`             | bianco      | Tinta della luce                                     |
+| `luminance`         | `1`         | Luminanza del pannello, nit (oppure `power`, che mantiene la luce quando lo ridimensioni) |
 | `shadow_samples`    | `4`         | Numero di campioni d'ombra (più alto = più morbida)  |
 | `soft_radius`       | `0`         | Opzionale. Clampa `distSq` nel termine cosLight/d²   |
-| `visible_to_camera` | `true`      | Se `false`, nasconde il pannello solo dai raggi primari — NEE, riflessioni speculari e indirect restano invariati. Vedi Sezione 6.8. |
+| `visibility`        | tutti `true` | `{ camera: false }` nasconde il pannello solo dai raggi primari: NEE, riflessioni speculari e indirect restano invariati. Vedi Sezione 6.8. |
 
 Una luce area è un rettangolo piatto che emette luce da tutta la sua superficie. Poiché ha una dimensione fisica, produce **ombre morbide** con una penombra realistica (la transizione graduale dall'ombra alla luce).
 
@@ -196,7 +197,7 @@ senza conflitti.
   position: [0, 2, 0]
   radius: 0.3
   color: [1, 0.95, 0.85]
-  intensity: 30.0
+  luminance: 28.6
   shadow_samples: 12
 ```
 
@@ -204,10 +205,10 @@ senza conflitti.
 |---------------------|-------------|-----------------------------------------|
 | `position`          | --          | Centro della sfera                      |
 | `radius`            | --          | Raggio della sfera luminosa; definisce anche la dimensione del proxy |
-| `color`             | --          | Colore della luce                       |
-| `intensity`         | --          | Moltiplicatore di luminosità            |
+| `color`             | bianco      | Tinta della luce                        |
+| `luminance`         | `1`         | Luminanza della superficie, nit (oppure `power`) |
 | `shadow_samples`    | `4`         | Numero di campioni d'ombra              |
-| `visible_to_camera` | `true`      | Se `false`, nasconde la sfera proxy solo dai raggi primari — NEE, riflessioni speculari e indirect restano invariati. Vedi Sezione 6.8. |
+| `visibility`        | tutti `true` | `{ camera: false }` nasconde la sfera proxy solo dai raggi primari: NEE, riflessioni speculari e indirect restano invariati. Vedi Sezione 6.8. |
 
 Una luce sferica è come una luce area, ma di forma sferica. Produce ombre morbide con una penombra circolare e crea riflessi perfettamente rotondi (catchlights) nelle superfici riflettenti.
 
@@ -215,7 +216,7 @@ Le luci sferiche utilizzano il **campionamento dell'angolo solido**, che è da 2
 
 Le luci sferiche sono **visibili** alla camera e ai raggi specular: una sfera emissiva proxy gestita internamente, alla stessa posizione/raggio, supporta la luce analitica e chiude lo stimatore MIS di Veach. I vetri lisci e i metalli lucidati nella scena riflettono ora la luce correttamente (invece di mostrare un buco scuro nella direzione di mirror), che è il comportamento atteso per una sphere light analitica.
 
-Le luci sferiche ignorano deliberatamente `soft_radius`: lo stimatore ad angolo solido `L = Intensity × Ω / N` è limitato superiormente da `4π · Intensity` anche quando il ricevitore è dentro la sfera, quindi il floor 1/d² usato dalle point/spot/area è qui inutile.
+Le luci sferiche non accettano `soft_radius`: lo stimatore ad angolo solido `L = luminance × Ω / N` è limitato superiormente da `4π × luminance` anche quando il ricevitore è dentro la sfera, quindi il floor 1/d² usato dalle point/spot/area è qui inutile.
 
 ---
 
@@ -228,7 +229,7 @@ materials:
   - id: "panel_glow"
     type: "emissive"
     color: [1, 0.95, 0.9]
-    intensity: 25.0
+    luminance: 23.9
 
 entities:
   # Un pannello luminoso visibile sul soffitto
@@ -250,8 +251,8 @@ entities:
 | Ombre morbide                 | Sì                   | Sì                           |
 | Efficienza di campionamento   | Buona                | Leggermente migliore (analitica) |
 
-Entrambe le tipologie di luce supportano un flag `visible_to_camera` (default
-`true`) — vedi la prossima sezione per il toggle di camera-visibility.
+Entrambe le tipologie di luce accettano un blocco `visibility`: vedi la
+prossima sezione per il toggle di camera-visibility.
 
 Usare le luci geometriche quando la sorgente deve essere un emettitore di **forma personalizzata** (insegne al neon, flussi di lava, tubi luminosi, mesh irregolari). Usare le luci `area`/`sphere` esplicite per emettitori canonici rettangolari/sferici — campionano in modo più efficiente e si vedono comunque in camera e nei riflessi specular.
 
@@ -261,20 +262,21 @@ Il motore supporta le luci geometriche su qualsiasi primitiva campionabile: sfer
 
 L'illuminazione diretta su una luce non delta (area, sphere, geometric, environment) è calcolata combinando due strategie indipendenti: la **NEE** campiona un punto sulla luce, il **BSDF sampling** campiona la direzione di rimbalzo dal materiale. Pesare i due contributi con la **balance heuristic** (default) o la **power heuristic** (`--mis power`) riduce la varianza rispetto a usare una sola strategia.
 
-Tutti i materiali supportati — `lambertian`, `metal`, `mix`, `disney` — espongono la tripla `Sample`/`Pdf`/`Evaluate` necessaria al MIS. Non c'è nessuna configurazione: il motore applica automaticamente i pesi corretti in base al tipo di materiale e di luce. Le luci delta puro (point, directional, spot) e i lobi delta dei materiali (specchio perfetto, vetro ideale) sono trattati come casi speciali e ricevono peso 1 — non possono essere campionati dall'altra strategia.
+Tutti i materiali (`lambertian`, `metal`, `dielectric`, `openpbr`, `mix`) espongono la tripla `Sample`/`Pdf`/`Evaluate` necessaria al MIS. Non c'è nessuna configurazione: il motore applica automaticamente i pesi corretti in base al tipo di materiale e di luce. Le luci delta puro (point, directional, spot) e i lobi delta dei materiali (specchio perfetto, vetro ideale) sono trattati come casi speciali e ricevono peso 1: non possono essere campionati dall'altra strategia.
 
 Per scene con nebbia o fumo (`global_medium`), anche la phase function partecipa al MIS: il motore pesa l'in-scattering NEE contro il phase-sampled bounce, riducendo i fireflies tipici dei "shaft" di luce attraverso il volume.
 
 ---
 
-## 6.8 Visibilità dalla camera (`visible_to_camera`)
+## 6.8 Visibilità dalla camera (`visibility: { camera: false }`)
 
 I renderer di produzione permettono di disaccoppiare **come una luce
 contribuisce all'immagine** da **se la luce è essa stessa visibile nel
-frame**. 3D-Ray espone questo controllo con la chiave underscore_case
-`visible_to_camera`.
+frame**. 3D-Ray espone questo controllo nel blocco `visibility` (lo stesso
+blocco del cielo, del terreno e di ogni entità: `camera`, `diffuse`,
+`glossy`, `transmission`, `shadow`).
 
-Quando impostato a `false`:
+Con `camera: false`:
 
 - La luce continua a illuminare la scena a piena intensità tramite NEE
   (illuminazione diretta).
@@ -288,9 +290,9 @@ Quando impostato a `false`:
 
 | Caso d'uso | Setup |
 |------------|-------|
-| Luce fill off-frame che non deve apparire come una forma luminosa nel cielo | `visible_to_camera: false` su una luce `sphere`/`area` posizionata fuori dall'inquadratura |
-| Lampada pratica visibile solo in uno specchio nella stanza | `visible_to_camera: false` sull'entity emissiva |
-| Pannello area soft per product photography — cielo pulito, pannello visibile solo via riflessione sul prodotto | `visible_to_camera: false` sulla luce `area` |
+| Luce fill off-frame che non deve apparire come una forma luminosa nel cielo | `visibility: { camera: false }` su una luce `sphere`/`area` posizionata fuori dall'inquadratura |
+| Lampada pratica visibile solo in uno specchio nella stanza | `visibility: { camera: false }` sull'entity emissiva |
+| Pannello area soft per product photography: cielo pulito, pannello visibile solo via riflessione sul prodotto | `visibility: { camera: false }` sulla luce `area` |
 | Light card appena fuori dal FOV che altrimenti taglierebbe il bordo del frame | idem |
 
 ### Su luci esplicite
@@ -302,21 +304,21 @@ lights:
     position: [ 3.5, 3.8, 1.5]
     radius: 0.35
     color: [1.0, 0.96, 0.88]
-    intensity: 45.0
+    luminance: 43.3
 
   # FILL: invisibile alla camera, ma riflessa in specchi/vetri e illumina la scena
   - type: "sphere"
     position: [-3.5, 3.8, 1.5]
     radius: 0.35
     color: [0.65, 0.78, 1.0]
-    intensity: 45.0
-    visible_to_camera: false
+    luminance: 34.6
+    visibility: { camera: false }
 ```
 
 ### Su entity emissive
 
-`visible_to_camera` è anche un campo comune a tutte le entity, quindi
-qualsiasi entity — non solo i proxy delle luci esplicite — può essere
+`visibility` è anche un campo comune a tutte le entity, quindi
+qualsiasi entity (non solo i proxy delle luci esplicite) può essere
 nascosta dai raggi primari. L'uso naturale è un pannello emissivo di
 forma personalizzata che deve illuminare la scena senza apparire nel
 frame:
@@ -326,7 +328,7 @@ materials:
   - id: "panel_glow"
     type: "emissive"
     color: [1.0, 0.92, 0.80]
-    intensity: 2.5
+    luminance: 2.32
 
 entities:
   - name: "ceiling_panel"
@@ -334,7 +336,7 @@ entities:
     material: "panel_glow"
     scale: [4.0, 0.05, 2.5]
     translate: [0, 4.0, 0]
-    visible_to_camera: false       # soffitto pulito, ma la stanza è illuminata
+    visibility: { camera: false }       # soffitto pulito, ma la stanza è illuminata
 ```
 
 Su un `group` il flag propaga a tutti i figli (il wrapper è applicato
@@ -344,9 +346,8 @@ invisibile).
 
 ### Limiti
 
-- `visible_to_camera` non ha effetto osservabile su luci `point`/
-  `directional`/`spot` (delta) — non hanno una geometria proxy da
-  nascondere.
+- Le luci `point`/`directional`/`spot` (delta) non accettano
+  `visibility`: non hanno una geometria proxy da nascondere.
 - Un raggio camera che colpisce un proxy invisibile viene semplicemente
   fatto avanzare oltre (con un cap di sicurezza di 8 skip successivi),
   quindi uno stack illimitato di emettitori invisibili sovrapposti
@@ -396,7 +397,7 @@ La sorgente luminosa principale. Definisce la direzione dell'ombra dominante e m
   u: [2, 0, 0]
   v: [0, 0, 2]
   color: [1.0, 0.96, 0.90]
-  intensity: 45.0
+  luminance: 43.4
 ```
 
 ### Fill Light (Luce di Riempimento)
@@ -409,7 +410,7 @@ Una luce più morbida e debole posizionata sul lato opposto rispetto alla chiave
   u: [1.2, 0, 0]
   v: [0, 0, 1.2]
   color: [0.72, 0.82, 1.0]
-  intensity: 15.0
+  luminance: 12.2
   shadow_samples: 9
 ```
 
@@ -421,7 +422,7 @@ Una luce posizionata dietro e sopra il soggetto. Crea un bordo luminoso lungo il
 - type: "point"
   position: [1, 4.5, 4.5]
   color: [1.0, 0.97, 0.88]
-  intensity: 55.0
+  intensity: 53.3
 ```
 
 Il contrasto caldo/freddo (chiave calda, riempimento freddo, contorno caldo) è una formula classica che funziona per quasi ogni soggetto.
@@ -441,7 +442,7 @@ lights:
     u: [6, 0, 0]
     v: [0, 0, 6]
     color: [1, 1, 1]
-    intensity: 50.0
+    luminance: 50.0
 
   - type: "point"
     position: [0, 1, -4]
@@ -459,7 +460,7 @@ lights:
     position: [-3, 5, -2]
     direction: [0.6, -1, 0.4]
     color: [1.0, 0.9, 0.75]
-    intensity: 80.0
+    intensity: 72.8
     inner_angle: 12
     outer_angle: 25
 ```
@@ -473,17 +474,17 @@ lights:
   - type: "directional"
     direction: [-0.3, -1, 0.5]
     color: [1.0, 0.98, 0.92]
-    intensity: 3.0
+    illuminance: 2.94
 
   - type: "directional"
     direction: [0, -1, 0]
     color: [0.5, 0.6, 0.85]
-    intensity: 0.5
+    illuminance: 0.298
 
   - type: "point"
     position: [5, 1, -5]
     color: [0.8, 0.85, 1.0]
-    intensity: 8.0
+    intensity: 6.8
 ```
 
 ---
@@ -497,6 +498,7 @@ Un'unica sfera e un piedistallo illuminati da diversi tipi di luce.
 # Lo stesso soggetto sotto cinque diverse luci.
 # Render con: RayTracer -i lighting-comparison.yaml -w 1600 -H 500 -s 64
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -513,13 +515,13 @@ lights:
   - type: "point"
     position: [-6, 3.5, -1]
     color: [1, 0.95, 0.9]
-    intensity: 25.0
+    intensity: 23.9
 
   # 2. Luce direzionale per la seconda sfera
   - type: "directional"
     direction: [-0.3, -1, 0.5]
     color: [1, 0.98, 0.92]
-    intensity: 2.5
+    illuminance: 2.45
 
   # 3. Luce spot per la terza sfera
   - type: "spot"
@@ -536,26 +538,26 @@ lights:
     u: [2, 0, 0]
     v: [0, 0, 2]
     color: [1, 0.97, 0.93]
-    intensity: 30.0
+    luminance: 29.2
 
 materials:
   - id: "floor"
     type: "lambertian"
     color: [0.35, 0.35, 0.35]
   - id: "white_plastic"
-    type: "disney"
-    color: [0.9, 0.88, 0.85]
-    roughness: 0.3
-    specular: 0.6
+    type: openpbr
+    base_color: [0.9, 0.88, 0.85]
+    specular_roughness: 0.3
+    specular_weight: 1.2
   - id: "pedestal"
-    type: "disney"
-    color: [0.6, 0.6, 0.6]
-    roughness: 0.15
-    specular: 0.7
+    type: openpbr
+    base_color: [0.6, 0.6, 0.6]
+    specular_roughness: 0.15
+    specular_weight: 1.4
   - id: "glow"
     type: "emissive"
     color: [1, 0.9, 0.75]
-    intensity: 15.0
+    luminance: 13.7
 
 entities:
   - type: "infinite_plane"
@@ -722,21 +724,21 @@ cambia è *quale fetta* della curva ACES vede la tua radianza.
 
 ## 6.14 Unità fisiche ed esposizione fotografica
 
-Finora ogni luce aveva un'`intensity` senza unità. Ognuna si può invece
-scrivere nelle unità di un catalogo di illuminotecnica, e la camera
+Le chiavi di luminosità sono unità fisiche, quindi una luce si può
+scrivere con i valori di un catalogo di illuminotecnica, e la camera
 espone allora l'immagine come una fotografia:
 
 ```yaml
-camera:
-  position: [0, 1.6, 4]
-  look_at:  [0, 1, 0]
-  ev100: 6                       # un soggiorno illuminato
+cameras:
+  - position: [0, 1.6, 4]
+    look_at:  [0, 1, 0]
+    ev100: 6                       # un soggiorno illuminato
 
 lights:
   - type: "point"                # una lampadina equivalente a 60 W
     position: [0, 2.4, 0]
     power: 800
-    power_unit: "lumen"
+    power_unit: lumen
     temperature: 2700            # bianco caldo, colore di corpo nero
   - type: "area"                 # un pannello LED
     corner: [1, 2.79, -0.3]
@@ -752,18 +754,20 @@ lights:
 
 | Chiave | Unità | Luci |
 |---|---|---|
-| `power` (+ `power_unit`) | watt o lumen | point, spot, area, sphere |
-| `candela` | cd | point, spot |
+| `intensity` | cd | point, spot |
 | `luminance` | nit (cd/m²) | area, sphere, materiale `emissive` |
 | `illuminance` | lux | directional |
+| `power` (+ `power_unit`) | watt o lumen | point, spot, area, sphere (al posto della chiave sopra) |
 | `temperature` | kelvin | tutte |
+| `exposure` | stop | tutte (× 2^exposure) |
 | `ies` | file IES LM-63 | point, spot |
 
-Con un'unità fotometrica il `color` tinge soltanto la luce. L'`ev100`
-della camera (oppure `iso`, `shutter_speed` e `f_stop`) fa la parte di
-un'esposizione vera: 15 per una giornata di sole, 7-8 per un interno
-illuminato, 3-5 per uno poco illuminato. Anche un cielo fisico si può
-scrivere in nit (`units: "photometric"`, capitolo 7).
+L'`ev100` della camera (oppure `iso`, `shutter_speed` e `f_stop`) fa la
+parte di un'esposizione vera: 15 per una giornata di sole, 7-8 per un
+interno illuminato, 3-5 per uno poco illuminato. Anche i cieli fisici
+sono in nit (capitolo 7). Candele e potenza portano dei metri: una scena
+modellata in centimetri lo dice con `units: { length: cm }` e mantiene la
+stessa luce.
 `scenes/review/light-units.yaml` verifica ogni unità contro un calcolo a
 mano.
 
@@ -781,14 +785,14 @@ strategia converge alla stessa immagine.
 - Le luci **Sphere** producono ombre morbide con riflessi circolari e usano lo stimatore ad angolo solido limitato (non serve `soft_radius`).
 - Le **entità emissive** diventano automaticamente luci geometriche -- visibili e campionate per l'illuminazione diretta.
 - Le luci `area` e `sphere` sono inoltre visibili alla camera e ai raggi specular tramite un proxy emissivo gestito internamente, garantendo piena convergenza Veach-MIS.
-- Per-luce e per-entity **`visible_to_camera: false`** nasconde il proxy/la geometria solo dai raggi primari della camera; NEE, specchi, vetro e rimbalzi indiretti continuano a vederla.
+- Per-luce e per-entity **`visibility: { camera: false }`** nasconde il proxy/la geometria solo dai raggi primari della camera; NEE, specchi, vetro e rimbalzi indiretti continuano a vederla.
 - Il flag CLI `-S` sovrascrive globalmente i campioni d'ombra per prove veloci.
 - Lo **schema a tre punti** (chiave, riempimento, contorno) è un punto di partenza affidabile per ogni scena.
 - **Controlli firefly:**
   - `soft_radius` su luci point/spot/area → clampa il denominatore dell'attenuazione
   - `-C 10 --indirect-clamp-factor 0.25` → clamp opzionale (introduce bias), più stretto sui bounce ≥ 1
   - `--light-sampling bvh` → sceglie una luce per potenza, distanza e orientamento (il default `auto` ci passa oltre le 16 luci)
-- Le **unità fisiche** (`power`, `candela`, `luminance`, `illuminance`, `temperature`, `ies`) con l'`ev100` della camera illuminano ed espongono una scena come nella realtà.
+- Ogni luce ha una **chiave di luminosità fotometrica** (`intensity` in cd, `luminance` in nit, `illuminance` in lux, oppure `power`), il colore è una tinta; con l'`ev100` della camera i valori reali illuminano ed espongono una scena come nella realtà.
 
 ---
 

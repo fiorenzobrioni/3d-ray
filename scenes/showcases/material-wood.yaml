@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Library Woods — V3
 #
@@ -34,40 +35,41 @@
 #    Final:    -w 1920 -H 1080 -s 2048 -d 12 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.001, 0.001, 0.0012]
 
-camera:
-  position: [0, 3.4, -7.8]
-  look_at:  [0, 0.55, 0]
-  fov: 50
+cameras:
+  - position: [0, 3.4, -7.8]
+    look_at:  [0, 0.55, 0]
+    fov: 50
 
 materials:
 
   # Pavimento scuro opaco — fa risaltare i campioni senza riflettere
   # luce ambientale sui clearcoat.
   - id: "floor"
-    type: "disney"
-    color: [0.06, 0.06, 0.07]
-    roughness: 0.88
-    specular: 0.10
+    type: openpbr
+    base_color: [0.06, 0.06, 0.07]
+    specular_roughness: 0.88
+    specular_weight: 0.2
 
   # Piano di fondo verticale (anche scuro) per dare profondità — chiude
   # lo sfondo dietro i campioni invece di lasciarli galleggiare nel nero.
   - id: "backwall"
-    type: "disney"
-    color: [0.10, 0.10, 0.11]
-    roughness: 0.92
-    specular: 0.08
+    type: openpbr
+    base_color: [0.10, 0.10, 0.11]
+    specular_roughness: 0.92
+    specular_weight: 0.16
 
   - id: "dis_quercia_olio"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 4.5
-      grain_strength: 1.8
+      noise_strength: 1.8
       latewood_width: 0.24
       ring_sharpness: 4.0
       ring_color_variation: 0.22
@@ -88,17 +90,17 @@ materials:
         - { position: 0.00, color: [0.22, 0.12, 0.04], interp: "smoothstep" }
         - { position: 0.55, color: [0.72, 0.50, 0.24], interp: "smoothstep" }
         - { position: 1.00, color: [0.88, 0.74, 0.46], interp: "linear" }
-    roughness: 0.65
-    specular: 0.32
-    sheen: 0.10
-    sheen_tint: 0.7
+    specular_roughness: 0.65
+    specular_weight: 0.64
+    fuzz_weight: 0.10
+    fuzz_roughness: 0.3
 
   - id: "dis_noce_verniciato"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 4.2
-      grain_strength: 1.6
+      noise_strength: 1.6
       latewood_width: 0.20
       ring_sharpness: 3.8
       ring_color_variation: 0.22
@@ -117,17 +119,18 @@ materials:
         - { position: 0.00, color: [0.10, 0.05, 0.03], interp: "smoothstep" }
         - { position: 0.55, color: [0.38, 0.22, 0.12], interp: "smoothstep" }
         - { position: 1.00, color: [0.62, 0.40, 0.22], interp: "linear" }
-    roughness: 0.26
-    specular: 0.52
-    clearcoat: 0.72
+    specular_roughness: 0.26
+    specular_weight: 1.04
+    coat_weight: 0.72
     coat_roughness: 0.10
+    coat_ior: 1.5
 
   - id: "dis_mogano_flame_studio"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 4.8
-      grain_strength: 0.40
+      noise_strength: 0.40
       latewood_width: 0.16
       ring_sharpness: 4.5
       ring_color_variation: 0.14
@@ -145,17 +148,18 @@ materials:
         - { position: 0.00, color: [0.20, 0.06, 0.03], interp: "smoothstep" }
         - { position: 0.50, color: [0.50, 0.18, 0.10], interp: "smoothstep" }
         - { position: 1.00, color: [0.74, 0.36, 0.22], interp: "linear" }
-    roughness: 0.28
-    specular: 0.52
-    clearcoat: 0.78
+    specular_roughness: 0.28
+    specular_weight: 1.04
+    coat_weight: 0.78
     coat_roughness: 0.08
+    coat_ior: 1.5
 
   - id: "dis_pino_nodoso_heavy"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 6.0
-      grain_strength: 0.8
+      noise_strength: 0.8
       latewood_width: 0.30
       ring_sharpness: 5.5
       ring_color_variation: 0.26
@@ -176,15 +180,15 @@ materials:
         - { position: 0.45, color: [0.55, 0.36, 0.16], interp: "smoothstep" }
         - { position: 0.80, color: [0.88, 0.72, 0.42], interp: "smoothstep" }
         - { position: 1.00, color: [0.98, 0.88, 0.62], interp: "linear" }
-    roughness: 0.55
-    specular: 0.38
+    specular_roughness: 0.55
+    specular_weight: 0.76
 
   - id: "dis_acero_curly_max"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 5.5
-      grain_strength: 0.20
+      noise_strength: 0.20
       latewood_width: 0.14
       ring_sharpness: 5.5
       ring_color_variation: 0.10
@@ -199,17 +203,17 @@ materials:
         - { position: 0.45, color: [0.78, 0.62, 0.35], interp: "smoothstep" }
         - { position: 0.80, color: [0.92, 0.80, 0.58], interp: "smoothstep" }
         - { position: 1.00, color: [0.98, 0.92, 0.78], interp: "linear" }
-    roughness: 0.30
-    specular: 0.50
-    clearcoat: 0.65
+    specular_roughness: 0.30
+    coat_weight: 0.65
     coat_roughness: 0.08
+    coat_ior: 1.5
 
   - id: "dis_wenge_olio"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 5.0
-      grain_strength: 1.8
+      noise_strength: 1.8
       latewood_width: 0.22
       ring_sharpness: 4.0
       ring_color_variation: 0.18
@@ -226,10 +230,10 @@ materials:
         - { position: 0.00, color: [0.06, 0.04, 0.03], interp: "smoothstep" }
         - { position: 0.55, color: [0.22, 0.14, 0.08], interp: "smoothstep" }
         - { position: 1.00, color: [0.42, 0.28, 0.18], interp: "linear" }
-    roughness: 0.62
-    specular: 0.34
-    sheen: 0.05
-    sheen_tint: 0.4
+    specular_roughness: 0.62
+    specular_weight: 0.68
+    fuzz_weight: 0.05
+    fuzz_roughness: 0.3
 
 entities:
 
@@ -297,7 +301,7 @@ lights:
   - type: "directional"
     direction: [-0.35, -0.82, 0.45]
     color: [1.0, 0.97, 0.92]
-    intensity: 3.4
+    illuminance: 3.3074112
     angular_radius: 1.2     # bordi ombra morbidi
 
   # Fill freddo dalla sinistra-bassa — apre le ombre senza schiarire troppo.
@@ -305,11 +309,11 @@ lights:
   - type: "point"
     position: [-8.5, 4.5, -5.0]
     color: [0.80, 0.86, 1.00]
-    intensity: 28
+    intensity: 24.005856
 
   # Rim caldo dal RETRO-ALTO DESTRA — separa i campioni dallo sfondo
   # senza colpire la parete (era il bright spot del render precedente).
   - type: "point"
     position: [6.5, 5.5, -4.5]
     color: [1.00, 0.82, 0.62]
-    intensity: 18
+    intensity: 15.188904

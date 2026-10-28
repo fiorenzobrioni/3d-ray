@@ -101,6 +101,9 @@ public static partial class SceneSchema
     private static JsonObject Value(PropertyInfo p, Func<Type, string> refOf)
     {
         var t = Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType;
+        if (p.DeclaringType == typeof(UnitsData) && p.Name == nameof(UnitsData.Length))
+            return new JsonObject { ["anyOf"] = new JsonArray(new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                                                              new JsonObject { ["enum"] = new JsonArray("m", "cm", "mm", "km", "in", "ft") }) };
         if (t == typeof(string)) return new JsonObject { ["type"] = "string" };
         if (t == typeof(int)) return new JsonObject { ["type"] = "integer" };
         if (t == typeof(float)) return new JsonObject { ["type"] = "number" };

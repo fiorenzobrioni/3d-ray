@@ -44,11 +44,13 @@ class Program
         StringBuilder yaml = new StringBuilder();
 
         yaml.AppendLine("""
+        # yaml-language-server: $schema=../docs/reference/scene-schema.json
         # =========================================================================
         # SCENA: Tempio Romano Classico (Dimensionamento Dinamico)
         # GENERATO TRAMITE: TempleGen tool
         # =========================================================================
 
+        format_version: 2
         world:
           ground:
             type: "infinite_plane"
@@ -63,8 +65,8 @@ class Program
             sun:
               direction: [-0.8, -0.4, 0.5]
               color: [1.0, 0.85, 0.70]
-              intensity: 8.0
-              size: 2.0
+              illuminance: 0.0066680457
+              angular_radius: 1
 
         cameras:
           - name: "front_dramatic"
@@ -72,53 +74,51 @@ class Program
             look_at: [0, 8.4, 0]
             fov: 55
             aperture: 0.05
-            focal_dist: 28
+            focus_distance: 28
           - name: "side_perspective"
             position: [-30, 12, -31]
             look_at: [0, 5.5, -5]
             fov: 44
             aperture: 0.02
-            focal_dist: 40
+            focus_distance: 40
           - name: "interior"
             position: [0, 4, -8]
             look_at: [0, 4, 10]
             fov: 60
             aperture: 0.0
-            focal_dist: 10
+            focus_distance: 10
           - name: "top_isometric"
             position: [-35, 45, -35]
             look_at: [0, 0, 0]
             fov: 35
             aperture: 0.0
-            focal_dist: 60
+            focus_distance: 60
 
         lights:
           - type: "point"
             position: [-3, 3.5, 2]
             color: [1.0, 0.5, 0.1]
-            intensity: 15.0
+            intensity: 8.6613
             soft_radius: 0.2
           - type: "point"
             position: [3, 3.5, 2]
             color: [1.0, 0.5, 0.1]
-            intensity: 15.0
+            intensity: 8.6613
             soft_radius: 0.2
 
         materials:
           - id: "white_marble"
-            type: "disney"
-            color: [0.9, 0.88, 0.85]
-            roughness: 0.2
-            subsurface: 0.3
-            subsurface_color: [0.95, 0.9, 0.8]
+            type: openpbr
+            base_color: [0.9, 0.88, 0.85]
+            specular_roughness: 0.2
           - id: "dark_marble"
-            type: "disney"
-            color: [0.2, 0.2, 0.22]
-            roughness: 0.3
+            type: openpbr
+            base_color: [0.2, 0.2, 0.22]
+            specular_roughness: 0.3
           - id: "gold"
             type: "metal"
             color: [1.0, 0.85, 0.3]
-            fuzz: 0.1
+            roughness: 0.1
           - id: "roof_tiles"
             type: "lambertian"
             color: [0.6, 0.25, 0.15]
@@ -128,7 +128,7 @@ class Program
           - id: "fire"
             type: "emissive"
             color: [1.0, 0.6, 0.1]
-            intensity: 8.0
+            luminance: 5.1915207
 
         templates:
         """);

@@ -36,18 +36,19 @@ Leggi il file YAML e identifica:
 
 | Tipo | Quando usarlo | Parametri chiave |
 |------|---------------|------------------|
-| `point` | Lampadine, candele, torce puntiformi (piccole, omnidirezionali) | position + intensity + color |
-| `directional` | Sole, luna, luce parallela infinita | direction + intensity + color |
-| `spot` | Faretti, torce, cono di luce focalizzato | position + direction + inner_angle + outer_angle |
-| `area` | Finestre, pannelli soffusi, softbox | corner + u + v + intensity |
-| `sphere` | Lampadine fisiche con raggio visibile (globi, lanterne) | position + radius + intensity |
-| `physical_sun` | Sole fisico con limb darkening e campionamento del disco | direction + intensity (auto-generato da sky nishita/gradient — non aggiungere manualmente se già presente) |
-| `portal` | Portale per finestre/aperture con HDRI (Bitterli 2015) — migliora il campionamento NEE in interni illuminati da HDRI | corner + u + v (come area, senza intensity) |
+| `point` | Lampadine, candele, torce puntiformi (piccole, omnidirezionali) | position + `intensity` (cd) + color |
+| `directional` | Sole, luna, luce parallela infinita | direction + `illuminance` (lux) + color |
+| `spot` | Faretti, torce, cono di luce focalizzato | position + direction + `intensity` (cd) + inner_angle + outer_angle |
+| `area` | Finestre, pannelli soffusi, softbox | corner + u + v + `luminance` (nit) |
+| `sphere` | Lampadine fisiche con raggio visibile (globi, lanterne) | position + radius + `luminance` (nit) |
+| `portal` | Portale per finestre/aperture con HDRI (Bitterli 2015) — migliora il campionamento NEE in interni illuminati da HDRI | corner + u + v (come area, senza luminosità: la luce è quella del cielo) |
+
+Le luci finite (`point`, `spot`, `area`, `sphere`) possono dare la `power` (watt o lumen con `power_unit`) al posto della loro grandezza. Il `color` è solo una tinta (portata a luminanza 1): la luminosità la fissa solo la chiave del tipo. Il sole fisico (`PhysicalSun`) non è un tipo di luce: è generato dal `sun:` dei cieli `gradient`, `hosek_wilkie`, `preetham`, `nishita` e dall'estrazione dalle HDRI.
 | Emissive geometry | Insegne, neon, lava — la geometria stessa emette | materiale `emissive` assegnato a un `IHittable` |
 
-**Sphere light vs sphere emissiva**: per lampadine piccole/distanti preferisci `sphere_light` (solid-angle sampling, 2–10× più efficiente). Per oggetti grandi o vicini, la sfera emissiva è adeguata.
+**Sphere light vs sphere emissiva**: per lampadine piccole/distanti preferisci la luce `sphere` (solid-angle sampling, 2–10× più efficiente). Per oggetti grandi o vicini, la sfera emissiva è adeguata.
 
-**physical_sun**: non aggiungere mai un `physical_sun` manuale se la scena usa `sky.type: nishita` o `sky.type: gradient` con `sun:` — il motore lo genera automaticamente. Aggiungilo manualmente solo per controllare parametri avanzati (limb darkening, jitter) in assenza di quei tipi sky.
+**Sole**: non aggiungere una `directional` per il sole se la scena usa un cielo con `sun:` (gradient, hosek_wilkie, preetham, nishita): il motore genera già il sole fisico, coerente con il cielo.
 
 **portal**: utile per interni con finestre e HDRI esterno. Definisce geometricamente l'apertura (come un `area` light) ma instrada il campionamento NEE verso l'HDRI invece di fare uniform sampling. Usalo per stanze con una finestra unica — migliora drasticamente il rumore nelle zone d'ombra.
 
@@ -85,11 +86,12 @@ Se l'utente chiede un ruolo generico (es. "fill", "rim", "practical"), applica q
 - Per key/fill/rim: distanza ≈ 1.5–3× diagonale del soggetto
 - Per practical: posizione coincidente con l'oggetto sorgente visibile
 
-**Intensità:**
-- `point` e `sphere`: intensità scala con 1/r² — lampadina a 2 m dal soggetto ≈ 5–15, area light grande ≈ 1–5
-- `directional`: indipendente dalla distanza, tipicamente 1.0–3.0 per il sole, 0.05–0.3 per la luna
-- `area`: intensità per unità di area — una finestra 2×2 con intensità 5 = luce soffusa diurna
-- `spot`: simile a `point` ma concentrato sul cono; compensa con intensità più alta
+**Luminosità** (scena senza esposizione della camera; con `ev100` usare valori reali: lampadina 800 lm, pannello LED 3000 nit, sole 100 000 lux):
+- `point`: `intensity` (cd), la luce scala con 1/r² — lampadina a 2 m dal soggetto ≈ 5–15
+- `sphere`: `luminance` (nit) della superficie — la luce cresce con l'area della sfera
+- `directional`: `illuminance` (lux), indipendente dalla distanza, tipicamente 1.0–3.0 per il sole, 0.05–0.3 per la luna
+- `area`: `luminance` (nit) — una finestra 2×2 con luminanza 5 = luce soffusa diurna; con `power` la luce resta la stessa quando si ridimensiona il pannello
+- `spot`: `intensity` (cd) come una `point`: il cono taglia la luce, non la concentra
 
 **Coerenza con luci esistenti:**
 - Non introdurre una seconda "key" — se c'è già una sorgente dominante, ricalibra il ruolo della nuova luce
@@ -103,11 +105,11 @@ Se l'utente chiede un ruolo generico (es. "fill", "rim", "practical"), applica q
 ```yaml
 lights:
   # ── <RUOLO>: <descrizione e motivazione> ────────────────────────────
-  - type:       "..."
-    position:   [X, Y, Z]
-    direction:  [X, Y, Z]   # per directional/spot
-    intensity:  N
-    color:      [R, G, B]
+  # - type:       "..."
+  #   position:   [X, Y, Z]
+  #   direction:  [X, Y, Z]   # per directional/spot
+  #   intensity:  N           # cd (point/spot); luminance (area/sphere), illuminance (directional)
+  #   color:      [R, G, B]   # tinta
     # ...parametri specifici del tipo
 ```
 

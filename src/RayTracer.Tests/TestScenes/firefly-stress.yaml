@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../../docs/reference/scene-schema.json
 # Firefly stress test scene
 #
 # This minimal scene is designed to stress-test the renderer's firefly
@@ -14,9 +15,10 @@
 # NOTE: Do not use this scene for production renders — it is calibrated for
 # the regression test at 128×128 / 16 SPP / depth 8.
 
-camera:
-  position: [0, 1.5, 5]
-  look_at: [0, 0.2, 0]
+format_version: 2
+cameras:
+  - position: [0, 1.5, 5]
+    look_at: [0, 0.2, 0]
 
 world:
   sky:
@@ -31,7 +33,7 @@ world:
   ground:
     type: "infinite_plane"
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
 
 lights:
   # Bright sphere light sitting 0.4 units above the floor
@@ -39,7 +41,7 @@ lights:
     position: [0, 0.4, 0]
     radius: 0.1
     color: [1.0, 0.95, 0.9]
-    intensity: 30.0
+    luminance: 28.710602
     shadow_samples: 16
 
 materials:

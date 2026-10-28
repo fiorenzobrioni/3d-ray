@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  MEDIUM INTERFACE #02 — Smoke procedurale dentro un CSG
 #
@@ -20,6 +21,7 @@
 #    Final:      -q final-small  (raise -s if smoke detail is noisy)
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -29,15 +31,15 @@ world:
   ground:
     type: "infinite_plane"
     material: "floor"
-    y: 0.0
+    point: [0, 0, 0]
 
-camera:
-  position: [2.8, 1.6, 3.5]
-  look_at:  [0, 0.6, 0]
-  vup:      [0, 1, 0]
-  fov:      38
-  aperture: 0.03
-  focal_dist: 4.2
+cameras:
+  - position: [2.8, 1.6, 3.5]
+    look_at:  [0, 0.6, 0]
+    up:       [0, 1, 0]
+    fov:      38
+    aperture: 0.03
+    focus_distance: 4.2
 
 mediums:
   - id: smoke_proc
@@ -54,18 +56,19 @@ mediums:
 
 materials:
   - id: floor
-    type: disney
-    color: [0.20, 0.20, 0.21]
-    roughness: 0.50
-    specular: 0.25
+    type: openpbr
+    base_color: [0.20, 0.20, 0.21]
+    specular_roughness: 0.50
+    specular_weight: 0.5
 
   - id: shell
-    type: disney
-    color: [1.0, 1.0, 1.0]
-    roughness: 0.0
-    specular: 0.0
-    spec_trans: 1.0
-    ior: 1.0
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.0
+    specular_weight: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.0
+    transmission_color: [1, 1, 1]
 
 lights:
   # Key calda alta-destra (u × v normale -Y → emette in basso).
@@ -74,7 +77,7 @@ lights:
     u:         [ 1.4, 0.0,  0.0]
     v:         [ 0.0, 0.0,  1.4]
     color:     [1.0, 0.92, 0.78]
-    intensity: 35
+    luminance: 32.4415
 
   # Back-light freddo dietro il soggetto (z = -2.4) che mostra il bordo del fumo.
   # u=+X, v=+Y → normale u × v = +Z, la luce emette verso la camera.
@@ -83,21 +86,21 @@ lights:
     u:         [ 2.0, 0.0, 0.0]
     v:         [ 0.0, 0.8, 0.0]
     color:     [0.60, 0.74, 1.00]
-    intensity: 18
+    luminance: 13.122145
 
 entities:
   # Cubo trasparente meno una sfera (top scoop). Volume interno: smoke.
   - name: smoke_container
     type: csg
-    op: subtract
-    a:
-      type: box
-      scale: [1.4, 1.4, 1.4]
-      translate: [0, 0.70, 0]
-      material: shell
-    b:
-      type: sphere
-      center: [0, 1.4, 0]
-      radius: 0.65
-      material: shell
+    # op: subtract
+    # a:
+    #   type: box
+    #   scale: [1.4, 1.4, 1.4]
+    #   translate: [0, 0.70, 0]
+    #   material: shell
+    # b:
+    #   type: sphere
+    #   center: [0, 1.4, 0]
+    #   radius: 0.65
+    #   material: shell
     interior_medium: smoke_proc

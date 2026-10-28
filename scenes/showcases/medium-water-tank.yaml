@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  MEDIUM INTERFACE #03 — Acquario (water medium dentro tank di vetro)
 #
@@ -22,6 +23,7 @@
 #    Final:     -q final-small
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -31,15 +33,15 @@ world:
   ground:
     type: "infinite_plane"
     material: "floor"
-    y: 0.0
+    point: [0, 0, 0]
 
-camera:
-  position: [2.5, 1.4, 3.2]
-  look_at:  [0, 0.6, 0]
-  vup:      [0, 1, 0]
-  fov:      40
-  aperture: 0.04
-  focal_dist: 5.0
+cameras:
+  - position: [2.5, 1.4, 3.2]
+    look_at:  [0, 0.6, 0]
+    up:       [0, 1, 0]
+    fov:      40
+    aperture: 0.04
+    focus_distance: 5.0
 
 mediums:
   - id: water_int
@@ -53,28 +55,28 @@ mediums:
 
 materials:
   - id: floor
-    type: disney
-    color: [0.25, 0.22, 0.20]
-    roughness: 0.50
-    specular: 0.20
+    type: openpbr
+    base_color: [0.25, 0.22, 0.20]
+    specular_roughness: 0.50
+    specular_weight: 0.4
 
   - id: glass_tank
     type: dielectric
-    refraction_index: 1.5
+    ior: 1.5
 
   - id: water_surface
-    type: disney
-    color: [1.0, 1.0, 1.0]
-    roughness: 0.0
-    specular: 0.5
-    spec_trans: 1.0
-    ior: 1.33
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.33
+    transmission_color: [1, 1, 1]
 
   - id: fish
-    type: disney
-    color: [0.95, 0.45, 0.18]
-    roughness: 0.45
-    specular: 0.30
+    type: openpbr
+    base_color: [0.95, 0.45, 0.18]
+    specular_roughness: 0.45
+    specular_weight: 0.6
 
 lights:
   # u × v normale -Y → emette in basso sull'acquario.
@@ -83,7 +85,7 @@ lights:
     u:         [ 2.8, 0.0, 0.0]
     v:         [ 0.0, 0.0, 1.6]
     color:     [1.0, 0.96, 0.88]
-    intensity: 28
+    luminance: 26.956383
 
 entities:
   # Vetro esterno del tank (no interior_medium → solo refraction).

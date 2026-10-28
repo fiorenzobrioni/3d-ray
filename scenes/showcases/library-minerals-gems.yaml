@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Minerals & Gems Showcase — Cristalli e Minerali Grezzi
 #
@@ -18,25 +19,26 @@
 #    Finale: -w 1920 -H 1080 -s 2048 -d 14 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.04, 0.04, 0.05]
 
-camera:
-  position: [0, 1.8, -9.0]
-  look_at:  [0, 0.9, 0]
-  fov: 45
+cameras:
+  - position: [0, 1.8, -9.0]
+    look_at:  [0, 0.9, 0]
+    fov: 45
 
 materials:
 
   - id: "dis_drusa_quarzo"
-    type: "disney"
-    color: [0.92, 0.92, 0.95]
-    roughness: 0.05
-    specular: 0.55
-    spec_trans: 0.4
-    ior: 1.544
+    type: openpbr
+    base_color: [0.92, 0.92, 0.95]
+    specular_roughness: 0.05
+    specular_weight: 1.1
+    transmission_weight: 0.4
+    specular_ior: 1.544
     transmission_color: [0.95, 0.95, 0.97]
     transmission_depth: 0.5
     displacement:
@@ -53,19 +55,16 @@ materials:
       bound: 0.040
       autobump: true
       autobump_strength: 1.6
-      displacement_method: "bump_only"
+      method: "bump_only"
 
   - id: "dis_ametista_grezza"
-    type: "disney"
-    color: [0.55, 0.32, 0.78]
-    subsurface_radius: [0.20, 0.08, 0.40]
-    roughness: 0.08
-    specular: 0.55
-    spec_trans: 0.95
-    ior: 1.544
-    transmission_color: [0.40, 0.18, 0.65]
-    transmission_depth: 0.7
-    texture:
+    type: openpbr
+    subsurface_radius_scale: [0.20, 0.08, 0.40]
+    specular_roughness: 0.08
+    specular_weight: 1.1
+    subsurface_weight: 0.95
+    specular_ior: 1.544
+    base_color:
       type: "noise"
       scale: 2.5
       noise_type: "fbm"
@@ -76,29 +75,29 @@ materials:
         - { position: 0.00, color: [0.28, 0.12, 0.45], interp: "smoothstep" }
         - { position: 0.50, color: [0.55, 0.32, 0.78], interp: "smoothstep" }
         - { position: 1.00, color: [0.78, 0.55, 0.92], interp: "linear" }
+    subsurface_color: [0.55, 0.32, 0.78]
 
   - id: "dis_opale_fuoco"
-    type: "disney"
-    color: [0.92, 0.42, 0.18]
-    roughness: 0.10
-    specular: 0.55
-    spec_trans: 0.55
-    ior: 1.450
+    type: openpbr
+    base_color: [0.92, 0.42, 0.18]
+    specular_roughness: 0.10
+    specular_weight: 1.1
+    transmission_weight: 0.55
+    specular_ior: 1.450
     transmission_color: [0.85, 0.32, 0.10]
     transmission_depth: 0.6
-    thin_film_thickness: 560
+    thin_film_thickness: 0.56
     thin_film_ior: 1.45
+    thin_film_weight: 1
 
   - id: "dis_fluorite_rainbow"
-    type: "disney"
-    color: [0.65, 0.55, 0.78]
-    roughness: 0.10
-    specular: 0.50
-    spec_trans: 0.85
-    ior: 1.434
+    type: openpbr
+    specular_roughness: 0.10
+    transmission_weight: 0.85
+    specular_ior: 1.434
     transmission_color: [0.55, 0.42, 0.70]
     transmission_depth: 0.7
-    texture:
+    base_color:
       type: "noise"
       scale: 1.8
       noise_type: "fbm"
@@ -113,12 +112,11 @@ materials:
         - { position: 1.00, color: [0.45, 0.32, 0.78], interp: "linear" }
 
   - id: "dis_pirite_cubica"
-    type: "disney"
-    metallic: 0.85
-    color: [0.85, 0.72, 0.32]
-    roughness: 0.28
-    specular: 0.55
-    texture:
+    type: openpbr
+    base_metalness: 0.85
+    specular_roughness: 0.28
+    specular_weight: 1.1
+    base_color:
       type: "noise"
       scale: 5.0
       noise_strength: 0.10
@@ -132,15 +130,15 @@ materials:
       strength: 0.5
 
   - id: "floor"
-    type: "disney"
-    color: [0.10, 0.10, 0.12]
-    roughness: 0.40
-    specular: 0.45
+    type: openpbr
+    base_color: [0.10, 0.10, 0.12]
+    specular_roughness: 0.40
+    specular_weight: 0.9
 
   - id: "backdrop"
-    type: "disney"
-    color: [0.06, 0.06, 0.08]
-    roughness: 0.92
+    type: openpbr
+    base_color: [0.06, 0.06, 0.08]
+    specular_roughness: 0.92
 
 entities:
 
@@ -204,7 +202,7 @@ lights:
   - type: "directional"
     direction: [-0.5, -0.7, 0.3]
     color: [1.0, 0.98, 0.95]
-    intensity: 6.0
+    illuminance: 5.892516
     angular_radius: 0.4
 
   # Sphere light frontale per le riflessioni interne dei cristalli.
@@ -212,11 +210,11 @@ lights:
     position: [-3, 4, -4]
     radius: 0.5
     color: [1.0, 1.0, 0.95]
-    intensity: 15
+    luminance: 14.945849
 
   # Rim caldo dietro per separare dal nero. I cristalli trasparenti
   # devono mostrare la struttura interna illuminata da dietro.
   - type: "point"
     position: [0, 3, 5]
     color: [1.0, 0.85, 0.65]
-    intensity: 60
+    intensity: 52.047005

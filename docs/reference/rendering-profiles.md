@@ -119,7 +119,7 @@ mirror) or `--integrator vcm` (also seen through glass or water) on top of
 any preset: see section 4c.
 
 **`standard` - the day-to-day quality render.** The `standard` tier targets
-final-class image quality on a *classic* scene - Lambertian/Disney
+final-class image quality on a *classic* scene - Lambertian/OpenPBR
 surfaces, non-nested glass (at most a couple of crystal spheres one behind
 another), procedural marble with ordinary parameters - while stripping the
 expensive global-illumination machinery that such scenes don't need.
@@ -393,7 +393,7 @@ Pixel samples (`-s`) and shadow samples (`-S`) both reduce shadow noise. Prefer 
 
 ### 6. **FIREFLY CLAMP (`-C` / `--clamp`)**
 
-`MaxSampleRadiance` (exposed as `-C`) is a hard ceiling on per-sample radiance **before tone mapping**. It catches the rare outliers produced by specular caustics, Disney lobe compensation, and Russian Roulette boost - the pixels that would otherwise appear as bright white dots ("fireflies") in your render.
+`MaxSampleRadiance` (exposed as `-C`) is a hard ceiling on per-sample radiance **before tone mapping**. It catches the rare outliers produced by specular caustics, multi-lobe materials, and Russian Roulette boost - the pixels that would otherwise appear as bright white dots ("fireflies") in your render.
 
 **Default: off.** The clamp is a trade of bias for noise, and the threshold is an absolute radiance: it does not single out outliers, it cuts every sample brighter than the value. In a scene whose lights are brighter than the threshold it removes real light (a Cornell box lit by a panel of radiance 20 lost 22% of its energy with the former default of `10`). Render without it first, use the denoiser or more samples against noise, and reach for `-C` only when isolated fireflies remain. `10` is a reasonable starting value for lights of radiance up to a few units.
 
@@ -429,7 +429,7 @@ This multiplies the primary `-C` threshold for all indirect contributions, so it
 --transparent-shadows on
 ```
 
-**Default: off.** Glass then behaves physically: it casts its shadow, and the light it refracts reaches the floor along the paths that really cross it, which is the caustic (sharp but noisy at low sample counts with path tracing; `--integrator bdpt` or `vcm` resolve it, section 4c). Index-matched surfaces (`refraction_index: 1`, the transparent shell that bounds a fog or water volume) and smooth `thin_walled` sheets always let shadow rays through: their transmission does not bend light, so this is exact.
+**Default: off.** Glass then behaves physically: it casts its shadow, and the light it refracts reaches the floor along the paths that really cross it, which is the caustic (sharp but noisy at low sample counts with path tracing; `--integrator bdpt` or `vcm` resolve it, section 4c). Index-matched surfaces (`refraction_index: 1`, the transparent shell that bounds a fog or water volume) and smooth `geometry_thin_walled` sheets always let shadow rays through: their transmission does not bend light, so this is exact.
 
 `on` is an artistic approximation: shadow rays go straight through glass, tinted by its Fresnel transmittance, so clear glass casts a soft, tinted half-shadow instead of a shadow and a caustic. The refracted light paths from diffuse surfaces through the glass to the lights are dropped so the same light is not counted twice. Use it for quick, noise-free previews of scenes with a lot of glass; leave it off for final images.
 

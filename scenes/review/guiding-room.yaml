@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  guiding-room.yaml - una stanza illuminata dal sole attraverso una finestra
 #  (PIANO-REVIEW.md, Fase 7b)
@@ -20,16 +21,17 @@
 #    -s 64 --denoiser none --guiding on         (con guiding)
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.35, 0.45, 0.6]
 
-camera:
-  position: [0.9, 1.5, 2.6]
-  look_at: [-0.6, 1.2, -3]
-  vup: [0, 1, 0]
-  fov: 70
+cameras:
+  - position: [0.9, 1.5, 2.6]
+    look_at: [-0.6, 1.2, -3]
+    up: [0, 1, 0]
+    fov: 70
 
 materials:
   - { id: "wall",  type: "lambertian", color: [0.7, 0.7, 0.7] }
@@ -53,4 +55,4 @@ entities:
   - { type: "box", material: "wall", scale: [0.8, 0.8, 0.8], translate: [1.2, 0.4, -1.5] }
 
 lights:
-  - { type: "directional", direction: [0.8, -0.55, 0.1], color: [1.0, 0.95, 0.85], intensity: 8 }
+  - { type: "directional", direction: [0.8, -0.55, 0.1], color: [1.0, 0.95, 0.85], illuminance: 7.62728 }

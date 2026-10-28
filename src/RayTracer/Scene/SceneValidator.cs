@@ -62,6 +62,7 @@ public static class SceneValidator
         ["displacement_bound"] = "a format-1 key: 'bound' in the material's 'displacement:'",
         ["y"] = "a format-1 key, now 'point: [0, y, 0]'",
         ["albedo"] = "not a key: the colour is 'color'",
+        ["displacement"] = "the displacement is a block of the material ('materials: - displacement:')",
     };
 
     private sealed class ClassInfo
@@ -134,6 +135,10 @@ public static class SceneValidator
     private static void Walk(YamlNode node, Type type, string what, List<Issue> issues, string? impliedType)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
+
+        // An empty value ("lights:" with nothing after it) is the key unset.
+        if (node is YamlScalarNode { Style: YamlDotNet.Core.ScalarStyle.Plain, Value: "" or "~" or "null" })
+            return;
 
         if (type == typeof(string))
         {

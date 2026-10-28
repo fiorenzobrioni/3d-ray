@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Chess — Set Staunton, Apertura Italiana (Giuoco Piano)
 #
@@ -16,6 +17,7 @@
 #    Finale:   -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 # ═══════════════════════════════════════════════════════════════════════════
 #  WORLD — Sky gradient quasi-nero con sun disk e piano in legno
 # ═══════════════════════════════════════════════════════════════════════════
@@ -30,12 +32,12 @@ world:
     sun:
       direction: [-0.6, -0.8, -0.4]
       color: [1.0, 0.96, 0.88]
-      intensity: 2.0
-      size: 2.5
+      luminance:  1.92546
+      angular_radius: 1.25
   ground:
     type: "infinite_plane"
     material: "table_wood"
-    y: -0.20
+    point: [0, -0.2, 0]
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  CAMERAS
@@ -46,42 +48,42 @@ cameras:
     look_at:    [0, -0.2, 0]
     fov:        45
     aperture:   0.1
-    focal_dist: 12.0
+    focus_distance: 12.0
 
   - name:       macro           # Dettaglio sui Pezzi Centrali
     position:   [1.5, 1.2, -4]
     look_at:    [0, 0.8, 0]
     fov:        25.0
     aperture:   0.2
-    focal_dist: 4.25
+    focus_distance: 4.25
 
   - name:       hero            # Angolo Basso e Imponente
     position:   [0.0, 0.5, -6.5]
     look_at:    [0.0, 1.0, 0.5]
     fov:        55.0
     aperture:   0.1
-    focal_dist: 7.0
+    focus_distance: 7.0
 
   - name:       zenitale        # Vista dall'alto tattica
     position:   [0.0, 12.0, 0.01]
     look_at:    [0.0, 0.0, 0.0]
     fov:        35.0
     aperture:   0.0
-    focal_dist: 12.0
+    focus_distance: 12.0
 
   - name:       dutch           # Dinamica e Inclinata
     position:   [6.0, 4.0, -6.0]
     look_at:    [0.0, 0.5, 0.0]
     fov:        40.0
     aperture:   0.1
-    focal_dist: 8.5
+    focus_distance: 8.5
 
   - name:       pawns_eye       # Ad altezza pedina, Bokeh estremo
     position:   [0.0, 0.4, -3.5]
     look_at:    [0.0, 0.6, 2.0]
     fov:        70.0
     aperture:   0.3
-    focal_dist: 3.5
+    focus_distance: 3.5
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -89,7 +91,7 @@ cameras:
 materials:
   - id: "table_wood"
     type: "lambertian"
-    texture:
+    color:
       type: "wood"
       scale: 4.0
       noise_strength: 2.8
@@ -99,35 +101,33 @@ materials:
 
   - id: "board_checker"
     type: "lambertian"
-    texture:
+    color:
       type: "checker"
       scale: 1.0
       colors: [[0.82, 0.70, 0.48], [0.20, 0.11, 0.06]]
 
   - id: "board_border"
     type: "lambertian"
-    texture:
+    color:
       type: "wood"
       scale: 1.8
       noise_strength: 2.0
       colors: [[0.22, 0.09, 0.05], [0.09, 0.04, 0.02]]
 
   - id: "piece_white"
-    type: "disney"
-    color: [0.92, 0.84, 0.68]
-    metallic: 0.0
-    roughness: 0.28
-    specular: 0.5
-    clearcoat: 0.5
+    type: openpbr
+    base_color: [0.92, 0.84, 0.68]
+    specular_roughness: 0.28
+    coat_weight: 0.5
+    coat_ior: 1.5
     coat_roughness: 0.15
 
   - id: "piece_black"
-    type: "disney"
-    color: [0.05, 0.04, 0.035]
-    metallic: 0.0
-    roughness: 0.22
-    specular: 0.5
-    clearcoat: 0.6
+    type: openpbr
+    base_color: [0.05, 0.04, 0.035]
+    specular_roughness: 0.22
+    coat_weight: 0.6
+    coat_ior: 1.5
     coat_roughness: 0.10
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -138,19 +138,19 @@ lights:
   - type: "point"
     position: [-3, 10, -4]
     color: [1.0, 0.95, 0.9]
-    intensity: 50
+    intensity: 47.851
 
   # Fill Light — luce fredda più debole dall'altro lato, ammorbidisce le ombre
   - type: "point"
     position: [5, 6, -3]
     color: [0.85, 0.85, 1.0]
-    intensity: 20
+    intensity: 17.216602
 
   # Back/Rim Light — luce posteriore per distaccare i pezzi dallo sfondo
   - type: "point"
     position: [0, 8, 6]
     color: [1.0, 0.95, 0.85]
-    intensity: 140
+    intensity: 133.4774
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  TEMPLATES — Un template per tipo di pezzo (pedone, torre, alfiere, …)

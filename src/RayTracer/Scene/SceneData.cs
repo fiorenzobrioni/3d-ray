@@ -310,7 +310,7 @@ public class SkyData
 }
 
 /// <summary>
-/// The sun of a sky. Gradient sky: a disc of <c>illuminance</c> lux. HDRI:
+/// The sun of a sky. Gradient sky: a disc of <c>luminance</c> nits. HDRI:
 /// a sun extracted from the image. Physical skies: the direction only (the
 /// disc follows from the atmosphere).
 /// </summary>
@@ -324,9 +324,9 @@ public class SunData
     [YamlMember(Alias = "color")]
     public List<float>? Color { get; set; }
 
-    /// <summary>Gradient sky: illuminance of the disc on a surface facing it, lux.</summary>
-    [YamlMember(Alias = "illuminance")]
-    public float? Illuminance { get; set; }
+    /// <summary>Gradient sky: luminance of the disc, nits (default 10).</summary>
+    [YamlMember(Alias = "luminance")]
+    public float Luminance { get; set; } = 10f;
 
     /// <summary>Gradient sky: half-angle of the disc in degrees (default 1.5; the real sun 0.265).</summary>
     [YamlMember(Alias = "angular_radius")]

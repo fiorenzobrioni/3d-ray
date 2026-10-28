@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  HeightField Strata — Preview terreno a strati
 #
@@ -15,6 +16,7 @@
 #    Finale:   -w 1920 -H 1080 -s 1024 -d 10 -S 4  -c sunrise
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -24,8 +26,8 @@ world:
     sun:
       direction: [-0.497, -0.845, -0.199]
       color: [1.000, 0.960, 0.860]
-      intensity: 18.000
-      size: 2.000
+      luminance:  17.3031
+      angular_radius: 1
   medium:
     type: "height_fog"
     sigma_a: [0.001, 0.001, 0.0012]
@@ -39,7 +41,7 @@ lights:
   - type: "directional"
     direction: [0.729, -0.620, 0.292]
     color: [0.850, 0.900, 0.960]
-    intensity: 1.800
+    illuminance: 1.6086636
 
 cameras:
   - name: "wide"
@@ -47,40 +49,40 @@ cameras:
     look_at:  [0.000, 10.346, 0.000]
     fov:      50.000
     aperture: 0.000
-    focal_dist: 1.000
+    focus_distance: 1.000
 
   - name: "aerial"
     position: [0.000, 92.500, 90.000]
     look_at:  [0.000, 0.000, 0.000]
     fov:      55.000
     aperture: 0.000
-    focal_dist: 1.000
+    focus_distance: 1.000
 
   - name: "ground"
     position: [-30.000, 14.346, 30.000]
     look_at:  [30.000, 10.346, -30.000]
     fov:      50.000
     aperture: 0.000
-    focal_dist: 1.000
+    focus_distance: 1.000
 
   - name: "sunrise"
     position: [-60.000, 16.346, -10.000]
     look_at:  [40.000, 10.346, 10.000]
     fov:      55.000
     aperture: 0.050
-    focal_dist: 80.000
+    focus_distance: 80.000
 
   - name: "topdown"
     position: [0.000, 150.000, 0.001]
     look_at:  [0.000, 0.000, 0.000]
     fov:      70.000
     aperture: 0.000
-    focal_dist: 1.000
+    focus_distance: 1.000
 
 materials:
   - id: "terrain_heightfield_strata_test_sand"
     type: "lambertian"
-    texture:
+    color:
       type: "noise"
       scale: 5.000
       noise_strength: 0.600
@@ -89,7 +91,7 @@ materials:
 
   - id: "terrain_heightfield_strata_test_ground"
     type: "lambertian"
-    texture:
+    color:
       type: "noise"
       scale: 4.000
       noise_strength: 0.500
@@ -97,32 +99,28 @@ materials:
       randomize_offset: true
 
   - id: "terrain_heightfield_strata_test_rock"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "noise"
       scale: 6.000
       noise_strength: 0.700
       colors: [[0.320, 0.300, 0.280], [0.180, 0.170, 0.180]]
       randomize_offset: true
-    roughness: 0.850
-    metallic: 0.000
-    specular: 0.200
+    specular_roughness: 0.850
+    specular_weight: 0.4
 
   - id: "terrain_heightfield_strata_test_snow"
-    type: "disney"
-    color: [0.950, 0.970, 1.000]
-    roughness: 0.780
-    metallic: 0.000
-    specular: 0.300
+    type: openpbr
+    base_color: [0.950, 0.970, 1.000]
+    specular_roughness: 0.780
+    specular_weight: 0.6
 
   - id: "terrain_heightfield_strata_test_water"
-    type: "disney"
-    color: [0.850, 0.920, 0.950]
-    roughness: 0.080
-    metallic: 0.000
-    specular: 0.500
-    spec_trans: 1.000
-    ior: 1.330
+    type: openpbr
+    base_color: [0.850, 0.920, 0.950]
+    specular_roughness: 0.080
+    transmission_weight: 1.000
+    specular_ior: 1.330
     transmission_color: [0.300, 0.550, 0.650]
     transmission_depth: 4.000
 
@@ -136,10 +134,10 @@ templates:
         sea_level: 7.500
         sea_material: "terrain_heightfield_strata_test_water"
         strata:
-          - { min_altitude: 0.000, max_altitude: 0.360, min_slope_deg: 0.000, max_slope_deg: 35.000, blend_width: 0.040, material: "terrain_heightfield_strata_test_sand" }
-          - { min_altitude: 0.340, max_altitude: 0.750, min_slope_deg: 0.000, max_slope_deg: 45.000, blend_width: 0.060, material: "terrain_heightfield_strata_test_ground" }
-          - { min_altitude: 0.500, max_altitude: 1.000, min_slope_deg: 0.000, max_slope_deg: 90.000, blend_width: 0.080, material: "terrain_heightfield_strata_test_rock" }
-          - { min_altitude: 0.850, max_altitude: 1.000, min_slope_deg: 0.000, max_slope_deg: 60.000, blend_width: 0.050, material: "terrain_heightfield_strata_test_snow" }
+          - { min_altitude: 0.000, max_altitude: 0.360, min_slope: 0.000, max_slope: 35.000, blend_width: 0.040, material: "terrain_heightfield_strata_test_sand" }
+          - { min_altitude: 0.340, max_altitude: 0.750, min_slope: 0.000, max_slope: 45.000, blend_width: 0.060, material: "terrain_heightfield_strata_test_ground" }
+          - { min_altitude: 0.500, max_altitude: 1.000, min_slope: 0.000, max_slope: 90.000, blend_width: 0.080, material: "terrain_heightfield_strata_test_rock" }
+          - { min_altitude: 0.850, max_altitude: 1.000, min_slope: 0.000, max_slope: 60.000, blend_width: 0.050, material: "terrain_heightfield_strata_test_snow" }
         material: "terrain_heightfield_strata_test_ground"
 
 entities:

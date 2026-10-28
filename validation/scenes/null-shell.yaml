@@ -1,9 +1,11 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Validation scene (PIANO-REVIEW.md, Phase 0 fixes): a diffuse sphere inside an
 # index-matched (IOR 1) transparent shell, the way a fog or water volume is
 # bounded. The shell neither reflects nor bends light, so a shadow ray through
 # it is the exact transport: the point light (unreachable by BSDF sampling), the
 # panel and the sky must all light the inner sphere exactly as without the
 # shell, in every mode. Mitsuba renders the shell as its pass-through 'null' BSDF.
+format_version: 2
 validation:
   width: 128
   height: 96
@@ -15,17 +17,17 @@ validation:
 world:
   sky: { type: "flat", color: [0.15, 0.15, 0.18] }
 
-camera:
-  position: [0.0, 1.4, 4.2]
-  look_at: [0.0, 0.7, 0.0]
-  vup: [0, 1, 0]
-  fov: 38
+cameras:
+  - position: [0.0, 1.4, 4.2]
+    look_at: [0.0, 0.7, 0.0]
+    up: [0, 1, 0]
+    fov: 38
 
 materials:
   - { id: "floor", type: "lambertian", color: [0.6, 0.6, 0.6] }
   - { id: "ball", type: "lambertian", color: [0.75, 0.45, 0.3] }
-  - { id: "shell", type: "dielectric", color: [1, 1, 1], refraction_index: 1.0 }
-  - { id: "panel", type: "emissive", color: [1, 1, 1], intensity: 6 }
+  - { id: "shell", type: "dielectric", color: [1, 1, 1], ior: 1.0 }
+  - { id: "panel", type: "emissive", color: [1, 1, 1], luminance: 6 }
 
 entities:
   - { type: "quad", q: [-5, 0, 5], u: [10, 0, 0], v: [0, 0, -10], material: "floor" }
@@ -34,4 +36,4 @@ entities:
   - { type: "quad", q: [1.0, 3.0, 1.0], u: [0, 0, -1], v: [1, 0, 0], material: "panel" }  # normal -Y
 
 lights:
-  - { type: "point", position: [-2.0, 1.8, 1.0], color: [1.0, 0.85, 0.7], intensity: 4 }
+  - { type: "point", position: [-2.0, 1.8, 1.0], color: [1.0, 0.85, 0.7], intensity: 3.48424 }

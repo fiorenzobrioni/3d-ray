@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../../docs/reference/scene-schema.json
 # Caustic regression scene (kept from the earlier caustic solvers).
 #
 # A solid glass sphere sits above a diffuse floor, lit by a rectangular area
@@ -5,10 +6,11 @@
 # beneath it, the focused refractive caustic that straight shadow rays cannot
 # produce. Render it with --integrator bdpt to see it converge.
 
-camera:
-  position: [0, 4.5, 6]
-  look_at: [0, 0, 0]
-  fov: 40
+format_version: 2
+cameras:
+  - position: [0, 4.5, 6]
+    look_at: [0, 0, 0]
+    fov: 40
 
 world:
   sky:
@@ -17,7 +19,7 @@ world:
   ground:
     type: "infinite_plane"
     material: "floor"
-    y: 0
+    point: [0, 0, 0]
 
 entities:
   - name: "glass_ball"
@@ -32,7 +34,7 @@ lights:
     u: [2.4, 0.0, 0.0]
     v: [0.0, 0.0, 2.4]
     color: [1.0, 1.0, 1.0]
-    intensity: 12.0
+    luminance: 12.0
     shadow_samples: 4
 
 materials:
@@ -41,4 +43,4 @@ materials:
     color: [0.7, 0.7, 0.7]
   - id: "glass"
     type: "dielectric"
-    refraction_index: 1.5
+    ior: 1.5

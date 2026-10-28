@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  3D-Ray — Showcase "Atelier"
 # ═══════════════════════════════════════════════════════════════════════════
@@ -52,6 +53,7 @@
 # iridescente combinata con l'area light.
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -61,8 +63,8 @@ world:
     sun:
       direction:  [-0.35, -0.85, -0.4]
       color:      [1.0, 0.92, 0.78]
-      intensity:  3.0
-      size:       1.5
+      luminance:  2.7807
+      angular_radius: 0.75
 
   medium:
     type: "homogeneous"
@@ -78,65 +80,65 @@ cameras:
   - name: "hero"
     position: [3.4, 2.1, -6.2]
     look_at: [0.0, 1.35, 0.0]
-    vup: [0, 1, 0]
+    up: [0, 1, 0]
     fov: 36
     aperture: 0.08
-    focal_dist: 7.2
+    focus_distance: 7.2
 
   # Wide — grandangolare, inquadra l'intera scena incluso pavimento e parete.
   - name: "wide"
     position: [4.5, 2.6, -7.5]
     look_at: [0.0, 1.1, 0.2]
-    vup: [0, 1, 0]
+    up: [0, 1, 0]
     fov: 55
     aperture: 0.04
-    focal_dist: 9.0
+    focus_distance: 9.0
 
   # Detail torus — macro sul toroide oro, DOF molto stretta.
   - name: "detail-torus"
     position: [1.8, 1.8, -3.6]
     look_at: [0.0, 1.4, 0.0]
-    vup: [0, 1, 0]
+    up: [0, 1, 0]
     fov: 24
     aperture: 0.15
-    focal_dist: 4.1
+    focus_distance: 4.1
 
   # Detail bubble — macro sulla bolla iridescente.
   - name: "detail-bubble"
     position: [2.4, 1.9, -3.5]
     look_at: [1.35, 1.75, 0.25]
-    vup: [0, 1, 0]
+    up: [0, 1, 0]
     fov: 20
     aperture: 0.12
-    focal_dist: 4.3
+    focus_distance: 4.3
 
   # Top — vista quasi zenitale per mostrare il layout e il riflesso del pavimento.
   # vup ruotato leggermente per evitare la degenerazione di look-straight-down.
   - name: "top"
     position: [0.0, 9.0, -0.01]
     look_at: [0.0, 0.9, 0.0]
-    vup: [0, 0, -1]
+    up: [0, 0, -1]
     fov: 32
     aperture: 0.0
-    focal_dist: 9.0
+    focus_distance: 9.0
 
 # ─── Materials ──────────────────────────────────────────────────────────────
 materials:
 
   # -- Pavimento: laccato scuro, leggermente riflettente ---------------------
   - id: "floor_lacquer"
-    type: "disney"
-    color: [0.035, 0.035, 0.04]
-    metallic: 0.0
-    roughness: 0.18
-    specular: 0.6
-    clearcoat: 0.3
+    type: openpbr
+    base_color: [0.035, 0.035, 0.04]
+    specular_roughness: 0.18
+    specular_weight: 1.2
+    coat_weight: 0.3
     coat_roughness: 0.10
+    coat_ior: 1.5
 
   # -- Parete di fondo: mix tra marmo scuro e un rumore cupo ----------------
   - id: "wall_marble_dark"
     type: "lambertian"
-    texture:
+    color:
       type: "marble"
       scale: 6.0
       noise_strength: 5.0
@@ -144,7 +146,7 @@ materials:
 
   - id: "wall_noise_dark"
     type: "lambertian"
-    texture:
+    color:
       type: "noise"
       scale: 2.0
       noise_strength: 2.5
@@ -157,73 +159,75 @@ materials:
 
   # -- Piedistallo: marmo bianco/grigio venato ------------------------------
   - id: "pedestal_marble"
-    type: "disney"
-    color: [0.92, 0.90, 0.88]
-    roughness: 0.35
-    specular: 0.5
-    clearcoat: 0.15
-    texture:
+    type: openpbr
+    specular_roughness: 0.35
+    coat_weight: 0.15
+    base_color:
       type: "marble"
       scale: 8.0
       noise_strength: 6.0
       colors: [[0.94, 0.93, 0.90], [0.55, 0.52, 0.50]]
+    coat_roughness: 0.031622775
+    coat_ior: 1.5
 
   # -- Oggetto-eroe 1: toroide oro spazzolato anisotropico ------------------
   - id: "gold_brushed"
-    type: "disney"
-    color: [1.0, 0.78, 0.35]
-    metallic: 1.0
-    roughness: 0.32
-    anisotropic: 0.8
-    anisotropic_rotation: 0.25
+    type: openpbr
+    base_color: [1.0, 0.78, 0.35]
+    base_metalness: 1.0
+    specular_roughness: 0.32
+    specular_roughness_anisotropy: 0.72
+    specular_rotation: 90
 
   # -- Oggetto-eroe 2: sfera di vetro ambra (Beer-Lambert) ------------------
   - id: "amber_glass"
-    type: "disney"
-    color: [1.0, 1.0, 1.0]
-    spec_trans: 1.0
-    roughness: 0.02
-    ior: 1.52
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    transmission_weight: 1.0
+    specular_roughness: 0.02
+    specular_ior: 1.52
     transmission_color: [0.95, 0.55, 0.15]
     transmission_depth: 2.8
 
   # -- Oggetto-eroe 3: bolla di sapone (thin-film iridescence) --------------
   - id: "soap_bubble"
-    type: "disney"
-    color: [1.0, 1.0, 1.0]
-    spec_trans: 1.0
-    roughness: 0.0
-    ior: 1.33
-    thin_walled: true
-    thin_film_thickness: 480
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    transmission_weight: 1.0
+    specular_roughness: 0.0
+    specular_ior: 1.33
+    geometry_thin_walled: true
+    thin_film_thickness: 0.48
     thin_film_ior: 1.33
+    transmission_color: [1, 1, 1]
+    thin_film_weight: 1
 
   # -- Oggetto-eroe 4: plastica rossa automotive (clearcoat) ----------------
   - id: "car_paint_red"
-    type: "disney"
-    color: [0.55, 0.03, 0.05]
-    metallic: 0.1
-    roughness: 0.45
-    specular: 0.5
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.55, 0.03, 0.05]
+    base_metalness: 0.1
+    specular_roughness: 0.45
+    coat_weight: 1.0
     coat_roughness: 0.08
+    coat_ior: 1.5
 
   # -- Oggetto-eroe 5: velluto viola (sheen) --------------------------------
   - id: "purple_velvet"
-    type: "disney"
-    color: [0.28, 0.06, 0.24]
-    roughness: 0.88
-    sheen: 1.0
-    sheen_tint: 0.5
-    sheen_roughness: 0.35
+    type: openpbr
+    base_color: [0.28, 0.06, 0.24]
+    specular_roughness: 0.88
+    fuzz_weight: 1.0
+    fuzz_color: [1.6689266, 0.7504842, 1.501937]
+    fuzz_roughness: 0.35
 
   # -- Accento metallico freddo per lo stand del toroide --------------------
   - id: "brushed_steel"
-    type: "disney"
-    color: [0.72, 0.73, 0.76]
-    metallic: 1.0
-    roughness: 0.28
-    anisotropic: 0.4
+    type: openpbr
+    base_color: [0.72, 0.73, 0.76]
+    base_metalness: 1.0
+    specular_roughness: 0.28
+    specular_roughness_anisotropy: 0.36
 
   # -- Emissive per il pannello (non usato direttamente: usiamo area light) -
   # Lasciato qui come riferimento per chi studia il file.
@@ -242,14 +246,14 @@ lights:
     u: [3.2, 0.0, 0.0]
     v: [0.0, 0.0, 2.0]
     color: [1.0, 0.96, 0.88]
-    intensity: 32.0
+    luminance: 30.807295
 
   # Rim light — sphere azzurra posteriore, stacca i soggetti dal fondo.
   - type: "sphere"
     position: [-2.0, 2.6, 3.2]
     radius: 0.4
     color: [0.45, 0.68, 1.0]
-    intensity: 28.0
+    luminance: 18.317768
 
   # Accent warm — piccolo faretto caldo fuori dal frame destro,
   # enfatizza l'highlight anisotropico dell'oro.
@@ -257,7 +261,7 @@ lights:
     position: [4.8, 2.2, -1.5]
     radius: 0.2
     color: [1.0, 0.72, 0.35]
-    intensity: 22.0
+    luminance: 16.561909
 
 # ─── Entities ───────────────────────────────────────────────────────────────
 entities:

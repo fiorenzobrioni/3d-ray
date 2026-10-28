@@ -20,32 +20,30 @@ cinque modelli, configurabili sotto `world: > sky:`.
 
 | Modello          | Descrizione                                                                  | Quando usarlo                              |
 |------------------|------------------------------------------------------------------------------|--------------------------------------------|
-| `flat`           | Colore uniforme su tutta la sfera (default)                                  | Studio, interni, Cornell-box, fill-only    |
+| `flat`           | Colore uniforme su tutta la sfera                                            | Studio, interni, Cornell-box, fill-only    |
 | `gradient`       | Gradiente verticale a tre bande con disco solare opzionale                   | Preview stilizzate, look outdoor rapido    |
 | `hosek_wilkie`   | Cielo diurno sereno analitico (Hosek-Wilkie 2012). Alias YAML: `physical`    | Luce diurna esterna, il più vicino ai cieli misurati |
 | `preetham`       | Cielo diurno sereno analitico (Preetham 1999), il modello precedente         | Riferimento, confronti                     |
 | `nishita`        | Scattering fisico Rayleigh+Mie con LUT precomputata                          | Alba / tramonto, aerial perspective        |
 | `hdri`           | Immagine HDR equirettangolare (`.hdr` o `.exr`)                              | Photoreal product / VFX / archviz          |
 
-Quando non è presente il blocco `sky:`, il motore usa un cielo piatto
-con il default daylight blu `[0.5, 0.7, 1.0]`. Tutti i modelli
-condividono una serie di feature "globali" (visibility flags, background
-plate, orientation) — vedi §7.7 sotto.
+Quando non è presente il blocco `sky:`, l'ambiente è nero. Tutti i
+modelli condividono una serie di feature "globali" (`exposure` in stop,
+visibility flags, background plate, rotazione): vedi §7.7 sotto.
 
 > Il cielo è l'**unico** termine ambientale. L'illuminazione indiretta
 > viene dalla GI path-traced — non esiste un coefficiente ambient
 > separato. Se vuoi un effetto "fill light", usa un `flat` con un colore
 > basso neutro, o un `gradient` con zenith fioco.
 
-> **Convenzione sole.** Da questa versione in poi, `sun.direction` punta
-> **VERSO il sole** (convenzione uniforme su tutti i modelli sky e sulla
-> luce `PhysicalSun`). Scene legacy che usavano la vecchia convenzione
-> (dove `direction` era la direzione di propagazione) richiedono di
-> invertire il vettore.
+> **Convenzione sole.** `sun.direction` punta **VERSO il sole**
+> (convenzione uniforme su tutti i modelli sky e sulla luce
+> `PhysicalSun`), mentre la `direction` di una luce `directional` è la
+> direzione in cui la luce viaggia.
 
 ---
 
-## 7.2 Flat Sky (default)
+## 7.2 Flat Sky
 
 ```yaml
 world:
@@ -54,7 +52,7 @@ world:
     color: [0.5, 0.65, 0.9]
 ```
 
-Un cielo flat restituisce il suo `color` per ogni raggio in fuga e
+Un cielo flat restituisce il suo `color` (default 1) per ogni raggio in fuga e
 partecipa a NEE tramite campionamento uniforme della sfera (pdf =
 1/(4π)) quando la luminanza è positiva, fornendo illuminazione ambientale
 uniforme da ogni direzione. Imposta `color:
@@ -80,7 +78,7 @@ world:
     sun:
       direction:      [0.5, 0.8, -0.3]    # direzione VERSO il sole
       color:          [1.0, 0.95, 0.80]
-      intensity:      12.0
+      luminance:      11.4                 # luminanza del disco
       angular_radius: 0.265                # semiangolo in gradi (sole reale)
       shadow_samples: 4                    # campioni stratificati per le ombre soft
 ```
@@ -88,12 +86,15 @@ world:
 | Parametro sole     | Default  | Descrizione                                          |
 |--------------------|----------|------------------------------------------------------|
 | `direction`        | --       | Direzione *VERSO* il sole (posizione nel cielo)      |
-| `color`            | `[1,1,1]`| Tinta del disco                                      |
-| `intensity`        | `10.0`   | Moltiplicatore di luminosità                         |
-| `angular_radius`   | `0.265°` | Semiangolo in gradi (sole reale)                     |
-| `size`             | `3.0°`   | Diametro totale — usato solo se `angular_radius` ≤ 0 |
+| `color`            | `[1,1,1]`| Tinta del disco (portata a luminanza 1)              |
+| `luminance`        | `10`     | Luminanza del disco, nella scala dei colori del cielo |
+| `angular_radius`   | `1.5°`   | Semiangolo in gradi (il sole reale 0.265)            |
 | `shadow_samples`   | `4`      | Campioni stratificati per il `PhysicalSun` accoppiato|
-| `visible_to_camera`| `true`   | Quando `false` nasconde il disco dai raggi primari   |
+| `visibility`       | --       | `{ camera: false }` nasconde il disco dai raggi primari |
+
+La luce che il disco dà a una superficie rivolta verso di esso è
+`luminance × π sin²θ` (θ il raggio angolare): a parità di luminanza un disco
+più grande dà più luce e ombre più morbide.
 
 ### Preset rapidi
 
@@ -102,21 +103,21 @@ world:
 sun:
   direction:      [0.8, 0.15, -0.5]
   color:          [1.0, 0.78, 0.42]
-  intensity:      14.0
+  luminance:      9.8
   angular_radius: 1.5
 
 # Mezzogiorno
 sun:
   direction:      [-0.1, 1.0, -0.2]
   color:          [1.0, 0.98, 0.95]
-  intensity:      12.0
+  luminance:      11.8
   angular_radius: 0.5
 
 # Notte con luna
 sun:
   direction:      [-0.4, 0.6, -0.7]
   color:          [0.70, 0.75, 0.90]
-  intensity:      3.0
+  luminance:      2.3
   angular_radius: 0.8
 ```
 
@@ -136,11 +137,9 @@ world:
     type: "hosek_wilkie"             # oppure "preetham"
     turbidity: 3.0                   # 1 = aria pura, 3 = sereno, 6 = foschia, 10 = molta foschia
     ground_albedo: [0.25, 0.25, 0.22]
-    units: "relative"                # oppure "photometric" (nit)
-    intensity: 1.0
+    exposure: -9.97                  # stop: circa una scena senza esposizione della camera
     sun:
       direction:       [-0.35, 0.78, 0.52]
-      angular_radius:  0.265
       shadow_samples:  4
 ```
 
@@ -148,8 +147,7 @@ world:
 |------------------|--------------|--------------------------------------------------------------------------|
 | `turbidity`      | `3.0`        | Torbidità di Linke (1-10): basso = pulito, alto = foschia                |
 | `ground_albedo`  | `[0.3]`      | Albedo del terreno sotto l'orizzonte; tinge anche il cielo di Hosek-Wilkie |
-| `units`          | `relative`   | `relative` (kcd/m², la scala storica) oppure `photometric` (nit)         |
-| `intensity`      | `1.0`        | Moltiplicatore su radianza cielo + sole                                  |
+| `exposure`       | `0`          | Stop: il cielo e il suo sole × 2^exposure                                |
 
 **Due modelli.** `hosek_wilkie` (Hosek e Wilkie 2012) è adattato a cieli
 misurati e regge anche con il sole basso; `preetham` (1999) è il modello
@@ -163,16 +161,18 @@ disco. In una giornata serena il sole dà al terreno circa quanto il cielo
 con il sole a 15°, da tre a quattro volte tanto a 45°. Le ombre sono
 profonde come in una fotografia di una giornata di sole.
 
-**Esporre una scena diurna.** Con `units: "photometric"` il cielo è in
-nit (un cielo sereno a mezzogiorno vale migliaia di nit, il disco del
-sole circa 1.5×10⁹) e la camera prende un'esposizione fotografica,
-`ev100: 15` per una giornata di sole:
+**Esporre una scena diurna.** I cieli fisici sono in nit (un cielo
+sereno a mezzogiorno vale migliaia di nit, il disco del sole circa
+1.5×10⁹). O li attenui con l'`exposure` del cielo (circa -10 stop li
+porta ai valori di una scena senza esposizione della camera, come
+nell'esempio sopra), oppure li lasci così e dai alla camera
+un'esposizione fotografica, `ev100: 15` per una giornata di sole:
 
 ```yaml
-camera:
-  position: [0, 1.6, -7]
-  look_at:  [0, 0.6, 0]
-  ev100: 15                          # la regola del "sunny 16"
+cameras:
+  - position: [0, 1.6, -7]
+    look_at:  [0, 0.6, 0]
+    ev100: 15                          # la regola del "sunny 16"
 ```
 
 Al caricamento la console riporta quello che il cielo dà a un piano
@@ -199,18 +199,16 @@ world:
   sky:
     type: "nishita"
     turbidity: 3.0                  # manopola della foschia: poca polvere (aria pulita a 3)
-    units: "relative"               # oppure "photometric" (nit)
-    intensity: 1.0
+    exposure: -12.7
     sun:
       direction:       [-0.85, 0.12, 0.4]   # basso sull'orizzonte → palette sunset
-      angular_radius:  0.265
       shadow_samples:  4
 ```
 
-**Sole e unità.** L'illuminanza del sole al limite dell'atmosfera
-alimenta sia lo scattering sia il disco: 20 nella scala `relative`,
-133 800 lux in quella `photometric`. Il modello diffonde la luce una
-volta sola: il suo cielo è più scuro rispetto al sole di uno misurato
+**Sole e unità.** L'illuminamento del sole al limite dell'atmosfera,
+133 800 lux, alimenta sia lo scattering sia il disco (`exposure: -12.7`
+lo porta a circa 20, una scena senza esposizione della camera). Il
+modello diffonde la luce una volta sola: il suo cielo è più scuro rispetto al sole di uno misurato
 (circa la metà), e per questo qui `turbidity` corrisponde a poca polvere
 (con l'aerosol di una vera torbidità 3 l'orizzonte diventerebbe scuro).
 
@@ -239,8 +237,7 @@ world:
   sky:
     type: "hdri"
     path: "textures/venice_sunset_2k.hdr"   # .hdr (Radiance) o .exr (OpenEXR)
-    intensity: 1.0
-    rotation: 45.0                          # rotazione asse Y legacy (gradi)
+    rotate: [0, -90, 0]                     # ruota l'ambiente attorno a Y (gradi)
     sun:
       extract_from_hdri:  true              # auto-detect del sole e split
       extract_threshold:  50                # soglia di luminanza (× media HDRI). Default 50
@@ -250,8 +247,8 @@ world:
 | Parametro   | Default | Descrizione                                                |
 |-------------|---------|------------------------------------------------------------|
 | `path`      | --      | Percorso a `.hdr` o `.exr` (risolto relativamente al YAML) |
-| `intensity` | `1.0`   | Moltiplicatore esposizione                                 |
-| `rotation`  | `0.0`   | Rotazione asse Y in gradi (legacy; preferisci `orientation:` — §7.7) |
+| `exposure`  | `0`     | Stop: l'immagine × 2^exposure                              |
+| `rotate`    | `[0, 0, 0]` | Gradi di Eulero, come il `rotate` di un'entità (§7.7)  |
 
 La mappa HDRI avvolge l'intera scena come una sfera. Il motore
 costruisce una CDF 2D pesata per luminanza al load time e
@@ -290,18 +287,18 @@ sampling. Benefici:
 
 È il workflow standard di sun extraction per l'illuminazione image-based.
 
-### Trovare la `rotation` giusta
+### Trovare la rotazione giusta
 
-L'intera larghezza equirect rappresenta 360° — sole al 25% dal bordo
-sinistro = 90°, al 75% = 270°. Inizia con `rotation: 0`, regola a passi
-di 45°, poi affina. Per orientation 3D completa (pitch + roll, non solo
-yaw) usa il blocco `orientation:` in §7.7 sotto.
+L'intera larghezza equirect rappresenta 360°: sole al 25% dal bordo
+sinistro = 90°, al 75% = 270°. Inizia con `rotate: [0, 0, 0]`, regola
+l'angolo Y a passi di 45°, poi affina. Inclina l'orizzonte con gli angoli
+X e Z (§7.7 sotto).
 
 ---
 
-## 7.7 Feature Globali Sky: Visibility, Background, Orientation
+## 7.7 Feature Globali Sky: Visibility, Background, Rotazione
 
-Queste tre feature si applicano a ogni modello di cielo.
+Queste feature si applicano a ogni modello di cielo, come `exposure` (stop).
 
 ### Flag di visibilità (per categoria di raggio)
 
@@ -320,7 +317,7 @@ world:
       transmission: true     # Rifrazioni attraverso vetro
       shadow:       true     # Raggi NEE shadow restituiscono radianza del cielo
     sun:
-      visible_to_camera: false   # Nasconde il disco solare dalla camera (continua a illuminare)
+      visibility: { camera: false }   # Nasconde il disco solare dalla camera (continua a illuminare)
 ```
 
 Setup comuni:
@@ -329,7 +326,7 @@ Setup comuni:
   continuando a illuminare la scena (alpha pulito per il compositing).
 - `glossy: false` — rimuove l'HDRI dai materiali riflettenti (preview
   clay-render di metalli).
-- `sun.visible_to_camera: false` — setup off-camera key-light; il sole
+- `sun: { visibility: { camera: false } }`: setup off-camera key-light; il sole
   agisce come luce dura ma non sovraespone il cielo nel frame.
 
 **Parità con il ground.** Le stesse flag `visibility.*` esistono anche
@@ -358,26 +355,24 @@ world:
 ```
 
 Il blocco `background:` accetta gli stessi campi del `sky:` di livello
-superiore, incluso il suo `path`, `intensity`, `rotation`, e qualsiasi
+superiore, incluso il suo `path`, `exposure`, `rotate`, e qualsiasi
 tipo di modello (`flat`, `gradient`, `preetham`, ecc.).
 
-### Orientation (quaternion / Euler XYZ)
+### Rotazione (`rotate`)
 
-Sostituisce il legacy `rotation:` solo-Y con un'orientation 3D completa:
+Il cielo ruota nel mondo come farebbe un'entità con lo stesso `rotate`
+(gradi di Eulero, prima X salvo diversa indicazione di `rotate_order`):
 
 ```yaml
 world:
   sky:
     type: "hdri"
     path: "studio.hdr"
-    orientation:
-      euler:      [10, 45, 0]              # Euler XYZ intrinseco in gradi
-      # OPPURE
-      quaternion: [0, 0.38, 0, 0.92]       # XYZW; il quaternion vince se entrambi presenti
+    rotate: [10, 45, 0]       # inclina di 10° attorno a X, poi ruota di 45° attorno a Y
+    # rotate_order: xyz        # default
 ```
 
-Il campo legacy `rotation:` è ancora onorato quando `orientation:` è
-assente.
+Un elemento del cielo in +X ruotato di `[0, 90, 0]` finisce in −Z.
 
 ---
 
@@ -391,8 +386,8 @@ a parità di sample.
 
 ```yaml
 lights:
-  - type: "portal"           # alias: "portal_light"
-    anchor: [3.0, 1.2, -2.5] # un angolo del rettangolo finestra
+  - type: "portal"
+    corner: [3.0, 1.2, -2.5] # un angolo del rettangolo finestra
     u: [0.0, 0.0, 2.5]       # lato lungo U (larghezza finestra)
     v: [0.0, 1.2, 0.0]       # lato lungo V (altezza finestra)
     shadow_samples: 8        # default 8
@@ -415,24 +410,26 @@ luminanza (estinzione). Il medium condivide le costanti fisiche con
 `NishitaSky`, così atmosfera e cielo coincidono:
 
 ```yaml
+units: { length: 1000 }
 world:
   sky:
     type: "nishita"
     sun:
       direction: [-0.45, 0.55, 0.7]
+    exposure: -12.7
   medium:
-    type: "atmosphere"           # alias: "nishita", "aerial_perspective"
-    world_scale: 1000.0          # metri per unità mondo (1000 = "1 wu : 1 km")
-    sea_level_y: 0.0             # Y world dell'altitudine 0
+    type: "atmosphere"
+    y0: 0.0                      # Y world dell'altitudine 0 (livello del mare)
     dust_density: 1.2            # densità Mie (0 = puro, 1 = pulito, >1 = inquinato)
     air_density: 1.0             # densità dell'aria (Rayleigh), 1 = atmosfera standard
     # l'aria diffonde con la phase function di Rayleigh; `phase` imposta
     # quella della polvere (default Henyey-Greenstein g = 0.76, in avanti)
 ```
 
-`world_scale` è il knob chiave del mapping — scegli in base alla scala
-della scena (1000 per scene "scala stadio", 200 per "isolato urbano", 50
-per "singola stanza"). L'optical depth ha forma chiusa per aria, polvere
+`units: { length }` della scena è il knob chiave del mapping: dice quanti
+metri vale un'unità di scena, così l'atmosfera ha il suo spessore reale.
+Un paesaggio modellato in chilometri usa `length: 1000` (o `km`) come
+sopra; sceglilo dalla scala a cui la scena è stata modellata. L'optical depth ha forma chiusa per aria, polvere
 e ozono, quindi la trasmittanza è esatta e le distanze sono campionate
 esattamente. Il mezzo è aerial perspective: agisce tra l'occhio e le
 superfici che vede, mentre i raggi che vanno verso il cielo lo attraversano
@@ -455,16 +452,16 @@ cameras:
     look_at: [0, 0.8, 0]
     fov: 40
     aperture: 0.15
-    focal_dist: 5.0
+    focus_distance: 5.0
 ```
 
 | Parametro    | Default | Descrizione                                              |
 |--------------|---------|----------------------------------------------------------|
 | `aperture`   | `0.0`   | Diametro obiettivo (0 = pinhole, tutto a fuoco)          |
-| `focal_dist` | `1.0`   | Distanza dalla camera alla quale gli oggetti sono nitidi |
-| `focal_pos`  | _nessuno_| Alternativa: fuoco su un punto 3D world (vedi sotto)    |
+| `focus_distance` | `1.0` | Distanza dalla camera alla quale gli oggetti sono nitidi |
+| `focus_point`  | _nessuno_ | Alternativa: fuoco su un punto 3D world (vedi sotto)  |
 
-### Fuoco su un punto — `focal_pos`
+### Fuoco su un punto: `focus_point`
 
 È possibile specificare il **punto focale** direttamente invece della distanza:
 
@@ -475,15 +472,15 @@ cameras:
     look_at: [0, 0.5, 0]
     fov: 45
     aperture: 0.12
-    focal_pos: [0.0, 0.5, 0.0]    # coordinata world esatta del soggetto
+    focus_point: [0.0, 0.5, 0.0]    # coordinata world esatta del soggetto
 ```
 
 Il loader proietta il vettore camera→focal-point sull'asse ottico,
-quindi `focal_pos` definisce il *piano* di fuoco, non una sfera
+quindi `focus_point` definisce il *piano* di fuoco, non una sfera
 euclidea — un focal point a `(3, 4, -5)` con la camera all'origine che
 guarda lungo `-Z` produce focus distance `5`, non `√50`. Replica ogni
-renderer di produzione. Quando sono presenti sia `focal_pos` che
-`focal_dist`, `focal_pos` vince (un messaggio info è loggato).
+renderer di produzione. Quando sono presenti sia `focus_point` che
+`focus_distance`, `focus_point` vince (un messaggio info è loggato).
 
 ### Guida pratica
 
@@ -504,12 +501,12 @@ cameras:
     look_at: [0, 0.9, -2.5]
     focal_length: 50        # mm; sensor_width vale 36 per default (pieno formato)
     f_stop: 1.4             # pupilla = 50 / 1.4 = 35.7 mm
-    focal_pos: [0, 0.9, -2.5]
+    focus_point: [0, 0.9, -2.5]
 ```
 
 `focal_length` e `sensor_width` fissano il campo visivo (la larghezza del
 sensore copre la larghezza dell'immagine), `f_stop` il diametro della
-pupilla. Una scena modellata in centimetri aggiunge `meters_per_unit: 0.01`,
+pupilla. Una scena modellata in centimetri lo dice con `units: { length: cm }`,
 così f/1.4 resta una pupilla di 35.7 mm. Dimezzare il numero f raddoppia la
 pupilla e la sfocatura; un obiettivo più lungo allo stesso numero f sfoca di
 più lo sfondo, come su una fotocamera vera.
@@ -541,7 +538,7 @@ curva sRGB. `--exposure` (in stop) si applica prima della trasformazione.
 L'otturatore di una camera reale resta aperto per un tempo finito, così tutto
 ciò che si muove durante l'esposizione lascia una scia. 3D-Ray lo riproduce
 fisicamente: la scena si anima su una timeline normalizzata `[0, 1]`, e la
-`shutter: [open, close]` della camera è la fetta di quella timeline che
+`shutter_interval: [open, close]` della camera è la fetta di quella timeline che
 l'esposizione integra.
 
 Anima un'entità con una lista `motion:`. La sua posa base
@@ -549,10 +546,11 @@ Anima un'entità con una lista `motion:`. La sua posa base
 posa al proprio tempo (le componenti omesse ereditano la posa base):
 
 ```yaml
-camera:
-  position: [0, 2, 8]
-  look_at: [0, 1, 0]
-  shutter: [0.0, 1.0]          # esposizione piena — integra tutto il moto
+format_version: 2
+cameras:
+  - position: [0, 2, 8]
+    look_at: [0, 1, 0]
+    shutter_interval: [0.0, 1.0]          # esposizione piena: integra tutto il moto
 
 entities:
   # Una sfera che sfreccia a destra.
@@ -566,7 +564,7 @@ entities:
 ```
 
 Più un oggetto è veloce tra i suoi keyframe, più lunga è la scia. Un
-**otturatore più stretto è un'esposizione più breve**: `shutter: [0.45, 0.55]`
+**otturatore più stretto è un'esposizione più breve**: `shutter_interval: [0.45, 0.55]`
 espone solo il decimo centrale del moto, quindi le scie si accorciano ~10× —
 utile per un confronto A/B "congelato vs sfumato" da due camere sulla stessa
 animazione.
@@ -583,16 +581,16 @@ Anche la rotazione si sfuma, sull'arco più breve tra i keyframe:
 ```
 
 Puoi animare la **camera** allo stesso modo — una lista `motion:` di keyframe
-`position`/`look_at`/`vup`/`fov` dà un blur da camera in movimento (carrellata o
+`position`/`look_at`/`up`/`fov` dà un blur da camera in movimento (carrellata o
 panoramica veloce):
 
 ```yaml
-camera:
-  position: [0, 2, 8]
-  look_at: [0, 1, 0]
-  shutter: [0.0, 1.0]
-  motion:
-    - { time: 1.0, position: [1.5, 2, 8] }   # leggera carrellata sull'esposizione
+cameras:
+  - position: [0, 2, 8]
+    look_at: [0, 1, 0]
+    shutter_interval: [0.0, 1.0]
+    motion:
+      - { time: 1.0, position: [1.5, 2, 8] }   # leggera carrellata sull'esposizione
 ```
 
 Note:
@@ -622,11 +620,10 @@ cameras:
     look_at: [0.5, 0.8, 0]
     fov: 30
     aperture: 0.1
-    focal_dist: 3.5
+    focus_distance: 3.5
 ```
 
-Usa la chiave `cameras:` (plurale, lista) invece del singolare
-`camera:`. Ogni camera deve avere un `name:` unico. Selezione da CLI:
+`cameras:` è una lista; dai a ogni camera un `name:` unico. Selezione da CLI:
 
 ```
 RayTracer -i scene.yaml --camera wide
@@ -644,15 +641,15 @@ usa la prima e stampa un warning.
 ```yaml
 # golden-hour.yaml — scena outdoor con sky Hosek-Wilkie, DOF, multi-camera.
 
+format_version: 2
 world:
   sky:
     type: "hosek_wilkie"
     turbidity: 3.5
     ground_albedo: [0.3, 0.28, 0.22]
-    intensity: 1.0
+    exposure: -9.97
     sun:
       direction:      [0.8, 0.15, -0.5]    # sole basso caldo, dietro-destra
-      angular_radius: 1.5                   # leggermente ingrandito per glow cinematico
       shadow_samples: 4
 
 cameras:
@@ -666,26 +663,27 @@ cameras:
     look_at: [0.5, 0.6, 0]
     fov: 30
     aperture: 0.15
-    focal_pos: [0.0, 0.5, 0.0]
+    focus_point: [0.0, 0.5, 0.0]
 
 materials:
   - id: "ground"
-    type: "disney"
-    color: [0.35, 0.28, 0.18]
-    roughness: 0.85
+    type: openpbr
+    base_color: [0.35, 0.28, 0.18]
+    specular_roughness: 0.85
 
   - id: "gold_sphere"
-    type: "disney"
-    color: [1.0, 0.76, 0.33]
-    metallic: 1.0
-    roughness: 0.05
+    type: openpbr
+    base_color: [1.0, 0.76, 0.33]
+    base_metalness: 1.0
+    specular_roughness: 0.05
 
   - id: "glass_sphere"
-    type: "disney"
-    color: [0.95, 0.95, 0.95]
-    spec_trans: 1.0
-    ior: 1.52
-    roughness: 0.02
+    type: openpbr
+    base_color: [0.95, 0.95, 0.95]
+    transmission_weight: 1.0
+    specular_ior: 1.52
+    specular_roughness: 0.02
+    transmission_color: [0.95, 0.95, 0.95]
 
 entities:
   - type: "infinite_plane"
@@ -722,7 +720,7 @@ RayTracer -i golden-hour.yaml -c macro -w 1200 -H 800 -s 1024 -d 8 -S 4
   e limb darkening Hestroffer. La sun extraction da HDRI dà ombre nitide
   e minor varianza.
 - **Visibility flags** (camera/diffuse/glossy/transmission/shadow),
-  **background plate** separato, e **orientation 3D** completa si
+  **background plate** separato, `exposure` e un `rotate` 3D completo si
   applicano a ogni modello sky.
 - Le **portal light** restringono NEE ai rettangoli delle finestre per
   ~10× riduzione varianza su scene di interno.
@@ -731,18 +729,17 @@ RayTracer -i golden-hour.yaml -c macro -w 1200 -H 800 -s 1024 -d 8 -S 4
 - Le **HDRI** sono campionate per importanza con la compensazione MIS di
   Karlík et al. 2019: i campioni di luce vanno ai punti luminosi, la BSDF
   copre il cielo uniforme.
-- I **cieli fisici** hanno un sole coerente con il cielo e si possono
-  scrivere in nit (`units: "photometric"`), esposti con l'`ev100` della
-  camera.
+- I **cieli fisici** hanno un sole coerente con il cielo e sono in nit:
+  esposti con l'`ev100` della camera, o attenuati con la loro `exposure`.
 - La **profondità di campo** è controllata da `aperture` (dimensione
-  obiettivo) e `focal_dist` (o `focal_pos: [x, y, z]` per mettere a fuoco
+  obiettivo) e `focus_distance` (o `focus_point: [x, y, z]` per mettere a fuoco
   un punto specifico nel mondo).
 - **Camere multiple** in un unico file scena, selezionabili via
   `--camera nome` dalla CLI.
 
 Per preset pronti da copiare vedi:
-- [`scenes/00-sky-presets.md`](../../../scenes/00-sky-presets.md) — preset solo-sky (10 voci, solo blocco sky).
-- [`scenes/00-world-presets.md`](../../../scenes/00-world-presets.md) — preset sky + ground accoppiati (15 voci, blocco `world:` completo con shape del ground, materiale, UV e flag di visibilità).
+- [`scenes/presets/sky.md`](../../../scenes/presets/sky.md): preset solo-sky.
+- [`scenes/presets/world.md`](../../../scenes/presets/world.md): preset sky + ground accoppiati (blocco `world:` completo con shape del ground, materiale, UV e flag di visibilità).
 
 ---
 

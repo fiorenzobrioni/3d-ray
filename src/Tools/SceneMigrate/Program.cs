@@ -4,6 +4,16 @@ using SceneMigrate;
 // SceneMigrate: converts 3D-Ray scenes of format 1 into format 2 in place
 // (PIANO-REVIEW.md Phase 10). See --help.
 
+// --stdin-fragment: one piece of a scene (a documentation example) from
+// standard input to standard output, without version header or defaults.
+if (args.Contains("--stdin-fragment"))
+{
+    var fm = new Migrator("fragment", Console.In.ReadToEnd());
+    Console.Out.Write(fm.Migrate(schemaComment: null, fragment: true));
+    foreach (var n in fm.Notes) Console.Error.WriteLine(n);
+    return 0;
+}
+
 var paths = args.Where(a => !a.StartsWith("--")).ToList();
 bool dryRun = args.Contains("--dry-run");
 bool quiet = args.Contains("--quiet");

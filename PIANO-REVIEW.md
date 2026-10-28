@@ -40,7 +40,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 8 | Volumi e SSS (null-scattering) | ✅ Chiusa (2026-10-24), esito in §4 Fase 8 |
 | 8b | Integratori bidirezionali: BDPT, poi VCM per le caustiche | ✅ Chiusa (2026-10-24), esito in §4 Fase 8b |
 | 9 | Post-processing e denoiser | ✅ Chiusa (2026-10-25), esito in §4 Fase 9 |
-| 10 | Formato scene v2 | ⬜ |
+| 10 | Formato scene v2 | ✅ Chiusa (2026-10-25), esito in §4 Fase 10 |
 | 11 | Architettura e performance | ⬜ |
 
 Correzioni anticipate fuori ordine: 3.19, 3.20, 3.21 (più 3.24 e 3.25 emersi nel farle) ✅ 2026-10-20.
@@ -84,19 +84,30 @@ Restano le regole del proprietario sulle scene create dalla review (`scenes/revi
 **Scelte delle fasi già chiuse prese anche per compatibilità, da riconsiderare** (Fase 10, quando
 si decide il formato, o prima se una fase tocca il codice):
 
-- [ ] `intensity` senza unità accanto alle unità fotometriche (Fase 6): valutare se le unità
+- [x] `intensity` senza unità accanto alle unità fotometriche (Fase 6): valutare se le unità
       fisiche diventano la forma principale, con la scena in nit e l'esposizione EV100 di default.
-- [ ] `units: relative` di default dei cieli fisici e la scala relativa di Nishita (20) (Fase 6):
-      valutare `photometric` come default, coerente con le luci fisiche.
-- [ ] `noise_basis: classic` e il riscalamento a 0.67 del Perlin migliorato per tenere tarati
-      range e color ramp delle scene vecchie (Fase 4).
-- [ ] Il costruttore del `Renderer` con filtro box e view `legacy` come default per chi usa la
-      libreria e per i test esistenti (Fase 3); la view `legacy` stessa.
-- [ ] Il grigio 0.5 di default per i materiali senza `color` diversi da vetro ed emissivo (Fase 5).
-- [ ] Il tipo `disney` tradotto su OpenPBR invece di essere sostituito (Fase 5): tenerlo come
-      alias comodo o toglierlo a favore di `openpbr`.
-- [ ] Chiavi e alias storici del loader (`rotation` del cielo, `size` del sole, alias dei tipi di
-      luce, `hosek_wilkie` / `physical`): un nome per concetto.
+      **Chiusa in Fase 10:** ogni luce ha la grandezza fotometrica del suo tipo (`intensity` cd,
+      `luminance` nit, `illuminance` lux, o `power`), il colore è una tinta; la scena resta in nit,
+      senza `ev100` 1 nit = 1.
+- [x] `units: relative` di default dei cieli fisici e la scala relativa di Nishita (20) (Fase 6):
+      valutare `photometric` come default, coerente con le luci fisiche. **Chiusa in Fase 10:**
+      cieli fisici sempre in nit, `units` tolto; si attenuano con `exposure` (stop).
+- [x] `noise_basis: classic` e il riscalamento a 0.67 del Perlin migliorato per tenere tarati
+      range e color ramp delle scene vecchie (Fase 4). **Chiusa in Fase 10:** `noise_basis` tolto;
+      lo 0.67 resta come taratura di tutti i default procedurali.
+- [x] Il costruttore del `Renderer` con filtro box e view `legacy` come default per chi usa la
+      libreria e per i test esistenti (Fase 3); la view `legacy` stessa. **Chiusa in Fase 10:**
+      default del costruttore = quelli della CLI (gaussiano, AgX, light sampling auto), `legacy`
+      tolta.
+- [x] Il grigio 0.5 di default per i materiali senza `color` diversi da vetro ed emissivo (Fase 5).
+      **Chiusa in Fase 10:** `lambertian` 0.5, `metal` e `dielectric` bianchi (come Mitsuba),
+      `openpbr` i default della specifica.
+- [x] Il tipo `disney` tradotto su OpenPBR invece di essere sostituito (Fase 5): tenerlo come
+      alias comodo o toglierlo a favore di `openpbr`. **Chiusa in Fase 10:** tolto dal formato;
+      `SceneMigrate` scrive i materiali `openpbr` che `DisneyMaterial.Create` costruiva.
+- [x] Chiavi e alias storici del loader (`rotation` del cielo, `size` del sole, alias dei tipi di
+      luce, `hosek_wilkie` / `physical`): un nome per concetto. **Chiusa in Fase 10:** nessun alias
+      nel formato 2.
 
 ### 2.1 Classificazione dei risultati
 
@@ -169,7 +180,7 @@ fase indicata.
 | 3.20 | ✅ **corretto** (2026-10-20), era **[BIAS]** di default grave | `Rendering/Renderer.cs` (`SuggestedMaxSampleRadiance`), `Program.cs` | Il clamp per-sample era una soglia **assoluta** di radianza (10) attiva di default: Cornell box con pannello di radianza 20 a **-22%** di energia. Ora è opzionale (`-C <n>`), e il clamp indiretto agisce solo insieme a `-C`. Misura: Cornell in modalità normale da 0.782 a **1.0000**. Test `FireflyClamp_IsOptIn_AndReferenceModeOverridesIt`. |
 | 3.21 | ✅ **corretto** (2026-10-20), era **[BIAS]** di default grave | `Geometry/ShadowRay.cs`, `Rendering/Renderer.cs` (stato di catena, `SuppressChainEmission`, `LightSampleOwnsTransport`), `IMaterial.TransmitsStraight`, `Rendering/RandomWalkSss.cs` | Le ombre trasparenti "dritte" si sommavano ai cammini BSDF che attraversano davvero il vetro (doppio conteggio): l'ombra della sfera di vetro spariva. Ora per default i raggi d'ombra sono opachi al vetro che rifrange (ombra e caustica fisiche) e attraversano solo la trasmissione **rettilinea** (gusci IOR 1, fogli `thin_walled` lisci), che è esatta. `--transparent-shadows on` riporta l'approssimazione come opzione artistica coerente: i cammini "diffuso → attraverso il vetro → luce" (e cielo campionato dalla NEE) vengono scartati e il campione di luce che ha attraversato il vetro prende peso MIS 1, così ogni trasporto ha un solo stimatore. Il random walk SSS vede il bordo della propria entità come interfaccia nulla anche per la sua NEE (prima: Fresnel solo sulla NEE e non sull'uscita, ora coerenti). Misura: `glass-shadow` in modalità normale da 1.067 (relMSE 0.23) a **1.0001** (relMSE 4e-4); nuova scena `null-shell` **1.0001**. Con `--transparent-shadows on`: +8.6%, l'approssimazione toglie ombra e caustica per costruzione. |
 | 3.22 | ✅ **corretto** (2026-10-21, Fase 5) per vetro ed emissivo, era **[NON-STANDARD]** | `Scene/SceneLoader.cs:1032` | Un materiale senza `color` riceve grigio 0.5 per **ogni** tipo, anche `dielectric` ed `emissive`: un vetro scritto senza colore trasmette il 25% attraverso una sfera, un emissivo emette metà dell'intensità scritta. Default fisici: vetro 1, emissivo 1. Fase 10. **Esito**: `dielectric` ed `emissive` senza colore ora sono bianchi (vetro trasparente, emissivo all'intensità scritta). Il vetro grigio toccava 13 scene del repo (§3.37), l'emissivo nessuna. Gli altri tipi tengono il grigio 0.5 come colore neutro di partenza. |
-| 3.23 | **[NON-STANDARD]** | `Scene/SceneLoader.cs:131-132` | Il loader usa `IgnoreUnmatchedProperties`: una chiave YAML sbagliata (`refraction_idx`, `roughnes`) viene ignorata in silenzio e il materiale usa il default. Serve un errore o almeno un warning con il nome della chiave. Fase 10. |
+| 3.23 | **[NON-STANDARD]** | `Scene/SceneLoader.cs:131-132` | Il loader usa `IgnoreUnmatchedProperties`: una chiave YAML sbagliata (`refraction_idx`, `roughnes`) viene ignorata in silenzio e il materiale usa il default. Serve un errore o almeno un warning con il nome della chiave. Fase 10. **Corretto (Fase 10):** `SceneValidator`, errore con riga:colonna e suggerimento. |
 | 3.24 | ✅ **corretto** (2026-10-20), era **[BUG]** | `Materials/Dielectric.cs` | `Dielectric.Scatter` sceglieva riflessione/rifrazione con l'approssimazione di Schlick, mentre la sua `ShadowTransmittance` usava il Fresnel esatto. Schlick dà `(1-cos)^5` anche con IOR 1: un guscio a indice adattato mostrava bordo e riflesso inesistenti, e il vetro sbagliava di qualche percento a incidenza radente. Ora Fresnel esatto: `glass-shadow` FLIP da 0.032 a 0.016. |
 | 3.25 | ✅ **corretto** (2026-10-20), era **[BUG]** piccolo | `Lights/GeometryLight.cs` | `IlluminateAndTestStratified` non passava il tempo dell'otturatore ai campionatori: con il motion blur i raggi d'ombra degli emissivi testavano la scena all'istante 0. |
 | 3.26 | ✅ **corretto** (2026-10-20, Fase 1), era **[BUG]** | `Core/MathUtils.cs` (`OrthonormalBasis`, `LocalToWorld`), copie private in `Sphere`, `SphereLight`, `PhysicalSun`, `DirectionalLight`, `Metal`, `Microfacet` | Le basi ortonormali usavano la forma di Frisvad, che perde l'ortogonalità vicino a -Z (errore 4.5e-2). Ora una sola implementazione, Duff et al. 2017 (errore 2.9e-7 ovunque). Test `OrthonormalBasis_IsOrthonormalEverywhere`. |
@@ -1204,58 +1215,97 @@ Il formato 2 descrive il motore uscito dalle fasi 1-9. Regola generale: **un nom
 nessun alias, ogni chiave sconosciuta o senza effetto è segnalata. Le scene v1 non si leggono più:
 `SceneMigrate` le converte (vale la pena: 127 file, 445 materiali `disney`).
 
-- [ ] 10.0 `SceneLoader.cs` spezzato in file parziali per sezione (camera, luci, materiali,
+- [x] 10.0 `SceneLoader.cs` spezzato in file parziali per sezione (camera, luci, materiali,
       texture, mondo, entità, mezzi).
-- [ ] 10.1 Validazione: `format_version: 2` obbligatorio; chiavi sconosciute = errore con
+- [x] 10.1 Validazione: `format_version: 2` obbligatorio; chiavi sconosciute = errore con
       file:riga:colonna e suggerimento ("forse `roughness`?", o il nome v2 della chiave v1);
       chiave valida ma senza effetto per quel `type` = avviso. JSON Schema generato dai tipi
       (`docs/reference/scene-schema.json`, un test lo tiene allineato). Colori anche come
       `"#rrggbb"` (sRGB, decodificato in lineare); `[r, g, b]` è sempre lineare Rec.709.
-- [ ] 10.2 `units: { length }` (metri per unità di scena, o `m`/`cm`/`mm`/`km`): lo usano
+- [x] 10.2 `units: { length }` (metri per unità di scena, o `m`/`cm`/`mm`/`km`): lo usano
       l'apertura da `f_stop`, le conversioni fotometriche che hanno una lunghezza (candela e
       potenza: prima ignoravano la scala della scena, **[BUG]** per le scene non in metri) e
       l'atmosfera. Spariscono `meters_per_unit` della camera e `world_scale` dell'atmosfera.
-- [ ] 10.3 Blocco `render:` (preset, risoluzione, spp, profondità per tipo, integratore,
+- [x] 10.3 Blocco `render:` (preset, risoluzione, spp, profondità per tipo, integratore,
       denoiser, adaptive, view/look, filtro, clamp, ...). Precedenza: preset → `render:` della
       scena → flag CLI; un `-q` da CLI vince sulle chiavi che il preset fissa. Un preset con
       suffisso `-tiny`/`-small` scala la risoluzione della scena (1/4, 1/2) invece di sostituirla.
-- [ ] 10.4 Camera: solo `cameras:` (lista); `up` (era `vup`), `focus_distance` (`focal_dist`),
+- [x] 10.4 Camera: solo `cameras:` (lista); `up` (era `vup`), `focus_distance` (`focal_dist`),
       `focus_point` (`focal_pos`), `shutter_interval` (`shutter`, per non confondersi con
       `shutter_speed`).
-- [ ] 10.5 Luci: un tipo per nome (via `sun`, `spotlight`, `rect`, `ball`...). La quantità ha il
+- [x] 10.5 Luci: un tipo per nome (via `sun`, `spotlight`, `rect`, `ball`...). La quantità ha il
       nome della grandezza fotometrica del tipo: `intensity` in candela (point, spot),
       `luminance` in nit (area, sphere), `illuminance` in lux (directional), `power` in W o lm
       per le luci finite; il colore è sempre una tinta di luminanza 1. Via l'`intensity` senza
       unità, `candela`, `normalize` (lo fa `power`), `anchor` del portale (`corner`). La scena è
       in nit come prima: per una luce bianca `intensity: 5` v1 = `intensity: 5` cd v2, la
       migrazione moltiplica per la luminanza del colore.
-- [ ] 10.6 Cielo: `exposure` (stop) al posto del moltiplicatore `intensity`; `rotate: [x, y, z]`
+- [x] 10.6 Cielo: `exposure` (stop) al posto del moltiplicatore `intensity`; `rotate: [x, y, z]`
       (gradi, la stessa convenzione delle entità) al posto di `rotation` e `orientation`; disco
-      del sole con `angular_radius` (via `size`) e `illuminance` in lux (era la radianza del
-      disco); cieli fisici sempre fotometrici (via `units: relative` e la scala di Nishita); via
+      del sole con `angular_radius` (via `size`) e `luminance` (la radianza del disco nella
+      scala dei colori del cielo gradient: un valore in lux avrebbe mescolato due scale); cieli fisici sempre fotometrici (via `units: relative` e la scala di Nishita); via
       `physical` (alias di `hosek_wilkie`). Terreno: via `y` (`point`) e il materiale in linea.
-- [ ] 10.7 Materiali: via `disney` (la migrazione lo traduce in `openpbr` con la mappatura di
+- [x] 10.7 Materiali: via `disney` (la migrazione lo traduce in `openpbr` con la mappatura di
       `DisneyMaterial`). Ogni ingresso di colore o scalare accetta numero, colore o nodo texture
       (via `texture:` e le chiavi `*_texture`). Tipi semplici con nomi allineati: `roughness`
       (via `fuzz`), `ior` (via `refraction_index`), `luminance` per `emissive`; `mix` con
       `blend` numero o texture (via `mask`). Default: `lambertian` 0.5 e `metal` bianco come
       Mitsuba (il riferimento di quei tipi), `openpbr` quelli della specifica.
-- [ ] 10.8 Trasformazioni: `translate`/`rotate`/`scale` + `rotate_order` e `matrix` su ogni
+- [x] 10.8 Trasformazioni: `translate`/`rotate`/`scale` + `rotate_order` e `matrix` su ogni
       entità.
-- [ ] 10.9 Decisioni rimandate (§2.0): chiuse come sopra; più `noise_basis: classic` tolto
+- [x] 10.9 Decisioni rimandate (§2.0): chiuse come sopra; più `noise_basis: classic` tolto
       (la normalizzazione 0.67 resta: è la taratura di tutti i default procedurali, non
       compatibilità), costruttore del `Renderer` con i default della CLI (gaussiano, AgX), view
       `legacy` tolta.
-- [ ] 10.10 `SceneMigrate` (v1 → v2, conserva i commenti) su tutte le scene del repo, i test, i
+- [x] 10.10 `SceneMigrate` (v1 → v2, conserva i commenti) su tutte le scene del repo, i test, i
       generatori (`TerrainGen`, `FontGen`, `ChessGen`, `TempleGen`) e i comandi in
       `.claude/commands/`. Verifica: ogni scena renderizzata dal motore v1 (scena v1) e dal
       motore v2 (scena migrata) a bassa risoluzione, stesse metriche; le scene di
       `validation/` di nuovo contro Mitsuba.
-- [ ] 10.11 Documentazione: riferimento delle scene EN+IT riscritto sul formato 2, tutorial,
+- [x] 10.11 Documentazione: riferimento delle scene EN+IT riscritto sul formato 2, tutorial,
       README, CLAUDE.md.
 
 Fuori da questa fase (PLANNING): OpenUSD, libreria di texture con id, `wrap`/`filter` per
-texture, flag di visibilità per categoria sulle entità.
+texture. Il flag di visibilità per categoria sulle entità è entrato nella fase (`visibility`).
+
+#### Esito Fase 10 (2026-10-25)
+
+**Formato 2 in uso ovunque.** Il loader legge solo scene con `format_version: 2`; ogni chiave,
+`type` ed enum ha un nome (`Scene/SceneData.cs`), il validatore (`Scene/SceneValidator.cs`)
+riporta tutti i problemi del file prima del caricamento: errori per chiavi sconosciute, valori
+del tipo sbagliato, tipi ed enum sconosciuti, con riga:colonna e il suggerimento o il nome del
+formato 1; avvisi per le chiavi senza effetto sul tipo. Lo JSON Schema è generato dalle classi
+(`Scene/SceneSchema.cs`, `docs/reference/scene-schema.json`, allineato da un test) e le scene del
+repo lo dichiarano nella prima riga. §3.23 corretto.
+
+**Decisioni** (dettaglio nel piano sopra): unità di lunghezza `units: { length }` (**[BUG]**
+corretto: candele e potenza ignoravano la scala delle scene non in metri); blocco `render:`;
+camera, luci, cielo, materiali, trasformazioni come in 10.4-10.8; tutte le decisioni rimandate di
+§2.0 chiuse. Il sole del cielo gradient usa la `luminance` del disco (nella scala dei colori del
+cielo), non un illuminamento: il cielo gradient è artistico, in scala relativa.
+
+**SceneMigrate** (`src/Tools/SceneMigrate`): converte sul posto conservando commenti e
+impaginazione, con la mappatura Disney→OpenPBR identica a `DisneyMaterial.Create` e note per
+ogni valore non riportabile esattamente. 127 file del repo migrati (123 note), più i generatori,
+`yaml2mitsuba.py`, gli esempi della documentazione (validati con il validatore del motore) e i
+comandi `.claude/commands/`.
+
+**Verifica.** Ogni scena renderizzata dal motore del formato 1 sulla scena originale e dal motore
+del formato 2 sulla scena migrata (128×72, 8 spp): 74 identiche al bit, 46 entro
+l'arrotondamento float; le eccezioni differiscono nel rumore, non nella luce (`camera-visibility`
+0.999: un emettitore nascosto alla camera entra nel campionamento delle luci; `primitive-lathe`
+0.995: entità disattivate commentate spostano il seed automatico delle texture) o per le
+approssimazioni riportate nelle note (sotto lo 0.1%). L'harness Mitsuba sulle scene migrate
+ripete i rapporti della Fase 9 (da 0.9771 di `disney-spheres`, approssimazione nota, a 1.0032 di
+`metal-rough`; il resto entro ±0.2%). Suite: 1301 verdi.
+
+**Due difetti del migratore trovati e corretti** mentre si convertiva la documentazione: in
+modalità frammento aggiungeva il cielo di default (precedenza di `&&`/`||`), e rimuovendo chiavi
+dentro un blocco commentato lasciava l'ultimo carattere della riga (`YamlEdits.Replace` ora
+scarta un'inserzione dentro un testo rimosso; test in `SceneMigrateTests`).
+
+**Restano** (PLANNING): OpenUSD, libreria di texture con id, `wrap`/`filter` per texture, e la
+revisione finale delle scene (§2.0) dopo la Fase 11.
 
 ### Fase 11 - Architettura e performance (dopo la correttezza)
 

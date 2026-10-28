@@ -177,18 +177,13 @@ public partial class SceneLoader
         if (skyData.Sun == null || ToVector3(skyData.Sun.Direction) is not Vector3 sunDir)
             return new GradientSky(zenith, horizon, ground);
 
-        // The disc's radiance from its illuminance on a surface facing it:
-        // E = L π sin²θ for a uniform disc of half-angle θ.
         float halfAngle = skyData.Sun.AngularRadius ?? 1.5f;
         if (!(halfAngle > 0f))
         {
             Warn($"Sun 'angular_radius' must be > 0 (got {halfAngle}); using 1.5°.");
             halfAngle = 1.5f;
         }
-        if (skyData.Sun.Illuminance == null)
-            Warn("Gradient sky sun without 'illuminance' (lux): using 1.");
-        float sinTheta = MathF.Sin(MathUtils.DegreesToRadians(halfAngle));
-        float radiance = (skyData.Sun.Illuminance ?? 1f) / (MathF.PI * sinTheta * sinTheta) * scale;
+        float radiance = skyData.Sun.Luminance * scale;
         var tint = LightUnits.UnitTint(ToVector3(skyData.Sun.Color) ?? Vector3.One, null);
         return new GradientSky(zenith, horizon, ground,
             sunDirToSun: sunDir,

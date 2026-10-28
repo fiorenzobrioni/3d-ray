@@ -310,7 +310,7 @@ cameras:
     look_at: [0, 0.5, 0]
 lights: []
 materials:
-  - { id: glow, type: emissive, color: [1, 0.8, 0.6], intensity: 5 }
+  - { id: glow, type: emissive, color: [1, 0.8, 0.6], luminance: 5 }
 entities:
   - type: sphere
     center: [0, 0, 0]

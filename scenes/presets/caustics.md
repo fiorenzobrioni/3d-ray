@@ -66,7 +66,7 @@ world:
   ground:
     type: "infinite_plane"      # superficie diffusa → riceve la caustica
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
 ```
 
 ---
@@ -74,12 +74,12 @@ world:
 ## Cosa focalizza e cosa riceve
 
 - **Focalizza** (genera la caustica): qualsiasi geometria con materiale
-  **speculare/trasmissivo** — vetro/cristallo (`dielectric`, o `disney` con
-  `spec_trans`), metallo/specchio (`metal`, o `disney` con `metallic ≈ 1`),
+  **speculare/trasmissivo** — vetro/cristallo (`dielectric`, o `openpbr` con
+  `transmission_weight`), metallo/specchio (`metal`, o `openpbr` con `base_metalness ≈ 1`),
   acqua. Vale per qualunque forma: sfere e lenti concentrano in uno spot,
   cilindri/tori in bande e anelli, specchi piani proiettano riflessi netti.
 - **Riceve** (mostra la caustica): qualsiasi superficie **diffusa/matte**
-  (`lambertian` o Disney poco speculare). Pavimenti, pareti, il `ground`.
+  (`lambertian` o `openpbr` poco speculare). Pavimenti, pareti, il `ground`.
 - **Luci**: tutte le finite (`area`/geometriche, `sphere`, `point`/`spot`) **e**
   le `directional`/sole. Una luce piccola e intensa dà una caustica **netta**; una
   grande la diffonde in un **alone morbido**.
@@ -104,7 +104,7 @@ entities:
 materials:
   - id: "vetro_limpido"
     type: "dielectric"
-    refraction_index: 1.5
+    ior: 1.5
 ```
 
 La lente di riferimento: vetro liscio `ior 1.5`. Concentra la luce in uno spot
@@ -117,7 +117,7 @@ converge in fretta; alza `-s` per renderlo più pulito.
 materials:
   - id: "cristallo"
     type: "dielectric"
-    refraction_index: 1.8       # IOR alto → fuoco più stretto e brillante
+    ior: 1.8       # IOR alto → fuoco più stretto e brillante
 ```
 
 Un IOR più alto piega di più i raggi: la caustica diventa più piccola e intensa.
@@ -127,15 +127,15 @@ Un IOR più alto piega di più i raggi: la caustica diventa più piccola e inten
 ```yaml
 materials:
   - id: "vetro_rubino"
-    type: "disney"
-    base_color: [0.85, 0.05, 0.08]
-    spec_trans: 1.0
-    roughness: 0.0
-    ior: 1.5
+    type: openpbr
+    transmission_weight: 1.0
+    specular_roughness: 0.0
+    base_color: [0.5, 0.5, 0.5]
+    transmission_color: [0.5, 0.5, 0.5]
 ```
 
-Il vetro Disney trasmissivo proietta una caustica colorata (rubino, smeraldo,
-zaffiro cambiando `base_color`). Tieni `roughness: 0.0` per un fuoco nitido.
+Il vetro `openpbr` trasmissivo proietta una caustica colorata (rubino, smeraldo,
+zaffiro cambiando `base_color`). Tieni `specular_roughness: 0.0` per un fuoco nitido.
 
 ---
 
@@ -148,7 +148,7 @@ materials:
   - id: "specchio"
     type: "metal"
     color: [0.95, 0.93, 0.88]
-    fuzz: 0.0                    # specchio perfetto → caustica netta
+    roughness: 0.0                    # specchio perfetto → caustica netta
 ```
 
 Lo specchio convesso concentra la luce riflessa in un arco/alone luminoso (le
@@ -179,7 +179,7 @@ world:
   ground:
     type: "infinite_plane"
     material: "pavimento_opaco"
-    y: 0
+    point: [0, 0, 0]
 materials:
   - id: "pavimento_opaco"
     type: "lambertian"
@@ -198,7 +198,7 @@ lights:
     u: [0.8, 0.0, 0.0]
     v: [0.0, 0.0, 0.8]
     color: [1.0, 0.97, 0.92]
-    intensity: 80.0
+    luminance: 77.8
     shadow_samples: 6
 ```
 
@@ -209,7 +209,7 @@ lights:
   - type: "directional"
     direction: [-0.3, -1.0, -0.2]
     color: [1.0, 0.97, 0.90]
-    intensity: 4.0
+    illuminance: 3.89
 ```
 
 ---
@@ -217,10 +217,11 @@ lights:
 ## Mini-scena completa
 
 ```yaml
-camera:
-  position: [0, 4.5, 6]
-  look_at: [0, 0.4, 0]
-  fov: 40
+format_version: 2
+cameras:
+  - position: [0, 4.5, 6]
+    look_at: [0, 0.4, 0]
+    fov: 40
 
 world:
   sky:
@@ -229,7 +230,7 @@ world:
   ground:
     type: "infinite_plane"
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
 
 entities:
   - name: "lente"
@@ -244,7 +245,7 @@ lights:
     u: [1.2, 0.0, 0.0]
     v: [0.0, 0.0, 1.2]
     color: [1.0, 0.97, 0.92]
-    intensity: 60.0
+    luminance: 58.4
     shadow_samples: 6
 
 materials:
@@ -253,7 +254,7 @@ materials:
     color: [0.7, 0.7, 0.7]
   - id: "vetro"
     type: "dielectric"
-    refraction_index: 1.5
+    ior: 1.5
 ```
 
 Salvala come `scenes/mia-caustica.yaml` e renderizza:

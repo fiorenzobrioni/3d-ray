@@ -11,6 +11,7 @@ sorgenti luminose -- e si comprenderà ogni riga del file.
 Creare un file chiamato `hello.yaml` e scrivere il seguente contenuto:
 
 ```yaml
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -26,7 +27,7 @@ lights:
   - type: "directional"
     direction: [-1, -1, 1]
     color: [1, 1, 1]
-    intensity: 2.0
+    illuminance: 2.0
 
 materials:
   - id: "white"
@@ -96,37 +97,39 @@ world:
 - **`gradient`** — sfumatura verticale a tre bande con disco solare opzionale.
 - **`hdri`** — immagine HDR equirettangolare per illuminazione image-based completa.
 
-Se ometti `sky:`, il motore usa un cielo flat azzurro-diurno (`[0.5, 0.7, 1.0]`). Il Capitolo 7 tratta in dettaglio gradient e HDRI.
+Se ometti `sky:`, l'ambiente è nero: la scena è illuminata solo dalle sue luci. Il Capitolo 7 tratta in dettaglio gradient, cieli fisici e HDRI.
 
 La sezione `world:` supporta anche una **scorciatoia per il terreno** che
-fa dispatch su una delle quattro shape — piano infinito, quad finito, disk
-o heightfield — con UV transform completa, scorciatoia di materiale inline
-e flag di visibilità per categoria di raggio.
+fa dispatch su una delle tre shape (piano infinito, quad finito o disk)
+con UV transform completa e flag di visibilità per categoria di raggio.
 
 ```yaml
 world:
   ground:
-    type: "plane"               # oppure "quad" / "disk" / "heightfield"
+    type: infinite_plane       # oppure "quad" / "disk"
     material: "floor_material"
-    y: 0.0                      # short per point: [0, y, 0]
+    point: [0, 0, 0]           # un punto del pavimento
 ```
 
-Per un pavimento finito con materiale inline e tiling:
+Per un pavimento finito con tiling:
 
 ```yaml
 world:
   ground:
     type: "quad"
     size: 20                    # semi-estensione (pavimento 40 × 40 m)
-    color: [0.6, 0.5, 0.4]      # Disney BSDF anonimo
-    roughness: 0.7
     uv_scale: [4, 4]            # ripete le texture 4× per asse
+    material: ground_material
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.6, 0.5, 0.4], specular_roughness: 0.7 }
 ```
 
 Quando ometti `material:` e il blocco `world.sky` espone un `ground_color`
 o `ground_albedo`, il pavimento eredita automaticamente quel colore come
-Lambertian neutro — una comoda scorciatoia lookdev per le preview rapide. Lo schema completo (strata heightfield, flag
-di visibilità, orientation) è documentato in
+Lambertian neutro (grigio 0.5 altrimenti): una comoda scorciatoia lookdev
+per le preview rapide. Lo schema completo (flag di visibilità, UV
+transform) è documentato in
 [`docs/reference/riferimento-scene.md`](../../reference/riferimento-scene.md).
 
 ---
@@ -147,15 +150,15 @@ La fotocamera definisce il punto di vista:
 |--------------|---------------|------------------------------------------------|
 | `position`   | --            | Posizione della fotocamera nello spazio world  |
 | `look_at`    | --            | Il punto verso cui punta la fotocamera         |
-| `vup`        | `[0, 1, 0]`  | La direzione che è considerata "su"            |
+| `up`         | `[0, 1, 0]`  | La direzione che è considerata "su"            |
 | `fov`        | `60`          | Campo visivo verticale in gradi                |
 | `aperture`   | `0`           | Diametro dell'obiettivo per la profondità di campo (0 = foro stenopeico) |
-| `focal_dist` | `1`           | Distanza di messa a fuoco per la profondità di campo |
+| `focus_distance` | `1`       | Distanza di messa a fuoco per la profondità di campo |
 
 **`position`** e **`look_at`** insieme determinano dov'è la fotocamera e dove è
 puntata. Il vettore da `position` a `look_at` è la direzione di visione.
 
-**`vup`** (view up) indica alla fotocamera quale direzione è verso l'alto. Non è
+**`up`** indica alla fotocamera quale direzione è verso l'alto. Non è
 quasi mai necessario modificarlo a meno che non si voglia un'inquadratura "Dutch
 angle" inclinata.
 
@@ -163,12 +166,11 @@ angle" inclinata.
 come un obiettivo tele -- gli oggetti appaiono più grandi ma si vede meno della scena.
 Un valore grande (es. 90) agisce come un grandangolo.
 
-**`aperture`** e **`focal_dist`** controllano la profondità di campo e sono trattati
+**`aperture`** e **`focus_distance`** controllano la profondità di campo e sono trattati
 nel Capitolo 7. Impostare `aperture` a `0` (predefinito) per avere tutto a fuoco.
 
-> **Suggerimento:** `cameras:` (la forma a lista) è il formato raccomandato -- funziona
-> sia per una camera sola che per più camere. La chiave singolare `camera:` è ancora
-> supportata per compatibilità. La configurazione multi-fotocamera è trattata nel Capitolo 7.
+> **Suggerimento:** `cameras:` è sempre una lista -- funziona sia per una camera
+> sola che per più camere. La configurazione multi-fotocamera è trattata nel Capitolo 7.
 
 ---
 
@@ -200,12 +202,12 @@ piatto e opaco. `color` è l'albedo diffusa: la frazione di luce riflessa per ca
 - id: "gold_mirror"
   type: "metal"
   color: [1.0, 0.76, 0.33]
-  fuzz: 0.0
+  roughness: 0.0
 
 - id: "brushed_steel"
   type: "metal"
   color: [0.7, 0.7, 0.72]
-  fuzz: 0.3
+  roughness: 0.3
 ```
 
 Una superficie Metal riflette la luce specularmante (come uno specchio). Il campo
@@ -220,11 +222,11 @@ usare valori misurati:
 | Acciaio    | `[0.7, 0.7, 0.72]`     |
 | Alluminio  | `[0.91, 0.92, 0.93]`   |
 
-Il parametro **`fuzz`** controlla la ruvidità:
+Il parametro **`roughness`** controlla quanto è sfocato il riflesso:
 
-- `fuzz: 0.0` produce uno specchio perfetto.
-- `fuzz: 0.1` produce un riflesso leggermente sfocato (finitura satinata).
-- `fuzz: 0.3` produce un riflesso visibilmente sfocato (metallo spazzolato).
+- `roughness: 0.0` produce uno specchio perfetto.
+- `roughness: 0.1` produce un riflesso leggermente sfocato (finitura satinata).
+- `roughness: 0.3` produce un riflesso visibilmente sfocato (metallo spazzolato).
 - Valori superiori a 0.5 creano un aspetto molto diffuso, quasi opaco.
 
 ---
@@ -296,11 +298,14 @@ sfondo -- il che produce un'immagine molto fioca e piatta. Si aggiungono ora due
 - type: "directional"
   direction: [-1, -1, 1]
   color: [1, 1, 1]
-  intensity: 2.0
+  illuminance: 2.0
 ```
 
 Una luce direzionale invia raggi paralleli nella `direction` specificata. Non ha
-posizione -- si pensi a essa come infinitamente lontana, come il sole. Il vettore
+posizione -- si pensi a essa come infinitamente lontana, come il sole. La sua
+luminosità è `illuminance`: la luce che dà a una superficie rivolta verso di essa,
+in lux (la vera luce del sole vale circa 100 000 lux; in una scena senza esposizione
+della camera vanno bene valori da 1 a 3). Il vettore
 `direction` punta *dalla* luce *verso* la scena. `[-1, -1, 1]` significa che la luce
 proviene dall'alto a sinistra, davanti.
 
@@ -310,13 +315,15 @@ proviene dall'alto a sinistra, davanti.
 - type: "point"
   position: [3, 3, -2]
   color: [0.9, 0.9, 1.0]
-  intensity: 15.0
+  intensity: 14
 ```
 
-Una luce point irradia da un singolo punto. La sua intensità cala con il quadrato
-della distanza (legge dell'inverso del quadrato), proprio come una lampadina reale.
-Il valore `intensity` quindi deve essere molto più alto rispetto a una luce
-direzionale per ottenere una luminosità simile sull'oggetto.
+Una luce point irradia da un singolo punto. La sua luminosità è `intensity`, in
+candele, e la luce che dà cala con il quadrato della distanza (legge dell'inverso
+del quadrato), proprio come una lampadina reale. Il valore quindi deve essere molto
+più alto dell'`illuminance` di una luce direzionale per ottenere una luminosità
+simile sull'oggetto. Il `color` di una luce è solo una tinta: non cambia quanto la
+luce è luminosa.
 
 Entrambi i tipi di luce producono **ombre dure** (bordi netti). Per ombre morbide
 e naturali servono luci area o sphere, trattate nel Capitolo 6.
@@ -331,6 +338,7 @@ Ecco il file di scena completo che mette tutto insieme:
 # three-spheres.yaml
 # Una sfera rossa opaca, una sfera dorata e una sfera specchio su un pavimento grigio.
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -347,13 +355,13 @@ lights:
   - type: "directional"
     direction: [-1, -1, 1]
     color: [1, 0.98, 0.95]
-    intensity: 2.5
+    illuminance: 2.5
 
   # Luce di riempimento da destra
   - type: "point"
     position: [4, 3, -3]
     color: [0.8, 0.85, 1.0]
-    intensity: 20.0
+    intensity: 17
 
 materials:
   - id: "grey_floor"
@@ -367,12 +375,12 @@ materials:
   - id: "gold"
     type: "metal"
     color: [1.0, 0.76, 0.33]
-    fuzz: 0.15
+    roughness: 0.15
 
   - id: "mirror"
     type: "metal"
     color: [0.95, 0.95, 0.97]
-    fuzz: 0.0
+    roughness: 0.0
 
 entities:
   # Pavimento
@@ -446,7 +454,7 @@ Per la tabella completa dei preset e la spiegazione di ciascun parametro vedi [`
 - Una scena ha bisogno come minimo di: `world`, `cameras:`, almeno un `material`,
   almeno un'`entity` e almeno una `light`.
 - `lambertian` dà una superficie diffusa opaca; `metal` dà una superficie riflessiva,
-  controllata da `fuzz`.
+  controllata da `roughness`.
 - Le luci `directional` non hanno posizione (raggi paralleli); le luci `point`
   irradiano da una posizione.
 - Il flusso di lavoro iterativo (anteprima -> bozza -> finale) fa risparmiare tempo.

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Material Test — Primitives (Sfera + Box)
 #
@@ -14,6 +15,7 @@
 #    Finale:   -w 1920 -H 1080 -s 1024 -d 10 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -47,13 +49,13 @@ lights:
   - type: "point"
     position: [3, 4, -3]
     color: [1.0, 0.95, 0.9]
-    intensity: 80
+    intensity: 76.5616
 
   # Fill light (luce di riempimento fredda, opposta, per le zone d'ombra)
   - type: "point"
     position: [-4, 2, -1]
     color: [0.8, 0.9, 1.0]
-    intensity: 30
+    intensity: 26.5788
 
   # Back/Rim light (luce da dietro per staccare gli oggetti dallo sfondo)
   - type: "point"
@@ -63,20 +65,19 @@ lights:
 
 materials:
   - id: "pavimento"
-    type: "disney"
-    roughness: 0.8
-    metallic: 0.0
-    texture:
+    type: openpbr
+    specular_roughness: 0.8
+    base_color:
       type: "checker"
       colors: [[0.05, 0.05, 0.05], [0.15, 0.15, 0.15]]
       scale: 2.0
 
   # Modifica questo materiale per i tuoi test
   - id: "material_to_test"
-    type: "disney"
-    color: [0.8, 0.2, 0.2]
-    roughness: 0.3
-    metallic: 0.1
+    type: openpbr
+    base_color: [0.8, 0.2, 0.2]
+    specular_roughness: 0.3
+    base_metalness: 0.1
 
 entities:
   - name: "suolo"

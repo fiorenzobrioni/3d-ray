@@ -77,9 +77,10 @@ world:
 ## A3. Atmosfera fisica (Nishita)
 
 ```yaml
+units: { length: 1000 }
 world:
   medium:
-    type: "nishita"
+    type: atmosphere
     # scattering di Rayleigh (aria) + Mie (aerosol), accoppiato al cielo nishita
 ```
 
@@ -131,7 +132,7 @@ mediums:
 ```
 
 Assorbimento rosso/giallo maggiore → il blu-verde residuo tipico dell'acqua
-profonda. Abbinare a un materiale acqua (`spec_trans: 1`, `ior: 1.33`).
+profonda. Abbinare a un materiale acqua (`transmission_weight: 1`, `specular_ior: 1.33`).
 
 ## C2. Liquido torbido (latte/lattiginoso)
 
@@ -147,8 +148,8 @@ mediums:
 
 # Sezione D — SSS volumetrico per materiali
 
-Per pietra/cera/pelle l'SSS si attiva direttamente dal materiale Disney tramite
-`subsurface_radius` (vedi [`materials-stone.md`](materials-stone.md) e
+Per pietra/cera/pelle l'SSS si attiva direttamente dal materiale `openpbr` tramite
+`subsurface_weight` (vedi [`materials-stone.md`](materials-stone.md) e
 [`materials-organic.md`](materials-organic.md)). In alternativa, per il controllo
 fine, costruisci il volume come medium interno:
 
@@ -175,7 +176,7 @@ mediums:
 | Cumulo di neve | B2 neve | `interior_medium` |
 | Bicchiere d'acqua/mare | C1 acqua | `interior_medium` |
 | Latte/liquidi opachi | C2 torbido | `interior_medium` |
-| Marmo/cera retroilluminati | D / material SSS | `interior_medium` o `subsurface_radius` |
+| Marmo/cera retroilluminati | D / material SSS | `interior_medium` o `subsurface_weight` |
 
 ## CLI tips
 

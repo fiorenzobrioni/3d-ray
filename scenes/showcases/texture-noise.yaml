@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -7,23 +9,23 @@ world:
   ground:
     type: "infinite_plane"
     material: "ground"
-    y: 0.0
+    point: [0, 0, 0]
 
-camera:
-  position:   [0, 1.2, 4]
-  look_at:    [0, 0.5, 0]
-  fov:        30
+cameras:
+  - position:   [0, 1.2, 4]
+    look_at:    [0, 0.5, 0]
+    fov:        30
 
 materials:
   - id: "ground"
     type: "lambertian"
-    texture:
+    color:
       type: "checker"
       scale: 1.5
       colors: [[0.25, 0.22, 0.18], [0.35, 0.32, 0.26]]
   - id: "brown_noise"
     type: "lambertian"
-    texture:
+    color:
       type: "noise"
       scale: 6.0
       noise_strength: 4.0
@@ -31,7 +33,7 @@ materials:
       randomize_offset: true
   - id: "gray_noise_default"
     type: "lambertian"
-    texture:
+    color:
       type: "noise"
       scale: 6.0
       noise_strength: 4.0
@@ -45,3 +47,12 @@ entities:
     center: [0.7, 0.5, 0]
     radius: 0.5
     material: "gray_noise_default"
+
+# Format 1 added these two lights to a scene without 'lights:' and no other light.
+lights:
+  - type: directional
+    direction: [-1, -1, -1]
+    illuminance: 0.8
+  - type: point
+    position: [0, 10, -5]
+    intensity: 100

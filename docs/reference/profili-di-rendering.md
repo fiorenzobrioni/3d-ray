@@ -121,7 +121,7 @@ un vetro o l'acqua) sopra qualunque preset: vedi la sezione 4c.
 
 **`standard` - il render di qualità quotidiano.** Il tier `standard` punta
 a qualità d'immagine da final su una scena *classica* - superfici
-Lambertian/Disney, vetri non annidati (al massimo un paio di sfere di
+Lambertian/OpenPBR, vetri non annidati (al massimo un paio di sfere di
 cristallo una davanti all'altra), marmo procedurale con parametri ordinari -
 eliminando la costosa macchineria di illuminazione globale che queste scene
 non usano. Rispetto a `final`: disattiva il **SSS** volumetrico (`--sss-mode off`), gira a **512 spp** con
@@ -402,7 +402,7 @@ I campioni pixel (`-s`) e i campioni d'ombra (`-S`) riducono entrambi il rumore 
 
 ### 6. **FIREFLY CLAMP (`-C` / `--clamp`)**
 
-`MaxSampleRadiance` (esposto come `-C`) è un limite massimo per la radianza per-campione **prima del tone mapping**. Cattura gli outlier rari prodotti da caustiche speculari, compensazione delle Disney lobe e boost della Russian Roulette - i pixel che altrimenti apparirebbero come puntini bianchi luminosi ("fireflies") nel render.
+`MaxSampleRadiance` (esposto come `-C`) è un limite massimo per la radianza per-campione **prima del tone mapping**. Cattura gli outlier rari prodotti da caustiche speculari, materiali a più lobi e boost della Russian Roulette - i pixel che altrimenti apparirebbero come puntini bianchi luminosi ("fireflies") nel render.
 
 **Default: spento.** Il clamp scambia rumore con bias, e la soglia è una radianza assoluta: non isola gli outlier, taglia ogni campione più luminoso del valore. In una scena con luci più luminose della soglia toglie luce vera (una Cornell box illuminata da un pannello di radianza 20 perdeva il 22% dell'energia con il vecchio default `10`). Renderizza prima senza, usa il denoiser o più campioni contro il rumore, e ricorri a `-C` solo se restano fireflies isolati. `10` è un valore di partenza ragionevole per luci di radianza fino a qualche unità.
 
@@ -438,7 +438,7 @@ Questo moltiplica la soglia `-C` per tutti i contributi indiretti, quindi agisce
 --transparent-shadows on
 ```
 
-**Default: off.** Il vetro si comporta in modo fisico: proietta la sua ombra, e la luce che rifrange arriva sul pavimento lungo i cammini che lo attraversano davvero, cioè la caustica (nitida ma rumorosa con pochi campioni in path tracing; `--integrator bdpt` o `vcm` la risolvono, sezione 4c). Le superfici con indice adattato (`refraction_index: 1`, il guscio trasparente che delimita un volume di nebbia o acqua) e i fogli `thin_walled` lisci lasciano sempre passare i raggi d'ombra: la loro trasmissione non devia la luce, quindi è esatto.
+**Default: off.** Il vetro si comporta in modo fisico: proietta la sua ombra, e la luce che rifrange arriva sul pavimento lungo i cammini che lo attraversano davvero, cioè la caustica (nitida ma rumorosa con pochi campioni in path tracing; `--integrator bdpt` o `vcm` la risolvono, sezione 4c). Le superfici con indice adattato (`refraction_index: 1`, il guscio trasparente che delimita un volume di nebbia o acqua) e i fogli `geometry_thin_walled` lisci lasciano sempre passare i raggi d'ombra: la loro trasmissione non devia la luce, quindi è esatto.
 
 `on` è un'approssimazione artistica: i raggi d'ombra attraversano il vetro in linea retta, tinti dalla sua trasmittanza di Fresnel, così il vetro chiaro proietta una mezz'ombra morbida e tinta invece di un'ombra e una caustica. I cammini di luce rifratta dalle superfici diffuse attraverso il vetro verso le luci vengono scartati, così la stessa luce non è contata due volte. Usalo per anteprime veloci e senza rumore di scene con molto vetro; lascialo spento per le immagini finali.
 

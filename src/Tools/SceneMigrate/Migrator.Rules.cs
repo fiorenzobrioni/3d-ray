@@ -187,13 +187,12 @@ public sealed partial class Migrator
         {
             // Format 1: the disc's radiance colour × intensity over a half-angle
             // angular_radius, or half of size (default 3°). Format 2: the
-            // illuminance E = L π sin²θ, the colour a tint.
+            // disc's luminance, the colour a tint.
             double ar = NumOf(sun, "angular_radius") ?? 0;
             double half = ar > 0 ? ar : Math.Max(0.01, (NumOf(sun, "size") ?? 3.0) * 0.5);
             var color = Vec3(Nums(sun, "color")) ?? Vector3.One;
             double radiance = Lum(color) * (NumOf(sun, "intensity") ?? 10.0);
-            double s = Math.Sin(half * Math.PI / 180.0);
-            Put(sun, "intensity", "illuminance", Num(radiance * Math.PI * s * s));
+            Put(sun, "intensity", "luminance", Num(radiance));
             Put(sun, "angular_radius", "angular_radius", Num(half));
             Remove(sun, "size");
         }

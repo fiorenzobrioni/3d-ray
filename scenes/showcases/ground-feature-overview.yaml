@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═════════════════════════════════════════════════════════════════════════════
 #  GROUND — Feature Overview Showcase
 # ═════════════════════════════════════════════════════════════════════════════
@@ -25,6 +26,7 @@
 #   ─ Final     : -w 1920 -H 1080 -s 1024 -d 8  -S 4  -C 25
 # ═════════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   # ── Sky: Preetham coerente con l'albedo del ground ────────────────────────
   # Preetham è scelto sopra Nishita per varianza bassa in preview e per
@@ -35,20 +37,18 @@ world:
     ground_albedo: [0.55, 0.50, 0.42]      # ⇄ sincronizzato con ground.color
     sun:
       direction:      [0.4, 0.7, 0.5]      # ~35° di elevazione
-      angular_radius: 0.265
       shadow_samples: 4
+    exposure: -9.965784
 
   # ── Ground: tutto il dispatcher condensato qui sotto ──────────────────────
   ground:
     type: "quad"                            # dispatch finito (parità a Quad entity)
     size: 12                                # half-extent → 24×24 m sotto le sfere
     # Materiale anonimo Disney BSDF: nessuna entry in `materials:` richiesta.
-    color:    [0.55, 0.50, 0.42]            # tan caldo (terra battuta chiara)
-    roughness: 0.85                         # matte fotorealistico
-    metallic:  0.0
     # UV transform applicata sopra le UV native della quad:
     uv_scale:    [6, 6]                     # 6× tile per asse → 1 quad = 36 ripetizioni
     uv_rotation: 15                         # 15° CCW vista dall'alto
+    material: ground_material
 
   # Variante Nishita per render finali atmosferici (commentata):
   # sky:
@@ -77,16 +77,17 @@ materials:
 
   # Chrome riflettente — sonda di fedeltà del pattern UV ruotato
   - id: "chrome"
-    type: "disney"
-    color: [0.85, 0.85, 0.88]
-    metallic: 1.0
-    roughness: 0.08
+    type: openpbr
+    base_color: [0.85, 0.85, 0.88]
+    base_metalness: 1.0
+    specular_roughness: 0.08
 
   # Rubino opaco — sonda del bounce diffuse caldo del ground
   - id: "ruby"
-    type: "disney"
-    color: [0.85, 0.10, 0.15]
-    roughness: 0.15
+    type: openpbr
+    base_color: [0.85, 0.10, 0.15]
+    specular_roughness: 0.15
+  - { id: ground_material, type: openpbr, base_color: [0.55, 0.5, 0.42], specular_roughness: 0.85 }
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  ENTITIES

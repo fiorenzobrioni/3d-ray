@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Ray-Tracing Scene — Teapot  (refactoring completo per engine attuale)
 #
@@ -7,6 +8,7 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   # Gradient sky: zenit blu-navy → orizzonte azzurro caldo → sottofondo scuro
   # Il sun disk è allineato alla key light direzionale (vedi sezione lights)
@@ -18,13 +20,13 @@ world:
     sun:
       direction: [-0.55, -0.65, -0.50]   # Da alto-sinistra-fronte
       color:     [1.0, 0.90, 0.72]       # Bianco caldo (luce pomeridiana)
-      intensity: 14.0
-      size:      2.5
+      luminance:  12.7157
+      angular_radius: 1.25
 
   ground:
     type: "infinite_plane"
     material: "floor_wood"
-    y: 0.0
+    point: [0, 0, 0]
 
 # ─────────────────────────────────────────────────────────────────────────
 #  CAMERA
@@ -39,7 +41,7 @@ cameras:
     look_at:    [-0.1, 0.75, 0.0]
     fov:        36
     aperture:   0.05        # DOF sottile — aumenta a 0.12 per bokeh più forte
-    focal_dist: 8.6         # Distanza camera → corpo della teiera
+    focus_distance: 8.6         # Distanza camera → corpo della teiera
 
   # Vista zenitale — mostra l'intero pavimento
   - name: "top"
@@ -58,7 +60,7 @@ materials:
   # (parallele alla profondità della scena) — più naturale con la camera 3/4.
   - id: "floor_wood"
     type: "lambertian"
-    texture:
+    color:
       type: "wood"
       scale: 12.0
       noise_strength: 3.0
@@ -72,11 +74,10 @@ materials:
   # Fresnel alle angolazioni acute.  roughness=0.08 → oro quasi a specchio
   # con una leggera morbidezza artigianale (non uno specchio perfetto freddo).
   - id: "gold_teapot"
-    type: "disney"
-    color:     [1.0, 0.71, 0.29]   # Colore F0 oro (standard PBR)
-    metallic:  1.0
-    roughness: 0.08                 # Aumenta a 0.18 per oro satinato/antico
-    specular:  1.0
+    type: openpbr
+    base_color: [1.0, 0.71, 0.29]   # Colore F0 oro (standard PBR)
+    base_metalness: 1.0
+    specular_roughness: 0.08                 # Aumenta a 0.18 per oro satinato/antico
 
 # ─────────────────────────────────────────────────────────────────────────
 #  LIGHTS  — schema three-point + rim
@@ -95,13 +96,13 @@ lights:
     u:              [5.0, 0.0,  0.0]    # Larghezza 5 unità in X
     v:              [0.0, 0.0,  4.0]    # Profondità 4 unità in Z
     color:          [1.0, 0.90, 0.75]
-    intensity:      26.0
+    luminance:      23.671179
 
   # Fill light — point freddo-neutro da destra e leggermente in basso
   - type: "point"
     position:  [6.5, 3.5, 3.5]
     color:     [0.75, 0.85, 1.0]
-    intensity: 40.0
+    intensity: 33.5828
 
   # Directional — allineata al sun disk del gradient sky
   # Porta ombre nitide e highlight diretti sui piani brillanti della teiera
@@ -109,14 +110,14 @@ lights:
   - type: "directional"
     direction: [-0.55, -0.65, -0.50]
     color:     [1.0, 0.90, 0.72]
-    intensity: 0.10
+    illuminance: 0.0908264
 
   # Rim light — da dietro-sinistra, tono freddo
   # Fa emergere il bordo superiore del coperchio e il becco dallo sfondo scuro
   - type: "point"
     position:  [-2.5, 3.5, -5.0]
     color:     [0.80, 0.90, 1.0]
-    intensity: 28.0
+    intensity: 24.806879
 
 # ─────────────────────────────────────────────────────────────────────────
 #  ENTITIES — sostituisci questa riga con l'intero blocco `entities:` del

@@ -88,14 +88,14 @@ entities: []                  # oggetti della scena
 
 **Materiali:**
 - `lambertian` per superfici grandi (pavimenti, muri, soffitti)
-- `disney`/`pbr` solo per oggetti principali (hero objects)
+- `openpbr` solo per oggetti principali (hero objects)
 - Per i materiali presi dai cataloghi, copia il blocco da `scenes/presets/materials-*.md` e rinomina l'`id`
 - Ogni materiale deve avere un `id:` unico
 
 **Camere:**
 - Sempre formato lista `cameras:` (mai `camera:`)
 - Minimo 2 camere con nomi descrittivi (es. `principale`, `macro`, `zenitale`, `tre_quarti`)
-- `vup: [0, 1, 0]` tranne per viste zenitali (`[0, 0, -1]` o `[0, 0, 1]`)
+- `up: [0, 1, 0]` (default) tranne per viste zenitali (`[0, 0, -1]` o `[0, 0, 1]`)
 - `aperture: 0.0` per nitidezza totale, `> 0` per bokeh
 
 **Luci e ambiente:**

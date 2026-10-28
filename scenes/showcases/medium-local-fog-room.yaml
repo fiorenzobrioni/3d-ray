@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  MEDIUM INTERFACE #01 — Fog locale dentro una stanza
 #
@@ -19,6 +20,7 @@
 #    Final:      -q final-small  (alza -C 25 se la spot light produce spike)
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -28,15 +30,15 @@ world:
   ground:
     type: "infinite_plane"
     material: "floor_outside"
-    y: 0.0
+    point: [0, 0, 0]
 
-camera:
-  position: [3.6, 2.3, 5.2]
-  look_at:  [0, 1.3, 0]
-  vup:      [0, 1, 0]
-  fov:      45
-  aperture: 0.05
-  focal_dist: 6.2
+cameras:
+  - position: [3.6, 2.3, 5.2]
+    look_at:  [0, 1.3, 0]
+    up:       [0, 1, 0]
+    fov:      45
+    aperture: 0.05
+    focus_distance: 6.2
 
 mediums:
   - id: room_fog
@@ -48,14 +50,14 @@ mediums:
 
 materials:
   - id: floor_outside
-    type: disney
-    color: [0.18, 0.16, 0.14]
-    roughness: 0.65
-    specular: 0.20
+    type: openpbr
+    base_color: [0.18, 0.16, 0.14]
+    specular_roughness: 0.65
+    specular_weight: 0.4
 
   - id: wall_inside
     type: lambertian
-    albedo: [0.55, 0.52, 0.48]
+    # albedo: [0.55, 0.52, 0.48]
 
 lights:
   # Spot dall'alto attraverso il foro del soffitto. Caldo, stretto, intenso.
@@ -63,7 +65,7 @@ lights:
     position: [0, 7.5, 0]
     direction: [0, -1, 0]
     color: [1.0, 0.90, 0.72]
-    intensity: 900
+    intensity: 817.43756
     inner_angle: 5
     outer_angle: 11
 
@@ -72,7 +74,7 @@ lights:
     position: [6, 4, 4]
     direction: [-0.6, -0.5, -0.5]
     color: [0.60, 0.74, 1.0]
-    intensity: 90
+    intensity: 65.610725
     inner_angle: 25
     outer_angle: 45
 
@@ -80,23 +82,23 @@ entities:
   # Stanza: box-shell sottratto (4×3.5×4 con muri 0.20 e foro 0.7×0.7 nel soffitto).
   - name: room
     type: csg
-    op: subtract
-    a:
-      type: box
-      scale: [4.0, 3.5, 4.0]
-      translate: [0, 1.75, 0]
-      material: wall_inside
-    b:
-      type: csg
-      op: union
-      a:
-        type: box
-        scale: [3.6, 3.1, 3.6]
-        translate: [0, 1.75, 0]
-        material: wall_inside
-      b:
-        type: box
-        scale: [0.7, 0.5, 0.7]
-        translate: [0, 3.45, 0]
-        material: wall_inside
+    # op: subtract
+    # a:
+    #   type: box
+    #   scale: [4.0, 3.5, 4.0]
+    #   translate: [0, 1.75, 0]
+    #   material: wall_inside
+    # b:
+    #   type: csg
+    #   op: union
+    #   a:
+    #     type: box
+    #     scale: [3.6, 3.1, 3.6]
+    #     translate: [0, 1.75, 0]
+    #     material: wall_inside
+    #   b:
+    #     type: box
+    #     scale: [0.7, 0.5, 0.7]
+    #     translate: [0, 3.45, 0]
+    #     material: wall_inside
     interior_medium: room_fog

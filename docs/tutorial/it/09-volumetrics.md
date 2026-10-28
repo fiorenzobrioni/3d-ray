@@ -90,8 +90,6 @@ Permette una distorsione direzionale dello scattering:
 
 Lo scattering in avanti (`g > 0`) è fisicamente accurato per la maggior parte dei mezzi reali (nebbia, polvere, aerosol) e crea bagliori luminosi intorno alle sorgenti luminose.
 
-Alias: `"hg"`, `"henyey_greenstein"`.
-
 ### Rayleigh (Scattering atmosferico)
 
 ```yaml
@@ -241,7 +239,7 @@ Il formato `.vol` (VOL1) è: magic `"VOL1"` (4 byte) + `nx`, `ny`, `nz` (3 × in
 **Filtro di ricostruzione (`interpolation`).** Quando un sample cade tra i voxel, 3D-Ray interpola la densità in uno dei due modi:
 
 - **`trilinear`** (default, 8 taps, C⁰). Economico. A risoluzioni basse (≤ 16³) la derivata del campo di densità è discontinua ai confini delle celle → si vedono bande lineari nel render. In produzione si risolve usando griglie fitte (128³–1024³) dove i salti sono sub-pixel.
-- **`tricubic`** (64 taps, C¹, cardinal spline Catmull-Rom con τ = 0.5). ~8× il costo per sample, ma il campo di densità è derivabile con continuità → niente kink anche su griglie minuscole. Il risultato viene clampato in `[0,1]` e la griglia di majorant tiene conto del superamento tra i voxel. Alias accettati: `cubic`, `catmull-rom`, `smooth`. Fornisce ricostruzione liscia della densità su VDB a costo di più tap.
+- **`tricubic`** (64 taps, C¹, cardinal spline Catmull-Rom con τ = 0.5). ~8× il costo per sample, ma il campo di densità è derivabile con continuità → niente kink anche su griglie minuscole. Il risultato viene clampato in `[0,1]` e la griglia di majorant tiene conto del superamento tra i voxel. Fornisce ricostruzione liscia della densità su VDB a costo di più tap.
 
 **Tip:** fuori dalla AABB il medium è vuoto → i raggi che non la intersecano sono gratis. Dimensiona bene i bounds per massimizzare le performance. Se usi `tricubic`, aspettati render ~5–10% più lenti sui raggi che attraversano la AABB.
 
@@ -365,6 +363,7 @@ Il rendering volumetrico è più impegnativo del rendering solo superficiale. Ti
 # cathedral-fog.yaml
 # Pilastri di pietra nella nebbia con una luce spot che crea un raggio visibile.
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -388,7 +387,7 @@ lights:
     position: [0, 4.8, 4]
     direction: [0, -0.7, -0.3]
     color: [1.0, 0.92, 0.75]
-    intensity: 120.0
+    intensity: 111
     inner_angle: 10
     outer_angle: 22
 
@@ -396,22 +395,22 @@ lights:
   - type: "point"
     position: [0, 4, -4]
     color: [0.5, 0.55, 0.7]
-    intensity: 8.0
+    intensity: 4.4
 
 materials:
   - id: "floor"
-    type: "disney"
-    roughness: 0.7
-    texture:
+    type: openpbr
+    specular_roughness: 0.7
+    base_color:
       type: "checker"
       scale: 0.5
       colors: [[0.25, 0.22, 0.2], [0.15, 0.13, 0.12]]
 
   - id: "stone_pillar"
-    type: "disney"
-    roughness: 0.6
-    specular: 0.3
-    texture:
+    type: openpbr
+    specular_roughness: 0.6
+    specular_weight: 0.6
+    base_color:
       type: "marble"
       scale: 5.0
       noise_strength: 3.0

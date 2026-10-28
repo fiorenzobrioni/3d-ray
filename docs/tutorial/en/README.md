@@ -18,7 +18,7 @@ spheres on a floor and understand every line of the YAML file.
 
 ### [03 -- Materials in Depth](./03-materials.md)
 All six material types explained parameter by parameter: Lambertian, Metal,
-Dielectric (glass), Emissive, Disney/PBR, and Mix. Plus procedural textures
+Dielectric (glass), Emissive, OpenPBR, and Mix. Plus procedural textures
 (checker, noise, marble, wood), image textures, and normal maps.
 
 ### [04 -- All the Shapes](./04-geometric-primitives.md)

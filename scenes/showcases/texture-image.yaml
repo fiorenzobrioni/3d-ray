@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Image Texture Showcase
 #
@@ -24,6 +25,7 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -33,17 +35,17 @@ world:
     sun:
       direction: [-0.5, -0.8, -0.3]
       color: [1.0, 0.95, 0.85]
-      intensity: 12.0
-      size: 2.5
+      luminance:  11.4409
+      angular_radius: 1.25
   ground:
     type: "infinite_plane"
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
 
-camera:
-  position: [0, 3, -8]
-  look_at: [0, 1.2, 0]
-  fov: 50
+cameras:
+  - position: [0, 3, -8]
+    look_at: [0, 1.2, 0]
+    fov: 50
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -53,7 +55,7 @@ materials:
   # ── Pavimento con texture immagine (tiling 4×4) ────────────────────────
   - id: "pavimento"
     type: "lambertian"
-    texture:
+    color:
       type: "image"
       path: "../assets/textures/wood-floor.png"
       uv_scale: [4, 4]                   # Ripete 4 volte su ogni asse
@@ -61,7 +63,7 @@ materials:
   # ── Muro di mattoni ────────────────────────────────────────────────────
   - id: "mattoni"
     type: "lambertian"
-    texture:
+    color:
       type: "image"
       path: "../assets/textures/brick-wall.png"
       uv_scale: [2, 1]                   # Ripete 2× in orizzontale
@@ -69,22 +71,22 @@ materials:
   # ── Terra sulla sfera (UV sferico) ─────────────────────────────────────
   - id: "terra"
     type: "lambertian"
-    texture:
+    color:
       type: "image"
       path: "../assets/textures/earth.png"
 
   # ── Logo su un quad ────────────────────────────────────────────────────
   - id: "logo"
     type: "lambertian"
-    texture:
+    color:
       type: "image"
       path: "../assets/textures/logo-3dray.png"
 
   # ── Texture immagine su metallo (riflesso + texture) ───────────────────
   - id: "metallo_texturato"
     type: "metal"
-    fuzz: 0.3
-    texture:
+    roughness: 0.3
+    color:
       type: "image"
       path: "../assets/textures/brick-wall.png"
 
@@ -92,7 +94,7 @@ materials:
   - id: "specchio"
     type: "metal"
     color: [0.95, 0.95, 0.97]
-    fuzz: 0.0
+    roughness: 0.0
 
   - id: "bianco"
     type: "lambertian"
@@ -105,11 +107,11 @@ lights:
   - type: "directional"
     direction: [-0.5, -0.8, -0.3]
     color: [1.0, 0.95, 0.85]
-    intensity: 0.10
+    illuminance: 0.095341004
   - type: "point"
     position: [-4, 5, -3]
     color: [0.85, 0.85, 1.0]
-    intensity: 30
+    intensity: 25.824902
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES

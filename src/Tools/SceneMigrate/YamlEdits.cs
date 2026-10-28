@@ -55,6 +55,10 @@ public sealed class YamlEdits(string text)
             if (start < e.End && e.Start < end && !(start == end || e.Start == e.End))
                 throw new InvalidOperationException(
                     $"overlapping edits at {LineOf(start)}: '{Text[start..end]}' and '{Text[e.Start..e.End]}'");
+        // An insertion strictly inside replaced text has nothing to go into
+        // (a "# " for a line already removed): applied, it shifts the removal.
+        if (start == end && _edits.Any(e => e.Start < start && start < e.End)) return;
+        if (start < end) _edits.RemoveAll(e => e.Start == e.End && start < e.Start && e.Start < end);
         _edits.Add((start, end, with, _edits.Count));
     }
 

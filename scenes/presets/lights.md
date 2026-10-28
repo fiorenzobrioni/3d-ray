@@ -24,7 +24,7 @@ lights:
     u: [2, 0, 0]               # vettore larghezza
     v: [0, 0, 2]               # vettore altezza
     color: [1.0, 0.96, 0.90]   # tinta (linear sRGB)
-    intensity: 45.0            # 1–15 fill · 20–60 key · 70–120 caustiche
+    luminance: 43.4            # 1–15 fill · 20–60 key · 70–120 caustiche
     shadow_samples: 9          # 4 preview · 9 standard · 16 penombre fini
 
   - type: "point"              # sorgente puntiforme onnidirezionale
@@ -35,19 +35,19 @@ lights:
   - type: "spot"               # cono orientabile con penombra
     position: [0, 6, 0]
     direction: [0, -1, 0]      # vettore di puntamento (normalizzato)
-    cone_angle_deg: 30         # apertura totale del cono
-    penumbra_deg: 8            # ampiezza della zona di transizione
+    # cone_angle_deg: 30         # apertura totale del cono
+    # penumbra_deg: 8            # ampiezza della zona di transizione
     color: [1, 0.95, 0.85]
-    intensity: 50.0
+    intensity: 47.7
 
   - type: "directional"        # sole/luna: raggi paralleli da una direzione
     direction: [0.3, -0.8, 0.4]  # vettore verso cui la luce punta
     color: [1.0, 0.95, 0.85]
-    intensity: 6.0
-    angular_radius_deg: 0.53   # disco solare → penombre morbide
+    illuminance: 5.72
+    # angular_radius_deg: 0.53   # disco solare → penombre morbide
 
   - type: "portal"             # finestra verso il cielo (solo interni)
-    anchor: [3.0, 1.2, -2.5]  # un angolo della finestra
+    corner: [3.0, 1.2, -2.5]  # un angolo della finestra
     u: [0.0, 0.0, 2.5]        # bordo U (cross(u,v) punta verso il cielo)
     v: [0.0, 1.2, 0.0]        # bordo V
     shadow_samples: 8
@@ -69,21 +69,21 @@ lights:
     u: [2.0, 0.0, 0.0]
     v: [0.0, 0.0, 2.0]
     color: [1.0, 0.96, 0.90]
-    intensity: 45.0
+    luminance: 43.4
     shadow_samples: 9
   - type: "area"   # FILL — destra, fredda, più debole
     corner: [3.0, 3.0, -1.5]
     u: [1.2, 0.0, 0.0]
     v: [0.0, 0.0, 1.2]
     color: [0.72, 0.82, 1.0]
-    intensity: 15.0
+    luminance: 12.2
     shadow_samples: 9
   - type: "area"   # RIM — dietro e in alto, bianca
     corner: [-1.0, 3.5, 4.0]
     u: [2.0, 0.0, 0.0]
     v: [0.0, 1.0, 0.0]
     color: [1.0, 1.0, 1.0]
-    intensity: 30.0
+    luminance: 30.0
     shadow_samples: 9
 ```
 
@@ -101,14 +101,14 @@ lights:
     u: [4.0, 0.0, 0.0]
     v: [0.0, 0.0, 4.0]
     color: [1.0, 1.0, 1.0]
-    intensity: 60.0
+    luminance: 60.0
     shadow_samples: 12
   - type: "area"   # pannello schiarente dal basso
     corner: [-5.0, 1.0, 4.0]
     u: [10.0, 0.0, 0.0]
     v: [0.0, 4.0, 0.0]
     color: [1.0, 1.0, 1.0]
-    intensity: 25.0
+    luminance: 25.0
     shadow_samples: 9
 ```
 
@@ -123,10 +123,10 @@ lights:
   - type: "spot"
     position: [-3.0, 6.0, 2.0]
     direction: [0.4, -1.0, -0.3]
-    cone_angle_deg: 24
-    penumbra_deg: 6
+    # cone_angle_deg: 24
+    # penumbra_deg: 6
     color: [1.0, 0.97, 0.92]
-    intensity: 80.0
+    intensity: 77.8
     shadow_samples: 12
 ```
 
@@ -143,21 +143,21 @@ lights:
     u: [1.5, 0.0, 0.0]
     v: [0.0, 2.0, 0.0]
     color: [1.0, 1.0, 1.0]
-    intensity: 40.0
+    luminance: 40.0
     shadow_samples: 12
   - type: "area"   # soft box destro (simmetrico)
     corner: [2.5, 3.0, 1.0]
     u: [1.5, 0.0, 0.0]
     v: [0.0, 2.0, 0.0]
     color: [1.0, 1.0, 1.0]
-    intensity: 40.0
+    luminance: 40.0
     shadow_samples: 12
   - type: "area"   # rim in alto per il contorno
     corner: [-1.0, 4.0, 4.0]
     u: [2.0, 0.0, 0.0]
     v: [0.0, 1.0, 0.0]
     color: [0.9, 0.95, 1.0]
-    intensity: 25.0
+    luminance: 23.6
     shadow_samples: 9
 ```
 
@@ -181,8 +181,8 @@ lights:
   - type: "directional"
     direction: [0.85, -0.25, 0.45]   # sole basso, quasi all'orizzonte
     color: [1.0, 0.72, 0.42]         # arancio caldo
-    intensity: 5.0
-    angular_radius_deg: 0.53
+    illuminance: 3.79
+    # angular_radius_deg: 0.53
 ```
 
 Sole radente con tinta calda: ombre lunghe e morbide, luce scolpente. `angular_radius_deg:
@@ -196,8 +196,8 @@ lights:
   - type: "directional"
     direction: [0.2, -0.95, 0.1]     # quasi zenitale
     color: [1.0, 0.98, 0.92]         # bianco neutro, lieve caldo
-    intensity: 8.0
-    angular_radius_deg: 0.53
+    illuminance: 7.84
+    # angular_radius_deg: 0.53
 ```
 
 Sole alto: ombre corte e dure, luce piatta e neutra. L'intensità `8.0` compensa
@@ -212,7 +212,7 @@ lights:
     u: [30.0, 0.0, 0.0]
     v: [0.0, 0.0, 30.0]
     color: [0.92, 0.94, 1.0]         # bianco-blu, luce di cielo nuvoloso
-    intensity: 4.0
+    luminance: 3.76
     shadow_samples: 16
 ```
 
@@ -231,8 +231,8 @@ lights:
   - type: "directional"
     direction: [0.4, -0.7, 0.3]
     color: [0.55, 0.65, 0.95]   # fredda, bluastra
-    intensity: 0.8
-    angular_radius_deg: 0.5
+    illuminance: 0.52
+    # angular_radius_deg: 0.5
 ```
 
 Direzionale fredda a intensità molto bassa: ombre morbide e bluastre tipiche della
@@ -248,14 +248,14 @@ lights:
     u: [0.1, 3.0, 0.0]
     v: [0.0, 0.0, 4.0]
     color: [1.0, 0.1, 0.55]
-    intensity: 35.0
+    luminance: 11.3
     shadow_samples: 9
   - type: "area"   # pannello cyan destra
     corner: [4.0, 1.0, -2.0]
     u: [0.1, 3.0, 0.0]
     v: [0.0, 0.0, 4.0]
     color: [0.1, 0.7, 1.0]
-    intensity: 35.0
+    luminance: 20.8
     shadow_samples: 9
 ```
 
@@ -281,11 +281,11 @@ materials:
   - id: "emi_pannello"
     type: "emissive"
     color: [1.0, 0.95, 0.85]   # bianco caldo (≈ 3000 K)
-    intensity: 12.0             # 8–15 interni normali · 20–40 ambienti scuri
+    luminance: 11.4             # 8–15 interni normali · 20–40 ambienti scuri
 
 entities:
   - type: "quad"
-    corner: [-2, 5, -2]
+    # corner: [-2, 5, -2]
     u: [4, 0, 0]
     v: [0, 0, 4]
     material: "emi_pannello"
@@ -302,7 +302,7 @@ materials:
   - id: "emi_neon_rosa"
     type: "emissive"
     color: [1.0, 0.15, 0.5]   # magenta neon
-    intensity: 30.0
+    luminance: 10.7
 
 entities:
   - type: "cylinder"
@@ -343,7 +343,7 @@ lights:
     u: [0.8, 0.0, 0.0]
     v: [0.0, 0.0, 0.8]
     color: [1.0, 0.97, 0.92]
-    intensity: 80.0              # alta: l'energia concentrata nel fuoco compensa
+    luminance: 77.8              # alta: l'energia concentrata nel fuoco compensa
     shadow_samples: 6
 ```
 
@@ -362,7 +362,7 @@ lights:
     u: [2.0, 0.0, 0.0]
     v: [0.0, 0.0, 2.0]
     color: [1.0, 0.97, 0.92]
-    intensity: 55.0              # ridotta: area maggiore, densità inferiore
+    luminance: 53.5              # ridotta: area maggiore, densità inferiore
     shadow_samples: 9
 ```
 
@@ -377,7 +377,7 @@ lights:
   - type: "directional"
     direction: [-0.3, -1.0, -0.2]   # angolo del sole
     color: [1.0, 0.97, 0.90]        # bianco caldo (mezzogiorno)
-    intensity: 4.0
+    illuminance: 3.89
 ```
 
 La `directional`/sole **guida direttamente** le caustiche: i raggi
@@ -393,7 +393,7 @@ lights:
     position: [0, 6.0, 0]       # alta → angolo d'incidenza favorevole
     radius: 0.5                  # piccola → fuoco netto (il raggio È l'area emittente)
     color: [1.0, 0.97, 0.92]
-    intensity: 70.0
+    luminance: 68.1
     shadow_samples: 6
 ```
 
@@ -410,14 +410,14 @@ lights:
   - type: "point"
     position: [0, 6.0, 0]
     color: [1.0, 0.95, 0.88]
-    intensity: 140.0            # I/d²: alza per compensare la distanza
+    intensity: 134            # I/d²: alza per compensare la distanza
 
   # Spot: come point, ma la falloff di cono modula anche la caustica.
   - type: "spot"
     position: [0, 6.0, 0]
     direction: [0, -1, 0]
     color: [1.0, 0.95, 0.88]
-    intensity: 160.0
+    intensity: 153
     inner_angle: 20
     outer_angle: 40
 ```

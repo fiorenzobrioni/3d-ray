@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  motion-blur-billiard-showcase.yaml — Motion Blur cinematografico (feature #18)
 #
@@ -27,6 +28,7 @@
 #  Selezione camera:  -c spacco   (oppure -c dinamica)
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -43,22 +45,22 @@ cameras:
   - name:       "spacco"
     position:   [-2.2, 5.2, 5.2]
     look_at:    [1.1, 0.1, -0.1]
-    vup:        [0, 1, 0]
+    up:         [0, 1, 0]
     fov:        50
     aperture:   0.03
-    focal_dist: 6.0
-    shutter:    [0.3, 0.7]
+    focus_distance: 6.0
+    shutter_interval: [0.3, 0.7]
 
   # Dinamica: stessa scena, leggera carrellata in avanti durante l'otturatore
   # → camera motion blur sottile che aggiunge dinamismo senza confondere.
   - name:       "dinamica"
     position:   [-2.2, 5.2, 5.2]
     look_at:    [1.1, 0.1, -0.1]
-    vup:        [0, 1, 0]
+    up:         [0, 1, 0]
     fov:        50
     aperture:   0.03
-    focal_dist: 6.0
-    shutter:    [0.0, 1.0]
+    focus_distance: 6.0
+    shutter_interval: [0.0, 1.0]
     motion:
       - { time: 1.0, position: [-1.7, 5.0, 4.7] }
 
@@ -66,37 +68,36 @@ cameras:
 #  LIGHTS — lampada da sala calda dall'alto + tenue fill freddo
 # ═══════════════════════════════════════════════════════════════════════════
 lights:
-lights:
   - type: "point"
     position:    [-5.0, 8.0,  4.0]
     intensity: 80
-    visible_to_camera: false
+    # visibility: { camera: false }
   - type: "point"
     position:    [0.0, 6.0,  0.0]
     intensity: 10
-    visible_to_camera: false
+    # visibility: { camera: false }
 
   # Lampada principale larga: copre l'intero percorso della battente e il
   # triangolo (cono di luce da sala).
   # U e V sono scambiati rispetto all'ordine "naturale" per ottenere Cross(U,V)
   # con componente Y negativa (normale verso il basso, verso la scena).
-  - type: "-area"
-    corner:    [-4.8, 4.8,  2.2]
-    u:         [ 0.0, 0.0, -4.4]
-    v:         [ 9.2, 0.0,  0.0]
-    color:     [1.00, 0.90, 0.72]
-    intensity: 2
-    shadow_samples: 8
-    visible_to_camera: false
+  # - type: "-area"
+  #   corner:    [-4.8, 4.8,  2.2]
+  #   u:         [ 0.0, 0.0, -4.4]
+  #   v:         [ 9.2, 0.0,  0.0]
+  #   color:     [1.00, 0.90, 0.72]
+  #   intensity: 2
+  #   shadow_samples: 8
+  #   visible_to_camera: false
   # Fill freddo dal lato della battente: illumina il panno e schiarisce le ombre.
-  - type: "-area"
-    corner:    [-5.5, 3.6,  2.6]
-    u:         [ 0.0, 0.0, -3.0]
-    v:         [ 3.0, 0.0,  0.0]
-    color:     [0.60, 0.72, 1.00]
-    intensity: 0.1
-    shadow_samples: 8
-    visible_to_camera: false
+  # - type: "-area"
+  #   corner:    [-5.5, 3.6,  2.6]
+  #   u:         [ 0.0, 0.0, -3.0]
+  #   v:         [ 3.0, 0.0,  0.0]
+  #   color:     [0.60, 0.72, 1.00]
+  #   intensity: 0.1
+  #   shadow_samples: 8
+  #   visible_to_camera: false
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -104,95 +105,104 @@ lights:
 materials:
   # Panno: feltro verde opaco con micro-sheen.
   - id: "felt"
-    type: "disney"
-    color: [0.07, 0.40, 0.19]
-    metallic: 0.0
-    roughness: 0.80
-    specular: 0.25
-    sheen: 0.25
-    sheen_roughness: 0.5
+    type: openpbr
+    base_color: [0.07, 0.40, 0.19]
+    specular_roughness: 0.80
+    specular_weight: 0.5
+    fuzz_weight: 0.25
+    fuzz_roughness: 0.5
+    fuzz_color: [0.6112241, 1.1355662, 0.80189395]
 
   # Sponde: legno scuro lucidato.
   - id: "rail"
-    type: "disney"
-    color: [0.18, 0.09, 0.04]
-    metallic: 0.0
-    roughness: 0.30
-    specular: 0.5
-    clearcoat: 0.6
+    type: openpbr
+    base_color: [0.18, 0.09, 0.04]
+    specular_roughness: 0.30
+    coat_weight: 0.6
     coat_roughness: 0.1
+    coat_ior: 1.5
 
   # ── Bilie: resina lucida (roughness bassa + clearcoat lucido) ────────────
   - id: "ball_white"
-    type: "disney"
-    color: [0.92, 0.90, 0.84]
-    roughness: 0.06
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.92, 0.90, 0.84]
+    specular_roughness: 0.06
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
   - id: "ball_black"
-    type: "disney"
-    color: [0.02, 0.02, 0.03]
-    roughness: 0.06
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.02, 0.02, 0.03]
+    specular_roughness: 0.06
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
   - id: "ball_yellow"
-    type: "disney"
-    color: [0.95, 0.75, 0.08]
-    roughness: 0.06
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.95, 0.75, 0.08]
+    specular_roughness: 0.06
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
   - id: "ball_blue"
-    type: "disney"
-    color: [0.06, 0.22, 0.80]
-    roughness: 0.06
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.06, 0.22, 0.80]
+    specular_roughness: 0.06
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
   - id: "ball_red"
-    type: "disney"
-    color: [0.82, 0.10, 0.08]
-    roughness: 0.06
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.82, 0.10, 0.08]
+    specular_roughness: 0.06
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
   - id: "ball_purple"
-    type: "disney"
-    color: [0.42, 0.12, 0.55]
-    roughness: 0.06
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.42, 0.12, 0.55]
+    specular_roughness: 0.06
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
   - id: "ball_orange"
-    type: "disney"
-    color: [0.92, 0.42, 0.06]
-    roughness: 0.06
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.92, 0.42, 0.06]
+    specular_roughness: 0.06
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
   - id: "ball_green"
-    type: "disney"
-    color: [0.08, 0.52, 0.18]
-    roughness: 0.06
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.08, 0.52, 0.18]
+    specular_roughness: 0.06
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
   - id: "ball_maroon"
-    type: "disney"
-    color: [0.45, 0.08, 0.12]
-    roughness: 0.06
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.45, 0.08, 0.12]
+    specular_roughness: 0.06
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
   - id: "ball_pink"
-    type: "disney"
-    color: [0.95, 0.55, 0.68]
-    roughness: 0.06
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.95, 0.55, 0.68]
+    specular_roughness: 0.06
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES

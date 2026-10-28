@@ -137,6 +137,21 @@ public class SceneFormatTests
             "docs/reference/scene-schema.json is out of date: run this test with UPDATE_SCENE_SCHEMA=1");
     }
 
+    /// <summary>Every scene of the repository is a valid format-2 file (no error; warnings allowed).</summary>
+    [Fact]
+    public void RepositoryScenes_AreValidFormat2()
+    {
+        string root = RepoRoot();
+        var files = new[] { "scenes", Path.Combine("validation", "scenes"), Path.Combine("src", "RayTracer.Tests", "TestScenes") }
+            .SelectMany(d => Directory.EnumerateFiles(Path.Combine(root, d), "*.yaml", SearchOption.AllDirectories))
+            .ToList();
+        Assert.True(files.Count > 100, $"only {files.Count} scenes found");
+        var errors = files.SelectMany(f => SceneValidator.Validate(File.ReadAllText(f))
+                                                        .Where(i => i.IsError).Select(i => i.Format(f)))
+                          .ToList();
+        Assert.True(errors.Count == 0, string.Join("\n", errors));
+    }
+
     private static string RepoRoot()
     {
         for (var d = new DirectoryInfo(AppContext.BaseDirectory); d != null; d = d.Parent)
@@ -223,7 +238,7 @@ public class SceneFormatTests
               sky:
                 type: gradient
                 rotate: [0, 90, 0]
-                sun: { direction: [1, 0.0001, 0], illuminance: 1000, angular_radius: 1 }
+                sun: { direction: [1, 0.0001, 0], luminance: 1000, angular_radius: 1 }
             lights: []
             """);
         var sun = sky.GetAnalyticalSun();
@@ -233,18 +248,18 @@ public class SceneFormatTests
     }
 
     [Fact]
-    public void GradientSun_IlluminanceIsWhatItGivesASurfaceFacingIt()
+    public void GradientSun_LuminanceIsTheDiscsLuminance_TheColourATint()
     {
         var (_, _, _, sky) = Load(Head + """
             world:
               sky:
                 type: gradient
-                sun: { direction: [0, 1, 0], illuminance: 1000, angular_radius: 2, color: [1, 0.5, 0.25] }
+                sun: { direction: [0, 1, 0], luminance: 40, angular_radius: 2, color: [1, 0.5, 0.25] }
             lights: []
             """);
         var (_, radiance, half, _) = sky.GetAnalyticalSun()!.Value;
-        float s = MathF.Sin(half * MathF.PI / 180f);
-        Assert.Equal(1000f, MathUtils.Luminance(radiance) * MathF.PI * s * s, 1);
+        Assert.Equal(40f, MathUtils.Luminance(radiance), 3);
+        Assert.Equal(2f, half, 4);
     }
 
     [Fact]

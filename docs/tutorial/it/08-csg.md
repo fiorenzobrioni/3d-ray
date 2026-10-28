@@ -8,19 +8,19 @@ A volte le forme viste nel Capitolo 4 non sono sufficienti. Può essere necessar
 
 La CSG lavora con tre operazioni:
 
-| Operazione      | Alias                          | Risultato                           |
-|-----------------|--------------------------------|-------------------------------------|
-| `union`         | --                             | Volume combinato di entrambe le forme |
-| `intersection`  | --                             | Solo il volume sovrapposto          |
-| `subtraction`   | `subtract`, `difference`       | La forma di sinistra meno quella di destra |
+| Operazione      | Risultato                           |
+|-----------------|-------------------------------------|
+| `union`         | Volume combinato di entrambe le forme |
+| `intersection`  | Solo il volume sovrapposto          |
+| `subtraction`   | La forma di sinistra meno quella di destra |
 
 Ogni entità CSG ha un figlio `left` e un figlio `right`. Ogni figlio è una definizione di entità inline: una primitiva solida (sphere, box, cylinder, cone, torus, capsule, quad, disk, lathe, ...) oppure un altro nodo `csg` per alberi booleani annidati. **I gruppi, le mesh e le istanze di template NON sono supportati come figli CSG** — vedi il callout al termine di questa sezione.
 
 ```yaml
 - type: "csg"
   operation: "subtraction"
-  left: { ... }
-  right: { ... }
+  # left: { ... }
+  # right: { ... }
   material: "materiale_predefinito"
 ```
 
@@ -319,6 +319,7 @@ Questo crea un cubo solido con tre tunnel cilindrici scavati lungo ciascun asse.
 # sculptor-workshop.yaml
 # Diversi oggetti CSG che mostrano unione, intersezione e sottrazione.
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -336,39 +337,39 @@ lights:
     u: [8, 0, 0]
     v: [0, 0, 6]
     color: [1, 0.97, 0.93]
-    intensity: 30.0
+    luminance: 29.2
 
   - type: "point"
     position: [4, 3, -5]
     color: [0.75, 0.82, 1.0]
-    intensity: 25.0
+    intensity: 20.5
 
 materials:
   - id: "floor"
     type: "lambertian"
     color: [0.3, 0.28, 0.25]
   - id: "marble"
-    type: "disney"
-    color: [0.92, 0.90, 0.86]
-    roughness: 0.12
-    specular: 0.7
+    type: openpbr
+    base_color: [0.92, 0.90, 0.86]
+    specular_roughness: 0.12
+    specular_weight: 1.4
   - id: "glass"
     type: "dielectric"
-    refraction_index: 1.52
+    ior: 1.52
   - id: "steel"
-    type: "disney"
-    color: [0.7, 0.7, 0.72]
-    metallic: 1.0
-    roughness: 0.15
+    type: openpbr
+    base_color: [0.7, 0.7, 0.72]
+    base_metalness: 1.0
+    specular_roughness: 0.15
   - id: "inner_gold"
-    type: "disney"
-    color: [1.0, 0.76, 0.33]
-    metallic: 1.0
-    roughness: 0.05
+    type: openpbr
+    base_color: [1.0, 0.76, 0.33]
+    base_metalness: 1.0
+    specular_roughness: 0.05
   - id: "stone"
-    type: "disney"
-    roughness: 0.6
-    texture:
+    type: openpbr
+    specular_roughness: 0.6
+    base_color:
       type: "marble"
       scale: 8.0
       noise_strength: 4.0

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Pro-grade procedural textures showcase
 # Demonstrates the upgraded noise / marble / wood algorithms and the new
 # voronoi, brick and gradient textures — feature parity with Arnold's "noise"
@@ -13,6 +14,7 @@
 #     -o renders/texture-pro.png \
 #     -w 1920 -H 1080 -s 256 -d 6
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -22,19 +24,19 @@ world:
     sun:
       direction: [-0.4, -0.8, -0.3]
       color:     [1.0, 0.92, 0.78]
-      intensity: 12
-      size:      4
+      luminance:  11.1228
+      angular_radius: 2
   ground:
     type: "infinite_plane"
     material: "marble_floor"
-    y: 0.0
+    point: [0, 0, 0]
 
-camera:
-  position:   [0, 3.5, 9]
-  look_at:    [0, 1.0, 0]
-  fov:        38
-  aperture:   0.03
-  focal_pos:  [0, 1.0, 0]
+cameras:
+  - position:   [0, 3.5, 9]
+    look_at:    [0, 1.0, 0]
+    fov:        38
+    aperture:   0.03
+    focus_point: [0, 1.0, 0]
 
 materials:
   # ----- Floor: pro Carrara-style marble -----
@@ -56,18 +58,18 @@ materials:
   #     of real Carrara; >8 starts to alias.
   - id: "marble_floor"
     type: "lambertian"
-    texture:
+    color:
       type: "marble"
       scale: 1.0
       noise_strength: 32.0
-      noise_type: "turbulence"
+      # noise_type: "turbulence"
       octaves: 8
       lacunarity: 2.0
       gain: 0.5
       vein_axis: [1.0, 0.0, 0.55]
-      vein_frequency: 1.0
-      vein_sharpness: 5.0
-      distortion: 0.6
+      # vein_frequency: 1.0
+      # vein_sharpness: 5.0
+      # distortion: 0.6
       # Multi-stop ramp drives the colour directly, bypassing the two-colour
       # lerp. This Statuario-style ramp pushes a faint golden mid-tone
       # between the dark veins and the warm-white base — a look impossible
@@ -81,7 +83,7 @@ materials:
   # ----- Row 1: noise family (Perlin, fBm, Ridged) -----
   - id: "tex_perlin"
     type: "lambertian"
-    texture:
+    color:
       type: "noise"
       noise_type: "perlin"
       scale: 4.0
@@ -89,7 +91,7 @@ materials:
 
   - id: "tex_fbm"
     type: "lambertian"
-    texture:
+    color:
       type: "noise"
       noise_type: "fbm"
       scale: 3.0
@@ -101,7 +103,7 @@ materials:
 
   - id: "tex_ridged"
     type: "lambertian"
-    texture:
+    color:
       type: "noise"
       noise_type: "ridged"
       scale: 3.5
@@ -113,7 +115,7 @@ materials:
   # ----- Row 2: cellular / Voronoi family -----
   - id: "tex_voronoi_f1"
     type: "lambertian"
-    texture:
+    color:
       type: "voronoi"
       scale: 4.5
       metric: "euclidean"
@@ -129,7 +131,7 @@ materials:
   # FIRST and the dark interior colour SECOND.
   - id: "tex_voronoi_crackle"
     type: "lambertian"
-    texture:
+    color:
       type: "voronoi"
       scale: 5.5
       metric: "euclidean"
@@ -140,7 +142,7 @@ materials:
 
   - id: "tex_voronoi_chebyshev"
     type: "lambertian"
-    texture:
+    color:
       type: "voronoi"
       scale: 4.0
       metric: "chebyshev"
@@ -150,7 +152,7 @@ materials:
   # ----- Row 3: classic stone / wood / pattern -----
   - id: "tex_brick"
     type: "lambertian"
-    texture:
+    color:
       type: "brick"
       brick_width:    0.4
       brick_height:   0.18
@@ -164,10 +166,9 @@ materials:
         - [0.86, 0.83, 0.78]    # mortar
 
   - id: "tex_wood"
-    type: "disney"
-    roughness: 0.35
-    specular: 0.5
-    texture:
+    type: openpbr
+    specular_roughness: 0.35
+    base_color:
       type: "wood"
       scale: 5.0
       noise_strength: 1.2
@@ -177,12 +178,12 @@ materials:
       octaves: 4
       lacunarity: 2.0
       gain: 0.5
-      distortion: 0.18
+      warp_amplitude: 0.18
       colors: [[0.78, 0.55, 0.30], [0.42, 0.24, 0.12]]
 
   - id: "tex_gradient"
     type: "lambertian"
-    texture:
+    color:
       type: "gradient"
       mode: "spherical"
       length: 0.95

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  light-units.yaml - unità fotometriche delle luci
 #  (PIANO-REVIEW.md, Fase 6)
@@ -32,6 +33,7 @@
 #    (renders/<nome>.beauty.pfm: radianza lineare prima dell'esposizione)
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -39,14 +41,14 @@ world:
   ground:
     type: "infinite_plane"
     material: "floor"
-    y: 0
+    point: [0, 0, 0]
 
-camera:
-  position: [0, 9, 0]
-  look_at: [0, 0, 0]
-  vup: [0, 0, 1]
-  fov: 36.87              # verticale: con 2:1 copre x in [-6, 6]
-  ev100: 5
+cameras:
+  - position: [0, 9, 0]
+    look_at: [0, 0, 0]
+    up: [0, 0, 1]
+    fov: 36.87              # verticale: con 2:1 copre x in [-6, 6]
+    ev100: 5
 
 materials:
   - { id: "floor", type: "lambertian", color: [0.5, 0.5, 0.5] }
@@ -55,13 +57,13 @@ lights:
   - type: "point"
     position: [4.5, 2, 0]
     power: 800
-    power_unit: "lumen"
+    power_unit: lumen
     temperature: 2700
 
   - type: "spot"
     position: [1.5, 2, 0]
     direction: [0, -1, 0]
-    candela: 200
+    intensity: 200
     temperature: 4000
     inner_angle: 25
     outer_angle: 35
@@ -70,7 +72,7 @@ lights:
     position: [-1.5, 2, 0]
     direction: [0, -1, 0]
     ies: "../assets/ies/downlight-cos4.ies"
-    candela: 400
+    intensity: 400
     inner_angle: 89
     outer_angle: 90
 
@@ -79,5 +81,5 @@ lights:
     u: [0.5, 0, 0]
     v: [0, 0, 0.5]
     luminance: 2000
-    visible_to_camera: false
+    visibility: { camera: false }
     shadow_samples: 4

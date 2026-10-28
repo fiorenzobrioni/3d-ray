@@ -65,12 +65,14 @@ validation:
     - { name: d16, depth: 16 }   # 3D-Ray -d 16 = Mitsuba max_depth 17
 ```
 
-`yaml2mitsuba.py` converts only what it can translate exactly (spheres, quads,
-Lambertian, dielectric, white Metal, emissive, point / sphere / area lights,
-flat sky, pinhole and thin-lens cameras) and refuses the rest. The Disney BSDF
-is mapped to Mitsuba's `principled`, the Disney 2015 base model, and flagged as
-an approximation in the report. A material without `color` gets the engine's
-default grey 0.5, glass included: write `color: [1, 1, 1]` for clear glass.
+`yaml2mitsuba.py` reads scene format 2 and converts only what it can
+translate exactly (spheres, quads, Lambertian, dielectric, white Metal,
+emissive, point / sphere / area lights with their photometric quantities,
+flat sky, pinhole and thin-lens cameras, the Gaussian pixel filter) and
+refuses the rest. An `openpbr` material is mapped back to Mitsuba's
+`principled` (the Disney 2015 base model) and flagged as an approximation in
+the report. The defaults are the engine's: a `lambertian` without `color` is
+grey 0.5, a `metal` and a `dielectric` white.
 
 ## Related tools
 

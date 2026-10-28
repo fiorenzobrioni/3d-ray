@@ -14,8 +14,7 @@ for the ground dispatcher details see
 
 The two blocks talk to each other through the renderer at several levels:
 
-1. **Albedo coupling.** When `world.ground` has no `material:` and no inline
-   `color:`, the loader auto-syncs the ground albedo with `sky.ground_albedo`
+1. **Albedo coupling.** When `world.ground` has no `material:`, the loader auto-syncs the ground albedo with `sky.ground_albedo`
    (Preetham / Nishita / Hosek-Wilkie) or `sky.ground_color` (gradient) — the
    same lookdev convenience Arnold's `aiSkyDomeLight` offers in preview
    renders. Vice versa, a deliberate `sky.ground_albedo` controls how much
@@ -50,50 +49,26 @@ world:
   sky:
     type: "flat"          # flat | gradient | preetham | hosek_wilkie
                           # | nishita | hdri    [required]
-    intensity: 1.0
     # type-specific fields: color | zenith_color/horizon_color/ground_color
     # | turbidity/ground_albedo | path | …
-    sun:                  # optional; auto-registers a PhysicalSun
-      direction:      [0.3, 0.8, 0.2]   # TOWARDS the sun
-      angular_radius: 0.265
-      shadow_samples: 4
+    # sun:                  # optional; auto-registers a PhysicalSun
+    #   direction:      [0.3, 0.8, 0.2]   # TOWARDS the sun
+    #   shadow_samples: 4
 
   # ── GROUND (full schema in docs/reference/scene-reference.md) ──────────
   ground:
     # Shape dispatch
-    type: "infinite_plane"     # plane (alias) | quad | disk
-                               # | heightfield (alias: terrain)
-    # Position & orientation (universal)
-    y:    0.0                  # legacy shorthand → point: [0, y, 0]
-    point:  [0, 0, 0]          # full anchor (wins over `y`)
+    type: "infinite_plane"     # infinite_plane | quad | disk
+    point:  [0, 0, 0]          # a point on the plane / centre of the quad or disk
     normal: [0, 1, 0]          # surface normal (defaults +Y)
-    orientation:
-      euler: [0, 30, 0]        # or quaternion: [x, y, z, w]
-    # Finite geometry (quad / disk)
-    size: 50                   # half-extent (quad) or radius (disk)
-    # Heightfield geometry
-    bounds:        [-10, -10, 10, 10]   # [xMin, zMin, xMax, zMax]
-    height_scale:  3.0
-    heightmap_path: "ground/terrain.png"
-    height_texture:                       # OR procedural
-      type: "noise"
-      scale: 0.1
-    resolution: 512
-    sea_level:    1.0
-    sea_material: "water"
-    strata:                              # altitude/slope-banded materials
-      - { min_altitude: 0,    max_altitude: 0.4, material: "grass" }
-      - { min_slope_deg: 35,                       material: "rock" }
-    # Material (priority: material → inline shortcut → sky albedo → grey)
+    # size: 50                   # half-extent (quad) or radius (disk)
+    # Material (priority: material → sky albedo → grey 0.5)
     material: "floor_id"
-    color: [0.6, 0.5, 0.4]
-    roughness: 0.7
-    metallic: 0.0
     # UV transform (applied on top of the primitive's native UVs)
     uv_scale:    [10, 10]      # per-axis tile factor
     uv_offset:   [0, 0]        # pan
     uv_rotation: 30            # degrees CCW (viewed from above)
-    # Visibility flags (Arnold polymesh.visibility / Cycles Ray Visibility)
+    # Visibility flags, per ray category
     visibility:
       camera:       true
       diffuse:      true
@@ -104,7 +79,7 @@ world:
   # ── MEDIUM (optional) ─────────────────────────────────────────────────
   medium:
     type: "height_fog"         # homogeneous | height_fog | procedural
-                               # | grid | atmosphere | nishita
+                               # | grid | atmosphere
     sigma_a: [0.002, 0.002, 0.0025]
     sigma_s: [0.020, 0.025, 0.030]
     y0: 0
@@ -112,6 +87,10 @@ world:
     phase: "hg"
     g: 0.6
 ```
+
+A terrain (a heightmap or a procedural relief, with altitude/slope-banded
+materials) is an entity of `type: heightfield` (see A3, A8 and
+[`terrains.md`](terrains.md)).
 
 ---
 
@@ -131,14 +110,16 @@ world:
     ground_albedo: [0.50, 0.42, 0.28] # ⇄ ground sand color
     sun:
       direction:      [0.2, 0.95, 0.1]  # near-zenith
-      angular_radius: 0.265
       shadow_samples: 4
+    exposure: -9.97
   ground:
     type: "quad"
     size: 80
-    color:    [0.72, 0.60, 0.42]      # warm dune sand
-    roughness: 0.95
     uv_scale:  [30, 30]
+    material: ground_material
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.72, 0.6, 0.42], specular_roughness: 0.95 }
 ```
 
 Sun overhead, hard shadows, washed-out highlights. Perfect for archviz
@@ -152,26 +133,27 @@ atmosphere` for misty distance.
 ## A2. Desert sunset — Nishita + aerial perspective
 
 ```yaml
+units: { length: 500 }
 world:
   sky:
     type: "nishita"
     turbidity: 4.0
-    intensity: 1.0
+    exposure: -12.7
     sun:
       direction:      [-0.85, 0.12, 0.4]   # just above horizon
-      angular_radius: 0.5                  # cinematic disc
       shadow_samples: 4
   ground:
     type: "quad"
     size: 100
-    color:    [0.78, 0.45, 0.20]            # red-orange sand
-    roughness: 0.92
     uv_scale:  [40, 40]
+    material: ground_material
   medium:
     type: "atmosphere"
-    world_scale: 500.0
     dust_density: 1.5
     air_density: 1.0
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.78, 0.45, 0.2], specular_roughness: 0.92 }
 ```
 
 Single-scattering Rayleigh+Mie produces the cinematic red-orange gradient
@@ -187,24 +169,10 @@ world:
   sky:
     type: "nishita"
     turbidity: 2.5
-    intensity: 1.0
+    exposure: -12.7
     sun:
       direction:      [-0.7, 0.18, 0.45]
-      angular_radius: 0.5
       shadow_samples: 4
-  ground:
-    type: "heightfield"
-    bounds:        [-50, -50, 50, 50]
-    height_scale:  25
-    heightmap_path: "assets/heightmaps/heightfield-strata-test-height.png"
-    sea_level:     7.5
-    sea_material:  "water_alpine"
-    material:      "rock_dark"
-    strata:
-      - { min_altitude: 0.00, max_altitude: 0.36, max_slope_deg: 35, blend_width: 0.04, material: "sand" }
-      - { min_altitude: 0.34, max_altitude: 0.75, max_slope_deg: 45, blend_width: 0.06, material: "grass" }
-      - { min_altitude: 0.50, max_altitude: 1.00,                     blend_width: 0.08, material: "rock_dark" }
-      - { min_altitude: 0.85, max_altitude: 1.00, max_slope_deg: 60, blend_width: 0.05, material: "snow" }
   medium:
     type: "height_fog"
     sigma_a: [0.002, 0.002, 0.0025]
@@ -213,6 +181,20 @@ world:
     scale_height: 6
     phase: "hg"
     g: 0.6
+
+entities:
+  - type: "heightfield"
+    bounds:        [-50, -50, 50, 50]
+    height_scale:  25
+    heightmap_path: "assets/heightmaps/heightfield-strata-test-height.png"
+    sea_level:     7.5
+    sea_material:  "water_alpine"
+    material:      "rock_dark"
+    strata:
+      - { min_altitude: 0.00, max_altitude: 0.36, max_slope: 35, blend_width: 0.04, material: "sand" }
+      - { min_altitude: 0.34, max_altitude: 0.75, max_slope: 45, blend_width: 0.06, material: "grass" }
+      - { min_altitude: 0.50, max_altitude: 1.00,                blend_width: 0.08, material: "rock_dark" }
+      - { min_altitude: 0.85, max_altitude: 1.00, max_slope: 60, blend_width: 0.05, material: "snow" }
 ```
 
 Mountain vista with stratified materials following altitude and slope —
@@ -234,14 +216,12 @@ world:
     ground_albedo: [0.05, 0.10, 0.15]
     sun:
       direction:      [-0.65, 0.18, 0.55]
-      angular_radius: 0.4
       shadow_samples: 4
+    exposure: -9.97
   ground:
     type: "infinite_plane"
     point: [0, 0, 0]
-    color:    [0.04, 0.10, 0.18]
-    roughness: 0.05
-    metallic:  0.0
+    material: ground_material
   medium:
     type: "height_fog"
     sigma_a: [0.003, 0.004, 0.005]
@@ -250,6 +230,9 @@ world:
     scale_height: 3
     phase: "hg"
     g: 0.5
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.04, 0.1, 0.18], specular_roughness: 0.05 }
 ```
 
 Quasi-mirror infinite ocean. The Preetham warm horizon + the low sun
@@ -269,9 +252,11 @@ world:
   ground:
     type: "quad"
     size: 60
-    color:    [0.32, 0.36, 0.20]      # mowed grass tone
-    roughness: 0.92
     uv_scale:  [25, 25]
+    material: ground_material
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.32, 0.36, 0.2], specular_roughness: 0.92 }
 ```
 
 No sun: pure environmental fill. Soft diffuse shadows, low contrast,
@@ -290,18 +275,18 @@ world:
     zenith_color:  [0.005, 0.005, 0.020]
     horizon_color: [0.020, 0.020, 0.045]
     ground_color:  [0.005, 0.005, 0.010]
-    intensity: 1.0
     sun:                                # the "sun" here is the moon
       direction:      [-0.4, 0.6, -0.7]
       color:          [0.70, 0.75, 0.90] # cool blue moonlight
-      intensity:      3.0
+      luminance:     2.25
       angular_radius: 0.5
       shadow_samples: 4
   ground:
     type: "infinite_plane"
-    color:    [0.06, 0.07, 0.10]
-    roughness: 0.65
-    metallic:  0.0
+    material: ground_material
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.06, 0.07, 0.1], specular_roughness: 0.65 }
 ```
 
 Astrophotography mood. Cool blue moonlight from a single analytical
@@ -319,17 +304,18 @@ world:
     type: "hosek_wilkie"
     turbidity: 2.0                       # pristine air
     ground_albedo: [0.85, 0.78, 0.62]    # bright sand bounces back
-    intensity: 1.0
+    exposure: -9.97
     sun:
       direction:      [0.4, 0.8, 0.3]    # high-ish but warm
-      angular_radius: 0.265
       shadow_samples: 6
   ground:
     type: "quad"
     size: 50
-    color:    [0.92, 0.85, 0.68]         # bright coral sand
-    roughness: 0.96
     uv_scale:  [40, 40]
+    material: ground_material
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.92, 0.85, 0.68], specular_roughness: 0.96 }
 ```
 
 The high `ground_albedo` is the trick: the analytical sky reflects the
@@ -350,18 +336,21 @@ world:
     ground_albedo: [0.40, 0.22, 0.10]
     sun:
       direction:      [-0.55, 0.30, 0.55] # 17° elevation
-      angular_radius: 0.4
       shadow_samples: 6
-  ground:
-    type: "heightfield"
+    exposure: -9.97
+
+entities:
+  - type: "heightfield"
+    material: ground_material
     bounds:        [-30, -30, 30, 30]
     height_scale:  4
     height_texture:
       type: "noise"
       scale: 0.18
     resolution: 256
-    color:    [0.38, 0.20, 0.08]          # rich brown soil
-    roughness: 0.95
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.38, 0.2, 0.08], specular_roughness: 0.95 }
 ```
 
 Mildly undulating forest floor (procedural fBm noise heightfield) under
@@ -379,15 +368,15 @@ world:
     zenith_color:  [0.45, 0.55, 0.72]
     horizon_color: [0.75, 0.82, 0.88]
     ground_color:  [0.80, 0.85, 0.92]
-    intensity: 1.0
   ground:
     type: "quad"
     size: 100
-    color:    [0.92, 0.95, 1.00]
-    roughness: 0.78
-    metallic:  0.0
+    material: ground_material
     # For subsurface snow add a real material:
     # material: "dis_neve_fresca"  (see presets/materials-ground.md)
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.92, 0.95, 1], specular_roughness: 0.78 }
 ```
 
 Diffuse polar palette. Pair with the subsurface snow material preset
@@ -410,13 +399,13 @@ world:
   sky:
     type: "flat"
     color: [1.0, 1.0, 1.0]
-    intensity: 1.0
   ground:
     type: "disk"
     size: 6
-    color:    [0.95, 0.95, 0.95]
-    roughness: 0.40
-    metallic:  0.0
+    material: ground_material
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.95, 0.95, 0.95], specular_roughness: 0.4 }
 ```
 
 The classic packshot setup. Bright environmental fill from the white sky
@@ -437,9 +426,10 @@ world:
   ground:
     type: "disk"
     size: 4
-    color:    [0.03, 0.03, 0.035]
-    roughness: 0.05
-    metallic:  0.0
+    material: ground_material
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.03, 0.03, 0.035], specular_roughness: 0.05 }
 ```
 
 Inverse of B1: pure void background, near-mirror dark podium that
@@ -459,8 +449,8 @@ world:
     ground_albedo: [0.55, 0.50, 0.42]
     sun:
       direction:      [-0.85, 0.12, 0.7]   # low key off-camera
-      angular_radius: 0.5
       shadow_samples: 6
+    exposure: -9.97
   ground:
     type: "quad"
     size: 20
@@ -485,10 +475,11 @@ world:
   ground:
     type: "quad"
     size: 12
-    color:    [0.06, 0.02, 0.10]
-    roughness: 0.18
-    metallic:  0.6                          # near-metal violet sheen
     uv_scale:  [5, 5]
+    material: ground_material
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.06, 0.02, 0.1], specular_roughness: 0.18, base_metalness: 0.6 }
 ```
 
 The metallic ground bounces ALL the magenta/cyan from your explicit
@@ -507,8 +498,7 @@ world:
   sky:
     type: "hdri"
     path: "showcases/hdri/newman_cafeteria_4k.hdr"
-    intensity: 1.0
-    rotation: 90
+    rotate: [0, -180, 0]
     sun:
       extract_from_hdri: true
       shadow_samples: 4
@@ -536,7 +526,6 @@ world:
     zenith_color:  [0.45, 0.40, 0.30]
     horizon_color: [0.70, 0.55, 0.30]
     ground_color:  [0.35, 0.22, 0.08]
-    intensity: 1.0
   ground:
     type: "quad"
     size: 8

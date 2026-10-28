@@ -1,6 +1,6 @@
 # Modello di Shading e Materiali
 
-Questa pagina descrive come i materiali di 3D-Ray rispondono alla luce: il nucleo microfacet comune, i materiali classici, il materiale a strati OpenPBR e la traduzione del tipo `disney` su di esso, l'interfaccia che il renderer usa. Il riferimento YAML dei parametri è in [`docs/reference/scene-reference.md`](../reference/scene-reference.md) §5.
+Questa pagina descrive come i materiali di 3D-Ray rispondono alla luce: il nucleo microfacet comune, i materiali classici, il materiale a strati OpenPBR e la traduzione su di esso dei parametri Disney del formato 1, l'interfaccia che il renderer usa. Il riferimento YAML dei parametri è in [`docs/reference/scene-reference.md`](../reference/scene-reference.md) §5.
 
 ---
 
@@ -13,7 +13,6 @@ Questa pagina descrive come i materiali di 3D-Ray rispondono alla luce: il nucle
 | `dielectric` | `Dielectric` | Vetro liscio (due lobi delta) o satinato (Walter 2007). |
 | `emissive` | `Emissive` | Sorgente di luce di superficie, campionata dalla NEE. |
 | `openpbr` | `OpenPbr` | Materiale a strati OpenPBR Surface v1.1: metallo, dielettrico, diffuso, vetro, subsurface, coat, fuzz, film sottile, emissione, opacità, thin-walled. |
-| `disney` / `pbr` | `OpenPbr` (via `DisneyMaterial.Create`) | I parametri Disney tradotti su OpenPBR (§5). |
 | `mix` | `MixMaterial` | Miscela di due materiali con peso costante o maschera. |
 
 Ogni materiale conserva l'energia: con colori bianchi e senza assorbimento una sfera sotto un cielo bianco uniforme sparisce nello sfondo (scene `scenes/review/*white-furnace*.yaml`, misure nel loro README).
@@ -97,9 +96,9 @@ con $\alpha$ l'opacità, $F, C, M, T$ i pesi di fuzz, coat, metallicità e trasm
 
 ---
 
-## 6. Il tipo `disney` (`DisneyMaterial.cs`)
+## 6. I parametri Disney (`DisneyMaterial.cs`)
 
-I parametri Disney sono tradotti su OpenPBR; il trasporto della luce è quello del §5.
+Il formato di scena 1 aveva un tipo `disney`; il formato 2 non lo ha più, e `SceneMigrate` scrive questi materiali come `openpbr`. La traduzione resta nel codice (`DisneyMaterial.Create`, usata dai test e dal migratore, che la riproduce esattamente): il trasporto della luce è quello del §5.
 
 | Disney | OpenPBR |
 |---|---|
@@ -114,7 +113,7 @@ I parametri Disney sono tradotti su OpenPBR; il trasporto della luce è quello d
 | `diff_trans` | subsurface thin-walled con g = 2 × diff_trans − 1 |
 | `thin_film_thickness` (nm) | `thin_film_weight` 1 e spessore in micrometri |
 
-Il diffuso è Lambert. Le differenze di aspetto rispetto al vecchio modello sono elencate nel riferimento delle scene (§5.5) e mostrate in `scenes/review/images/disney-to-openpbr.jpg`.
+Il diffuso è Lambert. La tabella completa della conversione è nel riferimento delle scene (§5.5); le differenze di aspetto rispetto al vecchio modello sono mostrate in `scenes/review/images/disney-to-openpbr.jpg`.
 
 ---
 

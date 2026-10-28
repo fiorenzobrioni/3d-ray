@@ -82,7 +82,6 @@ Orientamenti comuni:
 
 > **Nota:** I piani infiniti non possono essere delimitati (bounded), quindi sono gestiti separatamente dalla struttura di accelerazione BVH. Usali con parsimonia (1--3 per scena). Per superfici piane delimitate, usa un quad.
 
-Disponibile anche come `type: "plane"`.
 
 ---
 
@@ -145,7 +144,6 @@ Il cilindro è allineato all'asse Y (verticale) e chiuso alle estremità. Il `ce
 
 Quando `top_radius` è 0 il risultato è un cono a punta. Quando è maggiore di 0 il cono è troncato (un frustum) -- una forma utile per gambe di tavoli, paralumi e vasi.
 
-Alias del tipo: `cone`, `truncated_cone`, `frustum`.
 
 ---
 
@@ -170,7 +168,6 @@ Il toro viene sempre creato nel **piano XZ all'origine**. Usa `translate` per po
 - Per metterlo in piedi, `rotate: [90, 0, 0]`.
 - Il rapporto `minor_radius / major_radius` controlla la "cicciosità".
 
-Alias del tipo: `torus`, `donut`.
 
 > **Nota tecnica:** Il toro utilizza un risolutore quartico analitico per l'intersezione dei raggi -- nessuna tassellazione, perfettamente liscio a qualsiasi livello di zoom.
 
@@ -194,7 +191,6 @@ Alias del tipo: `torus`, `donut`.
 
 Una capsula è un cilindro con estremità emisferiche -- come una pillola o una salsiccia. L'altezza totale è `height + 2 * radius`.
 
-Alias del tipo: `capsule`, `pill`.
 
 ---
 
@@ -218,7 +214,6 @@ Alias del tipo: `capsule`, `pill`.
 
 Un annulus è un disco piatto con un foro circolare al centro -- come una rondella o un anello visto dall'alto.
 
-Alias del tipo: `annulus`, `ring_disk`.
 
 ---
 
@@ -259,7 +254,7 @@ Tre vertici definiscono un triangolo piatto con una singola normale di superfici
 ### Triangolo Liscio (Smooth Triangle)
 
 ```yaml
-- type: "smooth_triangle"
+- type: triangle
   v0: [-1, 0, 0]
   v1: [1, 0, 0]
   v2: [0, 1.5, 0]
@@ -350,7 +345,6 @@ Il caricatore di mesh legge file Wavefront OBJ. Supporta:
 
 Al caricamento, il motore costruisce automaticamente un BVH per i triangoli della mesh, rendendo i test di intersezione efficienti anche per mesh con milioni di triangoli.
 
-Alias del tipo: `mesh`, `obj`.
 
 Tutti i campi di trasformazione standard (`translate`, `rotate`, `scale`) funzionano sulle mesh. I modelli OBJ vengono spesso esportati a scale molto diverse, quindi lo `scale` è frequentemente necessario.
 
@@ -391,10 +385,9 @@ Dietro le quinte il motore costruisce la topologia limite, ricalcola le normali 
 
 ### 4.12.2 Displacement (vai al Capitolo 3)
 
-> **Dal `2026-05`** il displacement è dichiarato sul **material**, non
-> sull'entity. Vedi **Capitolo 3 — Materiali §
-> 3.x Surface Displacement** per la guida completa (scalar, vector,
-> autobump, `displacement_method`, Mix-displacement). La mesh entity
+> Il displacement è dichiarato sul **material**, non sull'entity. Vedi
+> **Capitolo 3, Materiali, "Surface Displacement"** per la guida completa
+> (scalar, vector, autobump, `method`, Mix-displacement). La mesh entity
 > accetta solo `displacement_enabled: false` per bypassare il
 > displacement del material risolto su quella singola istanza.
 
@@ -433,7 +426,7 @@ mesh di terreno.
   strata:
     - { min_altitude: 0.00, max_altitude: 0.18, material: "sand"  }
     - { min_altitude: 0.14, max_altitude: 0.55, material: "grass" }
-    - { min_altitude: 0.50, max_altitude: 0.85, min_slope_deg: 25, material: "rock" }
+    - { min_altitude: 0.50, max_altitude: 0.85, min_slope: 25, material: "rock" }
     - { min_altitude: 0.80, max_altitude: 1.00, material: "snow"  }
   material: "grass"                          # fallback quando nessuna band vince
 ```
@@ -465,33 +458,16 @@ il runtime sceglie la band col punteggio più alto a ogni hit. Vedi la
 sezione **HeightField** del riferimento per lo schema completo;
 `docs/technical/heightfield.md` copre l'algoritmo.
 
-Alias di tipo: `heightfield`, `height_field`, `terrain`.
 
 ---
 
-## 4.14 Riepilogo Alias dei Tipi
+## 4.14 Nomi dei tipi
 
-Molte primitive accettano più nomi di tipo:
-
-| Nome primario    | Alias                                  |
-|------------------|----------------------------------------|
-| `sphere`         | --                                     |
-| `box`            | --                                     |
-| `infinite_plane` | `plane`                                |
-| `cylinder`       | --                                     |
-| `cone`           | `truncated_cone`, `frustum`            |
-| `torus`          | `donut`                                |
-| `capsule`        | `pill`                                 |
-| `annulus`        | `ring_disk`                            |
-| `disk`           | --                                     |
-| `triangle`       | --                                     |
-| `smooth_triangle`| --                                     |
-| `quad`           | --                                     |
-| `mesh`           | `obj`                                  |
-| `heightfield`    | `height_field`, `terrain`              |
-| `group`          | --                                     |
-| `instance`       | --                                     |
-| `csg`            | --                                     |
+Ogni primitiva ha un solo nome di tipo: `sphere`, `box`,
+`infinite_plane`, `cylinder`, `cone`, `torus`, `capsule`, `annulus`,
+`disk`, `triangle` (piatto, o smooth con `n0`/`n1`/`n2`), `quad`, `mesh`,
+`heightfield`, `lathe`, `extrusion`, più `group`, `instance` e `csg`. Un
+tipo scritto male è un errore che suggerisce il nome più vicino.
 
 ---
 
@@ -503,6 +479,7 @@ Una scena che renderizza una di ogni primitiva in fila.
 # shape-gallery.yaml
 # Ogni primitiva geometrica in una singola scena.
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -520,58 +497,58 @@ lights:
     u: [10, 0, 0]
     v: [0, 0, 8]
     color: [1, 0.97, 0.93]
-    intensity: 25.0
+    luminance: 24.3
 
   - type: "point"
     position: [5, 4, -6]
     color: [0.7, 0.8, 1.0]
-    intensity: 30.0
+    intensity: 23.8
 
 materials:
   - id: "floor"
     type: "lambertian"
     color: [0.35, 0.35, 0.35]
   - id: "red"
-    type: "disney"
-    color: [0.85, 0.12, 0.1]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.85, 0.12, 0.1]
+    specular_roughness: 0.3
   - id: "blue"
-    type: "disney"
-    color: [0.1, 0.2, 0.85]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.1, 0.2, 0.85]
+    specular_roughness: 0.3
   - id: "green"
-    type: "disney"
-    color: [0.1, 0.7, 0.15]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.1, 0.7, 0.15]
+    specular_roughness: 0.3
   - id: "orange"
-    type: "disney"
-    color: [0.9, 0.45, 0.05]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.9, 0.45, 0.05]
+    specular_roughness: 0.3
   - id: "purple"
-    type: "disney"
-    color: [0.5, 0.1, 0.7]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.5, 0.1, 0.7]
+    specular_roughness: 0.3
   - id: "gold"
-    type: "disney"
-    color: [1.0, 0.76, 0.33]
-    metallic: 1.0
-    roughness: 0.1
+    type: openpbr
+    base_color: [1.0, 0.76, 0.33]
+    base_metalness: 1.0
+    specular_roughness: 0.1
   - id: "glass"
     type: "dielectric"
-    refraction_index: 1.52
+    ior: 1.52
   - id: "cyan"
-    type: "disney"
-    color: [0.1, 0.7, 0.75]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.1, 0.7, 0.75]
+    specular_roughness: 0.3
   - id: "pink"
-    type: "disney"
-    color: [0.9, 0.3, 0.5]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.9, 0.3, 0.5]
+    specular_roughness: 0.3
   - id: "white"
-    type: "disney"
-    color: [0.9, 0.88, 0.85]
-    roughness: 0.25
-    specular: 0.6
+    type: openpbr
+    base_color: [0.9, 0.88, 0.85]
+    specular_roughness: 0.25
+    specular_weight: 1.2
 
 entities:
   # Pavimento
@@ -661,7 +638,7 @@ RayTracer -i shape-gallery.yaml -w 1600 -H 700 -s 256 -d 6
 - I **piani infiniti** servono per superfici non delimitate (pavimenti, pareti).
 - I **quad** servono per superfici piane delimitate (pannelli, cornici, emettitori di luce).
 - Le **mesh** caricano file OBJ con costruzione automatica del BVH.
-- La maggior parte delle primitive ha alias per comodità.
+- Ogni primitiva ha un solo nome di tipo; uno scritto male è un errore con un suggerimento.
 
 ---
 

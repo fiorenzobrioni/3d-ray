@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Wet Surfaces Showcase — Superfici Bagnate (Cross-Library Mix)
 #
@@ -16,43 +17,44 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 12 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.10, 0.12, 0.16]
 
-camera:
-  position: [0, 1.8, -11.0]
-  look_at:  [0, 0.9, 0]
-  fov: 50
+cameras:
+  - position: [0, 1.8, -11.0]
+    look_at:  [0, 0.9, 0]
+    fov: 50
 
 materials:
 
   # ── BASE MATERIALS (inlined) ────────────────────────────────────────
   - id: "dis_porcellana_bianca"
-    type: "disney"
-    color: [0.95, 0.93, 0.88]
-    roughness: 0.12
-    specular: 0.8
-    clearcoat: 0.4
+    type: openpbr
+    base_color: [0.95, 0.93, 0.88]
+    specular_roughness: 0.12
+    specular_weight: 1.6
+    coat_weight: 0.4
     coat_roughness: 0.10
     coat_ior: 1.5
 
   - id: "over_water_film"
-    type: "disney"
-    color: [0.92, 0.94, 0.96]
-    roughness: 0.05
-    specular: 0.50
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.92, 0.94, 0.96]
+    specular_roughness: 0.05
+    coat_weight: 1.0
     coat_roughness: 0.03
-    spec_trans: 0.3
-    ior: 1.33
+    transmission_weight: 0.3
+    specular_ior: 1.33
     transmission_color: [0.95, 0.96, 0.98]
     transmission_depth: 0.05
+    coat_ior: 1.5
 
   - id: "dis_carrara_lucido"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "marble"
       scale: 2.4
       colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
@@ -67,19 +69,17 @@ materials:
       vein_softness: 0.07
       color_variation: 0.08
       randomize_offset: true
-    roughness: 0.10
-    clearcoat: 0.90
+    specular_roughness: 0.10
+    coat_weight: 0.90
     coat_roughness: 0.05
     coat_ior: 1.5
-    specular: 0.72
-    spec_trans: 0.0
+    specular_weight: 1.44
 
   - id: "dis_cemento_bocciardato"
-    type: "disney"
-    color: [0.60, 0.59, 0.56]
-    roughness: 0.90
-    specular: 0.26
-    texture:
+    type: openpbr
+    specular_roughness: 0.90
+    specular_weight: 0.52
+    base_color:
       type: "voronoi"
       scale: 8.0
       output: "f2_minus_f1"
@@ -99,14 +99,13 @@ materials:
       autobump_strength: 1.5
 
   - id: "dis_veneziano_blu"
-    type: "disney"
-    color: [0.18, 0.28, 0.45]
-    roughness: 0.18
-    specular: 0.48
-    clearcoat: 0.85
+    type: openpbr
+    specular_roughness: 0.18
+    specular_weight: 0.96
+    coat_weight: 0.85
     coat_roughness: 0.08
     coat_ior: 1.5
-    texture:
+    base_color:
       type: "marble"
       scale: 1.4
       vein_axis: [1, 0, 0]
@@ -126,14 +125,13 @@ materials:
         - { position: 1.00, color: [0.05, 0.10, 0.20], interp: "linear" }
 
   - id: "dis_asfalto_bagnato"
-    type: "disney"
-    color: [0.05, 0.05, 0.06]
-    roughness: 0.22
-    specular: 0.55
-    clearcoat: 0.6
+    type: openpbr
+    specular_roughness: 0.22
+    specular_weight: 1.1
+    coat_weight: 0.6
     coat_roughness: 0.12
     coat_ior: 1.5
-    texture:
+    base_color:
       type: "noise"
       scale: 5.0
       noise_strength: 0.08
@@ -169,17 +167,17 @@ materials:
     blend: 0.35
 
   - id: "floor"
-    type: "disney"
-    color: [0.10, 0.12, 0.14]
-    roughness: 0.18
-    specular: 0.50
-    clearcoat: 0.5
+    type: openpbr
+    base_color: [0.10, 0.12, 0.14]
+    specular_roughness: 0.18
+    coat_weight: 0.5
     coat_roughness: 0.10
+    coat_ior: 1.5
 
   - id: "backdrop"
-    type: "disney"
-    color: [0.10, 0.10, 0.12]
-    roughness: 0.90
+    type: openpbr
+    base_color: [0.10, 0.10, 0.12]
+    specular_roughness: 0.90
 
 entities:
 
@@ -243,15 +241,15 @@ lights:
   - type: "directional"
     direction: [-0.3, -0.65, 0.7]
     color: [0.78, 0.85, 1.00]
-    intensity: 4.0
+    illuminance: 3.3837922
     angular_radius: 1.0
 
   - type: "point"
     position: [0, 5, -4]
     color: [0.95, 0.92, 0.85]
-    intensity: 70
+    intensity: 64.49268
 
   - type: "point"
     position: [0, 2.5, 5]
     color: [1.0, 0.85, 0.62]
-    intensity: 45
+    intensity: 38.937782

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Gundam RX-78-2 — Mobile Suit in posa eroica
 #
@@ -11,6 +12,7 @@
 #    Finale:   -w 1920 -H 1080 -s 1024 -d 10 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -20,12 +22,12 @@ world:
     sun:
       direction: [-0.8, -0.25, -0.5]   # Sole basso a sinistra
       color: [1.0, 0.85, 0.5]
-      intensity: 2.0
-      size: 4.0                         # Disco solare leggermente grande
+      luminance:  1.71324
+      angular_radius: 2
   ground:
     type: "infinite_plane"
     material: "ground_mat"
-    y: 0
+    point: [0, 0, 0]
 
 lights:
   # La directional light è allineata alla stessa direzione del sun disk.
@@ -34,13 +36,13 @@ lights:
   - type: "directional"
     direction: [-0.8, -0.25, -0.5]
     color: [1.0, 0.88, 0.55]
-    intensity: 1.2
+    illuminance: 1.0580232
 
   # Fill fredda dal lato opposto (simula luce del cielo)
   - type: "directional"
     direction: [0.5, -0.7, 0.3]
     color: [0.5, 0.6, 0.85]
-    intensity: 0.3
+    illuminance: 0.17903702
 
 cameras:
   - name: "front"
@@ -48,79 +50,87 @@ cameras:
     look_at: [0, 6.5, 0]
     fov: 45
     aperture: 0.05
-    focal_dist: 18.0
+    focus_distance: 18.0
 
   - name: "dynamic_low"
     position: [-8, 1, 12]
     look_at: [0, 6, 0]
     fov: 60
     aperture: 0.1
-    focal_dist: 15.3
+    focus_distance: 15.3
 
   - name: "close_up_head"
     position: [3, 10, 6]
     look_at: [0, 10, 0]
     fov: 35
     aperture: 0.05
-    focal_dist: 6.7
+    focus_distance: 6.7
 
   - name: "isometric"
     position: [12, 12, 12]
     look_at: [0, 5, 0]
     fov: 45
     aperture: 0.05
-    focal_dist: 18.4
+    focus_distance: 18.4
 
 materials:
   - id: "ground_mat"
-    type: "disney"
-    color: [0.1, 0.1, 0.12]
-    roughness: 0.4
-    metallic: 0.2
-    clearcoat: 0.3
+    type: openpbr
+    base_color: [0.1, 0.1, 0.12]
+    specular_roughness: 0.4
+    base_metalness: 0.2
+    coat_weight: 0.3
+    coat_roughness: 0.031622775
+    coat_ior: 1.5
 
   - id: "gundam_white"
-    type: "disney"
-    color: [0.85, 0.85, 0.85]
-    roughness: 0.3
-    metallic: 0.1
-    clearcoat: 0.5
+    type: openpbr
+    base_color: [0.85, 0.85, 0.85]
+    specular_roughness: 0.3
+    base_metalness: 0.1
+    coat_weight: 0.5
+    coat_roughness: 0.031622775
+    coat_ior: 1.5
 
   - id: "gundam_blue"
-    type: "disney"
-    color: [0.1, 0.25, 0.6]
-    roughness: 0.3
-    metallic: 0.4
-    clearcoat: 0.8
+    type: openpbr
+    base_color: [0.1, 0.25, 0.6]
+    specular_roughness: 0.3
+    base_metalness: 0.4
+    coat_weight: 0.8
+    coat_roughness: 0.031622775
+    coat_ior: 1.5
 
   - id: "gundam_red"
-    type: "disney"
-    color: [0.75, 0.1, 0.1]
-    roughness: 0.3
-    metallic: 0.3
-    clearcoat: 0.8
+    type: openpbr
+    base_color: [0.75, 0.1, 0.1]
+    specular_roughness: 0.3
+    base_metalness: 0.3
+    coat_weight: 0.8
+    coat_roughness: 0.031622775
+    coat_ior: 1.5
 
   - id: "gundam_yellow"
-    type: "disney"
-    color: [0.9, 0.75, 0.1]
-    roughness: 0.4
-    metallic: 0.5
+    type: openpbr
+    base_color: [0.9, 0.75, 0.1]
+    specular_roughness: 0.4
+    base_metalness: 0.5
 
   - id: "gundam_gray"
-    type: "disney"
-    color: [0.25, 0.25, 0.25]
-    roughness: 0.5
-    metallic: 0.8
+    type: openpbr
+    base_color: [0.25, 0.25, 0.25]
+    specular_roughness: 0.5
+    base_metalness: 0.8
 
   - id: "eye_glow"
     type: "emissive"
     color: [0.2, 1.0, 0.2]
-    intensity: 15.0
+    luminance: 11.5824
 
   - id: "beam_glow"
     type: "emissive"
     color: [1.0, 0.2, 0.8]
-    intensity: 20.0
+    luminance: 8.268
 
 entities:
   - name: "Gundam"

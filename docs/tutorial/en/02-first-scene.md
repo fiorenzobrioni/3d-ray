@@ -11,6 +11,7 @@ light sources -- and understand every line of the file.
 Create a file called `hello.yaml` and type the following:
 
 ```yaml
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -26,7 +27,7 @@ lights:
   - type: "directional"
     direction: [-1, -1, 1]
     color: [1, 1, 1]
-    intensity: 2.0
+    illuminance: 2.0
 
 materials:
   - id: "white"
@@ -108,38 +109,41 @@ world:
 - **`gradient`** — three-band vertical blend with optional sun disk.
 - **`hdri`** — equirectangular HDR image for full image-based lighting.
 
-If you omit `sky:` entirely, the engine uses a daylight-blue flat sky
-(`[0.5, 0.7, 1.0]`). Chapter 7 covers gradient and HDRI in depth.
+If you omit `sky:` entirely, the environment is black: the scene is lit
+only by its lights. Chapter 7 covers gradient, physical skies and HDRI in
+depth.
 
 The `world:` section also supports a **ground shorthand** that dispatches
-to one of four shapes — infinite plane, finite quad, disk, or heightfield —
-with full UV transform, inline material shortcut, and per-ray-category
-visibility flags per ray category.
+to one of three shapes (infinite plane, finite quad or disk) with a full
+UV transform and per-ray-category visibility flags.
 
 ```yaml
 world:
   ground:
-    type: "plane"               # or "quad" / "disk" / "heightfield"
+    type: infinite_plane       # or "quad" / "disk"
     material: "floor_material"
-    y: 0.0                      # short for point: [0, y, 0]
+    point: [0, 0, 0]           # a point on the floor
 ```
 
-For a finite floor with inline material and tiling:
+For a finite floor with tiling:
 
 ```yaml
 world:
   ground:
     type: "quad"
     size: 20                    # half-extent (40 × 40 m floor)
-    color: [0.6, 0.5, 0.4]      # anonymous Disney BSDF
-    roughness: 0.7
     uv_scale: [4, 4]            # repeat textures 4× per axis
+    material: ground_material
+
+materials:
+  - { id: ground_material, type: openpbr, base_color: [0.6, 0.5, 0.4], specular_roughness: 0.7 }
 ```
 
 When you omit `material:` and the `world.sky` block provides a `ground_color`
 or `ground_albedo`, the floor automatically inherits that colour as a neutral
-Lambertian — a convenient lookdev shortcut for quick preview renders. The full schema (heightfield strata, visibility flags,
-orientation) is documented in
+Lambertian (grey 0.5 otherwise): a convenient lookdev shortcut for quick
+preview renders. The full schema (visibility flags, UV transform) is
+documented in
 [`docs/reference/scene-reference.md`](../../reference/scene-reference.md).
 
 ---
@@ -160,29 +164,28 @@ The camera defines your viewpoint:
 |--------------|--------------|------------------------------------------------|
 | `position`   | --           | Where the camera is in world space              |
 | `look_at`    | --           | The point the camera aims at                    |
-| `vup`        | `[0, 1, 0]` | Which direction is "up"                         |
+| `up`         | `[0, 1, 0]` | Which direction is "up"                         |
 | `fov`        | `60`         | Vertical field of view in degrees               |
 | `aperture`   | `0`          | Lens diameter for depth of field (0 = pinhole)  |
-| `focal_dist` | `1`          | Focus distance for depth of field               |
+| `focus_distance` | `1`      | Focus distance for depth of field               |
 
 **`position`** and **`look_at`** together determine where the camera is and
 what it is pointed at. The vector from `position` to `look_at` is the
 view direction.
 
-**`vup`** (view up) tells the camera which way is up. You almost never
+**`up`** tells the camera which way is up. You almost never
 need to change this unless you want a tilted "Dutch angle" shot.
 
 **`fov`** controls how much of the scene is visible. A small value (e.g.
 25) acts like a telephoto lens -- objects appear larger but you see less of
 the scene. A large value (e.g. 90) acts like a wide-angle lens.
 
-**`aperture`** and **`focal_dist`** control depth of field and are covered
+**`aperture`** and **`focus_distance`** control depth of field and are covered
 in Chapter 7. Set `aperture` to `0` (the default) for everything to be
 in focus.
 
-> **Tip:** `cameras:` (the list form) is the recommended format -- it
-> works for one camera or many. The singular `camera:` key still works
-> for backward compatibility. Multi-camera setup is covered in Chapter 7.
+> **Tip:** `cameras:` is always a list -- it works for one camera or
+> many. Multi-camera setup is covered in Chapter 7.
 
 ---
 
@@ -215,12 +218,12 @@ per RGB channel.
 - id: "gold_mirror"
   type: "metal"
   color: [1.0, 0.76, 0.33]
-  fuzz: 0.0
+  roughness: 0.0
 
 - id: "brushed_steel"
   type: "metal"
   color: [0.7, 0.7, 0.72]
-  fuzz: 0.3
+  roughness: 0.3
 ```
 
 A Metal surface reflects light specularly (like a mirror). The `color`
@@ -235,11 +238,11 @@ results, use measured values:
 | Steel          | `[0.7, 0.7, 0.72]`     |
 | Aluminum       | `[0.91, 0.92, 0.93]`   |
 
-The **`fuzz`** parameter controls roughness:
+The **`roughness`** parameter controls how blurred the reflection is:
 
-- `fuzz: 0.0` produces a perfect mirror.
-- `fuzz: 0.1` produces a slightly blurred reflection (satin finish).
-- `fuzz: 0.3` produces a visibly blurred reflection (brushed metal).
+- `roughness: 0.0` produces a perfect mirror.
+- `roughness: 0.1` produces a slightly blurred reflection (satin finish).
+- `roughness: 0.3` produces a visibly blurred reflection (brushed metal).
 - Values above 0.5 create a very diffused, almost matte look.
 
 ---
@@ -313,11 +316,14 @@ explicit light sources.
 - type: "directional"
   direction: [-1, -1, 1]
   color: [1, 1, 1]
-  intensity: 2.0
+  illuminance: 2.0
 ```
 
 A directional light sends parallel rays in the specified `direction`. It
-has no position -- think of it as infinitely far away, like the sun.
+has no position -- think of it as infinitely far away, like the sun. Its
+brightness is `illuminance`: the light it gives a surface facing it, in
+lux (real sunlight is about 100 000 lux; in a scene without a camera
+exposure, values around 1 to 3 work).
 The `direction` vector points *from* the light *toward* the scene.
 `[-1, -1, 1]` means light comes from the upper-left-front.
 
@@ -327,13 +333,15 @@ The `direction` vector points *from* the light *toward* the scene.
 - type: "point"
   position: [3, 3, -2]
   color: [0.9, 0.9, 1.0]
-  intensity: 15.0
+  intensity: 14
 ```
 
-A point light radiates from a single point. Its intensity falls off with
-the square of the distance (inverse-square law), just like a real light
-bulb. The `intensity` value therefore needs to be much higher than a
-directional light's to achieve a similar brightness at the object.
+A point light radiates from a single point. Its brightness is `intensity`,
+in candela, and the light it gives falls off with the square of the
+distance (inverse-square law), just like a real light bulb. The value
+therefore needs to be much higher than a directional light's
+`illuminance` to achieve a similar brightness at the object. The `color`
+of a light is only a tint: it does not change how bright the light is.
 
 Both light types produce **hard shadows** (crisp edges). For soft, natural
 shadows you need area or sphere lights, covered in Chapter 6.
@@ -348,6 +356,7 @@ Here is the full scene file that puts everything together:
 # three-spheres.yaml
 # A matte red sphere, a gold sphere, and a mirror sphere on a grey floor.
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -364,13 +373,13 @@ lights:
   - type: "directional"
     direction: [-1, -1, 1]
     color: [1, 0.98, 0.95]
-    intensity: 2.5
+    illuminance: 2.5
 
   # Fill light from right
   - type: "point"
     position: [4, 3, -3]
     color: [0.8, 0.85, 1.0]
-    intensity: 20.0
+    intensity: 17
 
 materials:
   - id: "grey_floor"
@@ -384,12 +393,12 @@ materials:
   - id: "gold"
     type: "metal"
     color: [1.0, 0.76, 0.33]
-    fuzz: 0.15
+    roughness: 0.15
 
   - id: "mirror"
     type: "metal"
     color: [0.95, 0.95, 0.97]
-    fuzz: 0.0
+    roughness: 0.0
 
 entities:
   # Floor
@@ -463,7 +472,7 @@ See [`docs/reference/rendering-profiles.md`](../../reference/rendering-profiles.
 - A scene needs at minimum: `world`, `cameras:`, at least one `material`,
   at least one `entity`, and at least one `light`.
 - `lambertian` gives a matte diffuse surface; `metal` gives a reflective
-  one, controlled by `fuzz`.
+  one, controlled by `roughness`.
 - `directional` lights have no position (parallel rays); `point` lights
   radiate from a location.
 - The iterative workflow (preview -> draft -> final) saves time.

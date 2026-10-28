@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  SSS RANDOM WALK #01 — Busto in marmo bianco
 #
@@ -27,6 +28,7 @@
 #    --sss-mode auto|off            (default auto)
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -36,15 +38,15 @@ world:
   ground:
     type: "infinite_plane"
     material: "pavimento"
-    y: 0.0
+    point: [0, 0, 0]
 
-camera:
-  position: [1.4, 1.55, 3.6]
-  look_at:  [0.0, 1.10, 0.0]
-  vup:      [0, 1, 0]
-  fov:      35
-  aperture: 0.04
-  focal_dist: 3.8
+cameras:
+  - position: [1.4, 1.55, 3.6]
+    look_at:  [0.0, 1.10, 0.0]
+    up:       [0, 1, 0]
+    fov:      35
+    aperture: 0.04
+    focus_distance: 3.8
 
 # ── Libreria mediums: il marmo come volume ─────────────────────────────────
 #  Jensen 2001 "marble": σ_a ≈ [0.0021, 0.0041, 0.0071]·units⁻¹
@@ -63,25 +65,23 @@ mediums:
 materials:
   # Marmo Carrara: superficie quasi specchio-trasparente, il "colore" arriva dal volume.
   - id: marble_surface
-    type: disney
-    color: [1.0, 1.0, 1.0]
-    roughness: 0.18
-    specular: 0.5
-    spec_trans: 1.0
-    ior: 1.5
-    clearcoat: 0.0
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.18
+    transmission_weight: 1.0
+    transmission_color: [1, 1, 1]
 
   - id: pavimento
-    type: disney
-    color: [0.22, 0.21, 0.20]
-    roughness: 0.55
-    specular: 0.30
+    type: openpbr
+    base_color: [0.22, 0.21, 0.20]
+    specular_roughness: 0.55
+    specular_weight: 0.6
 
   - id: piedistallo_mat
-    type: disney
-    color: [0.12, 0.11, 0.10]
-    roughness: 0.35
-    specular: 0.40
+    type: openpbr
+    base_color: [0.12, 0.11, 0.10]
+    specular_roughness: 0.35
+    specular_weight: 0.8
 
 lights:
   # Key: area calda tre quarti destra-alta — modella i piani del volto e
@@ -94,8 +94,8 @@ lights:
     u:         [ 1.4,  0.0,  0.0]
     v:         [ 0.0,  0.0,  1.4]
     color:     [1.00, 0.92, 0.78]
-    intensity: 38
-    visible_to_camera: false
+    luminance: 35.222202
+    visibility: { camera: false }
 
   # Fill freddo da sinistra — apre le ombre senza appiattire.
   - type: "area"
@@ -103,8 +103,8 @@ lights:
     u:         [ 1.2,  0.0,  0.0]
     v:         [ 0.0,  0.0,  1.0]
     color:     [0.66, 0.78, 1.00]
-    intensity: 9
-    visible_to_camera: false
+    luminance: 6.9333477
+    visibility: { camera: false }
 
 entities:
   # Piedistallo: cilindro non legato a medium (esterno).

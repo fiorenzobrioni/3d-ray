@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Validation scene (PIANO-REVIEW.md, Phase 8): a puff of heterogeneous,
 # chromatic smoke (a 12^3 grid, trilinear, zero on its border) inside an
 # index-matched sphere, over a floor, lit by an area light and a dim sky. Tests the
@@ -8,6 +9,7 @@
 # leaves the sky black) (the box grown by half
 # a voxel: Mitsuba's voxels are cell-centred). Data written by a one-off
 # script: two Gaussian blobs times a ripple.
+format_version: 2
 validation:
   width: 128
   height: 96
@@ -107,19 +109,19 @@ mediums:
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     ]
 
-camera:
-  position: [0.0, 1.4, 4.6]
-  look_at: [0.0, 0.9, 0.0]
-  vup: [0, 1, 0]
-  fov: 40
+cameras:
+  - position: [0.0, 1.4, 4.6]
+    look_at: [0.0, 0.9, 0.0]
+    up: [0, 1, 0]
+    fov: 40
 
 materials:
   - { id: "floor", type: "lambertian", color: [0.5, 0.5, 0.5] }
-  - { id: "shell", type: "dielectric", color: [1, 1, 1], refraction_index: 1.0 }
+  - { id: "shell", type: "dielectric", color: [1, 1, 1], ior: 1.0 }
 
 entities:
   - { type: "quad", q: [-5, 0, 5], u: [10, 0, 0], v: [0, 0, -10], material: "floor" }
   - { type: "sphere", center: [0, 1, 0], radius: 1.8, material: "shell", interior_medium: "smoke" }
 
 lights:
-  - { type: "area", corner: [-1.0, 3.2, -0.5], u: [1.0, 0, 0], v: [0, 0, 1.0], color: [1.0, 0.95, 0.9], intensity: 10 }
+  - { type: "area", corner: [-1.0, 3.2, -0.5], u: [1.0, 0, 0], v: [0, 0, 1.0], color: [1.0, 0.95, 0.9], luminance: 9.5702 }

@@ -68,12 +68,12 @@ entities: []
         var lights = LoadLights(@"
   - { type: area, corner: [-1, 3, 0], u: [2, 0, 0], v: [0, 0, 1], power: 1000, power_unit: lumen }
   - { type: area, corner: [-1, 3, 0], u: [2, 0, 0], v: [0, 0, 1], luminance: 5000 }
-  - { type: area, corner: [-1, 3, 0], u: [2, 0, 0], v: [0, 0, 1], intensity: 10, normalize: true }
+  - { type: area, corner: [-1, 3, 0], u: [2, 0, 0], v: [0, 0, 1], power: 10 }
   - { type: sphere, position: [0, 3, 0], radius: 0.25, power: 1000, power_unit: lumen }
   - { type: directional, direction: [0, -1, 0], illuminance: 100000, temperature: 5800 }");
         Assert.Equal(1000f / (MathF.PI * 2f), ((AreaLight)lights[0]).Intensity, 2);
         Assert.Equal(5000f, ((AreaLight)lights[1]).Intensity, 2);
-        Assert.Equal(5f, ((AreaLight)lights[2]).Intensity, 4);
+        Assert.Equal(10f * LightUnits.LumensPerWatt / (MathF.PI * 2f), ((AreaLight)lights[2]).Intensity, 2);
         Assert.Equal(1000f / (4f * MathF.PI * MathF.PI * 0.0625f), ((SphereLight)lights[3]).Intensity, 1);
         var sun = (DirectionalLight)lights[4];
         Assert.Equal(100000f, sun.Intensity, 1);
@@ -94,7 +94,7 @@ cameras: [{ position: [0, 0, 5], look_at: [0, 0, 0] }]
 lights: []
 materials:
   - { id: glow, type: emissive, color: [1, 0.5, 0.2], luminance: 3000 }
-  - { id: warm, type: emissive, intensity: 2, temperature: 3000 }
+  - { id: warm, type: emissive, luminance: 2, temperature: 3000 }
 entities:
   - { type: sphere, center: [-1, 0, 0], radius: 0.4, material: glow }
   - { type: sphere, center: [1, 0, 0], radius: 0.4, material: warm }

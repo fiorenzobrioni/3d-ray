@@ -5,10 +5,12 @@ porcellana, opache). Tutti i blocchi sono pronti da incollare nel `materials:`
 della tua scena. Per il flusso d'uso vedi [`README.md`](README.md); schema completo
 in [`../../docs/reference/scene-reference.md`](../../docs/reference/scene-reference.md).
 
-> **Lucido = clearcoat.** Plastiche lucide, vernici auto e ceramiche smaltate
-> condividono lo stesso schema: base diffusa/colorata + un `clearcoat` liscio. La
-> vernice metallizzata aggiunge `metallic` per i fiocchi sotto il coat. Sono tutti
-> opachi: `metallic` 0 (salvo flake auto), niente `subsurface_radius`.
+> **Lucido = coat.** Plastiche lucide, vernici auto e ceramiche smaltate
+> condividono lo stesso schema: base diffusa/colorata + un coat liscio
+> (`coat_weight`, `coat_roughness`). La vernice metallizzata aggiunge
+> `base_metalness` per i fiocchi sotto il coat. Sono tutti opachi: niente
+> `transmission_weight` né `subsurface_weight` (salvo acrilici e porcellana
+> sottile).
 
 ---
 
@@ -17,13 +19,9 @@ in [`../../docs/reference/scene-reference.md`](../../docs/reference/scene-refere
 ```yaml
 materials:
   - id: "synthetic_id"
-    type: "disney"
-    color: [0.85, 0.10, 0.10]
-    roughness: 0.30          # lucido ≤ 0.2 · satinato 0.3-0.5 · opaco ≥ 0.6
-    specular: 0.5
-    metallic: 0.0            # flake metallizzato auto: 0.6-0.9
-    clearcoat: 0.0           # lucido/auto/smalto: 0.7-1.0
-    coat_roughness: 0.05
+    type: openpbr
+    base_color: [0.85, 0.10, 0.10]
+    specular_roughness: 0.30          # lucido ≤ 0.2 · satinato 0.3-0.5 · opaco ≥ 0.6
 ```
 
 ---
@@ -35,12 +33,12 @@ materials:
 ```yaml
 materials:
   - id: "plastica_lucida"
-    type: "disney"
-    color: [0.85, 0.12, 0.12]
-    roughness: 0.12
-    specular: 0.5
-    clearcoat: 0.6
+    type: openpbr
+    base_color: [0.85, 0.12, 0.12]
+    specular_roughness: 0.12
+    coat_weight: 0.6
     coat_roughness: 0.06
+    coat_ior: 1.5
 ```
 
 ## A2. Plastica opaca
@@ -48,10 +46,10 @@ materials:
 ```yaml
 materials:
   - id: "plastica_opaca"
-    type: "disney"
-    color: [0.20, 0.45, 0.70]
-    roughness: 0.55
-    specular: 0.3
+    type: openpbr
+    base_color: [0.20, 0.45, 0.70]
+    specular_roughness: 0.55
+    specular_weight: 0.6
 ```
 
 ## A3. Gomma nera
@@ -59,10 +57,10 @@ materials:
 ```yaml
 materials:
   - id: "gomma_nera"
-    type: "disney"
-    color: [0.03, 0.03, 0.035]
-    roughness: 0.75
-    specular: 0.2
+    type: openpbr
+    base_color: [0.03, 0.03, 0.035]
+    specular_roughness: 0.75
+    specular_weight: 0.4
 ```
 
 ## A4. Acrilico traslucido
@@ -70,17 +68,16 @@ materials:
 ```yaml
 materials:
   - id: "acrilico_traslucido"
-    type: "disney"
-    color: [0.85, 0.92, 0.95]
-    roughness: 0.06
-    specular: 0.5
-    spec_trans: 0.85
-    ior: 1.49
+    type: openpbr
+    base_color: [0.85, 0.92, 0.95]
+    specular_roughness: 0.06
+    transmission_weight: 0.85
+    specular_ior: 1.49
     transmission_color: [0.85, 0.95, 0.92]
     transmission_depth: 1.5
 ```
 
-Plexiglas/PMMA: trasmissivo come il vetro ma IOR più basso. `spec_trans` esplicito.
+Plexiglas/PMMA: trasmissivo come il vetro ma IOR più basso. `transmission_weight` esplicito.
 
 # Sezione B — Vernici
 
@@ -89,16 +86,16 @@ Plexiglas/PMMA: trasmissivo come il vetro ma IOR più basso. `spec_trans` esplic
 ```yaml
 materials:
   - id: "vernice_auto_rossa"
-    type: "disney"
-    color: [0.55, 0.04, 0.05]
-    metallic: 0.8
-    roughness: 0.28
-    specular: 0.5
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.55, 0.04, 0.05]
+    base_metalness: 0.8
+    specular_roughness: 0.28
+    coat_weight: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
 ```
 
-Fiocchi metallici (`metallic 0.8`, `roughness` media) sotto un `clearcoat`
+Fiocchi metallici (`base_metalness 0.8`, `specular_roughness` media) sotto un coat
 liscio a specchio: il look "carrozzeria". Cambia `color` per la tinta.
 
 ## B2. Vernice opaca (matte)
@@ -106,10 +103,10 @@ liscio a specchio: il look "carrozzeria". Cambia `color` per la tinta.
 ```yaml
 materials:
   - id: "vernice_opaca"
-    type: "disney"
-    color: [0.15, 0.16, 0.18]
-    roughness: 0.7
-    specular: 0.2
+    type: openpbr
+    base_color: [0.15, 0.16, 0.18]
+    specular_roughness: 0.7
+    specular_weight: 0.4
 ```
 
 ## B3. Smalto lucido
@@ -117,12 +114,12 @@ materials:
 ```yaml
 materials:
   - id: "smalto_bianco"
-    type: "disney"
-    color: [0.92, 0.92, 0.90]
-    roughness: 0.1
-    specular: 0.5
-    clearcoat: 0.85
+    type: openpbr
+    base_color: [0.92, 0.92, 0.90]
+    specular_roughness: 0.1
+    coat_weight: 0.85
     coat_roughness: 0.04
+    coat_ior: 1.5
 ```
 
 # Sezione C — Ceramiche
@@ -132,12 +129,13 @@ materials:
 ```yaml
 materials:
   - id: "ceramica_smaltata"
-    type: "disney"
-    color: [0.90, 0.88, 0.82]
-    roughness: 0.08
-    specular: 0.55
-    clearcoat: 0.9
+    type: openpbr
+    base_color: [0.90, 0.88, 0.82]
+    specular_roughness: 0.08
+    specular_weight: 1.1
+    coat_weight: 0.9
     coat_roughness: 0.03
+    coat_ior: 1.5
 ```
 
 Smalto ceramico: diffuso chiaro sotto un coat vetroso. Per piastrelle, stoviglie.
@@ -147,35 +145,33 @@ Smalto ceramico: diffuso chiaro sotto un coat vetroso. Per piastrelle, stoviglie
 ```yaml
 materials:
   - id: "porcellana_bianca"
-    type: "disney"
-    color: [0.95, 0.95, 0.94]
-    roughness: 0.12
-    specular: 0.5
-    clearcoat: 0.7
+    type: openpbr
+    base_color: [0.95, 0.95, 0.94]
+    specular_roughness: 0.12
+    coat_weight: 0.7
     coat_roughness: 0.05
-    spec_trans: 0.06
-    ior: 1.5
-    subsurface_radius: [0.30, 0.28, 0.25]
-    subsurface_anisotropy: 0.0
+    subsurface_weight: 0.06
+    subsurface_radius_scale: [0.30, 0.28, 0.25]
+    subsurface_color: [0.95, 0.95, 0.94]
+    coat_ior: 1.5
 ```
 
-Lieve traslucenza della porcellana sottile: `spec_trans` basso **esplicito** +
-`subsurface_radius` contenuto. Per tazze, statuine fini.
+Lieve traslucenza della porcellana sottile: `subsurface_weight` basso +
+raggio contenuto. Per tazze, statuine fini.
 
 ## C3. Ceramica opaca (terracotta)
 
 ```yaml
 materials:
   - id: "terracotta"
-    type: "disney"
-    color: [0.65, 0.32, 0.20]
-    texture:
+    type: openpbr
+    base_color:
       type: "noise"
       scale: 14.0
       octaves: 4
       noise_strength: 0.15
-    roughness: 0.7
-    specular: 0.25
+    specular_roughness: 0.7
+    specular_weight: 0.5
 ```
 
 ---
@@ -184,9 +180,9 @@ materials:
 
 | Caso d'uso | Preset | Note chiave |
 |------------|--------|-------------|
-| Oggetto plastica lucida | `plastica_lucida` | clearcoat medio |
+| Oggetto plastica lucida | `plastica_lucida` | coat medio |
 | Plastica tecnica opaca | `plastica_opaca`, `gomma_nera` | roughness alta |
-| Diffusore/lente plexiglas | `acrilico_traslucido` | spec_trans 0.85, ior 1.49 |
+| Diffusore/lente plexiglas | `acrilico_traslucido` | transmission_weight 0.85, specular_ior 1.49 |
 | Carrozzeria auto | `vernice_auto_rossa` | metallic flake + coat 1.0 |
 | Superficie verniciata opaca | `vernice_opaca` | no coat |
 | Sanitari/stoviglie smaltate | `ceramica_smaltata`, `smalto_bianco` | coat vetroso |

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  CRISTALLO — Bicchiere di vino in cristallo su tavolo di legno
 #
@@ -36,6 +37,7 @@
 #  WORLD — Ambiente scuro da galleria, cielo muto per riflessi nel vetro
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -45,7 +47,7 @@ world:
   ground:
     type: "infinite_plane"
     material: "pavimento_scacchi"
-    y: 0.0
+    point: [0, 0, 0]
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  CAMERAS
@@ -69,7 +71,7 @@ cameras:
     look_at:    [0.0, 1.65, 0.0]
     fov:        36
     aperture:   0.06
-    focal_dist: 3.4
+    focus_distance: 3.4
 
   # Vista alta drammatica: cattura bicchiere intero + ombra sul tavolo
   - name:       overhead
@@ -77,7 +79,7 @@ cameras:
     look_at:    [0.0, 1.6, 0.0]
     fov:        42
     aperture:   0.03
-    focal_dist: 3.7
+    focus_distance: 3.7
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -89,7 +91,7 @@ lights:
     position:  [-2.4, 3.5, -2.4]
     direction: [1.5, -1.0, 1.5]   # → [0.479, -0.747, 0.479] normalizzato
     color:     [1.0, 0.93, 0.82]
-    intensity: 140
+    intensity: 131.1716
     inner_angle: 12
     outer_angle: 48
 
@@ -103,7 +105,7 @@ lights:
     u:             [0.70, 0.0, 0.0]
     v:             [0.0, 0.0, 0.70]
     color:         [1.0, 0.97, 0.92]
-    intensity:     130
+    luminance:     126.45984
     shadow_samples: 6
 
 
@@ -115,40 +117,40 @@ materials:
   # ── Pavimento: scacchiera bianco/nero ──────────────────────────────────
   - id: "pavimento_scacchi"
     type: "lambertian"
-    texture:
+    color:
       type: "checker"
       scale: 1.8
       colors: [[0.85, 0.83, 0.80], [0.06, 0.06, 0.07]]
 
   # ── Tavolo: legno scuro venato ─────────────────────────────────────────
   - id: "legno_tavolo"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 4.5
       noise_strength: 3.0
       colors: [[0.62, 0.24, 0.12], [0.42, 0.14, 0.05]]
       randomize_offset: true
       randomize_rotation: true
-    roughness: 0.30
-    specular: 0.50
-    clearcoat: 0.75
+    specular_roughness: 0.30
+    coat_weight: 0.75
     coat_roughness: 0.10
+    coat_ior: 1.5
       
   # ── Gambe tavolo: legno più scuro ──────────────────────────────────────
   - id: "legno_gambe"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 4.5
       noise_strength: 3.0
       colors: [[0.62, 0.24, 0.12], [0.42, 0.14, 0.05]]
       randomize_offset: true
       randomize_rotation: true
-    roughness: 0.30
-    specular: 0.50
-    clearcoat: 0.75
+    specular_roughness: 0.30
+    coat_weight: 0.75
     coat_roughness: 0.10
+    coat_ior: 1.5
 
   # ── Cristallo al piombo ────────────────────────────────────────────────
   #    Disney con IOR 1.70 (lead crystal alto-PbO).
@@ -158,12 +160,12 @@ materials:
   #    di assorbimento al vetro e definisce un po' di più il bordo
   #    dell'ombra senza scurire eccessivamente.
   - id: "cristallo"
-    type: "disney"
-    color: [0.97, 0.97, 1.0]
-    roughness: 0.0
-    spec_trans: 1.0
-    ior: 1.70
-    specular: 0.90
+    type: openpbr
+    base_color: [0.97, 0.97, 1.0]
+    specular_roughness: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.70
+    specular_weight: 1.8
     transmission_color: [0.98, 0.98, 1.0]
     transmission_depth: 0.05
 
@@ -178,12 +180,12 @@ materials:
   #    Vicino al menisco/al bordo (~5 mm di cammino) restano rosa/rossi
   #    saturi, dando la classica tinta a "vetro pieno di rubino".
   - id: "vino_rosso"
-    type: "disney"
-    color: [0.55, 0.04, 0.06]
-    roughness: 0.0
-    spec_trans: 1.0
-    ior: 1.345
-    specular: 0.70
+    type: openpbr
+    base_color: [0.55, 0.04, 0.06]
+    specular_roughness: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.345
+    specular_weight: 1.4
     transmission_color: [0.55, 0.04, 0.06]
     # 0.06 (era 0.02): meno assorbente, così la caustica rifratta arriva al
     # tavolo come fuoco ROSSO visibile invece di spegnersi del tutto nel cammino

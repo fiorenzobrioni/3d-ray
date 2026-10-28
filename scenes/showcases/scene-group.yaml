@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ============================================================================
 # Group & Template Showcase
 # ============================================================================
@@ -9,6 +10,7 @@
 #   - Emissivi dentro gruppi per NEE
 # ============================================================================
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -29,7 +31,7 @@ cameras:
     look_at: [1.1, 1.2, 0.5]
     fov: 42
     aperture: 0.2
-    focal_dist: 10.5
+    focus_distance: 10.5
 
   # ── DoF estremo: stress test per il quartic solver ────────────────────
   - name: "dof_extreme"
@@ -37,7 +39,7 @@ cameras:
     look_at: [1.1, 1.2, 0.5]
     fov: 42
     aperture: 0.5
-    focal_dist: 10.5
+    focus_distance: 10.5
 
   # ── Closeup: primo piano sulla pedina per ispezionare il contorno ─────
   - name: "closeup"
@@ -45,7 +47,7 @@ cameras:
     look_at: [0, 0.25, 0]
     fov: 30
     aperture: 0.0
-    focal_dist: 1
+    focus_distance: 1
 
   # ── Zenitale: vista dall'alto per simmetria ───────────────────────────
   - name: "top"
@@ -53,15 +55,14 @@ cameras:
     look_at: [0, 0, 2]
     fov: 50
     aperture: 0.0
-    focal_dist: 10
+    focus_distance: 10
 
 materials:
   - id: "pavimento"
-    type: "disney"
-    roughness: 0.45
-    metallic: 0.0
-    specular: 0.0
-    texture:
+    type: openpbr
+    specular_roughness: 0.45
+    specular_weight: 0.0
+    base_color:
       type: "checker"
       colors: [[0.08, 0.08, 0.10], [0.18, 0.18, 0.20]]
       scale: 1.0
@@ -69,86 +70,83 @@ materials:
   - id: "luce_calda"
     type: "emissive"
     color: [1.0, 0.85, 0.6]
-    intensity: 12.0
+    luminance: 10.36608
 
   - id: "luce_fredda"
     type: "emissive"
     color: [0.7, 0.85, 1.0]
-    intensity: 8.0
+    luminance: 6.6315203
 
   - id: "gomma_nera"
-    type: "disney"
-    color: [0.05, 0.05, 0.05]
-    roughness: 0.8
+    type: openpbr
+    base_color: [0.05, 0.05, 0.05]
+    specular_roughness: 0.8
 
   # ─── Metalli (inline, autosufficienti) ────────────────────────────────────
   - id: "dis_ferro_battuto"
-    type: "disney"
-    color: [0.30, 0.28, 0.26]
-    metallic: 0.85
-    roughness: 0.62
-    specular: 0.35
+    type: openpbr
+    base_color: [0.30, 0.28, 0.26]
+    base_metalness: 0.85
+    specular_roughness: 0.62
+    specular_weight: 0.7
 
   - id: "dis_acciaio_spazzolato"
-    type: "disney"
-    color: [0.54, 0.53, 0.51]
-    metallic: 1.0
-    roughness: 0.38
-    specular: 0.55
-    anisotropic: 0.85
-    anisotropic_rotation: 0.0
+    type: openpbr
+    base_color: [0.54, 0.53, 0.51]
+    base_metalness: 1.0
+    specular_roughness: 0.38
+    specular_roughness_anisotropy: 0.765
 
   - id: "dis_bronzo_satinato"
-    type: "disney"
-    color: [0.72, 0.45, 0.20]
-    metallic: 1.0
-    roughness: 0.28
-    specular: 0.55
+    type: openpbr
+    base_color: [0.72, 0.45, 0.20]
+    base_metalness: 1.0
+    specular_roughness: 0.28
 
   # ─── Ceramiche (inline, autosufficienti) ──────────────────────────────────
   - id: "dis_porcellana_bianca"
-    type: "disney"
-    color: [0.95, 0.93, 0.88]
-    roughness: 0.12
-    specular: 0.8
-    clearcoat: 0.4
+    type: openpbr
+    base_color: [0.95, 0.93, 0.88]
+    specular_roughness: 0.12
+    specular_weight: 1.6
+    coat_weight: 0.4
     coat_roughness: 0.10
     coat_ior: 1.5
 
   - id: "dis_porcellana_blu"
-    type: "disney"
-    color: [0.10, 0.15, 0.55]
-    roughness: 0.10
-    specular: 0.85
-    clearcoat: 0.5
+    type: openpbr
+    base_color: [0.10, 0.15, 0.55]
+    specular_roughness: 0.10
+    specular_weight: 1.7
+    coat_weight: 0.5
     coat_roughness: 0.08
     coat_ior: 1.5
 
   - id: "dis_porcellana_nera"
-    type: "disney"
-    color: [0.03, 0.03, 0.04]
-    roughness: 0.06
-    specular: 0.9
-    clearcoat: 0.6
+    type: openpbr
+    base_color: [0.03, 0.03, 0.04]
+    specular_roughness: 0.06
+    specular_weight: 1.8
+    coat_weight: 0.6
     coat_roughness: 0.05
     coat_ior: 1.5
 
   - id: "dis_celadon_classico"
-    type: "disney"
-    color: [0.45, 0.62, 0.48]
-    roughness: 0.12
-    specular: 0.75
-    clearcoat: 0.5
+    type: openpbr
+    base_color: [0.45, 0.62, 0.48]
+    specular_roughness: 0.12
+    specular_weight: 1.5
+    coat_weight: 0.5
     coat_roughness: 0.10
     coat_ior: 1.5
 
   - id: "dis_raku_rame"
-    type: "disney"
-    color: [0.65, 0.35, 0.18]
-    roughness: 0.28
-    metallic: 0.55
-    specular: 0.7
-    specular_tint: 0.6
+    type: openpbr
+    base_color: [0.65, 0.35, 0.18]
+    specular_roughness: 0.28
+    base_metalness: 0.55
+    specular_weight: 1.4
+    specular_color: [1.3713429, 0.9230308, 0.6689873]
 
 # ============================================================================
 # LIGHTS: studio 3-point (key area calda, fill area fredda, rim point caldo)
@@ -159,20 +157,20 @@ lights:
     u: [2.0, 0.0, 0.0]
     v: [0.0, 0.0, 2.0]
     color: [1.0, 0.96, 0.90]
-    intensity: 45.0
+    luminance: 43.38774
 
   - type: "area"
     corner: [3.0, 3.0, -1.5]
     u: [1.2, 0.0, 0.0]
     v: [0.0, 0.0, 1.2]
     color: [0.72, 0.82, 1.0]
-    intensity: 15.0
+    luminance: 12.17604
     shadow_samples: 9
 
   - type: "point"
     position: [1.0, 4.5, 4.5]
     color: [1.0, 0.97, 0.88]
-    intensity: 55.0
+    intensity: 53.3434
     soft_radius: 0.12
 
 # ============================================================================

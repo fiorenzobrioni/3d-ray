@@ -57,16 +57,16 @@ Non aggiungere un tipo già presente (stesso nome o stessa posizione/angolo).
 - 35–45°: standard (hero, principale — aspetto naturale)
 - 46–55°: grandangolare (drammatica, contesto ampio)
 
-**Aperture e focal_dist:**
+**Aperture e focus_distance:**
 - `aperture: 0.0` → tutto a fuoco (zenitale, frontale, catalogo)
 - `aperture: 0.03–0.08` → bokeh leggero (hero, tre quarti)
 - `aperture: 0.10–0.20` → bokeh forte (macro, closeup)
-- `focal_dist` = distanza euclidea tra `position` e `look_at` (calcolare sempre)
+- `focus_distance` = distanza euclidea tra `position` e `look_at` (calcolare sempre), oppure `focus_point: [x, y, z]` sul soggetto
 
-**vup:**
-- Standard: `[0, 1, 0]`
+**up:**
+- Standard: `[0, 1, 0]` (default, ometterlo)
 - Zenitale: `[0, 0, -1]` o `[0, 0, 1]` (il pendolo/oggetto appare dritto)
-- Dutch angle: omettere vup e usare rotazione esplicita, oppure vup inclinato
+- Dutch angle: `up` inclinato
 
 ### 4. Inserimento nel YAML
 
@@ -77,16 +77,15 @@ Non aggiungere un tipo già presente (stesso nome o stessa posizione/angolo).
   - name:       <nome>
     position:   [X, Y, Z]
     look_at:    [X, Y, Z]
-    vup:        [0, 1, 0]      # solo se diverso dal default
+    up:         [0, 1, 0]      # solo se diverso dal default
     fov:        <valore>
     aperture:   <valore>
-    focal_dist: <valore>        # = distanza position→look_at
-    # Campi motion blur (solo per scene con entità animate):
-    # shutter_open:  0.0        # inizio esposizione (default 0)
-    # shutter_close: 1.0        # fine esposizione (default 1, = un frame intero)
+    focus_distance: <valore>    # = distanza position→look_at
+    # Motion blur (solo per scene con entità animate):
+    # shutter_interval: [0.0, 1.0]   # intervallo di esposizione (default [0, 1])
 ```
 
-`shutter_open`/`shutter_close` hanno effetto solo se la scena contiene entità con `keyframes:`. Per scene statiche, ometterli.
+`shutter_interval` ha effetto solo se la scena contiene entità con `motion:`. Per scene statiche, ometterlo.
 
 - Il commento decorativo usa `# ──` con padding di `─` fino a colonna ~72
 - Indentazione: 2 spazi per la lista, 4 spazi per i campi
@@ -102,12 +101,12 @@ Nomi camera in italiano, `snake_case`, descrittivi:
 ### 6. Checklist
 
 - [ ] Nome univoco (non duplicato tra le camere esistenti)
-- [ ] `focal_dist` ≈ distanza position→look_at
+- [ ] `focus_distance` ≈ distanza position→look_at
 - [ ] `aperture` ≥ 0 (mai negativa)
 - [ ] `fov` nel range 20–90°
-- [ ] `vup` coerente con il tipo di vista
+- [ ] `up` coerente con il tipo di vista
 - [ ] Commento decorativo prima di ogni camera
-- [ ] Se aperture > 0, focal_dist punta al soggetto principale (non un valore generico)
+- [ ] Se aperture > 0, focus_distance punta al soggetto principale (non un valore generico)
 
 ## Output
 

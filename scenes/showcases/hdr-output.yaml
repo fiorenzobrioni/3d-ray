@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  HDR Output Showcase — Camera Oscura
 #
@@ -30,6 +31,7 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 12  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   # Stanza buia: tutta la luce viene dalla lama emissiva (auto-NEE) e da un
   # fill appena percettibile — il contrasto estremo È la feature dimostrata.
@@ -39,7 +41,7 @@ world:
   ground:
     type: "infinite_plane"
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
 
 cameras:
   # ── Vista d'insieme: lama a sinistra, fila di stazioni, ombre a destra ──
@@ -62,7 +64,7 @@ materials:
   # --- Superfici della stanza ---
   - id: "pavimento"
     type: "lambertian"
-    texture:
+    color:
       type: "checker"
       scale: 1.2
       colors: [[0.18, 0.18, 0.19], [0.11, 0.11, 0.12]]
@@ -76,19 +78,19 @@ materials:
   - id: "lama_di_luce"
     type: "emissive"
     color: [1.0, 0.93, 0.82]
-    intensity: 60.0
+    luminance: 56.2164
 
   # 2. Cromo quasi perfetto: il riflesso della lama è un highlight speculare
   #    che il tone-mapping schiaccia a bianco ma l'EXR conserva.
   - id: "cromo"
     type: "metal"
     color: [0.95, 0.95, 0.96]
-    fuzz: 0.01
+    roughness: 0.01
 
   # 3. Vetro che concentra la lama in uno spot rifratto luminoso.
   - id: "vetro"
     type: "dielectric"
-    refraction_index: 1.52
+    ior: 1.52
 
   # 4. Dettaglio in ombra: albedo medio-basso ma NON nero — nel render i
   #    valori scendono a ~1e-3 e si recuperano alzando l'esposizione in post.
@@ -120,7 +122,7 @@ lights:
   - type: "point"
     position: [3.5, 4.0, -4.0]
     color: [0.6, 0.65, 0.8]
-    intensity: 0.5
+    intensity: 0.3251
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES

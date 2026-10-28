@@ -11,11 +11,11 @@ complex shapes by combining simple primitives with Boolean operations.
 
 CSG works with three operations:
 
-| Operation       | Aliases                        | Result                              |
-|-----------------|--------------------------------|-------------------------------------|
-| `union`         | --                             | Combined volume of both shapes      |
-| `intersection`  | --                             | Only the overlapping volume         |
-| `subtraction`   | `subtract`, `difference`       | Left shape minus the right shape    |
+| Operation       | Result                              |
+|-----------------|-------------------------------------|
+| `union`         | Combined volume of both shapes      |
+| `intersection`  | Only the overlapping volume         |
+| `subtraction`   | Left shape minus the right shape    |
 
 Every CSG entity has a `left` child and a `right` child. Each child is
 an inline entity definition: a primitive (sphere, box, cylinder, cone,
@@ -27,8 +27,8 @@ section.
 ```yaml
 - type: "csg"
   operation: "subtraction"
-  left: { ... }
-  right: { ... }
+  # left: { ... }
+  # right: { ... }
   material: "default_material"
 ```
 
@@ -377,6 +377,7 @@ it along each axis. The approach is:
 # sculptor-workshop.yaml
 # Several CSG objects demonstrating union, intersection, and subtraction.
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -394,39 +395,39 @@ lights:
     u: [8, 0, 0]
     v: [0, 0, 6]
     color: [1, 0.97, 0.93]
-    intensity: 30.0
+    luminance: 29.2
 
   - type: "point"
     position: [4, 3, -5]
     color: [0.75, 0.82, 1.0]
-    intensity: 25.0
+    intensity: 20.5
 
 materials:
   - id: "floor"
     type: "lambertian"
     color: [0.3, 0.28, 0.25]
   - id: "marble"
-    type: "disney"
-    color: [0.92, 0.90, 0.86]
-    roughness: 0.12
-    specular: 0.7
+    type: openpbr
+    base_color: [0.92, 0.90, 0.86]
+    specular_roughness: 0.12
+    specular_weight: 1.4
   - id: "glass"
     type: "dielectric"
-    refraction_index: 1.52
+    ior: 1.52
   - id: "steel"
-    type: "disney"
-    color: [0.7, 0.7, 0.72]
-    metallic: 1.0
-    roughness: 0.15
+    type: openpbr
+    base_color: [0.7, 0.7, 0.72]
+    base_metalness: 1.0
+    specular_roughness: 0.15
   - id: "gold_inside"
-    type: "disney"
-    color: [1.0, 0.76, 0.33]
-    metallic: 1.0
-    roughness: 0.05
+    type: openpbr
+    base_color: [1.0, 0.76, 0.33]
+    base_metalness: 1.0
+    specular_roughness: 0.05
   - id: "stone"
-    type: "disney"
-    roughness: 0.6
-    texture:
+    type: openpbr
+    specular_roughness: 0.6
+    base_color:
       type: "marble"
       scale: 8.0
       noise_strength: 4.0

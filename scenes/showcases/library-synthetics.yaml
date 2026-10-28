@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Synthetics Showcase — Materiali Tecnici Avanzati
 #
@@ -14,26 +15,26 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.03, 0.03, 0.04]
 
-camera:
-  position: [0, 1.8, -11.0]
-  look_at:  [0, 0.9, 0]
-  fov: 50
+cameras:
+  - position: [0, 1.8, -11.0]
+    look_at:  [0, 0.9, 0]
+    fov: 50
 
 materials:
 
   - id: "dis_carbonio_twill"
-    type: "disney"
-    color: [0.04, 0.04, 0.05]
-    roughness: 0.20
-    specular: 0.50
-    anisotropic: 0.85
-    anisotropic_rotation: 0.125
-    clearcoat: 0.95
+    type: openpbr
+    base_color: [0.04, 0.04, 0.05]
+    specular_roughness: 0.20
+    specular_roughness_anisotropy: 0.765
+    specular_rotation: 45
+    coat_weight: 0.95
     coat_roughness: 0.05
     coat_ior: 1.5
     bump_map:
@@ -47,14 +48,13 @@ materials:
       strength: 0.6
 
   - id: "dis_kevlar_giallo"
-    type: "disney"
-    color: [0.95, 0.78, 0.18]
-    roughness: 0.65
-    specular: 0.32
-    anisotropic: 0.60
-    anisotropic_rotation: 0.0
-    sheen: 0.30
-    sheen_roughness: 0.6
+    type: openpbr
+    base_color: [0.95, 0.78, 0.18]
+    specular_roughness: 0.65
+    specular_weight: 0.64
+    specular_roughness_anisotropy: 0.54
+    fuzz_weight: 0.30
+    fuzz_roughness: 0.6
     bump_map:
       texture:
         type: "voronoi"
@@ -63,34 +63,34 @@ materials:
         randomness: 0.3
         colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
       strength: 0.6
+    fuzz_color: [1.1146306, 1.004644, 0.61645633]
 
   - id: "dis_silicone_medicale"
-    type: "disney"
-    color: [0.94, 0.92, 0.90]
-    roughness: 0.25
-    specular: 0.45
-    spec_trans: 0.25
-    ior: 1.41
+    type: openpbr
+    base_color: [0.94, 0.92, 0.90]
+    specular_roughness: 0.25
+    specular_weight: 0.9
+    transmission_weight: 0.25
+    specular_ior: 1.41
     transmission_color: [0.95, 0.92, 0.88]
     transmission_depth: 0.5
 
   - id: "dis_vinile_chrome_rosa"
-    type: "disney"
-    metallic: 1.0
-    color: [0.95, 0.62, 0.78]
-    roughness: 0.05
-    specular: 0.6
-    clearcoat: 0.9
+    type: openpbr
+    base_metalness: 1.0
+    base_color: [0.95, 0.62, 0.78]
+    specular_roughness: 0.05
+    coat_weight: 0.9
     coat_roughness: 0.04
     coat_ior: 1.5
 
   - id: "dis_neoprene_foderato"
-    type: "disney"
-    color: [0.06, 0.06, 0.06]
-    roughness: 0.78
-    specular: 0.22
-    sheen: 0.40
-    sheen_roughness: 0.7
+    type: openpbr
+    base_color: [0.06, 0.06, 0.06]
+    specular_roughness: 0.78
+    specular_weight: 0.44
+    fuzz_weight: 0.40
+    fuzz_roughness: 0.7
     bump_map:
       texture:
         type: "voronoi"
@@ -99,16 +99,17 @@ materials:
         smoothness: 0.2
         colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
       strength: 0.5
+    fuzz_color: [1, 1, 1]
 
   - id: "floor"
-    type: "disney"
-    color: [0.16, 0.16, 0.17]
-    roughness: 0.65
+    type: openpbr
+    base_color: [0.16, 0.16, 0.17]
+    specular_roughness: 0.65
 
   - id: "backdrop"
-    type: "disney"
-    color: [0.06, 0.06, 0.07]
-    roughness: 0.92
+    type: openpbr
+    base_color: [0.06, 0.06, 0.07]
+    specular_roughness: 0.92
 
 entities:
 
@@ -171,15 +172,15 @@ lights:
   - type: "directional"
     direction: [-0.45, -0.75, 0.4]
     color: [1.0, 0.98, 0.95]
-    intensity: 5.5
+    illuminance: 5.401473
     angular_radius: 0.5
 
   - type: "point"
     position: [-6, 7, -3]
     color: [0.85, 0.92, 1.00]
-    intensity: 60
+    intensity: 54.65364
 
   - type: "point"
     position: [0, 3.5, 5]
     color: [1.0, 0.85, 0.62]
-    intensity: 50
+    intensity: 43.264202

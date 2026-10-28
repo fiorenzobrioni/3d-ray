@@ -71,6 +71,7 @@ namespace ChessGen
 
         static void EmitHeader(StringBuilder sb)
         {
+            sb.AppendLine("# yaml-language-server: $schema=../docs/reference/scene-schema.json");
             sb.AppendLine("# ═══════════════════════════════════════════════════════════════════════════");
             sb.AppendLine("#  Chess — Set Staunton, Apertura Italiana (Giuoco Piano)");
             sb.AppendLine("#");
@@ -89,6 +90,7 @@ namespace ChessGen
             sb.AppendLine("#    Finale:   -w 1920 -H 1080 -s 1024 -d 8  -S 4");
             sb.AppendLine("# ═══════════════════════════════════════════════════════════════════════════");
             sb.AppendLine();
+            sb.AppendLine("format_version: 2");
         }
 
         static void EmitWorld(StringBuilder sb)
@@ -107,12 +109,12 @@ namespace ChessGen
             sb.AppendLine("    sun:");
             sb.AppendLine("      direction: [-0.6, -0.8, -0.4]");
             sb.AppendLine("      color: [1.0, 0.96, 0.88]");
-            sb.AppendLine("      intensity: 2.0");
-            sb.AppendLine("      size: 2.5");
+            sb.AppendLine("      illuminance: 0.002878653");
+            sb.AppendLine("      angular_radius: 1.25");
             sb.AppendLine("  ground:");
             sb.AppendLine("    type: \"infinite_plane\"");
             sb.AppendLine("    material: \"table_wood\"");
-            sb.AppendLine("    y: -0.20");
+            sb.AppendLine("    point: [0, -0.2, 0]");
             sb.AppendLine();
         }
 
@@ -127,42 +129,42 @@ namespace ChessGen
             sb.AppendLine("    look_at:    [0, -0.2, 0]");
             sb.AppendLine("    fov:        45");
             sb.AppendLine("    aperture:   0.1");
-            sb.AppendLine("    focal_dist: 12.0");
+            sb.AppendLine("    focus_distance: 12.0");
             sb.AppendLine();
             sb.AppendLine("  - name:       macro           # Dettaglio sui Pezzi Centrali");
             sb.AppendLine("    position:   [1.5, 1.2, -4]");
             sb.AppendLine("    look_at:    [0, 0.8, 0]");
             sb.AppendLine("    fov:        25.0");
             sb.AppendLine("    aperture:   0.2");
-            sb.AppendLine("    focal_dist: 4.25");
+            sb.AppendLine("    focus_distance: 4.25");
             sb.AppendLine();
             sb.AppendLine("  - name:       hero            # Angolo Basso e Imponente");
             sb.AppendLine("    position:   [0.0, 0.5, -6.5]");
             sb.AppendLine("    look_at:    [0.0, 1.0, 0.5]");
             sb.AppendLine("    fov:        55.0");
             sb.AppendLine("    aperture:   0.1");
-            sb.AppendLine("    focal_dist: 7.0");
+            sb.AppendLine("    focus_distance: 7.0");
             sb.AppendLine();
             sb.AppendLine("  - name:       zenitale        # Vista dall'alto tattica");
             sb.AppendLine("    position:   [0.0, 12.0, 0.01]");
             sb.AppendLine("    look_at:    [0.0, 0.0, 0.0]");
             sb.AppendLine("    fov:        35.0");
             sb.AppendLine("    aperture:   0.0");
-            sb.AppendLine("    focal_dist: 12.0");
+            sb.AppendLine("    focus_distance: 12.0");
             sb.AppendLine();
             sb.AppendLine("  - name:       dutch           # Dinamica e Inclinata");
             sb.AppendLine("    position:   [6.0, 4.0, -6.0]");
             sb.AppendLine("    look_at:    [0.0, 0.5, 0.0]");
             sb.AppendLine("    fov:        40.0");
             sb.AppendLine("    aperture:   0.1");
-            sb.AppendLine("    focal_dist: 8.5");
+            sb.AppendLine("    focus_distance: 8.5");
             sb.AppendLine();
             sb.AppendLine("  - name:       pawns_eye       # Ad altezza pedina, Bokeh estremo");
             sb.AppendLine("    position:   [0.0, 0.4, -3.5]");
             sb.AppendLine("    look_at:    [0.0, 0.6, 2.0]");
             sb.AppendLine("    fov:        70.0");
             sb.AppendLine("    aperture:   0.3");
-            sb.AppendLine("    focal_dist: 3.5");
+            sb.AppendLine("    focus_distance: 3.5");
             sb.AppendLine();
         }
 
@@ -175,7 +177,7 @@ namespace ChessGen
 
             sb.AppendLine("  - id: \"table_wood\"");
             sb.AppendLine("    type: \"lambertian\"");
-            sb.AppendLine("    texture:");
+            sb.AppendLine("    color:");
             sb.AppendLine("      type: \"wood\"");
             sb.AppendLine("      scale: 4.0");
             sb.AppendLine("      noise_strength: 2.8");
@@ -186,7 +188,7 @@ namespace ChessGen
 
             sb.AppendLine("  - id: \"board_checker\"");
             sb.AppendLine("    type: \"lambertian\"");
-            sb.AppendLine("    texture:");
+            sb.AppendLine("    color:");
             sb.AppendLine("      type: \"checker\"");
             sb.AppendLine("      scale: 1.0");
             sb.AppendLine("      colors: [[0.82, 0.70, 0.48], [0.20, 0.11, 0.06]]");
@@ -194,7 +196,7 @@ namespace ChessGen
 
             sb.AppendLine("  - id: \"board_border\"");
             sb.AppendLine("    type: \"lambertian\"");
-            sb.AppendLine("    texture:");
+            sb.AppendLine("    color:");
             sb.AppendLine("      type: \"wood\"");
             sb.AppendLine("      scale: 1.8");
             sb.AppendLine("      noise_strength: 2.0");
@@ -202,22 +204,20 @@ namespace ChessGen
             sb.AppendLine();
 
             sb.AppendLine("  - id: \"piece_white\"");
-            sb.AppendLine("    type: \"disney\"");
-            sb.AppendLine("    color: [0.92, 0.84, 0.68]");
-            sb.AppendLine("    metallic: 0.0");
-            sb.AppendLine("    roughness: 0.28");
-            sb.AppendLine("    specular: 0.5");
-            sb.AppendLine("    clearcoat: 0.5");
+            sb.AppendLine("    type: openpbr");
+            sb.AppendLine("    base_color: [0.92, 0.84, 0.68]");
+            sb.AppendLine("    specular_roughness: 0.28");
+            sb.AppendLine("    coat_weight: 0.5");
+            sb.AppendLine("    coat_ior: 1.5");
             sb.AppendLine("    coat_roughness: 0.15");
             sb.AppendLine();
 
             sb.AppendLine("  - id: \"piece_black\"");
-            sb.AppendLine("    type: \"disney\"");
-            sb.AppendLine("    color: [0.05, 0.04, 0.035]");
-            sb.AppendLine("    metallic: 0.0");
-            sb.AppendLine("    roughness: 0.22");
-            sb.AppendLine("    specular: 0.5");
-            sb.AppendLine("    clearcoat: 0.6");
+            sb.AppendLine("    type: openpbr");
+            sb.AppendLine("    base_color: [0.05, 0.04, 0.035]");
+            sb.AppendLine("    specular_roughness: 0.22");
+            sb.AppendLine("    coat_weight: 0.6");
+            sb.AppendLine("    coat_ior: 1.5");
             sb.AppendLine("    coat_roughness: 0.10");
             sb.AppendLine();
         }
@@ -232,19 +232,19 @@ namespace ChessGen
             sb.AppendLine("  - type: \"point\"");
             sb.AppendLine("    position: [-3, 10, -4]");
             sb.AppendLine("    color: [1.0, 0.95, 0.9]");
-            sb.AppendLine("    intensity: 50");
+            sb.AppendLine("    intensity: 47.851");
             sb.AppendLine();
             sb.AppendLine("  # Fill Light — luce fredda più debole dall'altro lato, ammorbidisce le ombre");
             sb.AppendLine("  - type: \"point\"");
             sb.AppendLine("    position: [5, 6, -3]");
             sb.AppendLine("    color: [0.85, 0.85, 1.0]");
-            sb.AppendLine("    intensity: 20");
+            sb.AppendLine("    intensity: 17.216602");
             sb.AppendLine();
             sb.AppendLine("  # Back/Rim Light — luce posteriore per distaccare i pezzi dallo sfondo");
             sb.AppendLine("  - type: \"point\"");
             sb.AppendLine("    position: [0, 8, 6]");
             sb.AppendLine("    color: [1.0, 0.95, 0.85]");
-            sb.AppendLine("    intensity: 140");
+            sb.AppendLine("    intensity: 133.4774");
             sb.AppendLine();
         }
 

@@ -1,7 +1,9 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Validation scene (PIANO-REVIEW.md, Phase 5): measured metals with their
 # complex IOR (the same RGB n + ik Mitsuba uses), from mirror-like to rough.
 # Exact conductor Fresnel, GGX with height-correlated Smith. Multiple
 # scattering off, as Mitsuba has none.
+format_version: 2
 validation:
   width: 128
   height: 96
@@ -13,18 +15,18 @@ validation:
 world:
   sky: { type: "flat", color: [0.05, 0.05, 0.05] }
 
-camera:
-  position: [0.0, 1.6, 4.5]
-  look_at: [0.0, 0.8, 0.0]
-  vup: [0, 1, 0]
-  fov: 35
+cameras:
+  - position: [0.0, 1.6, 4.5]
+    look_at: [0.0, 0.8, 0.0]
+    up: [0, 1, 0]
+    fov: 35
 
 materials:
   - { id: "floor", type: "lambertian", color: [0.5, 0.5, 0.5] }
-  - { id: "gold", type: "metal", preset: "gold", fuzz: 0.25, multiple_scattering: false }
-  - { id: "copper", type: "metal", preset: "copper", fuzz: 0.5, multiple_scattering: false }
-  - { id: "alu", type: "metal", preset: "aluminium", fuzz: 0.05, multiple_scattering: false }
-  - { id: "panel", type: "emissive", color: [1, 1, 1], intensity: 8 }
+  - { id: "gold", type: "metal", preset: "gold", roughness: 0.25, multiple_scattering: false }
+  - { id: "copper", type: "metal", preset: "copper", roughness: 0.5, multiple_scattering: false }
+  - { id: "alu", type: "metal", preset: "aluminium", roughness: 0.05, multiple_scattering: false }
+  - { id: "panel", type: "emissive", color: [1, 1, 1], luminance: 8 }
 
 entities:
   - { type: "quad", q: [-4, 0, 4], u: [8, 0, 0], v: [0, 0, -8], material: "floor" }

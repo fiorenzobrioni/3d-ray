@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Woods Studio v2 Showcase — Sezione EXTENDED di woods.yaml
 #
@@ -15,28 +16,29 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 10 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.001, 0.001, 0.0012]
 
-camera:
-  position: [0, 1.6, -10.5]
-  look_at:  [0, 0.85, 0]
-  fov: 56
+cameras:
+  - position: [0, 1.6, -10.5]
+    look_at:  [0, 0.85, 0]
+    fov: 56
 
 materials:
   - id: "floor"
-    type: "disney"
-    color: [0.28, 0.28, 0.30]
-    roughness: 0.80
+    type: openpbr
+    base_color: [0.28, 0.28, 0.30]
+    specular_roughness: 0.80
 
   - id: "dis_rovere_quartato_medullary"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 4.5
-      grain_strength: 2.0
+      noise_strength: 2.0
       latewood_width: 0.20
       ring_sharpness: 4.5
       ring_color_variation: 0.22
@@ -57,17 +59,18 @@ materials:
         - { position: 0.30, color: [0.42, 0.25, 0.10], interp: "smoothstep" }
         - { position: 0.65, color: [0.78, 0.55, 0.30], interp: "smoothstep" }
         - { position: 1.00, color: [0.96, 0.82, 0.55], interp: "linear" }
-    roughness: 0.52
-    specular: 0.40
-    clearcoat: 0.30
+    specular_roughness: 0.52
+    specular_weight: 0.8
+    coat_weight: 0.30
     coat_roughness: 0.18
+    coat_ior: 1.5
 
   - id: "dis_acero_curly_max"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 5.5
-      grain_strength: 0.20
+      noise_strength: 0.20
       latewood_width: 0.14
       ring_sharpness: 5.5
       ring_color_variation: 0.10
@@ -82,17 +85,17 @@ materials:
         - { position: 0.45, color: [0.78, 0.62, 0.35], interp: "smoothstep" }
         - { position: 0.80, color: [0.92, 0.80, 0.58], interp: "smoothstep" }
         - { position: 1.00, color: [0.98, 0.92, 0.78], interp: "linear" }
-    roughness: 0.30
-    specular: 0.50
-    clearcoat: 0.65
+    specular_roughness: 0.30
+    coat_weight: 0.65
     coat_roughness: 0.08
+    coat_ior: 1.5
 
   - id: "dis_pino_nodoso_heavy"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 6.0
-      grain_strength: 0.8
+      noise_strength: 0.8
       latewood_width: 0.30
       ring_sharpness: 5.5
       ring_color_variation: 0.26
@@ -113,15 +116,15 @@ materials:
         - { position: 0.45, color: [0.55, 0.36, 0.16], interp: "smoothstep" }
         - { position: 0.80, color: [0.88, 0.72, 0.42], interp: "smoothstep" }
         - { position: 1.00, color: [0.98, 0.88, 0.62], interp: "linear" }
-    roughness: 0.55
-    specular: 0.38
+    specular_roughness: 0.55
+    specular_weight: 0.76
 
   - id: "dis_acero_birdseye"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 8.0
-      grain_strength: 0.25
+      noise_strength: 0.25
       latewood_width: 0.14
       ring_sharpness: 5.0
       ring_color_variation: 0.10
@@ -138,17 +141,18 @@ materials:
         - { position: 0.15, color: [0.55, 0.38, 0.18], interp: "smoothstep" }
         - { position: 0.60, color: [0.88, 0.75, 0.48], interp: "smoothstep" }
         - { position: 1.00, color: [0.98, 0.92, 0.72], interp: "linear" }
-    roughness: 0.28
-    specular: 0.45
-    clearcoat: 0.55
+    specular_roughness: 0.28
+    specular_weight: 0.9
+    coat_weight: 0.55
     coat_roughness: 0.08
+    coat_ior: 1.5
 
   - id: "dis_mogano_flame_studio"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 4.8
-      grain_strength: 0.40
+      noise_strength: 0.40
       latewood_width: 0.16
       ring_sharpness: 4.5
       ring_color_variation: 0.14
@@ -166,17 +170,18 @@ materials:
         - { position: 0.00, color: [0.20, 0.06, 0.03], interp: "smoothstep" }
         - { position: 0.50, color: [0.50, 0.18, 0.10], interp: "smoothstep" }
         - { position: 1.00, color: [0.74, 0.36, 0.22], interp: "linear" }
-    roughness: 0.28
-    specular: 0.52
-    clearcoat: 0.78
+    specular_roughness: 0.28
+    specular_weight: 1.04
+    coat_weight: 0.78
     coat_roughness: 0.08
+    coat_ior: 1.5
 
   - id: "dis_cedro_shousugiban"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 4.0
-      grain_strength: 0.40
+      noise_strength: 0.40
       latewood_width: 0.30
       ring_sharpness: 5.0
       ring_color_variation: 0.28
@@ -192,8 +197,8 @@ materials:
         - { position: 0.50, color: [0.06, 0.05, 0.04], interp: "smoothstep" }
         - { position: 0.85, color: [0.16, 0.12, 0.08], interp: "smoothstep" }
         - { position: 1.00, color: [0.32, 0.22, 0.12], interp: "linear" }
-    roughness: 0.88
-    specular: 0.20
+    specular_roughness: 0.88
+    specular_weight: 0.4
     displacement:
       mode: "vector"
       space: "tangent"
@@ -208,7 +213,7 @@ materials:
       bound: 0.018
       autobump: true
       autobump_strength: 1.5
-      displacement_method: "bump_only"
+      method: "bump_only"
 
 entities:
 
@@ -279,15 +284,15 @@ lights:
   - type: "directional"
     direction: [-0.4, -0.8, 0.45]
     color: [1.0, 0.98, 0.94]
-    intensity: 6.5
+    illuminance: 6.378866
     angular_radius: 0.6
 
   - type: "point"
     position: [-7, 6, -4]
     color: [0.90, 0.93, 1.00]
-    intensity: 55
+    intensity: 51.07718
 
   - type: "point"
     position: [0, 3.5, 5]
     color: [1.0, 0.82, 0.62]
-    intensity: 45
+    intensity: 37.97226

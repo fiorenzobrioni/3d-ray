@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Bump Map Showcase — Surface Displacement Stack, Step 1/5
 #
@@ -34,29 +35,30 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.01, 0.01, 0.015]
 
-camera:
-  position: [0, 1.5, -5]
-  look_at: [0, 1.5, 0]
-  fov: 50
+cameras:
+  - position: [0, 1.5, -5]
+    look_at: [0, 1.5, 0]
+    fov: 50
 
 materials:
 
   # ── A: nessun bump (riferimento piatto Disney chiaro) ──────────────────
   - id: "panel_flat"
-    type: "disney"
-    color: [0.55, 0.55, 0.58]
-    roughness: 0.40
+    type: openpbr
+    base_color: [0.55, 0.55, 0.58]
+    specular_roughness: 0.40
 
   # ── B: bump da Perlin/fBm procedurale ──────────────────────────────────
   - id: "panel_noise_bump"
-    type: "disney"
-    color: [0.55, 0.55, 0.58]
-    roughness: 0.40
+    type: openpbr
+    base_color: [0.55, 0.55, 0.58]
+    specular_roughness: 0.40
     bump_map:
       texture:
         type: "noise"
@@ -71,26 +73,26 @@ materials:
 
   # ── C: bump da marble (venature pseudo-rocciose direzionali) ───────────
   - id: "panel_marble_bump"
-    type: "disney"
-    color: [0.55, 0.55, 0.58]
-    roughness: 0.40
+    type: openpbr
+    base_color: [0.55, 0.55, 0.58]
+    specular_roughness: 0.40
     bump_map:
       texture:
         type: "marble"
         scale: 5.0
         vein_axis: [0, 1, 0]
-        vein_frequency: 3.0
-        vein_sharpness: 2.0
-        distortion: 0.6
+        # vein_frequency: 3.0
+        # vein_sharpness: 2.0
+        # distortion: 0.6
         colors: [[0, 0, 0], [1, 1, 1]]
       strength: 4.0
       scale: 1.0
 
   # ── D: bump da image (concrete greyscale) ──────────────────────────────
   - id: "panel_image_bump"
-    type: "disney"
-    color: [0.55, 0.55, 0.58]
-    roughness: 0.40
+    type: openpbr
+    base_color: [0.55, 0.55, 0.58]
+    specular_roughness: 0.40
     bump_map:
       texture:
         type: "image"
@@ -156,10 +158,10 @@ lights:
   - type: "point"
     position: [-12, 1.2, 0]
     color: [1.0, 0.95, 0.88]
-    intensity: 240
+    intensity: 229.33824
 
   # ── Fill dall'alto debole (riempie le zone in ombra senza appiattire) ──
   - type: "point"
     position: [0, 6, -3]
     color: [0.6, 0.7, 0.9]
-    intensity: 40
+    intensity: 27.7272

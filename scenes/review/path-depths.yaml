@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  path-depths.yaml - profondità per tipo di rimbalzo
 #  (PIANO-REVIEW.md, Fase 7)
@@ -30,6 +31,7 @@
 #                                            quattro cut-out
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -39,13 +41,13 @@ world:
   ground:
     type: "infinite_plane"
     material: "floor"
-    y: 0
+    point: [0, 0, 0]
 
-camera:
-  position: [0, 2.2, 9]
-  look_at: [0, 1.1, 0]
-  vup: [0, 1, 0]
-  fov: 34
+cameras:
+  - position: [0, 2.2, 9]
+    look_at: [0, 1.1, 0]
+    up: [0, 1, 0]
+    fov: 34
 
 materials:
   - { id: "floor", type: "lambertian", color: [0.6, 0.6, 0.6] }
@@ -74,4 +76,4 @@ entities:
   - { type: "quad", q: [1.44, 0.40, -3.18], u: [2.2, 0, 0], v: [0, 2.2, 0], material: "card" }
 
 lights:
-  - { type: "directional", direction: [-0.4, -1.0, -0.6], color: [1.0, 0.96, 0.9], intensity: 2.5 }
+  - { type: "directional", direction: [-0.4, -1.0, -0.6], color: [1.0, 0.96, 0.9], illuminance: 2.41043 }

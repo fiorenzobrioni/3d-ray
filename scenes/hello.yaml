@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # Hello World — una sfera rossa su un pavimento a scacchi, illuminata dal cielo.
 #
 # La scena minima del motore 3D-Ray. Quattro sezioni:
@@ -10,6 +11,7 @@
 #   dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
 #     -i scenes/hello -q draft-small -o renders/hello.png
 
+format_version: 2
 world:
   # Cielo a gradiente: fa anche da luce ambientale (illumina la scena).
   sky:
@@ -18,9 +20,10 @@ world:
     horizon_color: [0.8, 0.9, 1.0]   # chiaro all'orizzonte
     sun:                              # sole analitico per ombre nette
       direction: [-0.5, -1.0, -0.3]
-      intensity: 8.0
+      luminance:  8
+      angular_radius: 1.5
   # Pavimento infinito a scacchi; "y: 0" lo appoggia all'altezza zero.
-  ground: { type: "infinite_plane", material: "floor", y: 0 }
+  ground: { type: "infinite_plane", material: "floor", point: [0, 0, 0] }
 
 cameras:
   - name: "main"
@@ -31,7 +34,7 @@ cameras:
 materials:
   - id: "floor"              # materiale del pavimento: scacchiera procedurale
     type: "lambertian"       # diffuso opaco
-    texture:
+    color:
       type: "checker"
       scale: 2.0                              # dimensione delle caselle
       colors: [[0.8, 0.8, 0.8], [0.15, 0.15, 0.15]]

@@ -12,9 +12,8 @@ namespace RayTracer.Tests;
 /// <summary>
 /// Coverage for the <c>world.ground</c> block — the dispatcher that builds the
 /// floor geometry from a <see cref="GroundData"/> YAML record. Tests the
-/// type dispatch, the legacy <c>y</c>/<c>material</c> shorthand, the inline
-/// anonymous-material shortcut, the UV transform and per-ray-category
-/// visibility flags introduced with the v2 pro upgrade.
+/// type dispatch, <c>point</c>/<c>material</c>, the default material, the UV
+/// transform and per-ray-category visibility flags.
 ///
 /// <para>Tests load synthetic single-purpose YAML scenes from a temp file
 /// through <see cref="SceneLoader.Load"/> and then ray-cast against the
@@ -31,7 +30,7 @@ public class GroundTests
     private static string WriteTempScene(string yaml)
     {
         string path = Path.GetTempFileName();
-        File.WriteAllText(path, yaml);
+        File.WriteAllText(path, "format_version: 2\n" + yaml);
         return path;
     }
 
@@ -54,22 +53,21 @@ public class GroundTests
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  1. Legacy shorthand — `y` + `material` still works.
+    //  1. point + material.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void LegacyShorthand_YAndMaterial_ProducesInfinitePlaneAtY()
+    public void PointAndMaterial_ProduceInfinitePlaneThroughThePoint()
     {
         var (_, rec) = RayCast(
             """
             world:
               ground:
                 material: "matte"
-                y: 2.5
+                point: [0, 2.5, 0]
             materials:
               - id: "matte"
                 type: "lambertian"
-                color: [1, 1, 1]
             """,
             origin: new Vector3(0, 10, 0),
             dir:    new Vector3(0, -1, 0));
@@ -92,7 +90,6 @@ public class GroundTests
               ground:
                 type: "quad"
                 size: 5
-                color: [0.5, 0.5, 0.5]
             """,
             origin: new Vector3(0, 5, 0),
             dir:    new Vector3(0, -1, 0));
@@ -104,7 +101,6 @@ public class GroundTests
               ground:
                 type: "quad"
                 size: 5
-                color: [0.5, 0.5, 0.5]
             """,
             origin: new Vector3(20, 5, 0),
             dir:    new Vector3(0, -1, 0));
@@ -120,7 +116,6 @@ public class GroundTests
               ground:
                 type: "disk"
                 size: 3
-                color: [0.5, 0.5, 0.5]
             """,
             origin: new Vector3(0, 5, 0),
             dir:    new Vector3(0, -1, 0));
@@ -132,7 +127,6 @@ public class GroundTests
               ground:
                 type: "disk"
                 size: 3
-                color: [0.5, 0.5, 0.5]
             """,
             origin: new Vector3(10, 5, 0),
             dir:    new Vector3(0, -1, 0));
@@ -140,20 +134,21 @@ public class GroundTests
     }
 
     [Fact]
-    public void Type_Unknown_FallsBackToInfinitePlaneWithWarning()
+    public void Type_Unknown_IsAnError()
     {
-        // 'foobar' is not a real ground type — must not throw, must fall back.
-        var (_, rec) = RayCast(
+        // 'foobar' is not a ground type: the scene is refused, with the types.
+        string path = WriteTempScene(
             """
             world:
               ground:
                 type: "foobar"
-                y: 0
-                color: [1, 1, 1]
-            """,
-            origin: new Vector3(100, 10, 100),
-            dir:    new Vector3(0, -1, 0));
-        Assert.True(rec.T > 0, "Fallback infinite_plane should still receive the ray.");
+            """);
+        try
+        {
+            var ex = Assert.Throws<SceneFormatException>(() => SceneLoader.Load(path, 8, 8));
+            Assert.Contains("infinite_plane, quad, disk", ex.Message);
+        }
+        finally { File.Delete(path); }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -170,7 +165,6 @@ public class GroundTests
               ground:
                 point:  [0, 0, 0]
                 normal: [0, 1, 1]
-                color:  [1, 1, 1]
             """,
             origin: new Vector3(0, 5, 0),
             dir:    new Vector3(0, -1, 0));
@@ -183,27 +177,22 @@ public class GroundTests
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  4. Anonymous material shorthand.
+    //  4. Default material.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void InlineColor_NoMaterialBlock_BuildsAnonymousDisneyBsdf()
+    public void NoMaterial_IsGreyLambertian()
     {
         var (_, rec) = RayCast(
             """
             world:
-              ground:
-                color: [0.2, 0.4, 0.6]
-                roughness: 0.7
-                metallic: 0.1
+              ground: {}
             """,
             origin: new Vector3(0, 5, 0),
             dir:    new Vector3(0, -1, 0));
         Assert.True(rec.T > 0);
-        Assert.NotNull(rec.Material);
-        // The anonymous material must be a OpenPbr since metallic/roughness
-        // were specified.
-        Assert.IsType<OpenPbr>(rec.Material);
+        var lam = Assert.IsType<Lambertian>(rec.Material);
+        Assert.Equal(new Vector3(0.5f), lam.AovAlbedo(in rec));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -220,8 +209,7 @@ public class GroundTests
         var (_, recPlain) = RayCast(
             """
             world:
-              ground:
-                color: [1, 1, 1]
+              ground: {}
             """,
             origin: new Vector3(0.37f, 5, 0.91f),
             dir:    new Vector3(0, -1, 0));
@@ -230,7 +218,6 @@ public class GroundTests
             """
             world:
               ground:
-                color: [1, 1, 1]
                 uv_scale: [10, 10]
             """,
             origin: new Vector3(0.37f, 5, 0.91f),
@@ -247,8 +234,7 @@ public class GroundTests
         var (_, recPlain) = RayCast(
             """
             world:
-              ground:
-                color: [1, 1, 1]
+              ground: {}
             """,
             origin: new Vector3(0.25f, 5, 0.25f),
             dir:    new Vector3(0, -1, 0));
@@ -257,7 +243,6 @@ public class GroundTests
             """
             world:
               ground:
-                color: [1, 1, 1]
                 uv_offset: [0.5, 0]
             """,
             origin: new Vector3(0.25f, 5, 0.25f),
@@ -277,7 +262,6 @@ public class GroundTests
             """
             world:
               ground:
-                color: [1, 1, 1]
                 visibility:
                   camera: false
             """,
@@ -297,7 +281,6 @@ public class GroundTests
             """
             world:
               ground:
-                color: [1, 1, 1]
                 visibility:
                   shadow: false
             """,
@@ -314,8 +297,7 @@ public class GroundTests
         var (_, rec) = RayCast(
             """
             world:
-              ground:
-                color: [1, 1, 1]
+              ground: {}
             """,
             origin: new Vector3(0, 5, 0),
             dir:    new Vector3(0, -1, 0));

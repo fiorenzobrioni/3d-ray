@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  motion-blur-showcase.yaml — Motion Blur (feature #18)
 #
@@ -29,6 +30,7 @@
 #  Selezione camera:  -c otturatore-pieno   (oppure -c otturatore-corto)
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -38,7 +40,7 @@ world:
   ground:
     type: "infinite_plane"
     material: "floor"
-    y: 0
+    point: [0, 0, 0]
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  CAMERAS — stesso punto di vista, otturatore diverso
@@ -48,18 +50,18 @@ cameras:
   - name:       "otturatore-pieno"
     position:   [0.0, 2.6, 11.5]
     look_at:    [0.0, 1.1, 0.0]
-    vup:        [0, 1, 0]
+    up:         [0, 1, 0]
     fov:        50
-    shutter:    [0.0, 1.0]
+    shutter_interval: [0.0, 1.0]
 
   # Otturatore corto: esposizione 1/10 attorno a metà arco → moto quasi
   # congelato, scie ~10× più corte. Stessa inquadratura per confronto A/B.
   - name:       "otturatore-corto"
     position:   [0.0, 2.6, 11.5]
     look_at:    [0.0, 1.1, 0.0]
-    vup:        [0, 1, 0]
+    up:         [0, 1, 0]
     fov:        50
-    shutter:    [0.45, 0.55]
+    shutter_interval: [0.45, 0.55]
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -67,58 +69,61 @@ cameras:
 materials:
   # Pavimento: cemento lucido scuro, riflette le scie.
   - id: "floor"
-    type: "disney"
-    roughness: 0.45
-    metallic: 0.0
-    specular: 0.0
-    texture:
+    type: openpbr
+    specular_roughness: 0.45
+    specular_weight: 0.0
+    base_color:
       type: "checker"
       colors: [[0.08, 0.08, 0.10], [0.18, 0.18, 0.20]]
       scale: 1.5
 
   # Le 5 sfere a velocità crescente — gradiente freddo→caldo.
   - id: "v_slow"
-    type: "disney"
-    color: [0.15, 0.35, 0.85]
-    roughness: 0.22
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.15, 0.35, 0.85]
+    specular_roughness: 0.22
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.05
+    coat_ior: 1.5
   - id: "v_low"
-    type: "disney"
-    color: [0.15, 0.70, 0.80]
-    roughness: 0.22
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.15, 0.70, 0.80]
+    specular_roughness: 0.22
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.05
+    coat_ior: 1.5
   - id: "v_mid"
-    type: "disney"
-    color: [0.30, 0.78, 0.30]
-    roughness: 0.22
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.30, 0.78, 0.30]
+    specular_roughness: 0.22
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.05
+    coat_ior: 1.5
   - id: "v_high"
-    type: "disney"
-    color: [0.95, 0.75, 0.15]
-    roughness: 0.22
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.95, 0.75, 0.15]
+    specular_roughness: 0.22
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.05
+    coat_ior: 1.5
   - id: "v_fast"
-    type: "disney"
-    color: [0.92, 0.22, 0.14]
-    roughness: 0.22
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.92, 0.22, 0.14]
+    specular_roughness: 0.22
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.05
+    coat_ior: 1.5
 
   # Cubo a scacchi: la texture rende leggibile lo smear rotazionale.
   - id: "checker_box"
-    type: "disney"
-    roughness: 0.35
-    specular: 0.5
-    texture:
+    type: openpbr
+    specular_roughness: 0.35
+    base_color:
       type: "checker"
       scale: 0.5
       colors: [[0.85, 0.85, 0.88], [0.12, 0.12, 0.16]]
@@ -127,16 +132,17 @@ materials:
   - id: "glow"
     type: "emissive"
     color: [1.0, 0.55, 0.20]
-    intensity: 3.5
+    luminance: 2.1714
 
   # Gemelli istanziati: due tinte vivaci.
   - id: "twin_mat"
-    type: "disney"
-    color: [0.75, 0.30, 0.85]
-    roughness: 0.18
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.75, 0.30, 0.85]
+    specular_roughness: 0.18
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_roughness: 0.05
+    coat_ior: 1.5
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  TEMPLATES — usato dai gemelli istanziati (prova motion + instancing)
@@ -156,11 +162,11 @@ lights:
   - type: "point"
     position:    [-5.0, 8.0,  4.0]
     intensity: 160
-    visible_to_camera: false
+    # visibility: { camera: false }
   - type: "point"
     position:    [0.0, 6.0,  0.0]
     intensity: 50
-    visible_to_camera: false
+    # visibility: { camera: false }
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES

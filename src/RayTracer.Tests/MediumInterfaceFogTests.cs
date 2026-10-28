@@ -76,7 +76,8 @@ public class MediumInterfaceFogTests
             lights:          new List<ILight>(),
             sky:             new SkySettings(Vector3.One),
             samplesPerPixel: Spp,
-            maxDepth:        Depth);
+            maxDepth:        Depth,
+            displayTransform: new DisplayTransform(ViewTransform.Standard));
         var p = renderer.Render(Width, Height);
 
         // Center: rays cross the entire fog chord — heavily darkened.
@@ -90,7 +91,7 @@ public class MediumInterfaceFogTests
             $"Local fog should darken the bound interior much more than the env-only corners. " +
             $"center={center:F4}, corner={corner:F4}.");
         Assert.True(corner > 0.85f,
-            $"Corner pixels see env directly (radiance=1.0, post-tonemap ≈ 0.97). " +
+            $"Corner pixels see env directly (radiance 1.0, display 1.0 in the standard view). " +
             $"Got corner={corner:F4}; suspect medium leakage outside the bound entity.");
     }
 

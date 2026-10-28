@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Foggy Road — Nebbia Serale Londinese
 #
@@ -12,6 +13,7 @@
 #    Finale:   -w 1920 -H 1080 -s 1024 -d 10 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   # Un cielo serale profondo, essenziale per far risaltare il bagliore dei lampioni
   sky:
@@ -54,143 +56,137 @@ lights:
   # Lato Destro
   - type: "point"
     position: [-3.5, 3.75, 0]
-    radius: 0.15
+    # radius: 0.15
     color: [1.0, 0.6, 0.2]
-    intensity: 20.0
+    intensity: 13.123201
   - type: "point"
     position: [-3.5, 3.75, -10]
-    radius: 0.15
+    # radius: 0.15
     color: [1.0, 0.6, 0.2]
-    intensity: 20.0
+    intensity: 13.123201
   - type: "point"
     position: [-3.5, 3.75, -20]
-    radius: 0.15
+    # radius: 0.15
     color: [1.0, 0.6, 0.2]
-    intensity: 20.0
+    intensity: 13.123201
   - type: "point"
     position: [-3.5, 3.75, -30]
-    radius: 0.15
+    # radius: 0.15
     color: [1.0, 0.6, 0.2]
-    intensity: 20.0
+    intensity: 13.123201
   - type: "point"
     position: [-3.5, 3.75, -40]
-    radius: 0.15
+    # radius: 0.15
     color: [1.0, 0.6, 0.2]
-    intensity: 20.0
+    intensity: 13.123201
   - type: "point"
     position: [-3.5, 3.75, -50]
-    radius: 0.15
+    # radius: 0.15
     color: [1.0, 0.6, 0.2]
-    intensity: 20.0
+    intensity: 13.123201
 
   # Lato Sinistro
   - type: "point"
     position: [3.5, 3.75, 0]
-    radius: 0.15
+    # radius: 0.15
     color: [1.0, 0.6, 0.2]
-    intensity: 20.0
+    intensity: 13.123201
   - type: "point"
     position: [3.5, 3.75, -10]
-    radius: 0.15
+    # radius: 0.15
     color: [1.0, 0.6, 0.2]
-    intensity: 20.0
+    intensity: 13.123201
   - type: "point"
     position: [3.5, 3.75, -20]
-    radius: 0.15
+    # radius: 0.15
     color: [1.0, 0.6, 0.2]
-    intensity: 20.0
+    intensity: 13.123201
   - type: "point"
     position: [3.5, 3.75, -30]
-    radius: 0.15
+    # radius: 0.15
     color: [1.0, 0.6, 0.2]
-    intensity: 20.0
+    intensity: 13.123201
   - type: "point"
     position: [3.5, 3.75, -40]
-    radius: 0.15
+    # radius: 0.15
     color: [1.0, 0.6, 0.2]
-    intensity: 20.0
+    intensity: 13.123201
   - type: "point"
     position: [3.5, 3.75, -50]
-    radius: 0.15
+    # radius: 0.15
     color: [1.0, 0.6, 0.2]
-    intensity: 20.0
+    intensity: 13.123201
 
 materials:
   - id: "mat_asphalt"
-    type: "disney"
+    type: openpbr
     # Asfalto scuro e realistico: l'asfalto è la superficie PIÙ scura della
     # scena (più scura del cemento dei marciapiedi). Grana fine dell'inerte,
     # variazione di tono contenuta (niente chiazzoni da "strada sterrata").
-    color: [0.045, 0.045, 0.050]
-    texture:
+    base_color:
       type: "noise"
       noise_type: "fbm"
       scale: 4.5              # grana dell'aggregato + qualche chiazza media
       octaves: 4
       distortion: 0.30        # warp leggero: rompe la regolarità senza esagerare
       colors: [[0.026, 0.026, 0.030], [0.078, 0.078, 0.083]]
-    roughness: 0.80           # asfalto asciutto: prevalentemente matte/diffuso
     # Bagnato a chiazze LOCALIZZATE e CONTENUTE: lieve variazione di lucentezza,
     # mai veri specchi, così la strada non riflette i lampioni su tutta la
     # larghezza (era quello a darle l'aspetto chiaro/sterrato).
-    roughness_texture:
+    specular_roughness:
       type: "noise"
       noise_type: "fbm"
       scale: 0.9              # banchi a scala reale
       octaves: 3
       distortion: 0.4
       colors: [[0.58, 0.58, 0.58], [0.85, 0.85, 0.85]]
-    specular: 0.09            # velo riflesso appena accennato verso i lampioni
+    specular_weight: 0.18            # velo riflesso appena accennato verso i lampioni
     # NB: niente bump_map sull'asfalto. La camera guarda quasi radente lungo la
     # strada e qualsiasi rilievo (anche fbm debole) perturba le normali verso i
     # lampioni "sbiancando" il fondo stradale (bump aliasing a incidenza
     # radente). La disomogeneità viene dalla texture di colore e di roughness.
 
   - id: "mat_wet_grass"
-    type: "disney"
+    type: openpbr
     # Prato notturno. NB: i lampioni sono caldi/arancio ([1,0.6,0.2]); con un
     # verde scuro l'illuminazione arancio lo desatura a marrone/oliva e "non
     # sembra più verde". Per farlo restare verde sotto la luce calda alzo molto
     # il canale verde e tengo basso rosso/blu dell'albedo.
     # Verde scuro desaturato con chiazze di terra più scure.
-    color: [0.05, 0.15, 0.04]
-    texture:
+    base_color:
       type: "noise"
       noise_type: "fbm"
       scale: 3.0
       octaves: 4
       distortion: 0.6
       colors: [[0.02, 0.07, 0.02], [0.07, 0.17, 0.05]]
-    roughness: 0.85
-    specular: 0.08
+    specular_roughness: 0.85
+    specular_weight: 0.16
     # NB: niente bump_map sul prato. Le sponde lontane si vedono di taglio
     # (incidenza radente) e qualunque rilievo perturba le normali schiarendo
     # l'erba: l'ACES tone map la desatura verso il bianco ("prato bianco").
     # Senza bump il verde resta brillante e saturo come nella versione iniziale.
 
   - id: "mat_cast_iron"
-    type: "disney"
+    type: openpbr
     # Ghisa verniciata invecchiata (lampioni vittoriani): nero/antracite molto
     # scuro, semi-satinato. Variazione leggera di usura, niente effetto "metallo
     # grezzo arrugginito". È metallo, quindi metallic alto ma colore scurissimo.
-    color: [0.050, 0.052, 0.050]
-    texture:
+    base_color:
       type: "noise"
       noise_type: "fbm"
       scale: 3.5
       octaves: 4
       distortion: 0.3
       colors: [[0.035, 0.036, 0.035], [0.065, 0.067, 0.065]]
-    metallic: 0.80
-    roughness: 0.42           # vernice semi-satinata, superficie liscia
+    base_metalness: 0.80
     # Usura molto leggera: minima variazione di lucentezza, niente "ruggine"
-    roughness_texture:
+    specular_roughness:
       type: "noise"
       noise_type: "fbm"
       scale: 3.0
       octaves: 3
       colors: [[0.46, 0.46, 0.46], [0.56, 0.56, 0.56]]
-    specular: 0.5
     # Micro-rilievo della ghisa: fbm dolce e molto leggero (niente turbulence
     # ad alta frequenza che rendeva i pali granulosi/aggressivi)
     bump_map:
@@ -203,19 +199,17 @@ materials:
       strength: 0.10
 
   - id: "mat_sidewalk"
-    type: "disney"
+    type: openpbr
     # Cemento dei marciapiedi: grigio chiaro (PIÙ chiaro dell'asfalto), opaco e
     # ruvido. Sporcizia/scolorimento leggeri, senza chiazze esagerate.
-    color: [0.32, 0.32, 0.315]
-    texture:
+    base_color:
       type: "noise"
       noise_type: "fbm"
       scale: 2.2
       octaves: 3
       distortion: 0.2          # variazione di tono lieve e morbida
       colors: [[0.285, 0.285, 0.280], [0.345, 0.345, 0.340]]
-    roughness: 0.90            # cemento matte: più ruvido e opaco dell'asfalto
-    specular: 0.5
+    specular_roughness: 0.90            # cemento matte: più ruvido e opaco dell'asfalto
     # Rilievo del cemento: appena accennato (disomogeneità leggera, non
     # ciottolato aggressivo). Strength bassa anche per evitare il bump
     # aliasing a incidenza radente verso il fondo della via.
@@ -229,13 +223,13 @@ materials:
       strength: 0.15
 
   - id: "mat_dark_cloth"
-    type: "disney"
-    color: [0.04, 0.04, 0.04]  # Stoffa nera/grigio molto scura
-    roughness: 0.9             # Molto opaco per non riflettere luce diretta
-    sheen: 0.85
-    sheen_tint: 0.3
-    sheen_roughness: 0.40
-    specular: 0.10
+    type: openpbr
+    base_color: [0.04, 0.04, 0.04]  # Stoffa nera/grigio molto scura
+    specular_roughness: 0.9             # Molto opaco per non riflettere luce diretta
+    fuzz_weight: 0.85
+    fuzz_color: [1, 1, 1]
+    fuzz_roughness: 0.40
+    specular_weight: 0.2
 
 
 templates:

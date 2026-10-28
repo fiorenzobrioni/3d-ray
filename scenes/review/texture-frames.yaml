@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  texture-frames.yaml - frame tangente di normal map e bump
 #  (PIANO-REVIEW.md, Fase 4)
@@ -22,6 +23,7 @@
 #    -s 128 -w 960 -H 540 --denoiser none
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -31,12 +33,12 @@ world:
   ground:
     type: "infinite_plane"
     material: "floor"
-    y: 0
+    point: [0, 0, 0]
 
-camera:
-  position: [0, 3.4, -9]
-  look_at: [0, 0.9, 1.2]
-  fov: 40
+cameras:
+  - position: [0, 3.4, -9]
+    look_at: [0, 0.9, 1.2]
+    fov: 40
 
 lights:
   - type: "area"
@@ -44,7 +46,7 @@ lights:
     u: [2, 0, 0]
     v: [0, 0, 2]
     color: [1.0, 0.96, 0.9]
-    intensity: 30.0
+    luminance: 28.92516
     shadow_samples: 4
 
 materials:

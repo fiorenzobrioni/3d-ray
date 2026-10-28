@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  subdivision-creases.yaml - pieghe della suddivisione Catmull-Clark
 #  (PIANO-REVIEW.md, Fase 2)
@@ -19,6 +20,7 @@
 #  Render: -q draft-small (circa 15 s)
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -26,16 +28,16 @@ world:
     horizon_color: [0.8, 0.82, 0.85]
     ground_color:  [0.2, 0.2, 0.2]
 
-camera:
-  position: [0, 2.6, -6.2]
-  look_at:  [0, 0.45, 0]
-  fov: 34
+cameras:
+  - position: [0, 2.6, -6.2]
+    look_at:  [0, 0.45, 0]
+    fov: 34
 
 lights:
   - type: "point"
     position: [3, 5, -4]
     color: [1.0, 0.95, 0.9]
-    intensity: 120
+    intensity: 114.84241
 
 materials:
   - id: "floor"

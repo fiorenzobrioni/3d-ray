@@ -262,7 +262,7 @@ Con `--adaptive on` (path tracing, sampler Sobol, senza `--guiding` né `--refer
 La camera implementa il modello **thin-lens** per il depth of field:
 
 1. Il punto di origine del raggio viene perturbato casualmente all'interno di un disco di raggio `aperture / 2` sul piano della lente (o di un poligono regolare inscritto con `aperture_blades`, stirato in orizzontale da `aperture_ratio`; campionamento uniforme in `Camera.SampleAperture`). `focal_length`, `sensor_width` e `f_stop` sono convertiti in campo visivo e apertura da `SceneLoader.ApplyPhysicalCamera`.
-2. La direzione punta dal punto perturbato verso il punto corrispondente sul piano focale a distanza `focal_dist`.
+2. La direzione punta dal punto perturbato verso il punto corrispondente sul piano focale a distanza `focus_distance`.
 
 Con `aperture = 0` il disco degenera in un punto (pinhole) e tutti gli oggetti sono a fuoco.
 
@@ -397,7 +397,7 @@ Il fattore di shadow terminator è lo stesso della NEE (§4.5), perché appartie
 - **Lambertian** → campionamento cosine-weighted nell'emisfero
 - **Metal** → GGX con campionamento delle normali visibili più il lobo di scattering multiplo; `fuzz = 0` è uno specchio delta
 - **Dielectric** → liscio: riflessione o rifrazione delta scelta con Fresnel; rough: microfacet di Walter 2007, riflessione e trasmissione non-delta
-- **OpenPbr** (anche il tipo `disney`) → scelta stocastica di un lobo (fuzz, coat, metallo, interfaccia dielettrica, diffuso, subsurface sottile), poi `F` e `Pdf` dell'intera miscela nella direzione scelta; i lobi lisci sono delta
+- **OpenPbr** → scelta stocastica di un lobo (fuzz, coat, metallo, interfaccia dielettrica, diffuso, subsurface sottile), poi `F` e `Pdf` dell'intera miscela nella direzione scelta; i lobi lisci sono delta
 - **MixMaterial** → sceglie un figlio con probabilità pari al peso della miscela (vedi [MIS §5.3](./multiple-importance-sampling.md))
 
 ### 4.7 Limiti per tipo e Russian Roulette
@@ -490,10 +490,9 @@ pixels[j, i] = _display.Apply(linearColor * _exposureScale);
    - `agx` (default): Rec.2020, matrice di inset (avvicina le primarie al bianco, così la luce satura molto intensa sfuma verso il bianco invece di saturare un canale e virare di tinta), codifica log2 su 16.5 stop attorno a 0.18, sigmoide (polinomio di sesto grado), look opzionale (`--look punchy|golden`, CDL), outset, linearizzazione 2.2, ritorno in Rec.709.
    - `aces`: ACES 1.x Output Transform per schermo sRGB 100 nit (RRT con glow e red modifier, desaturazione globale, curve tonali segmentate, ODT con compensazione dim surround), trascritta dal CTL dell'Academy; verificata contro OpenColorIO entro 7e-4 di valore di schermo (`ColorManagementTests`).
    - `standard`: nessun tone mapping, taglio a [0, 1].
-   - `legacy`: la curva usata prima della review (approssimazione di Narkowicz applicata per canale, poi gamma 2.2 pura), conservata per riprodurre render precedenti.
 3. **Codifica sRGB** a tratti (IEC 61966-2-1), non una potenza 2.2: le due differiscono soprattutto nelle ombre.
 
-AgX e ACES sono curve diverse: un grigio 0.18 va a 0.50 con AgX, 0.36 con ACES 1.x, 0.55 con `legacy`.
+AgX e ACES sono curve diverse: un grigio 0.18 va a 0.50 con AgX, 0.36 con ACES 1.x.
 
 ---
 

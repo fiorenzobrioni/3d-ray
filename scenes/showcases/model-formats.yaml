@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  model-formats.yaml - modelli glTF 2.0, PLY e OBJ
 #  (PIANO-REVIEW.md, Fase 2)
@@ -22,6 +23,7 @@
 #  Render: -q draft-small
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -29,16 +31,16 @@ world:
     horizon_color: [0.85, 0.85, 0.85]
     ground_color:  [0.2, 0.2, 0.2]
 
-camera:
-  position: [0, 4.5, -11]
-  look_at:  [0, 1.2, 0]
-  fov: 36
+cameras:
+  - position: [0, 4.5, -11]
+    look_at:  [0, 1.2, 0]
+    fov: 36
 
 lights:
   - type: "point"
     position: [4, 8, -6]
     color: [1.0, 0.96, 0.9]
-    intensity: 400
+    intensity: 385.6688
 
 materials:
   - id: "floor"

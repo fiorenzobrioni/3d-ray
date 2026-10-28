@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Primitive Overview Showcase — Le 10 primitive geometriche del motore
 #
@@ -21,6 +22,7 @@
 #  `primitive-mesh-subdivision`. Per il terreno: `primitive-heightfield`.
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -30,7 +32,7 @@ world:
   ground:
     type: "infinite_plane"
     material: "pavimento"
-    y: 0.0
+    point: [0, 0, 0]
 
 cameras:
   - name: "principale"
@@ -48,33 +50,33 @@ cameras:
     look_at:  [0, 0.9, -0.7]
     fov: 32
     aperture: 0.03
-    focal_dist: 4.6
+    focus_distance: 4.6
 
 materials:
 
   # Pavimento: checker grigio neutro
   - id: "pavimento"
     type: "lambertian"
-    texture:
+    color:
       type: "checker"
       scale: 0.6
       colors: [[0.65, 0.65, 0.65], [0.32, 0.32, 0.32]]
 
   # Piedistalli: marmo bianco neutro
   - id: "piedistallo"
-    type: "disney"
-    color: [0.86, 0.86, 0.86]
-    roughness: 0.45
-    specular: 0.30
+    type: openpbr
+    base_color: [0.86, 0.86, 0.86]
+    specular_roughness: 0.45
+    specular_weight: 0.6
 
   # Materiale unico per tutte le primitive: ceramica color sabbia.
   # Roughness alta + leggero specular → la FORMA è leggibile, niente
   # riflessi che distraggono dalla silhouette.
   - id: "primitiva"
-    type: "disney"
-    color: [0.78, 0.66, 0.48]
-    roughness: 0.55
-    specular: 0.35
+    type: openpbr
+    base_color: [0.78, 0.66, 0.48]
+    specular_roughness: 0.55
+    specular_weight: 0.7
 
 entities:
 
@@ -118,7 +120,7 @@ entities:
 
   - name: "cone"
     type: "cone"
-    base_center: [2.5, 0.4, -0.7]
+    # base_center: [2.5, 0.4, -0.7]
     radius: 0.50
     height: 1.10
     material: "primitiva"
@@ -137,8 +139,8 @@ entities:
 
   - name: "capsule"
     type: "capsule"
-    point_a: [-5.0, 0.65, 1.8]
-    point_b: [-5.0, 1.55, 1.8]
+    # point_a: [-5.0, 0.65, 1.8]
+    # point_b: [-5.0, 1.55, 1.8]
     radius: 0.28
     material: "primitiva"
 
@@ -147,7 +149,7 @@ entities:
     center: [-2.5, 0.45, 1.8]
     normal: [0, 1, 0]
     inner_radius: 0.22
-    outer_radius: 0.55
+    # outer_radius: 0.55
     material: "primitiva"
 
   - name: "disk"
@@ -169,9 +171,9 @@ entities:
 
   - name: "triangle"
     type: "triangle"
-    a: [4.5, 0.45, 1.8]
-    b: [5.5, 0.45, 1.8]
-    c: [5.0, 1.55, 1.8]
+    # a: [4.5, 0.45, 1.8]
+    # b: [5.5, 0.45, 1.8]
+    # c: [5.0, 1.55, 1.8]
     material: "primitiva"
 
 lights:
@@ -180,17 +182,17 @@ lights:
   - type: "directional"
     direction: [-0.45, -0.70, 0.40]
     color: [1.0, 0.95, 0.86]
-    intensity: 4.5
+    illuminance: 4.293594
     angular_radius: 0.5
 
   # Fill dall'alto-destra fredda
   - type: "point"
     position: [4.5, 5.0, -3.0]
     color: [0.78, 0.85, 1.0]
-    intensity: 80
+    intensity: 67.67584
 
   # Rim caldo dietro
   - type: "point"
     position: [0.0, 2.5, 5.0]
     color: [1.0, 0.82, 0.55]
-    intensity: 55
+    intensity: 46.13257

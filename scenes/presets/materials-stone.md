@@ -6,13 +6,13 @@ vedi [`README.md`](README.md); schema completo in
 [`../../docs/reference/scene-reference.md`](../../docs/reference/scene-reference.md).
 
 > **Regola d'oro: opaco vs traslucido.** Il marmo lucido reale è **opaco** con una
-> sottile pelle lucida — non è vetro. Solo onice e alabastro sono davvero
-> traslucidi. Il motore, quando trova `subsurface_radius` e **nessun** `spec_trans`,
-> **auto-promuove** `spec_trans` a 1.0 (necessario perché il lobo di trasmissione
-> attivi il medium SSS random-walk). Quindi per un marmo opaco **non** mettere
-> `subsurface_radius`: dichiara la lucidatura con `clearcoat`. Per un marmo
-> traslucido autora **esplicitamente** `spec_trans`, `transmission_color`,
-> `transmission_depth`. Vedi [`../../docs/technical/subsurface-scattering.md`](../../docs/technical/subsurface-scattering.md).
+> sottile pelle lucida: non è vetro. Solo onice e alabastro sono davvero
+> traslucidi. Per un marmo opaco dichiara la lucidatura con il coat
+> (`coat_weight` + `coat_roughness` basso) e niente `subsurface_weight` né
+> `transmission_weight`. Per un marmo traslucido dai `subsurface_weight` con
+> `subsurface_color`, `subsurface_radius` e `subsurface_radius_scale` (il
+> loader costruisce il mezzo del random walk). Vedi
+> [`../../docs/technical/subsurface-scattering.md`](../../docs/technical/subsurface-scattering.md).
 
 ---
 
@@ -21,9 +21,9 @@ vedi [`README.md`](README.md); schema completo in
 ```yaml
 materials:
   - id: "stone_id"
-    type: "disney"
+    type: openpbr
     # ── Pattern procedurale (marmo) ──────────────────────────────────────
-    texture:
+    base_color:
       type: "marble"          # marble | noise | voronoi
       scale: 2.4
       colors: [[0.96,0.95,0.94], [0.32,0.34,0.40]]  # base, vena
@@ -40,18 +40,17 @@ materials:
       randomize_offset: true
       # color_ramp: [...] multi-stop per studio-grade
     # ── Superficie ───────────────────────────────────────────────────────
-    roughness: 0.10            # lucido ≤ 0.14 · levigato 0.30-0.45 · spacco ≥ 0.8
-    specular:  0.72
-    clearcoat: 0.90            # OPACO lucido: clearcoat alto, niente subsurface
+    specular_roughness: 0.10            # lucido ≤ 0.14 · levigato 0.30-0.45 · spacco ≥ 0.8
+    specular_weight: 1.44
+    coat_weight: 0.90            # OPACO lucido: coat alto, niente subsurface
     coat_roughness: 0.05
     coat_ior: 1.5
     # ── Traslucenza (SOLO onice/alabastro) ───────────────────────────────
-    spec_trans: 0.0            # opaco = 0 (esplicito) · onice 0.3-0.7 · alabastro 0.05-0.10
-    transmission_color: [0.88, 0.55, 0.18]
-    transmission_depth: 0.3    # Beer-Lambert: lo spessore conta
-    ior: 1.49
-    subsurface_radius: [0.85, 0.75, 0.55]   # SOLO traslucidi (gesso/onice)
-    subsurface_anisotropy: 0.1
+    subsurface_weight: 0.0            # opaco = 0 (esplicito) · onice 0.3-0.7 · alabastro 0.05-0.10
+    specular_ior: 1.49
+    subsurface_radius_scale: [0.85, 0.75, 0.55]   # SOLO traslucidi (gesso/onice)
+    subsurface_scatter_anisotropy: 0.1
+    subsurface_color: [1, 1, 1]
 ```
 
 ---
@@ -59,15 +58,15 @@ materials:
 # Sezione A — Marmi bianchi opachi lucidi
 
 Carrara/Calacatta/Statuario lucidati a specchio: opachi, lucentezza data dal
-`clearcoat`. **Nessun** `subsurface_radius` (eviterebbe l'auto-promozione a vetro).
+coat (`coat_weight`). **Nessun** `subsurface_weight`.
 
 ## A1. Carrara lucido
 
 ```yaml
 materials:
   - id: "carrara_lucido"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "marble"
       scale: 2.4
       colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
@@ -82,24 +81,23 @@ materials:
       fold_amplitude: [0.8, 0.25, 0.45]
       color_variation: 0.08
       randomize_offset: true
-    roughness: 0.10
-    specular: 0.72
-    clearcoat: 0.90
+    specular_roughness: 0.10
+    specular_weight: 1.44
+    coat_weight: 0.90
     coat_roughness: 0.05
     coat_ior: 1.5
-    spec_trans: 0.0
 ```
 
-Bianco caldo a vene grigio-blu sottili. La pelle lucida è il `clearcoat 0.90` su
-`roughness 0.10`; `spec_trans: 0` esplicito tiene la pietra opaca.
+Bianco caldo a vene grigio-blu sottili. La pelle lucida è il `coat_weight 0.90` su
+`specular_roughness 0.10`; senza subsurface la pietra resta opaca.
 
 ## A2. Calacatta lucido (vene dorate marcate)
 
 ```yaml
 materials:
   - id: "calacatta_lucido"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "marble"
       scale: 2.0
       colors: [[0.97, 0.96, 0.93], [0.62, 0.50, 0.30]]
@@ -114,12 +112,11 @@ materials:
       fold_amplitude: [0.9, 0.30, 0.50]
       color_variation: 0.07
       randomize_offset: true
-    roughness: 0.09
-    specular: 0.75
-    clearcoat: 0.92
+    specular_roughness: 0.09
+    specular_weight: 1.5
+    coat_weight: 0.92
     coat_roughness: 0.04
     coat_ior: 1.5
-    spec_trans: 0.0
 ```
 
 Vene oro/grigio più larghe e drammatiche del Carrara. Stesso impianto opaco-lucido.
@@ -129,8 +126,8 @@ Vene oro/grigio più larghe e drammatiche del Carrara. Stesso impianto opaco-luc
 ```yaml
 materials:
   - id: "statuario_lucido"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "marble"
       scale: 2.2
       colors: [[0.98, 0.97, 0.96], [0.30, 0.31, 0.36]]
@@ -145,12 +142,11 @@ materials:
       fold_amplitude: [0.75, 0.22, 0.40]
       color_variation: 0.05
       randomize_offset: true
-    roughness: 0.08
-    specular: 0.78
-    clearcoat: 0.93
+    specular_roughness: 0.08
+    specular_weight: 1.56
+    coat_weight: 0.93
     coat_roughness: 0.04
     coat_ior: 1.5
-    spec_trans: 0.0
 ```
 
 # Sezione B — Marmi scuri e levigati
@@ -160,8 +156,8 @@ materials:
 ```yaml
 materials:
   - id: "nero_marquinia_lucido"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "marble"
       scale: 2.2
       colors: [[0.05, 0.05, 0.06], [0.92, 0.90, 0.86]]
@@ -176,15 +172,14 @@ materials:
       fold_amplitude: [0.9, 0.30, 0.55]
       color_variation: 0.04
       randomize_offset: true
-    roughness: 0.07
-    specular: 0.80
-    clearcoat: 0.94
+    specular_roughness: 0.07
+    specular_weight: 1.6
+    coat_weight: 0.94
     coat_roughness: 0.04
     coat_ior: 1.5
-    spec_trans: 0.0
 ```
 
-Nero profondo a vene bianche nette. Il `clearcoat` alto dà il riflesso da lastra
+Nero profondo a vene bianche nette. Il coat alto dà il riflesso da lastra
 lucidata; clamp dei fireflies consigliato (vedi CLI tips).
 
 ## B2. Carrara levigato (honed, opaco matte)
@@ -192,8 +187,8 @@ lucidata; clamp dei fireflies consigliato (vedi CLI tips).
 ```yaml
 materials:
   - id: "carrara_levigato"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "marble"
       scale: 2.4
       colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
@@ -208,12 +203,11 @@ materials:
       fold_amplitude: [0.8, 0.25, 0.45]
       color_variation: 0.08
       randomize_offset: true
-    roughness: 0.38
-    specular: 0.40
-    spec_trans: 0.0
+    specular_roughness: 0.38
+    specular_weight: 0.8
 ```
 
-Levigatura fine senza lucidatura: niente `clearcoat`, `roughness 0.38`. Per
+Levigatura fine senza lucidatura: niente coat, `specular_roughness 0.38`. Per
 sculture, piani bagno, pavimenti opachi.
 
 # Sezione C — Marmi traslucidi (onice, alabastro)
@@ -225,9 +219,8 @@ Qui la trasmissione è **corretta** e va autorata esplicitamente.
 ```yaml
 materials:
   - id: "onice_miele"
-    type: "disney"
-    color: [0.92, 0.65, 0.32]
-    texture:
+    type: openpbr
+    base_color:
       type: "noise"
       scale: 2.5
       noise_type: "hetero_terrain"
@@ -239,29 +232,27 @@ materials:
         - { position: 0.00, color: [0.45, 0.22, 0.08], interp: "smoothstep" }
         - { position: 0.50, color: [0.78, 0.48, 0.18], interp: "smoothstep" }
         - { position: 1.00, color: [0.96, 0.78, 0.42], interp: "linear" }
-    roughness: 0.10
-    specular: 0.50
-    spec_trans: 0.65
-    ior: 1.486
-    transmission_color: [0.88, 0.55, 0.18]
-    transmission_depth: 0.3
-    subsurface_radius: [0.50, 0.35, 0.15]
-    clearcoat: 0.50
+    specular_roughness: 0.10
+    subsurface_weight: 0.65
+    specular_ior: 1.486
+    subsurface_radius_scale: [0.50, 0.35, 0.15]
+    coat_weight: 0.50
     coat_roughness: 0.08
     coat_ior: 1.5
+    subsurface_color: [0.92, 0.65, 0.32]
 ```
 
 Onice ambrato a bande, splendido **retroilluminato** (piano d'onice con luce
-dietro). `spec_trans 0.65` + `transmission_color/depth` danno la traslucenza
-colorata; `subsurface_radius` aggiunge la diffusione interna.
+dietro). `subsurface_weight 0.65` con `subsurface_color` ambra e
+`subsurface_radius_scale` danno la traslucenza colorata e la diffusione interna.
 
 ## C2. Alabastro bianco (gesso traslucido morbido)
 
 ```yaml
 materials:
   - id: "alabastro_bianco"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "marble"
       scale: 1.0
       colors: [[0.94, 0.92, 0.88], [0.85, 0.80, 0.72]]
@@ -276,16 +267,17 @@ materials:
       fold_amplitude: [0.55, 0.30, 0.45]
       color_variation: 0.10
       randomize_offset: true
-    roughness: 0.32
-    specular: 0.42
-    spec_trans: 0.08
-    ior: 1.52
-    subsurface_radius: [0.85, 0.75, 0.55]
-    subsurface_anisotropy: 0.1
+    specular_roughness: 0.32
+    specular_weight: 0.84
+    subsurface_weight: 0.08
+    specular_ior: 1.52
+    subsurface_radius_scale: [0.85, 0.75, 0.55]
+    subsurface_scatter_anisotropy: 0.1
+    subsurface_color: [1, 1, 1]
 ```
 
-Gesso traslucido: trasmissione bassa (`spec_trans 0.08`) ma forte diffusione
-sottosuperficiale (`subsurface_radius` alto). Tipicamente honed, niente clearcoat.
+Gesso traslucido: quota bassa (`subsurface_weight 0.08`) ma forte diffusione
+sottosuperficiale (raggio alto). Tipicamente honed, niente coat.
 
 # Sezione D — Graniti
 
@@ -294,8 +286,8 @@ sottosuperficiale (`subsurface_radius` alto). Tipicamente honed, niente clearcoa
 ```yaml
 materials:
   - id: "granito_grigio_lucido"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "noise"
       scale: 28.0
       octaves: 4
@@ -303,11 +295,11 @@ materials:
         - { position: 0.0, color: [0.18, 0.18, 0.20] }
         - { position: 0.5, color: [0.42, 0.42, 0.45] }
         - { position: 1.0, color: [0.78, 0.76, 0.74] }
-    roughness: 0.14
-    specular: 0.6
-    clearcoat: 0.7
+    specular_roughness: 0.14
+    specular_weight: 1.2
+    coat_weight: 0.7
     coat_roughness: 0.06
-    spec_trans: 0.0
+    coat_ior: 1.5
 ```
 
 ## D2. Nero assoluto lucido
@@ -315,18 +307,17 @@ materials:
 ```yaml
 materials:
   - id: "nero_assoluto_lucido"
-    type: "disney"
-    color: [0.04, 0.04, 0.045]
-    texture:
+    type: openpbr
+    base_color:
       type: "noise"
       scale: 36.0
       octaves: 3
       noise_strength: 0.10
-    roughness: 0.08
-    specular: 0.7
-    clearcoat: 0.85
+    specular_roughness: 0.08
+    specular_weight: 1.4
+    coat_weight: 0.85
     coat_roughness: 0.04
-    spec_trans: 0.0
+    coat_ior: 1.5
 ```
 
 # Sezione E — Travertino, mattone, cemento (opachi matte)
@@ -336,17 +327,16 @@ materials:
 ```yaml
 materials:
   - id: "travertino_chiaro"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "noise"
       scale: 12.0
       octaves: 5
       color_ramp:
         - { position: 0.0, color: [0.62, 0.55, 0.44] }
         - { position: 1.0, color: [0.86, 0.80, 0.68] }
-    roughness: 0.55
-    specular: 0.3
-    spec_trans: 0.0
+    specular_roughness: 0.55
+    specular_weight: 0.6
 ```
 
 ## E2. Mattone rosso
@@ -354,15 +344,14 @@ materials:
 ```yaml
 materials:
   - id: "mattone_rosso"
-    type: "disney"
-    color: [0.55, 0.22, 0.16]
-    texture:
+    type: openpbr
+    base_color:
       type: "noise"
       scale: 18.0
       octaves: 4
       noise_strength: 0.25
-    roughness: 0.85
-    specular: 0.15
+    specular_roughness: 0.85
+    specular_weight: 0.3
 ```
 
 ## E3. Cemento liscio
@@ -370,15 +359,14 @@ materials:
 ```yaml
 materials:
   - id: "cemento_liscio"
-    type: "disney"
-    color: [0.55, 0.55, 0.57]
-    texture:
+    type: openpbr
+    base_color:
       type: "noise"
       scale: 8.0
       octaves: 5
       noise_strength: 0.12
-    roughness: 0.65
-    specular: 0.2
+    specular_roughness: 0.65
+    specular_weight: 0.4
 ```
 
 ---
@@ -387,19 +375,19 @@ materials:
 
 | Caso d'uso | Preset | Note chiave |
 |------------|--------|-------------|
-| Piano/parete marmo bianco lucido | `carrara_lucido`, `statuario_lucido` | clearcoat 0.9, `spec_trans: 0` |
+| Piano/parete marmo bianco lucido | `carrara_lucido`, `statuario_lucido` | coat 0.9, niente subsurface |
 | Marmo bianco vene dorate marcate | `calacatta_lucido` | vene più larghe |
 | Marmo scuro lucido | `nero_marquinia_lucido` | clamp fireflies |
-| Scultura/bagno opaco | `carrara_levigato` | honed, no clearcoat |
-| Lastra/lampada retroilluminata | `onice_miele` | `spec_trans 0.65` + transmission |
-| Statua traslucida morbida | `alabastro_bianco` | SSS alto, spec_trans basso |
+| Scultura/bagno opaco | `carrara_levigato` | honed, niente coat |
+| Lastra/lampada retroilluminata | `onice_miele` | `subsurface_weight 0.65` |
+| Statua traslucida morbida | `alabastro_bianco` | SSS, `subsurface_weight` basso |
 | Piano cucina/pavimento granito | `granito_grigio_lucido`, `nero_assoluto_lucido` | grana noise fine |
-| Esterni/rustico | `travertino_chiaro`, `mattone_rosso`, `cemento_liscio` | matte, no clearcoat |
+| Esterni/rustico | `travertino_chiaro`, `mattone_rosso`, `cemento_liscio` | matte, niente coat |
 
 ## CLI tips
 
 ```bash
-# Marmo lucido / scuro a specchio: clampa i fireflies del clearcoat
+# Marmo lucido / scuro a specchio: clampa i fireflies del coat
 dotnet run --project src/RayTracer -- -i scena.yaml -C 25
 
 # Onice/alabastro traslucidi: SSS rumoroso → più profondità e campioni

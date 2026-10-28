@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  SSS RANDOM WALK #02 — Skin sphere (preset Jensen 2001 "skin1")
 #
@@ -20,6 +21,7 @@
 #    pelle): σ_s = σ_s' / (1 - g)  ≈  [9.25, 11.00, 12.62]
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -27,13 +29,13 @@ world:
     horizon_color: [0.04,  0.05,  0.07]
     ground_color:  [0.01,  0.01,  0.01]
 
-camera:
-  position: [0.0, 0.0, 2.8]
-  look_at:  [0.0, 0.0, 0.0]
-  vup:      [0, 1, 0]
-  fov:      30
-  aperture: 0.02
-  focal_dist: 2.8
+cameras:
+  - position: [0.0, 0.0, 2.8]
+    look_at:  [0.0, 0.0, 0.0]
+    up:       [0, 1, 0]
+    fov:      30
+    aperture: 0.02
+    focus_distance: 2.8
 
 mediums:
   - id: skin_int
@@ -45,12 +47,12 @@ mediums:
 
 materials:
   - id: skin_surface
-    type: disney
-    color: [1.0, 1.0, 1.0]
-    roughness: 0.30
-    specular: 0.5
-    spec_trans: 1.0
-    ior: 1.4
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.30
+    transmission_weight: 1.0
+    specular_ior: 1.4
+    transmission_color: [1, 1, 1]
 
 lights:
   # Area key bianca neutra da sinistra-alta (u × v normale -Y → emette in basso).
@@ -59,7 +61,7 @@ lights:
     u:         [ 1.6, 0.0, 0.0]
     v:         [ 0.0, 0.0, 1.0]
     color:     [1.0, 1.0, 1.0]
-    intensity: 30
+    luminance: 30
 
 entities:
   - name: "head"

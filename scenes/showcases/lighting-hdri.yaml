@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  HDRI / IBL Showcase — Environment-Lit Material Gallery
 #
@@ -23,12 +24,11 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "hdri"
     path: "hdri/newman_cafeteria_4k.hdr" # Percorso relativo al file YAML
-    intensity: 1.0                       # 1.0 = esposizione originale dell'HDR
-    rotation: 0                          # Gradi di rotazione Y (0–360)
   
 #  ground:
 #    type: "infinite_plane"
@@ -49,10 +49,10 @@ world:
 #     material: "pavimento"
 #     y: 0
 
-camera:
-  position: [0, 1.5, -5]
-  look_at: [0, 0.8, 0]
-  fov: 50
+cameras:
+  - position: [0, 1.5, -5]
+    look_at: [0, 0.8, 0]
+    fov: 50
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -62,30 +62,30 @@ materials:
   - id: "pavimento"
     type: "metal"
     color: [0.15, 0.15, 0.18]
-    fuzz: 0.4
+    roughness: 0.4
 
   # Specchio perfetto — riflessione HDRI nitida e completa
   - id: "specchio"
     type: "metal"
     color: [0.97, 0.97, 0.98]
-    fuzz: 0.0
+    roughness: 0.0
 
   # Oro lucido — riflesso HDRI con tinta calda
   - id: "oro"
     type: "metal"
     color: [0.85, 0.65, 0.12]
-    fuzz: 0.02
+    roughness: 0.02
 
   # Rame satinato — riflesso diffuso dell'HDRI
   - id: "rame"
     type: "metal"
     color: [0.72, 0.42, 0.18]
-    fuzz: 0.20
+    roughness: 0.20
 
   # Vetro — rifrazione dell'ambiente HDRI
   - id: "vetro"
     type: "dielectric"
-    refraction_index: 1.52
+    ior: 1.52
 
   # Diffuso bianco — riceve GI pura dall'HDRI
   - id: "bianco"

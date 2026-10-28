@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Environment Fog — Nebbia esponenziale con MIS volumetrico
 #
@@ -15,6 +16,7 @@
 #    Finale:   -w 1920 -H 1080 -s 512  -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -24,12 +26,12 @@ world:
     sun:
       direction: [-0.3, -0.55, -0.6]
       color:     [1.0, 0.95, 0.85]
-      intensity: 6.0
-      size:      2.0
+      luminance:  5.72046
+      angular_radius: 1
   ground:
     type: "infinite_plane"
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
   medium:
     type: height_fog
     sigma_a: [0.012, 0.014, 0.018]
