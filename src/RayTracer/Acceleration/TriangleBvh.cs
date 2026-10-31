@@ -42,8 +42,7 @@ public sealed class TriangleBvh : IHittable
             verts[3 * i + 2] = c;
             boxes[i] = new AABB(Vector3.Min(Vector3.Min(a, b), c) - pad, Vector3.Max(Vector3.Max(a, b), c) + pad);
         }
-        (_nodes, int[] order) = SpatialSplits ? SpatialSplitBuilder.Build(verts, padding) : BvhBuilder.Build(boxes);
-        // Leaf slots in order; with spatial splits a triangle can fill several.
+        (_nodes, int[] order) = BvhBuilder.Build(boxes);
         _vertices = new Vector3[3 * order.Length];
         _triangles = new IHittable[order.Length];
         for (int i = 0; i < order.Length; i++)
@@ -74,11 +73,6 @@ public sealed class TriangleBvh : IHittable
 
     public int NodeCount => _nodes.Length;
 
-    /// <summary>Leaf slots: the triangle count plus the spatial-split duplicates.</summary>
-    public int ReferenceCount => _triangles.Length;
-
-    /// <summary>Build with spatial splits (<see cref="SpatialSplitBuilder"/>).</summary>
-    public static bool SpatialSplits { get; set; }
 
     public AABB BoundingBox() => _box;
 
