@@ -1762,8 +1762,10 @@ color:
   uv_scale: [2, 1]                        # Fattore di piastrellatura (tiling)
   color_space: "srgb"                     # Opzionale: srgb | linear | raw
 ```
-- Supporta: PNG, JPEG, BMP, GIF, TIFF, WebP (8 o 16 bit per canale, letti a
-  piena precisione), più Radiance `.hdr` e OpenEXR `.exr` (sempre lineari)
+- Supporta: PNG (da 1 a 16 bit per canale, letti a piena precisione), JPEG
+  (baseline e progressivo), BMP, TGA, più Radiance `.hdr` e OpenEXR `.exr`
+  (sempre lineari). GIF, TIFF e WebP non sono letti: vanno convertiti (un PNG
+  a 16 bit per le mappe dati, EXR per i valori in virgola mobile)
 - `color_space` dice come leggere i valori salvati. Default per ruolo: una texture
   che dà un **colore** (`color`, `base_color`, `transmission_color`, ...) viene
   decodificata da sRGB; una texture che dà un **dato** (roughness, metallic, pesi,
@@ -2211,8 +2213,8 @@ Vedi `docs/technical/motion-blur.md` per l'algoritmo, e le scene
     stocastica), normal map ed emissione, e `KHR_materials_emissive_strength`,
     `_ior`, `_transmission`, `_volume` (senza, la trasmissione è a parete
     sottile), `_clearcoat`, `_sheen`, `_specular`, `_iridescence`,
-    `_anisotropy`, `_unlit`, `KHR_texture_transform`, `EXT_texture_webp`.
-    Non letti: punti e linee, skin e morph target (posa di riposo), colori
+    `_anisotropy`, `_unlit`, `KHR_texture_transform`, `EXT_texture_webp`
+    (attraverso l'immagine PNG o JPEG di riserva). Non letti: immagini WebP, punti e linee, skin e morph target (posa di riposo), colori
     per vertice, compressione Draco e meshopt, texture KTX2, mappe di
     occlusione.
   - **PLY** (ASCII, binario little e big endian): posizioni, normali

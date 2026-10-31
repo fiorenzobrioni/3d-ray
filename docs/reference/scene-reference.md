@@ -1732,8 +1732,10 @@ color:
   uv_scale: [2, 1]                        # Tiling factor
   color_space: "srgb"                     # Optional: srgb | linear | raw
 ```
-- Supports: PNG, JPEG, BMP, GIF, TIFF, WebP (8 or 16 bits per channel, read at
-  full precision), plus Radiance `.hdr` and OpenEXR `.exr` (always linear)
+- Supports: PNG (1 to 16 bits per channel, read at full precision), JPEG
+  (baseline and progressive), BMP, TGA, plus Radiance `.hdr` and OpenEXR
+  `.exr` (always linear). GIF, TIFF and WebP are not read: convert them (a
+  16-bit PNG for data maps, EXR for floating point)
 - `color_space` says how the stored values are read. Default by role: a texture
   that gives a **colour** (`color`, `base_color`, `transmission_color`, ...) is
   decoded from sRGB; a texture that gives **data** (roughness, metallic, weights,
@@ -2165,7 +2167,8 @@ See `docs/technical/motion-blur.md` for the algorithm, and the
     normal and emissive maps, and `KHR_materials_emissive_strength`, `_ior`,
     `_transmission`, `_volume` (without it transmission is thin-walled),
     `_clearcoat`, `_sheen`, `_specular`, `_iridescence`, `_anisotropy`,
-    `_unlit`, `KHR_texture_transform`, `EXT_texture_webp`. Not read: points
+    `_unlit`, `KHR_texture_transform`, `EXT_texture_webp` (through its PNG or
+    JPEG fallback image). Not read: WebP images, points
     and lines, skins and morph targets (rest pose), vertex colours, Draco and
     meshopt compression, KTX2 textures, occlusion maps.
   - **PLY** (ASCII, binary little and big endian): positions, normals

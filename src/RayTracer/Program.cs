@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.Numerics;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
+using RayTracer.Imaging;
 using RayTracer.Core.Sampling;
 using RayTracer.Denoising;
 using RayTracer.Rendering;
@@ -1004,46 +1002,31 @@ class Program
 
     static void SaveImage(Vector3[,] pixels, int width, int height, string path, int bitDepth, bool dither)
     {
+        // 16 bits only for PNG (65536 levels do not band, no dithering);
+        // JPEG and BMP hold 8.
         string ext = Path.GetExtension(path).ToLowerInvariant();
-        using var stream = File.Create(path);
-        if (bitDepth == 16)
-        {
-            // 16-bit PNG: no dithering needed, 65536 levels do not band.
-            using var image16 = new Image<Rgba64>(width, height);
-            for (int y = 0; y < height; y++)
-                for (int x = 0; x < width; x++)
-                {
-                    var c = pixels[y, x];
-                    image16[x, y] = new Rgba64(DisplayQuantizer.To16Bit(c.X), DisplayQuantizer.To16Bit(c.Y),
-                                               DisplayQuantizer.To16Bit(c.Z), ushort.MaxValue);
-                }
-            image16.SaveAsPng(stream, new PngEncoder { BitDepth = PngBitDepth.Bit16, ColorType = PngColorType.Rgb });
-            return;
-        }
-
-        using var image = new Image<Rgba32>(width, height);
+        bool sixteen = bitDepth == 16 && ext is not (".jpg" or ".jpeg" or ".bmp");
+        var image = new RasterImage(width, height, 3, sixteen ? 16 : 8);
+        var s = image.Samples;
         for (int y = 0; y < height; y++)
             for (int x = 0; x < width; x++)
             {
                 var c = pixels[y, x];
-                image[x, y] = new Rgba32(DisplayQuantizer.To8Bit(c.X, x, y, 0, dither),
-                                         DisplayQuantizer.To8Bit(c.Y, x, y, 1, dither),
-                                         DisplayQuantizer.To8Bit(c.Z, x, y, 2, dither), 255);
+                int o = (y * width + x) * 3;
+                if (sixteen)
+                {
+                    s[o] = DisplayQuantizer.To16Bit(c.X);
+                    s[o + 1] = DisplayQuantizer.To16Bit(c.Y);
+                    s[o + 2] = DisplayQuantizer.To16Bit(c.Z);
+                }
+                else
+                {
+                    s[o] = DisplayQuantizer.To8Bit(c.X, x, y, 0, dither);
+                    s[o + 1] = DisplayQuantizer.To8Bit(c.Y, x, y, 1, dither);
+                    s[o + 2] = DisplayQuantizer.To8Bit(c.Z, x, y, 2, dither);
+                }
             }
-
-        switch (ext)
-        {
-            case ".jpg":
-            case ".jpeg":
-                image.SaveAsJpeg(stream);
-                break;
-            case ".bmp":
-                image.SaveAsBmp(stream);
-                break;
-            default:
-                image.SaveAsPng(stream);
-                break;
-        }
+        ImageFile.Save(path, image, srgb: true);
     }
 
     /// <summary>

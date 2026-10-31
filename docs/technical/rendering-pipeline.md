@@ -500,7 +500,7 @@ AgX e ACES sono curve diverse: un grigio 0.18 va a 0.50 con AgX, 0.36 con ACES 1
 
 **File:** `Program.cs` · **Metodo:** `SaveImage()`
 
-L'array `Vector3[height, width]` (valori sRGB [0, 1]) viene quantizzato da `Rendering/DisplayQuantizer.cs` e convertito in immagine tramite ImageSharp. A 8 bit, per default, con dithering triangolare di ±1 livello (hash deterministico del pixel): toglie le bande nei gradienti morbidi e lascia ogni pixel con la media esatta (`--dither off` arrotonda e basta). `--bit-depth 16` scrive un PNG a 16 bit per canale. Il formato di output è determinato dall'estensione del file (`-o`): PNG (lossless, default), JPEG (lossy), BMP.
+L'array `Vector3[height, width]` (valori sRGB [0, 1]) viene quantizzato da `Rendering/DisplayQuantizer.cs` e scritto dai codec del motore (`Imaging/`: PNG, JPEG baseline a qualità 95 senza sottocampionamento del colore, BMP 24 bit; il PNG porta il chunk `sRGB`). A 8 bit, per default, con dithering triangolare di ±1 livello (hash deterministico del pixel): toglie le bande nei gradienti morbidi e lascia ogni pixel con la media esatta (`--dither off` arrotonda e basta). `--bit-depth 16` scrive un PNG a 16 bit per canale. Il formato di output è determinato dall'estensione del file (`-o`): PNG (lossless, default), JPEG (lossy), BMP.
 
 Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math.Clamp((int)(value * 255.999f), 0, 255)`.
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**3D-Ray** is a C#/.NET 10 path-tracing renderer. Scenes are described in YAML (scene format 2, `format_version: 2`), parsed into a scene graph, rendered in parallel across CPU cores, and written out as PNG/JPEG/BMP via `SixLabors.ImageSharp`. `README.md` is in English (primary); `README.it.md` is the Italian translation - both must stay in sync. `docs/` is bilingual EN+IT; the engine and code are in English.
+**3D-Ray** is a C#/.NET 10 path-tracing renderer. Scenes are described in YAML (scene format 2, `format_version: 2`), parsed into a scene graph, rendered in parallel across CPU cores, and written out as PNG/JPEG/BMP by the engine's own codecs (`Imaging/`: PNG 1-16 bit with Adam7, baseline/progressive JPEG, BMP, TGA; ImageSharp was removed in PIANO-REVIEW.md Phase 11). `README.md` is in English (primary); `README.it.md` is the Italian translation - both must stay in sync. `docs/` is bilingual EN+IT; the engine and code are in English.
 
 ## Common Commands
 

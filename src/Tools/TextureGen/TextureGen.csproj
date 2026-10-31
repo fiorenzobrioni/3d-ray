@@ -8,7 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <ProjectReference Include="..\..\RayTracer\RayTracer.csproj" />
+    <Compile Include="..\Shared\Rgba8Image.cs" Link="Rgba8Image.cs" />
   </ItemGroup>
 
 </Project>

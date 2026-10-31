@@ -4,8 +4,7 @@ using RayTracer.Geometry;
 using RayTracer.Materials;
 using RayTracer.Rendering;
 using RayTracer.Textures;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using RayTracer.Imaging;
 using Xunit;
 
 namespace RayTracer.Tests.Validation;
@@ -189,12 +188,12 @@ public class NormalAndBumpFrameTests
         string path = Path.Combine(Path.GetTempPath(), $"3dray-nm-{Guid.NewGuid():N}.png");
         float lean = 0.6f;
         ushort Enc(float x) => (ushort)MathF.Round((x * 0.5f + 0.5f) * 65535f);
-        using (var img = new Image<Rgba64>(2, 1))
         {
+            var img = new RasterImage(2, 1, 3, 16);
             float z = MathF.Sqrt(1 - lean * lean);
-            img[0, 0] = new Rgba64(Enc(lean), Enc(0), Enc(z), 65535);
-            img[1, 0] = new Rgba64(Enc(-lean), Enc(0), Enc(z), 65535);
-            img.SaveAsPng(path);
+            ushort[] texels = [Enc(lean), Enc(0), Enc(z), Enc(-lean), Enc(0), Enc(z)];
+            texels.CopyTo(img.Samples, 0);
+            Png.Save(path, img);
         }
         try
         {
