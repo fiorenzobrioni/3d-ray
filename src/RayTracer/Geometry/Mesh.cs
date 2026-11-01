@@ -64,6 +64,14 @@ public class Mesh : IHittable, ISamplable
     public IBumpMap? AutoBump { get; set; }
 
     /// <summary>
+    /// Added to the local point of a hit. A triangle's local point is its
+    /// point (the mesh's own coordinates); a mesh whose vertices the loader
+    /// moved into the render space (camera at the origin, PIANO-REVIEW.md
+    /// Phase 11) adds the move back, so its textures stay where they were.
+    /// </summary>
+    public Vector3 LocalPointOffset { get; set; }
+
+    /// <summary>
     /// Constructs a Mesh from a list of triangles and builds the internal BVH.
     /// </summary>
     /// <param name="triangles">The triangles (SmoothTriangle or Triangle) forming the mesh.</param>
@@ -111,9 +119,11 @@ public class Mesh : IHittable, ISamplable
     public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         bool hit = _bvh.Hit(ray, tMin, tMax, ref rec);
-        if (hit && AutoBump != null)
+        if (!hit) return false;
+        if (AutoBump != null)
             rec.AutoBump = AutoBump;
-        return hit;
+        rec.LocalPoint += LocalPointOffset;
+        return true;
     }
 
     /// <inheritdoc/>

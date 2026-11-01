@@ -21,7 +21,14 @@ public partial class SceneLoader
     /// <c>rotate_order</c>, default xyz: X first), then <c>translate</c>; or a
     /// <c>matrix</c> (16 numbers, row by row, acting on column vectors).
     /// </summary>
-    private static Matrix4x4 ComputeTransformMatrix(EntityData e)
+    private static Matrix4x4 ComputeTransformMatrix(EntityData e) => ComputeTransformMatrix(e, Double3.Zero);
+
+    /// <summary>
+    /// The transform followed by a translation of −<paramref name="shift"/>
+    /// (the render space), the translation computed in double before it
+    /// becomes float.
+    /// </summary>
+    private static Matrix4x4 ComputeTransformMatrix(EntityData e, Double3 shift)
     {
         if (e.Matrix != null)
         {
@@ -30,18 +37,21 @@ public partial class SceneLoader
             if (e.Matrix.Count == 16)
             {
                 var a = e.Matrix;
+                float F(int i) => (float)a[i];
                 // System.Numerics multiplies row vectors: the transpose.
-                return new Matrix4x4(a[0], a[4], a[8], a[12], a[1], a[5], a[9], a[13],
-                                     a[2], a[6], a[10], a[14], a[3], a[7], a[11], a[15]);
+                return new Matrix4x4(F(0), F(4), F(8), F(12), F(1), F(5), F(9), F(13),
+                                     F(2), F(6), F(10), F(14),
+                                     (float)(a[3] - shift.X), (float)(a[7] - shift.Y), (float)(a[11] - shift.Z), F(15));
             }
             Warn($"Entity '{e.Name ?? e.Type ?? "(unnamed)"}': 'matrix' needs 16 numbers (got {e.Matrix.Count}); ignored.");
-            return Matrix4x4.Identity;
+            return shift.IsZero ? Matrix4x4.Identity : Matrix4x4.CreateTranslation((Double3.Zero - shift).ToVector3());
         }
 
         var m = Matrix4x4.CreateScale(ParseScaleVector(e.Scale));
         m *= RotationMatrix(e.Rotate, e.RotateOrder);
-        if (e.Translate != null && e.Translate.Count >= 3)
-            m *= Matrix4x4.CreateTranslation(e.Translate[0], e.Translate[1], e.Translate[2]);
+        var t = (e.Translate is { Count: >= 3 } tr ? new Double3(tr[0], tr[1], tr[2]) : Double3.Zero) - shift;
+        if (!t.IsZero)
+            m *= Matrix4x4.CreateTranslation(t.ToVector3());
         return m;
     }
 
@@ -106,7 +116,8 @@ public partial class SceneLoader
     {
         string label = e.Name ?? e.Type ?? "(unnamed)";
 
-        var baseT = ToVector3(e.Translate) ?? Vector3.Zero;
+        // Translations in the current context (shifted at world level).
+        var baseT = Pos(e.Translate, Vector3.Zero);
         var baseR = RotationQuaternion(e.Rotate, e.RotateOrder);
         var baseS = ParseScaleVector(e.Scale);
 
@@ -130,7 +141,7 @@ public partial class SceneLoader
 
             byTime[t] = new MotionKey(
                 t,
-                k.Translate != null ? (ToVector3(k.Translate) ?? baseT) : baseT,
+                k.Translate != null ? (Pos(k.Translate) ?? baseT) : baseT,
                 k.Rotate != null ? RotationQuaternion(k.Rotate, e.RotateOrder) : baseR,
                 k.Scale != null ? ParseScaleVector(k.Scale) : baseS);
         }

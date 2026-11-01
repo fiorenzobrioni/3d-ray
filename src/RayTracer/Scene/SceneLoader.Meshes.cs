@@ -69,7 +69,8 @@ public partial class SceneLoader
         var imported = MeshImporter.Read(modelPath, warnings);
         ImportResult? result = imported == null ? null
             : MeshImporter.Build(imported, e.Material != null ? mat : null, overrides, mat,
-                                 subdivision, matDisp, seed, warnings);
+                                 subdivision, matDisp, seed, warnings,
+                                 shift: _shift);
         foreach (var w in warnings)
             Warn($"Mesh '{shown}': {w}");
         if (result == null)
@@ -103,6 +104,15 @@ public partial class SceneLoader
              (details.Count > 0 ? $" ({string.Join(", ", details)})" : ""));
 
         result.Hittable.Seed = seed;
+        // Vertices moved into the render space: textures read them where they were.
+        if (!_shift.IsZero)
+        {
+            var offset = _shift.ToVector3();
+            if (result.Hittable is Mesh single) single.LocalPointOffset = offset;
+            else if (result.Hittable is Group g)
+                foreach (var child in g.Children)
+                    if (child is Mesh m) m.LocalPointOffset = offset;
+        }
         return result.Hittable;
     }
 

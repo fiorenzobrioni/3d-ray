@@ -53,8 +53,8 @@ public class MediumData
     [YamlMember(Alias = "gain")] [OnlyFor("procedural")] public float Gain { get; set; } = 0.5f;
     [YamlMember(Alias = "seed")] [OnlyFor("procedural")] public int Seed { get; set; }
 
-    [YamlMember(Alias = "bounds_min")] [OnlyFor("grid")] public List<float>? BoundsMin { get; set; }
-    [YamlMember(Alias = "bounds_max")] [OnlyFor("grid")] public List<float>? BoundsMax { get; set; }
+    [YamlMember(Alias = "bounds_min")] [OnlyFor("grid")] public List<double>? BoundsMin { get; set; }
+    [YamlMember(Alias = "bounds_max")] [OnlyFor("grid")] public List<double>? BoundsMax { get; set; }
     [YamlMember(Alias = "nx")] [OnlyFor("grid")] public int Nx { get; set; }
     [YamlMember(Alias = "ny")] [OnlyFor("grid")] public int Ny { get; set; }
     [YamlMember(Alias = "nz")] [OnlyFor("grid")] public int Nz { get; set; }

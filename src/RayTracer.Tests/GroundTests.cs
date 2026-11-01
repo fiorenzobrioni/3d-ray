@@ -41,9 +41,13 @@ public class GroundTests
         try
         {
             var (world, _, _, _, _, _) = SceneLoader.Load(path, 64, 64);
+            // The scene is built in the render space (camera at the origin):
+            // the ray goes in, the hit point comes back to the world.
+            var o = SceneLoader.LastRenderOrigin;
             var rec = new HitRecord();
-            var ray = new Ray(origin, Vector3.Normalize(dir));
-            world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
+            var ray = new Ray(origin - o, Vector3.Normalize(dir));
+            if (world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec))
+                rec.Point += o;
             return (world, rec);
         }
         finally

@@ -175,6 +175,13 @@ public partial class SceneLoader
         _metersPerUnit = ParseLengthUnit(data.Units?.Length);
         _csgEmissiveWarningEmitted = false;
 
+        // The render space: the world translated so the camera (its base
+        // pose) sits at the origin. Fixed first: every position read from
+        // here on is shifted (SceneLoader.RenderSpace.cs).
+        var camData = ResolveCamera(data, cameraSelector);
+        _renderOrigin = Double3.From(camData.Position) ?? new Double3(0, 1, -5);
+        _shift = _renderOrigin;
+
         // Materials, in two passes so a mix can reference any material by id
         // (including another mix). Unresolved or cyclic references fall back
         // to a grey Lambertian with a warning.
@@ -293,15 +300,16 @@ public partial class SceneLoader
         // ── Pre-resolve camera for adaptive subdivision ───────────────────
         // The screen-space pixel-error heuristic needs the resolved camera
         // origin / forward axis / FOV before the mesh loader runs.
-        var camData        = ResolveCamera(data, cameraSelector);
+        // It measures in the world as written (the entity transforms it
+        // composes are not shifted either).
         var apertureShape  = ApplyPhysicalCamera(camData, (float)imageWidth / imageHeight);
-        var camPos         = ToVector3(camData.Position) ?? new Vector3(0, 1, -5);
-        var camLookAt      = ToVector3(camData.LookAt)   ?? Vector3.Zero;
+        var camPos         = Pos(camData.Position, new Vector3(0, 1, -5));
+        var camLookAt      = Pos(camData.LookAt, Vector3.Zero);
         var camForward     = camLookAt - camPos;
         if (camForward.LengthSquared() < 1e-8f) camForward = -Vector3.UnitZ;
         _currentScreenContext = new SubdivisionScreenContext
         {
-            CameraOrigin       = camPos,
+            CameraOrigin       = WorldPos(camData.Position) ?? new Vector3(0, 1, -5),
             CameraForward      = Vector3.Normalize(camForward),
             VerticalFovRadians = MathUtils.DegreesToRadians(camData.Fov),
             ImageHeight        = imageHeight,
@@ -326,7 +334,8 @@ public partial class SceneLoader
                          $"to the material instead.");
                 }
 
-                IHittable? hittable = e.Type switch
+                // Built and placed in the render space (SceneLoader.RenderSpace.cs).
+                IHittable? hittable = BuildPlaced(e, () => e.Type switch
                 {
                     "csg"         => CreateCsgEntity(e, mat, materials, idx),
                     "mesh"        => CreateMeshEntity(e, mat, materials, sceneDir, idx),
@@ -336,22 +345,16 @@ public partial class SceneLoader
                     "instance"    => CreateInstanceEntity(e, materials, templates, templateCache, sceneDir, idx),
                     "heightfield" => CreateHeightFieldEntity(e, mat, materials, sceneDir, idx),
                     _             => CreateEntity(e, mat, idx),
-                };
+                }, topLevel: true);
 
                 if (hittable != null)
                 {
                     // A motion block makes the transform an AnimatedTransform whose
-                    // key 0 is the entity's base pose.
+                    // key 0 is the entity's base pose (keys in the render space).
                     if (e.Motion is { Count: > 0 })
                     {
                         hittable = new AnimatedTransform(hittable, BuildMotionKeys(e));
                         sceneHasMotion = true;
-                    }
-                    else
-                    {
-                        var transform = ComputeTransformMatrix(e);
-                        if (transform != Matrix4x4.Identity)
-                            hittable = new Transform(hittable, transform);
                     }
                     // Visibility wraps the transformed entity, so the BVH still
                     // partitions by its world-space box; the medium binding wraps
@@ -408,12 +411,10 @@ public partial class SceneLoader
             world = new HittableList(objects);
         }
 
-        WarnIfFarFromOrigin(objects);
-
         float aspect  = (float)imageWidth / imageHeight;
         var camUp     = ToVector3(camData.Up) ?? Vector3.UnitY;
         // focus_point (a point in focus) wins over focus_distance.
-        float focusDist = ComputeFocusDistance(camPos, camLookAt, camData.FocusPoint, camData.FocusDistance);
+        float focusDist = ComputeFocusDistance(camPos, camLookAt, camData.FocusPoint, camData.FocusDistance, _shift);
         // Camera keyframes (base pose = key at time 0): the camera rebuilds
         // its basis at each ray's shutter time.
         var cameraMotion = BuildCameraMotionKeys(camData, camPos, camLookAt, camUp);
@@ -577,30 +578,6 @@ public partial class SceneLoader
     // =========================================================================
     // Utility helpers
     // =========================================================================
-
-    /// <summary>
-    /// Ray offsets are relative to the coordinates (MathUtils.RelativeOffset,
-    /// 2^-15: the float error of a hit point grows with its distance from the
-    /// origin). A scene far from the origin compared with its own size gets
-    /// offsets that are a visible part of it: contact shadows and thin parts
-    /// leak (PIANO-REVIEW.md Phase 11: at 100 km a 2-unit scene loses 6% of
-    /// its light). Warns from 1% of the scene radius.
-    /// </summary>
-    private static void WarnIfFarFromOrigin(List<IHittable> objects)
-    {
-        AABB box = AABB.Empty;
-        foreach (var o in objects)
-            if (!IsInfinitePlane(o)) box = AABB.SurroundingBox(box, o.BoundingBox());
-        if (box.Min.X > box.Max.X) return;
-        Vector3 far = Vector3.Max(Vector3.Abs(box.Min), Vector3.Abs(box.Max));
-        float distance = MathF.Max(far.X, MathF.Max(far.Y, far.Z));
-        float radius = MathF.Max(0.5f * (box.Max - box.Min).Length(), 1e-3f);
-        float offset = distance * MathUtils.RelativeOffset;
-        if (float.IsFinite(distance) && offset > 0.01f * radius)
-            Warn($"The scene lies up to {distance:N0} units from the origin, {distance / radius:F0} times its radius: "
-               + $"ray offsets grow with the coordinates ({offset:G3} units here) and can leak light through "
-               + "contacts and thin parts. Move the scene near the origin.");
-    }
 
     private static bool IsInfinitePlane(IHittable obj) => obj switch
     {

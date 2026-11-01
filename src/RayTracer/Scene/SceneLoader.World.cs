@@ -30,7 +30,7 @@ public partial class SceneLoader
     {
         IMaterial material = ResolveGroundMaterial(g, sky, materials);
 
-        Vector3 anchor = ToVector3(g.Point) ?? Vector3.Zero;
+        Vector3 anchor = Pos(g.Point, Vector3.Zero);
         Vector3 normal = ToVector3(g.Normal) ?? Vector3.UnitY;
         if (normal.LengthSquared() < 1e-12f)
         {

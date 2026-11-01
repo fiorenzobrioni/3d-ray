@@ -21,7 +21,7 @@ public class LightData
 
     [YamlMember(Alias = "position")]
     [OnlyFor("point", "spot", "sphere")]
-    public List<float>? Position { get; set; }
+    public List<double>? Position { get; set; }
 
     /// <summary>spot: the axis; directional: towards where the light travels; point: the axis of an IES profile.</summary>
     [YamlMember(Alias = "direction")]
@@ -84,7 +84,7 @@ public class LightData
     public string? Ies { get; set; }
 
     /// <summary>Rectangle: a corner and the two edges <c>u</c>, <c>v</c> (it emits on the side of u × v).</summary>
-    [YamlMember(Alias = "corner")] [OnlyFor("area", "portal")] public List<float>? Corner { get; set; }
+    [YamlMember(Alias = "corner")] [OnlyFor("area", "portal")] public List<double>? Corner { get; set; }
     [YamlMember(Alias = "u")] [OnlyFor("area", "portal")] public List<float>? U { get; set; }
     [YamlMember(Alias = "v")] [OnlyFor("area", "portal")] public List<float>? V { get; set; }
 

@@ -330,6 +330,8 @@ public partial class SceneLoader
             if (t.Rotation != null)     ct.Rotation  = ToVector3(t.Rotation) ?? Vector3.Zero;
             if (t.BoundsMin != null)    ct.BoundsMin = ToVector3(t.BoundsMin) ?? new Vector3(-1f);
             if (t.BoundsMax != null)    ct.BoundsMax = ToVector3(t.BoundsMax) ?? new Vector3( 1f);
+            // World mode shows the coordinates as written, not the render space's.
+            ct.WorldOffset = _renderOrigin.ToVector3();
         }
     }
 

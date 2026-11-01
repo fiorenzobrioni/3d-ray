@@ -20,22 +20,22 @@ public partial class SceneLoader
     {
         IHittable? entity = e.Type switch
         {
-            "sphere"         => new Sphere(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, mat),
+            "sphere"         => new Sphere(Pos(e.Center, Vector3.Zero), e.Radius, mat),
             "box"            => new Box(mat),
             "triangle"       => CreateTriangleEntity(e, mat),
             "quad"           => new Quad(
-                ToVector3(e.Q) ?? Vector3.Zero,
+                Pos(e.Q, Vector3.Zero),
                 ToVector3(e.U) ?? Vector3.UnitX,
                 ToVector3(e.V) ?? Vector3.UnitY, mat),
-            "cylinder"       => new Cylinder(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.Height, mat),
-            "cone"           => new Cone(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.TopRadius, e.Height, mat),
+            "cylinder"       => new Cylinder(Pos(e.Center, Vector3.Zero), e.Radius, e.Height, mat),
+            "cone"           => new Cone(Pos(e.Center, Vector3.Zero), e.Radius, e.TopRadius, e.Height, mat),
             "torus"          => CreateTorusEntity(e, mat),
             "lathe"          => CreateLatheEntity(e, mat),
             "extrusion"      => CreateExtrusionEntity(e, mat),
-            "capsule"        => new Capsule(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.Height, mat),
-            "annulus"        => new Annulus(ToVector3(e.Center) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, e.Radius, e.InnerRadius, mat),
-            "disk"           => new Disk(ToVector3(e.Center) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, e.Radius, mat),
-            "infinite_plane" => new InfinitePlane(ToVector3(e.Point) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, mat),
+            "capsule"        => new Capsule(Pos(e.Center, Vector3.Zero), e.Radius, e.Height, mat),
+            "annulus"        => new Annulus(Pos(e.Center, Vector3.Zero), ToVector3(e.Normal) ?? Vector3.UnitY, e.Radius, e.InnerRadius, mat),
+            "disk"           => new Disk(Pos(e.Center, Vector3.Zero), ToVector3(e.Normal) ?? Vector3.UnitY, e.Radius, mat),
+            "infinite_plane" => new InfinitePlane(Pos(e.Point, Vector3.Zero), ToVector3(e.Normal) ?? Vector3.UnitY, mat),
             // csg, mesh, group, instance and heightfield are built by their own
             // factories (they need the material and template dictionaries).
             _                => null
@@ -66,7 +66,11 @@ public partial class SceneLoader
             Warn($"HeightField entity '{e.Name ?? "(unnamed)"}' requires 'bounds: [xMin, zMin, xMax, zMax]'. Skipping.");
             return null;
         }
-        float xMin = e.Bounds[0], zMin = e.Bounds[1], xMax = e.Bounds[2], zMax = e.Bounds[3];
+        // Bounds in the render space; the texture of a procedural terrain is
+        // still read where the terrain stands in the world, and its altitude
+        // is moved by a translation (the terrain has no base height).
+        float xMin = (float)(e.Bounds[0] - _shift.X), zMin = (float)(e.Bounds[1] - _shift.Z);
+        float xMax = (float)(e.Bounds[2] - _shift.X), zMax = (float)(e.Bounds[3] - _shift.Z);
         if (xMax <= xMin || zMax <= zMin)
         {
             Warn($"HeightField entity '{e.Name ?? "(unnamed)"}': bounds must satisfy xMax>xMin and zMax>zMin. Skipping.");
@@ -148,7 +152,8 @@ public partial class SceneLoader
                 xMin, zMin, xMax, zMax,
                 tex, res,
                 e.HeightScale, fallbackMat,
-                e.SeaLevel, seaMat, strata);
+                e.SeaLevel, seaMat, strata,
+                sampleOffsetX: (float)_shift.X, sampleOffsetZ: (float)_shift.Z);
         }
         else
         {
@@ -157,6 +162,8 @@ public partial class SceneLoader
         }
 
         hf.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
+        if (_shift.Y != 0)
+            return new Transform(hf, Matrix4x4.CreateTranslation(0f, (float)-_shift.Y, 0f));
         return hf;
     }
 
@@ -176,9 +183,9 @@ public partial class SceneLoader
     {
         IHittable torus = new Torus(e.MajorRadius, e.MinorRadius, mat);
 
-        var center = ToVector3(e.Center);
-        if (center.HasValue && center.Value != Vector3.Zero)
-            torus = new Transform(torus, Matrix4x4.CreateTranslation(center.Value));
+        var center = Pos(e.Center, Vector3.Zero);
+        if (center != Vector3.Zero)
+            torus = new Transform(torus, Matrix4x4.CreateTranslation(center));
 
         return torus;
     }
@@ -273,9 +280,9 @@ public partial class SceneLoader
             return null;
         }
 
-        var center = ToVector3(e.Center);
-        if (center.HasValue && center.Value != Vector3.Zero)
-            lathe = new Transform(lathe, Matrix4x4.CreateTranslation(center.Value));
+        var center = Pos(e.Center, Vector3.Zero);
+        if (center != Vector3.Zero)
+            lathe = new Transform(lathe, Matrix4x4.CreateTranslation(center));
 
         return lathe;
     }
@@ -401,9 +408,9 @@ public partial class SceneLoader
             return null;
         }
 
-        var center = ToVector3(e.Center);
-        if (center.HasValue && center.Value != Vector3.Zero)
-            extrusion = new Transform(extrusion, Matrix4x4.CreateTranslation(center.Value));
+        var center = Pos(e.Center, Vector3.Zero);
+        if (center != Vector3.Zero)
+            extrusion = new Transform(extrusion, Matrix4x4.CreateTranslation(center));
 
         return extrusion;
     }
@@ -509,25 +516,12 @@ public partial class SceneLoader
             Warn($"CSG child '{child.Name ?? child.Type ?? "(unnamed)"}': 'motion' is only " +
                  $"supported on top-level entities — ignored. Animate the CSG entity itself.");
 
-        IHittable? hittable;
-        if (child.Type == "csg")
-        {
-            // Recursive CSG — child is itself a Boolean operation
-            hittable = CreateCsgEntity(child, mat, materials, childIndex);
-        }
-        else
-        {
-            hittable = CreateEntity(child, mat, childIndex);
-        }
- 
-        if (hittable == null) return null;
- 
-        // Apply child-level transforms (scale, rotate, translate)
-        var transform = ComputeTransformMatrix(child);
-        if (transform != Matrix4x4.Identity)
-            hittable = new Transform(hittable, transform);
- 
-        return hittable;
+        // A child of type "csg" is itself a Boolean operation (recursive).
+        // Placed by its transform, or with its own coordinates in the current
+        // context (the render space when the CSG itself has no transform).
+        return BuildPlaced(child, () => child.Type == "csg"
+            ? CreateCsgEntity(child, mat, materials, childIndex)
+            : CreateEntity(child, mat, childIndex));
     }
 
     /// <summary>
@@ -694,19 +688,18 @@ public partial class SceneLoader
                 ? childTransform * gw
                 : (Matrix4x4?)null;
 
-            IHittable? hittable = child.Type switch
+            // Placed by its transform, or with its own coordinates in the
+            // current context (the render space when the group has no transform).
+            IHittable? hittable = BuildPlaced(child, () => child.Type switch
             {
                 "csg"         => CreateCsgEntity(child, mat, materials, childIdx),
                 "mesh"        => CreateMeshEntity(child, mat, materials, sceneDir, childIdx),
                 "group"       => CreateGroupEntity(child, mat, materials, sceneDir, childIdx, childToWorld),
                 "heightfield" => CreateHeightFieldEntity(child, mat, materials, sceneDir, childIdx),
                 _             => CreateEntity(child, mat, childIdx),
-            };
+            });
 
             if (hittable == null) continue;
-
-            if (childTransform != Matrix4x4.Identity)
-                hittable = new Transform(hittable, childTransform);
 
             // A child's visibility composes with its group's (the masks OR).
             hittable = ApplyVisibility(hittable, child.Visibility);
@@ -727,10 +720,17 @@ public partial class SceneLoader
     /// </summary>
     private static IHittable CreateTriangleEntity(EntityData e, IMaterial mat)
     {
-        var v0 = ToVector3(e.V0) ?? Vector3.Zero;
-        var v1 = ToVector3(e.V1) ?? Vector3.UnitX;
-        var v2 = ToVector3(e.V2) ?? Vector3.UnitY;
- 
+        var v0 = Pos(e.V0, Vector3.Zero);
+        var v1 = Pos(e.V1, Vector3.UnitX);
+        var v2 = Pos(e.V2, Vector3.UnitY);
+        IHittable tri = BuildTriangle(e, v0, v1, v2, mat);
+        // A triangle's local point is its point: moved into the render space,
+        // it goes in a one-triangle mesh that adds the move back (textures).
+        return _shift.IsZero ? tri : new Mesh([tri], mat, 3) { LocalPointOffset = _shift.ToVector3() };
+    }
+
+    private static IHittable BuildTriangle(EntityData e, Vector3 v0, Vector3 v1, Vector3 v2, IMaterial mat)
+    {
         bool hasNormals = e.N0 != null && e.N1 != null && e.N2 != null;
  
         if (!hasNormals)

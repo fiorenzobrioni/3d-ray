@@ -111,6 +111,7 @@ public static partial class SceneSchema
         if (t == typeof(List<float>))
             return new JsonObject { ["anyOf"] = new JsonArray(Numbers(), new JsonObject { ["type"] = "number" }, Hex.DeepClone()) };
         if (t == typeof(List<List<float>>)) return new JsonObject { ["type"] = "array", ["items"] = Numbers() };
+        if (t == typeof(List<double>)) return Numbers();
         if (t == typeof(object))
             return new JsonObject { ["anyOf"] = new JsonArray(new JsonObject { ["type"] = "number" }, Numbers()) };
         if (t == typeof(MaterialParam))

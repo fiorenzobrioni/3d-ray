@@ -15,10 +15,10 @@ public class CameraData
     public string? Name { get; set; }
 
     [YamlMember(Alias = "position")]
-    public List<float>? Position { get; set; }
+    public List<double>? Position { get; set; }
 
     [YamlMember(Alias = "look_at")]
-    public List<float>? LookAt { get; set; }
+    public List<double>? LookAt { get; set; }
 
     /// <summary>Up direction, default <c>[0, 1, 0]</c>.</summary>
     [YamlMember(Alias = "up")]
@@ -62,7 +62,7 @@ public class CameraData
 
     /// <summary>A point in focus: wins over <c>focus_distance</c>.</summary>
     [YamlMember(Alias = "focus_point")]
-    public List<float>? FocusPoint { get; set; }
+    public List<double>? FocusPoint { get; set; }
 
     /// <summary>ISO of the physical exposure (with <c>shutter_speed</c> and <c>f_stop</c>).</summary>
     [YamlMember(Alias = "iso")]
@@ -92,8 +92,8 @@ public class CameraData
 public class CameraMotionKeyData
 {
     [YamlMember(Alias = "time")] public float Time { get; set; }
-    [YamlMember(Alias = "position")] public List<float>? Position { get; set; }
-    [YamlMember(Alias = "look_at")] public List<float>? LookAt { get; set; }
+    [YamlMember(Alias = "position")] public List<double>? Position { get; set; }
+    [YamlMember(Alias = "look_at")] public List<double>? LookAt { get; set; }
     [YamlMember(Alias = "up")] public List<float>? Up { get; set; }
     [YamlMember(Alias = "fov")] public float? Fov { get; set; }
 }

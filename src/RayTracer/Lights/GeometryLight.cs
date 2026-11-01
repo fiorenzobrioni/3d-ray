@@ -86,6 +86,13 @@ public class GeometryLight : ILight
     /// </summary>
     public IMaterial SurfaceMaterial { get; }
 
+    /// <summary>
+    /// Added to a sampled point where the emission texture is read: a light
+    /// in a scene built in the render space (camera at the origin,
+    /// PIANO-REVIEW.md Phase 11) reads it where the point stands in the world.
+    /// </summary>
+    public Vector3 TextureOffset { get; init; }
+
     public GeometryLight(ISamplable geometry, Emissive material, int shadowSamples = DefaultShadowSamples,
                          float softRadius = 0f, IMaterial? surfaceMaterial = null)
     {
@@ -120,7 +127,7 @@ public class GeometryLight : ILight
     // emission, representative for procedural or texture-based emission.
     public float ApproximatePower(AABB sceneBounds)
     {
-        Vector3 emission = Material.EmissionAt(0.5f, 0.5f, _representativePoint);
+        Vector3 emission = Material.EmissionAt(0.5f, 0.5f, _representativePoint + TextureOffset);
         return MathF.PI * _representativeArea * MathUtils.Luminance(emission);
     }
 
@@ -175,7 +182,7 @@ public class GeometryLight : ILight
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 
-        Vector3 emissiveColor = Material.EmissionAt(uv.X, uv.Y, samplePoint);
+        Vector3 emissiveColor = Material.EmissionAt(uv.X, uv.Y, samplePoint + TextureOffset);
         // Soft-radius clamp: floors distSq at SoftRadius² to prevent the
         // area·cosLight/d² estimator from diverging when a sample grazes the
         // receiver (particularly in dense volumetric media). The geometric
@@ -227,7 +234,7 @@ public class GeometryLight : ILight
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 
-        Vector3 emissiveColor = Material.EmissionAt(uv.X, uv.Y, samplePoint);
+        Vector3 emissiveColor = Material.EmissionAt(uv.X, uv.Y, samplePoint + TextureOffset);
         float attenuation = 1f / (pdf * ShadowSamples);
         return (false, emissiveColor * attenuation * trans, dirToLight, distance);
     }
@@ -280,7 +287,7 @@ public class GeometryLight : ILight
         Vector3 dir = EmissionMath.CosineHemisphere(normal, uDir, out float cos);
         e = new LightEmission
         {
-            Position = point, Direction = dir, Normal = normal, Radiance = Material.EmissionAt(uv.X, uv.Y, point),
+            Position = point, Direction = dir, Normal = normal, Radiance = Material.EmissionAt(uv.X, uv.Y, point + TextureOffset),
             PdfPos = 1f / area, PdfDir = cos / MathF.PI, Cos = cos,
         };
         return cos > 0f && e.Radiance != Vector3.Zero;

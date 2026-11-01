@@ -171,6 +171,11 @@ public class MotionBlurTests
         finally { File.Delete(path); }
     }
 
+    // The loaded world is in the render space (camera at the origin): a ray
+    // given in world coordinates goes in shifted by the render origin.
+    private static Ray WorldRay(Vector3 origin, Vector3 dir, float time) =>
+        new(origin - SceneLoader.LastRenderOrigin, dir, time);
+
     private const string SceneHeader = @"
 format_version: 2
 cameras:
@@ -202,11 +207,11 @@ entities:
         // The world hits the sphere at its base pose at t=0 and at the moved
         // pose at t=1 (proves the AnimatedTransform wrap + BVH routing).
         var rec = new HitRecord();
-        Assert.True(loaded.World.Hit(new Ray(new Vector3(0, 0.5f, 5), -Vector3.UnitZ, 0f), 1e-3f, 1e30f, ref rec));
+        Assert.True(loaded.World.Hit(WorldRay(new Vector3(0, 0.5f, 5), -Vector3.UnitZ, 0f), 1e-3f, 1e30f, ref rec));
         rec = new HitRecord();
-        Assert.True(loaded.World.Hit(new Ray(new Vector3(3, 0.5f, 5), -Vector3.UnitZ, 1f), 1e-3f, 1e30f, ref rec));
+        Assert.True(loaded.World.Hit(WorldRay(new Vector3(3, 0.5f, 5), -Vector3.UnitZ, 1f), 1e-3f, 1e30f, ref rec));
         rec = new HitRecord();
-        Assert.False(loaded.World.Hit(new Ray(new Vector3(3, 0.5f, 5), -Vector3.UnitZ, 0f), 1e-3f, 1e30f, ref rec));
+        Assert.False(loaded.World.Hit(WorldRay(new Vector3(3, 0.5f, 5), -Vector3.UnitZ, 0f), 1e-3f, 1e30f, ref rec));
     }
 
     [Fact]
@@ -275,7 +280,7 @@ entities:
         Assert.True(loaded.Camera.HasMotion);
 
         // Pinhole origin tracks the interpolated pose.
-        Assert.True((loaded.Camera.GetRay(0.5f, 0.5f, 1f).Origin - new Vector3(2f, 1f, 5f)).Length() < 1e-4f);
+        Assert.True((loaded.Camera.GetRay(0.5f, 0.5f, 1f).Origin + SceneLoader.LastRenderOrigin - new Vector3(2f, 1f, 5f)).Length() < 1e-4f);
     }
 
     [Fact]
@@ -295,9 +300,9 @@ entities:
 ");
         Assert.True(loaded.Motion.Active);
         var rec = new HitRecord();
-        Assert.True(loaded.World.Hit(new Ray(new Vector3(3, 0.5f, 5), -Vector3.UnitZ, 1f), 1e-3f, 1e30f, ref rec));
+        Assert.True(loaded.World.Hit(WorldRay(new Vector3(3, 0.5f, 5), -Vector3.UnitZ, 1f), 1e-3f, 1e30f, ref rec));
         rec = new HitRecord();
-        Assert.False(loaded.World.Hit(new Ray(new Vector3(3, 0.5f, 5), -Vector3.UnitZ, 0f), 1e-3f, 1e30f, ref rec));
+        Assert.False(loaded.World.Hit(WorldRay(new Vector3(3, 0.5f, 5), -Vector3.UnitZ, 0f), 1e-3f, 1e30f, ref rec));
     }
 
     [Fact]
@@ -343,6 +348,6 @@ entities:
         // Child motion is warn-and-ignore: nothing animates, blur stays off.
         Assert.False(loaded.Motion.Active);
         var rec = new HitRecord();
-        Assert.True(loaded.World.Hit(new Ray(new Vector3(0, 0.5f, 5), -Vector3.UnitZ, 1f), 1e-3f, 1e30f, ref rec));
+        Assert.True(loaded.World.Hit(WorldRay(new Vector3(0, 0.5f, 5), -Vector3.UnitZ, 1f), 1e-3f, 1e30f, ref rec));
     }
 }

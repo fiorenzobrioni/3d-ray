@@ -47,7 +47,7 @@ public class GroundData
 
     /// <summary>A point on the plane, or the centre of the quad / disk. Default the origin.</summary>
     [YamlMember(Alias = "point")]
-    public List<float>? Point { get; set; }
+    public List<double>? Point { get; set; }
 
     /// <summary>Surface normal, default <c>[0, 1, 0]</c>.</summary>
     [YamlMember(Alias = "normal")]

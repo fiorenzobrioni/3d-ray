@@ -129,21 +129,10 @@
           "description": "Distance of the plane in focus, along the view axis (default 1)."
         },
         "focus_point": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ],
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
           "description": "A point in focus: wins over \u0027focus_distance\u0027."
         },
         "fov": {
@@ -155,21 +144,10 @@
           "description": "ISO of the physical exposure (with \u0027shutter_speed\u0027 and \u0027f_stop\u0027)."
         },
         "look_at": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "motion": {
           "type": "array",
@@ -182,21 +160,10 @@
           "type": "string"
         },
         "position": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "sensor_width": {
           "type": "number",
@@ -257,38 +224,16 @@
           "type": "number"
         },
         "look_at": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "position": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "time": {
           "type": "number"
@@ -440,21 +385,10 @@
           ]
         },
         "bounds": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ],
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
           "description": "\u0027[x_min, z_min, x_max, z_max]\u0027."
         },
         "caps": {
@@ -467,21 +401,10 @@
           ]
         },
         "center": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "children": {
           "type": "array",
@@ -541,21 +464,10 @@
           "description": "Scene material ids for the file\u0027s own materials, by name (when \u0027material\u0027 is unset)."
         },
         "matrix": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ],
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
           "description": "A 4\u00D74 matrix, 16 numbers row by row acting on column vectors (translation in the last column); instead of translate / rotate / scale."
         },
         "minor_radius": {
@@ -653,21 +565,10 @@
           "description": "Model file (\u0027.obj\u0027, \u0027.gltf\u0027, \u0027.glb\u0027, \u0027.ply\u0027), relative to the scene."
         },
         "point": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "profile": {
           "type": "array",
@@ -697,21 +598,10 @@
           ]
         },
         "q": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ],
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
           "description": "Quad: corner \u0027q\u0027 and edges \u0027u\u0027, \u0027v\u0027."
         },
         "radius": {
@@ -825,21 +715,10 @@
           "type": "number"
         },
         "translate": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "twist": {
           "type": "number"
@@ -931,55 +810,22 @@
           ]
         },
         "v0": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "v1": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "v2": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "visibility": {
           "$ref": "#/definitions/VisibilityData"
@@ -1656,21 +1502,10 @@
           "description": "Surface normal, default \u0027[0, 1, 0]\u0027."
         },
         "point": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ],
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
           "description": "A point on the plane, or the centre of the quad / disk. Default the origin."
         },
         "size": {
@@ -1841,21 +1676,10 @@
           ]
         },
         "corner": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ],
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
           "description": "Rectangle: a corner and the two edges \u0027u\u0027, \u0027v\u0027 (it emits on the side of u \u00D7 v)."
         },
         "direction": {
@@ -1908,21 +1732,10 @@
           "description": "Half-angle of the spot\u0027s cone, degrees (default 30)."
         },
         "position": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "power": {
           "type": "number",
@@ -3230,38 +3043,16 @@
           "description": "Air (Rayleigh) density multiplier, 1 = the standard atmosphere."
         },
         "bounds_max": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "bounds_min": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         },
         "data": {
           "anyOf": [
@@ -3589,21 +3380,10 @@
           "type": "number"
         },
         "translate": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "number"
-              }
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^#[0-9a-fA-F]{6}$"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
         }
       }
     },

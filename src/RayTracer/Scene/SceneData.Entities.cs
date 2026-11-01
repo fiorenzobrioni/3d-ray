@@ -42,15 +42,15 @@ public class EntityData
 
     [YamlMember(Alias = "center")]
     [OnlyFor("sphere", "cylinder", "cone", "torus", "capsule", "disk", "annulus", "lathe", "extrusion")]
-    public List<float>? Center { get; set; }
+    public List<double>? Center { get; set; }
 
     [YamlMember(Alias = "radius")]
     [OnlyFor("sphere", "cylinder", "cone", "capsule", "disk", "annulus")]
     public float Radius { get; set; } = 1f;
 
-    [YamlMember(Alias = "v0")] [OnlyFor("triangle")] public List<float>? V0 { get; set; }
-    [YamlMember(Alias = "v1")] [OnlyFor("triangle")] public List<float>? V1 { get; set; }
-    [YamlMember(Alias = "v2")] [OnlyFor("triangle")] public List<float>? V2 { get; set; }
+    [YamlMember(Alias = "v0")] [OnlyFor("triangle")] public List<double>? V0 { get; set; }
+    [YamlMember(Alias = "v1")] [OnlyFor("triangle")] public List<double>? V1 { get; set; }
+    [YamlMember(Alias = "v2")] [OnlyFor("triangle")] public List<double>? V2 { get; set; }
     /// <summary>Vertex normals: all three make the triangle smooth.</summary>
     [YamlMember(Alias = "n0")] [OnlyFor("triangle")] public List<float>? N0 { get; set; }
     [YamlMember(Alias = "n1")] [OnlyFor("triangle")] public List<float>? N1 { get; set; }
@@ -61,7 +61,7 @@ public class EntityData
     [YamlMember(Alias = "uv2")] [OnlyFor("triangle")] public List<float>? UV2 { get; set; }
 
     /// <summary>Quad: corner <c>q</c> and edges <c>u</c>, <c>v</c>.</summary>
-    [YamlMember(Alias = "q")] [OnlyFor("quad")] public List<float>? Q { get; set; }
+    [YamlMember(Alias = "q")] [OnlyFor("quad")] public List<double>? Q { get; set; }
     [YamlMember(Alias = "u")] [OnlyFor("quad")] public List<float>? U { get; set; }
     [YamlMember(Alias = "v")] [OnlyFor("quad")] public List<float>? V { get; set; }
 
@@ -91,7 +91,7 @@ public class EntityData
 
     [YamlMember(Alias = "point")]
     [OnlyFor("infinite_plane")]
-    public List<float>? Point { get; set; }
+    public List<double>? Point { get; set; }
 
     // ── mesh ─────────────────────────────────────────────────────────────────
 
@@ -132,7 +132,7 @@ public class EntityData
     // ── heightfield ──────────────────────────────────────────────────────────
 
     /// <summary><c>[x_min, z_min, x_max, z_max]</c>.</summary>
-    [YamlMember(Alias = "bounds")] [OnlyFor("heightfield")] public List<float>? Bounds { get; set; }
+    [YamlMember(Alias = "bounds")] [OnlyFor("heightfield")] public List<double>? Bounds { get; set; }
     [YamlMember(Alias = "height_scale")] [OnlyFor("heightfield")] public float HeightScale { get; set; } = 1f;
     /// <summary>Procedural height (its luminance in [0, 1]).</summary>
     [YamlMember(Alias = "height_texture")] [OnlyFor("heightfield")] public TextureData? HeightTexture { get; set; }
@@ -186,7 +186,7 @@ public class EntityData
     // ── Transform ────────────────────────────────────────────────────────────
 
     [YamlMember(Alias = "translate")]
-    public List<float>? Translate { get; set; }
+    public List<double>? Translate { get; set; }
 
     /// <summary>Euler degrees, applied in <c>rotate_order</c> (default xyz: X first).</summary>
     [YamlMember(Alias = "rotate")]
@@ -202,7 +202,7 @@ public class EntityData
 
     /// <summary>A 4×4 matrix, 16 numbers row by row acting on column vectors (translation in the last column); instead of translate / rotate / scale.</summary>
     [YamlMember(Alias = "matrix")]
-    public List<float>? Matrix { get; set; }
+    public List<double>? Matrix { get; set; }
 
     /// <summary>Motion keyframes; the base transform is the key at time 0.</summary>
     [YamlMember(Alias = "motion")]
@@ -212,7 +212,7 @@ public class EntityData
 public class MotionKeyData
 {
     [YamlMember(Alias = "time")] public float Time { get; set; }
-    [YamlMember(Alias = "translate")] public List<float>? Translate { get; set; }
+    [YamlMember(Alias = "translate")] public List<double>? Translate { get; set; }
     [YamlMember(Alias = "rotate")] public List<float>? Rotate { get; set; }
     [YamlMember(Alias = "scale")] public object? Scale { get; set; }
 }
