@@ -71,6 +71,9 @@ public class Disk : IHittable, ISamplable
         return true;
     }
 
+    /// <inheritdoc/>
+    public Vector3 LocalPointAt(Vector3 point) => point - Center;
+
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         var (r2u, r2v) = MathUtils.Random2D();

@@ -327,6 +327,14 @@ public class Transform : IHittable, ISamplable
     }
 
     /// <inheritdoc/>
+    /// <remarks>The inner shape's local point at the object-space point, with this
+    /// transform's scale (as <see cref="MapHitToWorld"/> does for a hit).</remarks>
+    public Vector3 LocalPointAt(Vector3 point)
+        => _object is ISamplable inner
+            ? inner.LocalPointAt(Vector3.Transform(point, _inverse)) * _localScale
+            : Vector3.Transform(point, _inverse) * _localScale;
+
+    /// <inheritdoc/>
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         if (_object is not ISamplable inner)

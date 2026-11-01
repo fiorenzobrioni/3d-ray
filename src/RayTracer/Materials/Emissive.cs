@@ -71,6 +71,9 @@ public sealed class Emissive : IMaterial
     /// Only emits from the front face — the back side of an emissive
     /// surface is dark, just like a real neon tube or LED panel.
     /// </summary>
+    /// <inheritdoc/>
+    public bool MayEmit => true;
+
     public Vector3 Emit(float u, float v, Vector3 point, int objectSeed, bool frontFace)
     {
         if (!frontFace) return Vector3.Zero;

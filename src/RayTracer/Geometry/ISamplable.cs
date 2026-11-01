@@ -26,6 +26,16 @@ public interface ISamplable
     (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample();
 
     /// <summary>
+    /// The texture point (<see cref="HitRecord.LocalPoint"/>) a hit at
+    /// <paramref name="point"/>, a point of the surface in this geometry's
+    /// space, reports. A light sample reads its emission there, so the light
+    /// samples and the BSDF hits of an emitter see the same emission (their
+    /// MIS combination is unbiased only then). Checked against <c>Hit</c> by
+    /// <c>GeometryAuditTests</c>, as the UV.
+    /// </summary>
+    Vector3 LocalPointAt(Vector3 point);
+
+    /// <summary>
     /// Stratified version of <see cref="Sample"/>: the <paramref name="sampleIndex"/>-th
     /// of <paramref name="sampleCount"/> points, one per cell of a grid that
     /// tiles the parameter square exactly (<see cref="Core.MathUtils.Stratum2D"/>).

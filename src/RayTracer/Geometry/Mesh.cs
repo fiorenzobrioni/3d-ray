@@ -129,6 +129,9 @@ public class Mesh : IHittable, ISamplable
     /// <inheritdoc/>
     public float SurfaceArea => _totalArea;
 
+    /// <inheritdoc/>
+    public Vector3 LocalPointAt(Vector3 point) => point + LocalPointOffset;
+
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         if (_triangles.Count == 0)

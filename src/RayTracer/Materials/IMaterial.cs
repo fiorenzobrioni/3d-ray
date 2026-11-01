@@ -184,6 +184,20 @@ public interface IMaterial
     Vector3 Emit(float u, float v, Vector3 point, int objectSeed, bool frontFace)
         => Vector3.Zero;
 
+    /// <summary>
+    /// True when <see cref="Emit"/> can be non-zero somewhere: the loader turns
+    /// the samplable surfaces of such a material into lights for next-event
+    /// estimation (<see cref="Lights.GeometryLight"/>), which evaluate the same
+    /// <see cref="Emit"/>. False only when the emission is zero everywhere.
+    /// </summary>
+    bool MayEmit => false;
+
+    /// <summary>
+    /// True when <see cref="Emit"/> can be non-zero on the back face (a
+    /// thin-walled emitter): its light samples then take both sides.
+    /// </summary>
+    bool EmitsFromBack => false;
+
     // ─────────────────────────────────────────────────────────────────────────
     // Normal Mapping.
     //

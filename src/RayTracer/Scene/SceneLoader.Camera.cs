@@ -110,18 +110,18 @@ public partial class SceneLoader
     // =========================================================================
 
     /// <summary>
-    /// Scans all scene objects and registers ISamplable emissives as GeometryLights
-    /// for Next Event Estimation (NEE / direct illumination).
+    /// Scans all scene objects and registers the samplable surfaces whose material
+    /// may emit as GeometryLights for Next Event Estimation (NEE / direct illumination).
     ///
     /// Handles:
-    ///   1. Bare primitive with Emissive material.
+    ///   1. Bare primitive whose material may emit (<see cref="IMaterial.MayEmit"/>:
+    ///      emissive, OpenPBR with emission, a mix with an emitting side).
     ///   2. Transform-wrapped primitive (at any nesting depth, transforms composed).
     ///   3. Group / Transform(Group(...)) / Transform(Transform(...)) : recurses
     ///      into children, composing transforms for correct world-space sampling.
-    ///   4. MixMaterial(Emissive, …) on a primitive — registered as a geometry light
-    ///      using a synthetic <see cref="Emissive"/> built from the blended emission
-    ///      of the two sub-materials (see <see cref="ExtractMixEmissive"/>).
-    ///   5. CSG containing an Emissive leaf — emits a one-time warning because
+    ///   4. The light evaluates the material's own Emit (a mix with its real blend),
+    ///      so its samples and the BSDF hits see the same emission.
+    ///   5. CSG containing an emitting leaf — emits a one-time warning because
     ///      CSG is not ISamplable and therefore cannot participate in NEE.
     /// </summary>
     private static void ExtractGeometryLights(List<IHittable> objects, List<ILight> lights, int shadowSamples)

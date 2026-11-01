@@ -25,7 +25,9 @@ namespace RayTracer.Tests.Validation;
 /// <item>area sampling (<see cref="ISamplable"/>): the integral of a test
 ///   function estimated from the samples (with their reported area) equals the
 ///   Crofton integral of the same function; samples lie on the surface with
-///   the outward normal and the UV the hit reports there.</item>
+///   the outward normal and the UV the hit reports there, and
+///   <c>LocalPointAt</c> gives the hit's texture point (what an emitter's light
+///   samples read their emission at).</item>
 /// </list>
 /// </summary>
 [Collection("SamplerExclusive")]
@@ -600,7 +602,7 @@ public class GeometryAuditTests
         MathUtils.ReseedThread(5);
         const int n = 200_000;
         double sum = 0, sum2 = 0, sumStrat = 0;
-        int off = 0, badNormal = 0, badUv = 0, badPdf = 0;
+        int off = 0, badNormal = 0, badUv = 0, badPdf = 0, badLocal = 0;
         string first = "";
         for (int i = 0; i < n; i++)
         {
@@ -624,13 +626,18 @@ public class GeometryAuditTests
             float du = MathF.Abs(rec.U - uv.X); du = MathF.Min(du, 1f - du);
             if (Smooth2(s, p) && (du > 2e-3f || MathF.Abs(rec.V - uv.Y) > 2e-3f))
             { badUv++; if (first == "") first = $"uv {uv} vs hit ({rec.U}, {rec.V}) at {p}"; }
+            // The texture point a hit there reports (from the hit's own point,
+            // which may differ from the sample by the march's tolerance).
+            Vector3 local = samplable.LocalPointAt(rec.Point);
+            if ((local - rec.LocalPoint).Length() > 1e-4f * s.Radius * (1f + rec.LocalPoint.Length()))
+            { badLocal++; if (first == "") first = $"LocalPointAt {local} vs hit {rec.LocalPoint} at {rec.Point}"; }
         }
         double mean = sum / n, se = Math.Sqrt(Math.Max(0, sum2 / n - mean * mean) / n), meanStrat = sumStrat / n;
         _out.WriteLine($"{name}: ∫f samples {mean:F4} ± {se:F4}, stratified {meanStrat:F4}, Crofton {ic:F4} ± {seC:F4}; " +
-                       $"off surface {off}, normals {badNormal}, uv {badUv}, pdf {badPdf}. {first}");
+                       $"off surface {off}, normals {badNormal}, uv {badUv}, pdf {badPdf}, local point {badLocal}. {first}");
         Assert.True(Math.Abs(mean - ic) < 5 * Math.Sqrt(se * se + seC * seC) + 2e-3 * ic, $"samples {mean} vs Crofton {ic}");
         Assert.True(Math.Abs(meanStrat - ic) < 5 * Math.Sqrt(se * se + seC * seC) + 2e-3 * ic, $"stratified {meanStrat} vs Crofton {ic}");
-        Assert.True(off == 0 && badNormal == 0 && badUv == 0 && badPdf == 0, first);
+        Assert.True(off == 0 && badNormal == 0 && badUv == 0 && badPdf == 0 && badLocal == 0, first);
     }
 
     /// <summary>Away from edges for the UV check (flat shapes have none inside).</summary>

@@ -133,7 +133,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🔦 **Spot Light** - faretto con cono interno/esterno e falloff liscio
 - 🟧 **Area Light** - emettitore rettangolare con soft shadows fisicamente corretti, campionato in modo uniforme nell'angolo solido che sottende: poco rumore anche vicinissimo alla luce
 - 🟡 **Sphere Light** - luce sferica con solid-angle sampling: penumbra circolare uniforme e zero campioni sprecati. Ideale per lampadine, lanterne e globi luminosi.
-- ✨ **Emissive Objects** - qualsiasi geometria con materiale `emissive` diventa sorgente di luce visibile con illuminazione indiretta naturale
+- ✨ **Emissive Objects** - qualsiasi geometria il cui materiale emette (`emissive`, emissione OpenPBR, anche da file glTF/MTL, o un mix di questi) diventa sorgente di luce visibile, campionata per la luce diretta come le luci esplicite, con illuminazione indiretta naturale
 - 🌐 **Environment Light** - tutti i tipi di cielo (flat, gradient, fisici, HDRI) partecipano al campionamento diretto delle luci; il sole analitico è disaccoppiato dal corpo del cielo e combinabile con qualsiasi tipo di sky.
 - 🌳 **Molte luci** - con molte luci un BVH delle luci manda ogni campione alle luci che contano per quel punto (vicine e rivolte verso di lui), così una strada di lampioni o una stanza piena di faretti converge veloce come una scena con poche luci. Ogni strategia di scelta delle luci è non distorta.
 

@@ -311,6 +311,96 @@ public class LightTransportTests
         Check("emissive ellipsoid", got, se, new Vector3(expected));
     }
 
+    // ── Light samples and BSDF hits see the same emission ────────────────────
+    // An emitter's light samples must read the emission a BSDF ray that hits
+    // the same point collects (the material's Emit at the hit's texture point,
+    // seed and face), or the MIS combination of the two is biased. The
+    // expected integrals below take Le from real hits on the emitter.
+
+    /// <summary>Emission that varies with the texture point and the seed, as a seeded 3D procedural.</summary>
+    private sealed class PositionalTexture : ITexture
+    {
+        public Vector3 Value(float u, float v, Vector3 p, int objectSeed)
+            => new(1f + 0.8f * MathF.Sin(4f * p.X + objectSeed), 1f + 0.8f * MathF.Cos(3f * p.Z), 1f + 0.5f * p.Y);
+    }
+
+    /// <summary>Le along <paramref name="l"/> from the floor point: what a BSDF ray collects.</summary>
+    private static Vector3 HitEmission(IHittable emitter, Vector3 from, Vector3 l)
+    {
+        var h = new HitRecord();
+        return emitter.Hit(new Ray(from, l), 1e-4f, 1e4f, ref h) && h.Material is { } mat
+            ? mat.Emit(h.U, h.V, h.LocalPoint, h.ObjectSeed, h.FrontFace)
+            : Vector3.Zero;
+    }
+
+    [Theory, MemberData(nameof(Floors))]
+    public void GeometryLight_TexturedSphere_SamplesSeeWhatHitsSee(string floor)
+    {
+        // The texture point of a sphere is relative to its centre, and the seed
+        // is the entity's: the light samples read the world point and seed 0
+        // before (cone sampling path).
+        var m = Floor(floor);
+        var centre = new Vector3(0.4f, 1.2f, 0.2f);
+        const float r = 0.3f;
+        var em = new Emissive(new PositionalTexture(), 5f);
+        var sphere = new Sphere(centre, r, em) { Seed = 7 };
+        var (rec, _) = FloorHit(m);
+        Vector3 toC = centre - rec.Point;
+        float cosMax = MathF.Sqrt(1f - r * r / toC.LengthSquared());
+        Vector3 expected = Cone(m, Vector3.Normalize(toC), cosMax, (l, _) => HitEmission(sphere, rec.Point, l));
+        var (got, se) = Render(m, new() { sphere }, new() { new GeometryLight(sphere, em, 16) }, Black, 256);
+        Check("textured emissive sphere", got, se, expected);
+    }
+
+    [Theory, MemberData(nameof(Floors))]
+    public void GeometryLight_TexturedScaledEmitter_SamplesSeeWhatHitsSee(string floor)
+    {
+        // Through a non-uniform transform (area sampling path): the texture
+        // point is the inner one with the transform's scale, as for a hit.
+        var m = Floor(floor);
+        var em = new Emissive(new PositionalTexture(), 5f);
+        var centre = new Vector3(0.3f, 1.1f, 0.2f);
+        var matrix = Matrix4x4.CreateScale(0.15f, 0.5f, 0.3f) * Matrix4x4.CreateRotationZ(0.7f)
+                   * Matrix4x4.CreateTranslation(centre);
+        var ellipsoid = new Transform(new Sphere(Vector3.Zero, 1f, em) { Seed = 3 }, matrix);
+        var (rec, _) = FloorHit(m);
+        Vector3 toC = centre - rec.Point;
+        float cosMax = MathF.Sqrt(1f - 0.25f / toC.LengthSquared());   // a cone around the whole ellipsoid
+        Vector3 expected = Cone(m, Vector3.Normalize(toC), cosMax, (l, _) => HitEmission(ellipsoid, rec.Point, l));
+        var (got, se) = Render(m, new() { ellipsoid }, new() { new GeometryLight(ellipsoid, em, 16) }, Black, 256);
+        Check("textured emissive ellipsoid", got, se, expected);
+    }
+
+    [Theory, MemberData(nameof(Floors))]
+    public void GeometryLight_MixWithItsBlend(string floor)
+    {
+        // A mix emits lerp(emit A, emit B, blend): 0.8 × 5 here. The light used
+        // to stand in for it with a synthetic emitter at blend 0.5.
+        var m = Floor(floor);
+        Vector3 c = new(-0.6f, 1.5f, -0.5f), u = new(0.8f, 0, 0), vv = new(0, 0, 0.6f);
+        var mix = new MixMaterial(new Emissive(Vector3.One, 5f), new Lambertian(new Vector3(0.5f)), 0.2f);
+        var quad = new Quad(c, u, vv, mix);
+        Vector3 expected = Rect(m, c, u, vv, new Vector3(4f));
+        var (got, se) = Render(m, new() { quad }, new() { new GeometryLight(quad, mix, 16) }, Black, 256);
+        Check("emissive mix", got, se, expected);
+    }
+
+    [Theory, MemberData(nameof(Floors))]
+    public void GeometryLight_ThinWalledOpenPbr_EmitsFromItsBack(string floor)
+    {
+        // An OpenPBR panel with emission, thin-walled, its front facing up: the
+        // floor sees its back, which emits too. Light samples used to take the
+        // front face only (and the loader made no light of an OpenPBR material).
+        var m = Floor(floor);
+        Vector3 c = new(-0.6f, 1.5f, -0.5f), u = new(0.8f, 0, 0), vv = new(0, 0, 0.6f);
+        var panel = new OpenPbr(new OpenPbrParameters { EmissionLuminance = 5f, ThinWalled = true });
+        var quad = new Quad(c, vv, u, panel);   // normal v × u: up, away from the floor
+        Assert.True(panel.MayEmit && panel.EmitsFromBack);
+        Vector3 expected = Rect(m, c, u, vv, new Vector3(5f));   // the side toward the floor
+        var (got, se) = Render(m, new() { quad }, new() { new GeometryLight(quad, panel, 16) }, Black, 256);
+        Check("thin-walled OpenPBR panel, back face", got, se, expected);
+    }
+
     [Theory, MemberData(nameof(Floors))]
     public void EnvironmentLight_UniformSky(string floor)
     {

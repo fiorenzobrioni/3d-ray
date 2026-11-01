@@ -53,6 +53,9 @@ public sealed class Lathe : IHittable, ISamplable
     private readonly ILatheSegment[] _segments;
     private readonly IMaterial _material;
 
+    /// <summary>The surface's material.</summary>
+    public IMaterial Material => _material;
+
     // Cumulative arc length at the start of each segment, for UV V mapping.
     private readonly float[] _vBase;
     private readonly float _totalArc;
@@ -347,6 +350,9 @@ public sealed class Lathe : IHittable, ISamplable
     // ─────────────────────────────────────────────────────────────────────────
     // Sampling (NEE)
     // ─────────────────────────────────────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public Vector3 LocalPointAt(Vector3 point) => point;
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {

@@ -90,6 +90,9 @@ public class Quad : IHittable, ISamplable, ISolidAngleSamplable
     /// <inheritdoc/>
     public float SurfaceArea => _area;
 
+    /// <inheritdoc/>
+    public Vector3 LocalPointAt(Vector3 point) => point - Q;
+
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         var (u, v) = MathUtils.Random2D();

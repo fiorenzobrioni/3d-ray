@@ -6,7 +6,9 @@ using RayTracer.Materials;
 namespace RayTracer.Lights;
 
 /// <summary>
-/// An adapter that turns any ISamplable geometry with an Emissive material into an ILight.
+/// An adapter that turns any ISamplable geometry whose material may emit
+/// (<see cref="IMaterial.MayEmit"/>: emissive, OpenPBR emission, a mix of them)
+/// into an ILight.
 /// This enables Direct Illumination (Next Event Estimation) for arbitrary emissive meshes,
 /// including primitives wrapped in a Transform (translated, rotated, scaled emissives).
 ///
@@ -35,8 +37,13 @@ namespace RayTracer.Lights;
 /// Changes from original:
 ///   - shadowSamples propagated from constructor (was hardcoded to 1).
 ///   - cosLight guard added to Illuminate() (was only in IlluminateAndTest).
-///   - EmissionAt() used with the real sample UV and world point (removes the
-///     former center-texel approximation bias for textured emissives).
+///   - The emission of a sample is the surface material's own Emit() at the
+///     sample's UV, at the texture point a hit there reports
+///     (ISamplable.LocalPointAt), with the entity's seed and the side seen:
+///     exactly what a BSDF ray that hits the point collects, so the two MIS
+///     strategies estimate the same integrand (PIANO-REVIEW.md, after Phase 11:
+///     the world point, seed 0 and a mix's blend frozen at 0.5 were read before).
+///   - Thin-walled emitters (IMaterial.EmitsFromBack) are sampled on both sides.
 ///   - Deterministic area: uses ISamplable.SurfaceArea (closed-form) instead of
 ///     a PRNG-driven Sample() call at construction time, making scene-load
 ///     fully reproducible regardless of PRNG state.
@@ -47,7 +54,9 @@ namespace RayTracer.Lights;
 public class GeometryLight : ILight
 {
     public ISamplable Geometry { get; }
-    public Emissive Material { get; }
+
+    /// <summary>The surface's material, whose <see cref="IMaterial.Emit"/> the samples evaluate.</summary>
+    public IMaterial Material { get; }
 
     /// <inheritdoc/>
     public int ShadowSamples { get; }
@@ -80,25 +89,20 @@ public class GeometryLight : ILight
     public const int DefaultShadowSamples = 4;
 
     /// <summary>
-    /// The material the surface itself carries: <see cref="Material"/>, or the
-    /// <see cref="MixMaterial"/> it was extracted from. A BSDF ray that hits the
-    /// surface reports this one, and the renderer finds the light by it.
+    /// The material a BSDF ray that hits the surface reports (the same as
+    /// <see cref="Material"/>): the renderer finds the light by it.
     /// </summary>
-    public IMaterial SurfaceMaterial { get; }
+    public IMaterial SurfaceMaterial => Material;
 
-    /// <summary>
-    /// Added to a sampled point where the emission texture is read: a light
-    /// in a scene built in the render space (camera at the origin,
-    /// PIANO-REVIEW.md Phase 11) reads it where the point stands in the world.
-    /// </summary>
-    public Vector3 TextureOffset { get; init; }
+    // Emits from both faces (a thin-walled emitter): samples on the back count.
+    private readonly bool _twoSided;
 
-    public GeometryLight(ISamplable geometry, Emissive material, int shadowSamples = DefaultShadowSamples,
-                         float softRadius = 0f, IMaterial? surfaceMaterial = null)
+    public GeometryLight(ISamplable geometry, IMaterial material, int shadowSamples = DefaultShadowSamples,
+                         float softRadius = 0f)
     {
         Geometry = geometry;
         Material = material;
-        SurfaceMaterial = surfaceMaterial ?? material;
+        _twoSided = material.EmitsFromBack;
         ShadowSamples = Math.Max(1, shadowSamples);
         SoftRadius = MathF.Max(0f, softRadius);
 
@@ -122,12 +126,24 @@ public class GeometryLight : ILight
         _representativeArea = geometry.SurfaceArea;
     }
 
-    // Lambertian emissive surface: Φ = π · L · A.
+    // The seed the surface's hits report (a mesh's triangles share the mesh's).
+    private int Seed => Geometry is IHittable h ? h.Seed : 0;
+
+    /// <summary>
+    /// The radiance a sample at <paramref name="point"/> (UV <paramref name="uv"/>)
+    /// emits toward the side <paramref name="front"/>: the material's Emit at the
+    /// texture point a hit there reports, with the entity's seed.
+    /// </summary>
+    private Vector3 EmissionAt(Vector2 uv, Vector3 point, bool front)
+        => Material.Emit(uv.X, uv.Y, Geometry.LocalPointAt(point), Seed, front);
+
+    // Lambertian emissive surface: Φ = π · L · A per emitting side.
     // L is sampled at (u=0.5, v=0.5, point=AABB centre) — exact for SolidColor
     // emission, representative for procedural or texture-based emission.
     public float ApproximatePower(AABB sceneBounds)
     {
-        Vector3 emission = Material.EmissionAt(0.5f, 0.5f, _representativePoint + TextureOffset);
+        Vector3 emission = EmissionAt(new Vector2(0.5f), _representativePoint, true);
+        if (_twoSided) emission += EmissionAt(new Vector2(0.5f), _representativePoint, false);
         return MathF.PI * _representativeArea * MathUtils.Luminance(emission);
     }
 
@@ -173,16 +189,19 @@ public class GeometryLight : ILight
         float distance = MathF.Sqrt(distSq);
         Vector3 dirToLight = toLight / distance;
 
-        // Ensure we hit the front face of the light
-        float cosLight = MathF.Max(0f, Vector3.Dot(-dirToLight, lightNormal));
-        if (cosLight <= 0f)
+        // The emitting face toward the receiver: the front, or either for a
+        // thin-walled emitter.
+        float cosSigned = Vector3.Dot(-dirToLight, lightNormal);
+        bool front = cosSigned > 0f;
+        if (!front && !(_twoSided && cosSigned < 0f))
             return (true, Vector3.Zero, dirToLight, distance);
+        float cosLight = MathF.Abs(cosSigned);
 
         Vector3 trans = ShadowRay.TransmittanceToPoint(world, hitPoint, surfaceNormal, samplePoint, lightNormal, time);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 
-        Vector3 emissiveColor = Material.EmissionAt(uv.X, uv.Y, samplePoint + TextureOffset);
+        Vector3 emissiveColor = EmissionAt(uv, samplePoint, front);
         // Soft-radius clamp: floors distSq at SoftRadius² to prevent the
         // area·cosLight/d² estimator from diverging when a sample grazes the
         // receiver (particularly in dense volumetric media). The geometric
@@ -226,15 +245,16 @@ public class GeometryLight : ILight
         // but the interior-observer fallback can land on the back hemisphere.
         // Aligned with AreaLight pattern: report zero contribution rather than
         // occlusion so MIS sees a consistent estimator across light types.
-        float cosLight = MathF.Max(0f, Vector3.Dot(-dirToLight, lightNormal));
-        if (cosLight <= 0f)
+        float cosSigned = Vector3.Dot(-dirToLight, lightNormal);
+        bool front = cosSigned > 0f;
+        if (!front && !(_twoSided && cosSigned < 0f))
             return (false, Vector3.Zero, dirToLight, distance);
 
         Vector3 trans = ShadowRay.TransmittanceToPoint(world, hitPoint, surfaceNormal, samplePoint, lightNormal, time);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 
-        Vector3 emissiveColor = Material.EmissionAt(uv.X, uv.Y, samplePoint + TextureOffset);
+        Vector3 emissiveColor = EmissionAt(uv, samplePoint, front);
         float attenuation = 1f / (pdf * ShadowSamples);
         return (false, emissiveColor * attenuation * trans, dirToLight, distance);
     }
@@ -277,23 +297,37 @@ public class GeometryLight : ILight
     }
 
     // ── Emission (bidirectional integrators) ────────────────────────────────
-    // Uniform over the surface (by area), cosine-weighted from the front.
+    // Uniform over the surface (by area), cosine-weighted from the front; a
+    // thin-walled emitter picks either face with probability 1/2.
 
     public bool SampleEmission(in EmissionContext ctx, Vector2 uPos, Vector2 uDir, out LightEmission e)
     {
         e = default;
         var (point, normal, uv, area) = Geometry.Sample();
         if (!(area > 0f)) return false;
-        Vector3 dir = EmissionMath.CosineHemisphere(normal, uDir, out float cos);
+        bool front = true;
+        float sidePdf = 1f;
+        if (_twoSided)
+        {
+            // The first coordinate picks the face and is stretched back to [0, 1).
+            front = uDir.X < 0.5f;
+            uDir.X = front ? 2f * uDir.X : 2f * uDir.X - 1f;
+            sidePdf = 0.5f;
+        }
+        Vector3 faceNormal = front ? normal : -normal;
+        Vector3 dir = EmissionMath.CosineHemisphere(faceNormal, uDir, out float cos);
         e = new LightEmission
         {
-            Position = point, Direction = dir, Normal = normal, Radiance = Material.EmissionAt(uv.X, uv.Y, point + TextureOffset),
-            PdfPos = 1f / area, PdfDir = cos / MathF.PI, Cos = cos,
+            Position = point, Direction = dir, Normal = faceNormal, Radiance = EmissionAt(uv, point, front),
+            PdfPos = 1f / area, PdfDir = sidePdf * cos / MathF.PI, Cos = cos,
         };
         return cos > 0f && e.Radiance != Vector3.Zero;
     }
 
     public float EmissionPdfOverCos(in EmissionContext ctx, Vector3 point, Vector3 dirFromLight)
+        => (_twoSided ? 0.5f : 1f) * AreaPdfOverPi(point, dirFromLight);
+
+    private float AreaPdfOverPi(Vector3 point, Vector3 dirFromLight)
     {
         if (Geometry.UniformArea)
             return _representativeArea > 0f ? 1f / (_representativeArea * MathF.PI) : 0f;

@@ -42,8 +42,13 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 9 | Post-processing e denoiser | ✅ Chiusa (2026-10-25), esito in §4 Fase 9 |
 | 10 | Formato scene v2 | ✅ Chiusa (2026-10-25), esito in §4 Fase 10 |
 | 11 | Architettura e performance | ✅ Chiusa (2026-11-01), esito in §4 Fase 11 |
+| 12 | Residui di correttezza (emettitori animati, in istanze e CSG), scene canoniche (§5), verdetti (§6) | ⬜ dettaglio in `PLANNING.md`, "Chiusura della review del motore" |
+| 13a | Rendering spettrale: infrastruttura (hero wavelength, sollevamento RGB, film XYZ) | ⬜ dettaglio in `PLANNING.md` |
+| 13b | Rendering spettrale: fisica (dispersione, metalli e cieli spettrali, Mitsuba spettrale) | ⬜ dettaglio in `PLANNING.md` |
+| 14 | Revisione delle scene (§2.0) e chiusura della review | ⬜ dettaglio in `PLANNING.md` |
 
 Correzioni anticipate fuori ordine: 3.19, 3.20, 3.21 (più 3.24 e 3.25 emersi nel farle) ✅ 2026-10-20.
+Dopo la Fase 11 (2026-11-01): campioni NEE degli emettitori coerenti con i raggi BSDF, emissione OpenPBR, lathe ed extrusion come luci (esito in §4 Fase 11, in fondo).
 
 ---
 
@@ -1420,10 +1425,9 @@ invariato). Le 111 scene del repo, prima e dopo (64×36, 8 spp): tutte renderizz
 sparse (cammini che divergono per un arrotondamento) da 15 a 10^4 volte sotto il rumore fra due
 seed, rapporti medi entro lo 0.5% dove quelli fra due seed arrivano al 10%. Resta float un'entità
 posta da un transform le cui coordinate locali sono a loro volta enormi (non realistico), come i
-vertici dei file modello letti in float dai loader. Emerso nel farlo (PLANNING): gli emissivi
-leggono la texture di emissione al punto del mondo per la NEE e al punto locale per i raggi
-BSDF; le primitive analitiche (punto locale relativo al centro) ne danno due valori diversi.
-Comportamento conservato com'era, da unificare.
+vertici dei file modello letti in float dai loader. Emerso nel farlo: gli emissivi leggevano la
+texture di emissione al punto del mondo per la NEE e al punto locale per i raggi BSDF (corretto
+dopo la chiusura, vedi in fondo all'esito).
 
 **Rendering spettrale: deciso, in una fase dedicata dopo la 11.** Oggi il thin film è già
 spettrale nella sostanza (Belcour-Barla proietta in forma chiusa l'integrale sulle lunghezze
@@ -1465,6 +1469,26 @@ I/O delle immagini **rifatto** (codec propri, nessuna dipendenza vulnerabile o a
 precisione **rifatta** (rendering relativo alla camera, posizioni in double). Spettrale deciso
 con un progetto, in una fase dedicata. Le prestazioni dello shading (73-86% del tempo) sono il
 prossimo margine: `HitRecord` più snello, copie dei record, profilo per scena (PLANNING).
+
+**Dopo la chiusura (2026-11-01): emettitori, campioni NEE coerenti con i raggi BSDF.** Una luce
+geometrica valutava l'emissione in modo diverso da un raggio BSDF che colpisce lo stesso punto,
+e il MIS combinava due integrandi diversi (risultato distorto con un'emissione non costante):
+la texture al punto del mondo invece del punto locale dell'hit (relativo al centro per le
+primitive analitiche, con la scala per i transform), il seme 0 invece di quello dell'entità, un
+mix sostituito da un emissivo sintetico con blend 0.5 e texel centrale, solo la faccia
+anteriore anche per un emettitore thin-walled. Ora `GeometryLight` porta il materiale della
+superficie e valuta il suo `Emit` alle UV del campione, al punto che un hit lì riporta
+(`ISamplable.LocalPointAt`, su ogni primitiva, controllato contro `Hit` da `GeometryAuditTests`),
+con il seme dell'entità e la faccia vista (entrambe con `IMaterial.EmitsFromBack`, anche nelle
+emissioni dei cammini di luce di BDPT/VCM). Ogni superficie campionabile il cui materiale può
+emettere (`IMaterial.MayEmit`) è una luce: l'emissione OpenPBR, anche da glTF e MTL (rimandata
+dalla Fase 2), i mix con un lato che emette, i lathe e le extrusion emissivi (la documentazione
+diceva che lo erano, il loader non li registrava). Misura: con la valutazione di prima i test
+nuovi di `LightTransportTests` (sfera ed ellissoide con emissione che dipende dal punto e dal
+seme) sbagliano del 4-10%, ora coincidono con la quadratura fatta sugli hit (scarti 0.1-0.4%),
+anche con BDPT; il mix con blend 0.2 e il pannello OpenPBR thin-walled visto dal retro idem.
+`EmitterRegistrationTests` controlla la registrazione dal loader. Restano gli emettitori animati
+(campionati nella posa a metà animazione) e quelli dentro istanze e CSG: Fase 12 in `PLANNING.md`.
 
 ---
 
@@ -1523,8 +1547,9 @@ Basato sulla sezione 3, aggiornato con le misure delle Fasi 0, 1 e 3: da conferm
 6. Fase 10 (formato v2) quando materiali, luci e camera nuovi sono stabili, così il formato
    descrive il motore definitivo e le scene si adeguano una volta sola.
 7. Fase 11 (chiusa il 2026-11-01).
-7b. Rendering spettrale (deciso nella Fase 11), fase dedicata.
-8. **Revisione delle scene** (§2.0), alla fine: ogni scena del repo (`scenes/`, `showcases/`,
+7b. Fase 12 (residui di correttezza, scene canoniche, verdetti), poi Fasi 13a e 13b (rendering
+    spettrale, deciso nella Fase 11): dettaglio in `PLANNING.md`, "Chiusura della review del motore".
+8. **Revisione delle scene** (§2.0, Fase 14 in `PLANNING.md`), alla fine: ogni scena del repo (`scenes/`, `showcases/`,
    `presets/`, i tutorial) si confronta con il motore definitivo. Si corregge dove usa chiavi,
    materiali, proprietà o oggetti cambiati; si riscrive se non regge più; altrimenti si sposta in
    `scenes/obsolete/` per essere riprogettata o eliminata. Si guarda anche il risultato

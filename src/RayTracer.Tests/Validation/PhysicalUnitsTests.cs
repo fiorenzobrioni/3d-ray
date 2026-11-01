@@ -107,8 +107,8 @@ entities:
             Assert.Equal(2, lights.Count);
             var glow = lights.Single(g => g.Geometry is Sphere { Center.X: < 0 }).Material;
             var warm = lights.Single(g => g.Geometry is Sphere { Center.X: > 0 }).Material;
-            Assert.Equal(3000f, MathUtils.Luminance(glow.EmissionAt(0.5f, 0.5f, Vector3.Zero)), 0);
-            Vector3 w = warm.EmissionAt(0.5f, 0.5f, Vector3.Zero);
+            Assert.Equal(3000f, MathUtils.Luminance(glow.Emit(0.5f, 0.5f, Vector3.Zero, 0, true)), 0);
+            Vector3 w = warm.Emit(0.5f, 0.5f, Vector3.Zero, 0, true);
             Assert.Equal(2f, MathUtils.Luminance(w), 3);
             Assert.True(w.X > w.Y && w.Y > w.Z);
         }

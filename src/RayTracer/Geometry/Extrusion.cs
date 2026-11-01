@@ -84,6 +84,9 @@ public sealed class Extrusion : IHittable, ISamplable
     private readonly IHittable _bvh;
     private readonly List<IHittable> _triangles;
     private readonly IMaterial _material;
+
+    /// <summary>The surface's material.</summary>
+    public IMaterial Material => _material;
     private int _seed;
 
     private readonly float[] _cumulativeAreas;
@@ -449,6 +452,9 @@ public sealed class Extrusion : IHittable, ISamplable
 
     /// <inheritdoc/>
     public float SurfaceArea => _totalArea;
+
+    /// <inheritdoc/>
+    public Vector3 LocalPointAt(Vector3 point) => point;
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
