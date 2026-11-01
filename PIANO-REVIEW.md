@@ -1487,7 +1487,11 @@ diceva che lo erano, il loader non li registrava). Misura: con la valutazione di
 nuovi di `LightTransportTests` (sfera ed ellissoide con emissione che dipende dal punto e dal
 seme) sbagliano del 4-10%, ora coincidono con la quadratura fatta sugli hit (scarti 0.1-0.4%),
 anche con BDPT; il mix con blend 0.2 e il pannello OpenPBR thin-walled visto dal retro idem.
-`EmitterRegistrationTests` controlla la registrazione dal loader. Restano gli emettitori animati
+`EmitterRegistrationTests` controlla la registrazione dal loader. Sulle 111 scene del repo: 109
+identiche al bit; `showcases/material-mix` era più chiara del 13.4% (il mix a blend 0.5 della
+NEE) e ora coincide con il riferimento senza mix come luce (0.9999 a 512 spp, errore a 32 spp
+da 8.3e-2 a 3.4e-2); `showcases/material-openpbr` ha la stessa media e il 21% di errore in meno.
+Suite 1355 verde. Restano gli emettitori animati
 (campionati nella posa a metà animazione) e quelli dentro istanze e CSG: Fase 12 in `PLANNING.md`.
 
 ---
