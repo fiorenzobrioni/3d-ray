@@ -8,9 +8,9 @@ Questo documento descrive il flusso architetturale completo del motore 3D-Ray, d
 - [Strutture di Accelerazione (BVH)](./acceleration-structures.md) — Bounding Volume Hierarchy e SAH
 
 **File sorgente chiave:**
-- `src/RayTracer/Program.cs` — Entry point, parsing CLI, orchestrazione
-- `src/RayTracer/Scene/SceneLoader.cs` — Parsing YAML, costruzione del world
-- `src/RayTracer/Rendering/Renderer.cs` — Cuore del path tracer
+- `src/RayTracer/Program.cs` (+ `Program.Settings.cs` lettura dei flag e del blocco `render:`, `Program.Output.cs` scrittura, `Program.Help.cs` aiuto e preset): entry point e orchestrazione
+- `src/RayTracer/Scene/SceneLoader.cs` (+ `SceneLoader.*.cs`, una parte per sezione): parsing YAML, costruzione del world
+- `src/RayTracer/Rendering/Renderer.cs` (+ `Renderer.*.cs`: NEE, pesi MIS, cattura, clamp, normal/bump map): cuore del path tracer
 - `src/RayTracer/Camera/Camera.cs` — Modello thin-lens
 
 ---
@@ -498,7 +498,7 @@ AgX e ACES sono curve diverse: un grigio 0.18 va a 0.50 con AgX, 0.36 con ACES 1
 
 ## Fase 6 — Salvataggio dell'Immagine
 
-**File:** `Program.cs` · **Metodo:** `SaveImage()`
+**File:** `Program.Output.cs`, **Metodo:** `SaveImage()`
 
 L'array `Vector3[height, width]` (valori sRGB [0, 1]) viene quantizzato da `Rendering/DisplayQuantizer.cs` e scritto dai codec del motore (`Imaging/`: PNG, JPEG baseline a qualità 95 senza sottocampionamento del colore, BMP 24 bit; il PNG porta il chunk `sRGB`). A 8 bit, per default, con dithering triangolare di ±1 livello (hash deterministico del pixel): toglie le bande nei gradienti morbidi e lascia ogni pixel con la media esatta (`--dither off` arrotonda e basta). `--bit-depth 16` scrive un PNG a 16 bit per canale. Il formato di output è determinato dall'estensione del file (`-o`): PNG (lossless, default), JPEG (lossy), BMP.
 
@@ -517,7 +517,7 @@ Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math
 | `Renderer.Render()` | Renderer.cs | Program.Main | 1× per run | Sì (Parallel.For) |
 | `Camera.GetRay()` | Camera.cs | Render loop | W×H×N volte | Sì (readonly + thread-local PRNG) |
 | `TracePath()` | PathIntegrator.cs | Render loop | W×H×N | Sì (stato del path sullo stack) |
-| `ComputeDirectLighting()` | Renderer.cs | SurfaceVertex (via DirectLightingAt) | Per ogni hit con `NeedsDirectLighting` | Sì |
+| `ComputeDirectLighting()` | Renderer.DirectLighting.cs | SurfaceVertex (via DirectLightingAt) | Per ogni hit con `NeedsDirectLighting` | Sì |
 | `ILight.ApproximatePower()` | Lights/*.cs | Costruttore (LightDistribution, LightBvh, fotoni) | 1× per luce | **Solo single-thread** |
 | `ILight.IlluminateAndTestStratified()` | Lights/*.cs | ComputeDirectLighting (via SampleLight) | Per ogni hit × luce × sample | Sì |
 | `IMaterial.Sample()` | Materials/*.cs | SurfaceVertex | Per ogni hit | Sì (sampler per thread) |

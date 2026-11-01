@@ -2936,7 +2936,7 @@ entities:
   - `11-lathe-surface-of-revolution.md` - Lathe / surface of revolution
   - `12-extrusion-2d-profiles.md` - Linear extrusion of 2D profiles
 **Source Code (Scene Parsing):**
-- `/src/RayTracer/Scene/SceneData.cs` - the format: every key, its type and its default
+- `/src/RayTracer/Scene/SceneData*.cs` - the format (one file per section): every key, its type and its default
 - `/src/RayTracer/Scene/SceneValidator.cs` - the strict validation (errors and warnings with line and column)
 - `/src/RayTracer/Scene/SceneLoader*.cs` - scene construction
 - `/src/RayTracer/Materials/` - Material implementations
