@@ -77,12 +77,6 @@ public class Cone : IHittable, ISamplable
         float oy = ray.Origin.Y - _yMin;
         float oz = ray.Origin.Z - Center.Z;
 
-        // r(y) at the ray origin's y
-        float rAtO = Radius + _slope * oy;
-
-        float a = dx * dx + dz * dz - _slope * _slope * dy * dy;
-        float c = ox * ox + oz * oz - rAtO * rAtO;
-
         // Correction: expand properly.
         // Let s = _slope, R = Radius (base radius)
         // r(y) = R + s*(y - yMin)
@@ -100,21 +94,34 @@ public class Cone : IHittable, ISamplable
         // a    = (dx²+dz²) - s²*dy²
         // 2*hB = 2*(ox*dx+oz*dz) - 2*R*s*dy - 2*s²*oy*dy
         // c    = (ox²+oz²) - R² - 2*R*s*oy - s²*oy²
-        //      = (ox²+oz²) - (R + s*oy)²  = (ox²+oz²) - rAtO²
+        //      = (ox²+oz²) - (R + s*oy)²  (r(y) at the ray origin's y)
 
-        // Recalculate halfB correctly:
-        float halfB2 = ox * dx + oz * dz - _slope * dy * (Radius + _slope * oy);
+        // The roots, in double with the stable form (Numerical Recipes 5.6):
+        // q = -(hB + sign(hB) √disc),
+        // t = q/a and c/q. A ray almost parallel to a generator has a ≈ 0
+        // (two nearly equal terms cancel): the near root c/q does not depend
+        // on a, where (-hB ± √disc)/a lost it (0.3% of t at 1e-3 rad from a
+        // generator, GeometryAuditTests); with a = 0 exactly it is the only
+        // root, which the former test |a| > 1e-10 skipped.
+        double da = (double)dx * dx + (double)dz * dz - (double)_slope * _slope * dy * dy;
+        double dhB = (double)ox * dx + (double)oz * dz - (double)_slope * dy * (Radius + (double)_slope * oy);
+        double rO = Radius + (double)_slope * oy;
+        double dc = (double)ox * ox + (double)oz * oz - rO * rO;
 
         bool hitAnything = false;
 
-        float discriminant = halfB2 * halfB2 - a * c;
-        if (discriminant >= 0 && MathF.Abs(a) > 1e-10f)
+        double discriminant = dhB * dhB - da * dc;
+        if (discriminant >= 0 && (da != 0 || dhB != 0))
         {
-            float sqrtD = MathF.Sqrt(discriminant);
+            double q = -(dhB + Math.CopySign(Math.Sqrt(discriminant), dhB));
+            double t1 = da != 0 ? q / da : double.PositiveInfinity;
+            double t2 = q != 0 ? dc / q : t1;
+            double tLo = Math.Min(t1, t2), tHi = Math.Max(t1, t2);
             for (int i = 0; i < 2; i++)
             {
-                float t = (-halfB2 + (i == 0 ? -sqrtD : sqrtD)) / a;
-                if (t < tMin || t > tMax) continue;
+                double tRoot = i == 0 ? tLo : tHi;
+                if (tRoot < tMin || tRoot > tMax) continue;
+                float t = (float)tRoot;
 
                 float y = ray.Origin.Y + t * dy;
                 if (y < _yMin || y > _yMax) continue;

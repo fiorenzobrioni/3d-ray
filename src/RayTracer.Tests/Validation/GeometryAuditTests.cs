@@ -378,7 +378,7 @@ public class GeometryAuditTests
     public void FirstHit_MatchesTheReference_FromOutsideAndInside(string name)
     {
         var s = Make(name);
-        var rng = new Random(name.GetHashCode() & 0x7fffffff);
+        var rng = new Random(StableSeed(name));
         int rays = 0, holes = 0, phantoms = 0, wrongT = 0, wrongFace = 0, wrongNormal = 0, offSurface = 0;
         string first = "";
         void Fail(string what) { if (first == "") first = what; }
@@ -439,6 +439,42 @@ public class GeometryAuditTests
         _out.WriteLine($"{name}: {rays} rays, holes {holes}, phantoms {phantoms}, wrong t {wrongT}, off surface {offSurface}, " +
                        $"wrong FrontFace {wrongFace}, wrong normal {wrongNormal}. {first}");
         Assert.True(holes + phantoms + wrongT + offSurface + wrongFace + wrongNormal == 0, first);
+    }
+
+    /// <summary>
+    /// A seed from the name that is the same in every process (string.GetHashCode
+    /// is randomised per process, so the rays changed at every run and a failure
+    /// could not be replayed).
+    /// </summary>
+    private static int StableSeed(string name)
+    {
+        int h = 17;
+        foreach (char ch in name) h = unchecked(h * 31 + ch);
+        return h & 0x7fffffff;
+    }
+
+    /// <summary>
+    /// Rays almost or exactly parallel to a generator of the cone: the quadratic's
+    /// leading coefficient cancels to about zero. The near root must not depend on
+    /// it (a CI run found t 2.3194 for 2.3275 with the former (-b ± √Δ)/a), and
+    /// with a = 0 the single root must still be found.
+    /// </summary>
+    [Fact]
+    public void Cone_RayAlongAGenerator_FindsTheNearRoot()
+    {
+        var cone = new Cone(new Vector3(0f, -0.6f, 0.1f), 0.7f, 1.2f, M);
+        var rec = new HitRecord();
+        // Found by FirstHit_MatchesTheReference (cone); t from the exact quadratic in double.
+        var nearly = new Ray(new Vector3(-0.043480076f, 2.0263186f, -1.3636061f),
+                             Vector3.Normalize(new Vector3(0.08247215f, -0.863778f, 0.49707744f)));
+        Assert.True(cone.Hit(nearly, 1e-4f, 10f, ref rec));
+        Assert.Equal(2.3274688, rec.T, 4);
+        // From inside, along a generator: leaves through the side at t 0.3225.
+        var along = new Ray(new Vector3(-0.2f, -0.3f, 0.1f), Vector3.Normalize(new Vector3(-0.7f, 1.2f, 0f)));
+        rec = new HitRecord();
+        Assert.True(cone.Hit(along, 1e-4f, 10f, ref rec));
+        Assert.Equal(0.3225032, rec.T, 4);
+        Assert.False(rec.FrontFace);
     }
 
     /// <summary>Away from edges: the implicit's gradient keeps its direction around the point.</summary>

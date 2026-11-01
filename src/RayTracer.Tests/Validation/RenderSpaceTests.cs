@@ -77,8 +77,8 @@ entities:
       - {{ type: cylinder, center: {P(-1.5, 0, -1)}, radius: 0.15, height: 0.8, material: red }}
       - {{ type: sphere, center: {P(1.5, 0.2, -1)}, radius: 0.2, material: noisy }}
   - {{ type: instance, template: post, translate: {P(-1.2, 0, 1.2)}, material: red }}
-  - {{ type: mesh, path: ""{meshPath}"", material: noisy }}
-  - {{ type: mesh, path: ""{localMeshPath}"", translate: {P(0, 0, -3.5)}, material: noisy }}
+  - {{ type: mesh, path: '{meshPath}', material: noisy }}
+  - {{ type: mesh, path: '{localMeshPath}', translate: {P(0, 0, -3.5)}, material: noisy }}
   - {{ type: triangle, v0: {P(-2.5, 0.01, 2.5)}, v1: {P(-1.5, 0.01, 2.5)}, v2: {P(-2, 0.01, 1.5)}, material: noisy }}
   - {{ type: torus, center: {P(1.2, 0.12, 0.9)}, major_radius: 0.25, minor_radius: 0.08, material: red }}
   - type: heightfield

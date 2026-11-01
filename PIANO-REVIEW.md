@@ -1375,9 +1375,15 @@ veloce o per scene da milioni di triangoli (binding proprio, BVH a 4-8 figli e r
 **Precisione.** Verificato: i solver di quartica, cubica e quadratica e Sturm lavorano in double,
 il toro anche; le quadriche in float con formule stabili (Fasi 1-2), i triangoli watertight con
 ripiego in double sulle funzioni di spigolo nulle; offset dei raggi relativi (2^-15 della
-coordinata) con un minimo proporzionale al raggio della scena. Restava il limite misurato nella
-Fase 1, la precisione float delle coordinate stesse lontano dall'origine. Il double ovunque è
-scartato: raddoppia la memoria di vertici e BVH e dimezza la larghezza SIMD, quando il problema
+coordinata) con un minimo proporzionale al raggio della scena. **Trovato e corretto nel farlo**
+(dalla CI): il cono risolveva la quadratica con (-b ± √Δ)/a in float; un raggio quasi parallelo a
+una generatrice ha a ≈ 0 e perdeva la radice vicina (t 2.3194 invece di 2.3275), e con a = 0 il
+raggio non colpiva il fianco. Ora radici in double con la forma stabile (q/a, c/q); test
+`Cone_RayAlongAGenerator_FindsTheNearRoot`. Il test che l'ha trovato (`GeometryAuditTests`)
+seminava i raggi con `string.GetHashCode`, diverso a ogni processo: ora un seme fisso per
+primitiva, e una prova con 40 semi su tutte le primitive (120 000 raggi ciascuna) non trova altro.
+Restava il limite misurato nella Fase 1, la precisione float delle coordinate stesse lontano
+dall'origine. Il double ovunque è scartato: raddoppia la memoria di vertici e BVH e dimezza la larghezza SIMD, quando il problema
 è solo la precisione locale vicino alla camera.
 
 **Rendering relativo alla camera.** La scena si costruisce in uno spazio di render, il mondo
