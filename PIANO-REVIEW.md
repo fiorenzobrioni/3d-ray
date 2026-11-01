@@ -1453,6 +1453,13 @@ cattura, clamp, normal e bump map), `SceneData.cs` (1309) in 8 per sezione,
 gruppo di flag), stampa, render e salvataggio in passi separati. Spostamenti meccanici, output
 della CLI identico su 39 righe di comando di prova, suite verde.
 
+**Verifica di chiusura.** Suite 1338 verde in Release, come la CI; CI verde su Linux, Windows e
+macOS; `validation/run.py` su tutte le 13 scene con Mitsuba 3.9.1, invariata rispetto alla Fase 10
+(nessuna scena di validazione contiene coni): rapporti fra 0.998 e 1.003 (cornell 0.9999 e 1.0000, nebbia 1.0011, vetro ruvido 1.0009, ombra del vetro 0.9994, luci
+0.9997, mezzo cromatico 0.9981, metalli 1.0001 e 1.0033, guscio nullo 1.0001, fumo 1.0000, Veach
+0.9991, fornace 1.0000), più le approssimazioni note (`disney-spheres` contro `principled` 0.977,
+`--transparent-shadows on` 1.086).
+
 **Verdetto**: architettura **tenere**, BVH **rifatto** (piatto, iterativo, mesh dedicate),
 I/O delle immagini **rifatto** (codec propri, nessuna dipendenza vulnerabile o a licenza),
 precisione **rifatta** (rendering relativo alla camera, posizioni in double). Spettrale deciso
