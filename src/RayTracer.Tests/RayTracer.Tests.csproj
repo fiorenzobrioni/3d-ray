@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RayTracer\RayTracer.csproj" />
+    <ProjectReference Include="..\Tools\SceneMigrate\SceneMigrate.csproj" />
   </ItemGroup>
 
 </Project>

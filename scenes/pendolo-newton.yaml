@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  NEWTON'S PENDULUM — Executive Desktop & Studio Chiaroscuro
 # ═══════════════════════════════════════════════════════════════════════════
@@ -25,6 +26,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  WORLD
 # ═══════════════════════════════════════════════════════════════════════════
+format_version: 2
 world:
   # Studio scurissimo: luce d'ambiente minima per ombre profonde
   sky:
@@ -42,7 +44,7 @@ world:
   ground:
     type:     "infinite_plane"
     material: "scrivania_noce"
-    y: 0.0
+    point: [0, 0, 0]
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  CAMERAS
@@ -51,17 +53,17 @@ cameras:
   - name:       principale      # Vista classica — tutta la struttura del pendolo
     position:   [-0.42,  0.35, -0.58]
     look_at:    [ 0.00,  0.10,  0.00]
-    vup:        [0, 1, 0]
+    up:         [0, 1, 0]
     fov:        32
     aperture:   0.005           # bokeh leggermente pronunciato
-    focal_dist: 0.72
+    focus_distance: 0.72
 
   - name:       macro           # Dettaglio macro — focus sulla sfera in movimento
     position:   [-0.30,  0.22, -0.25]
     look_at:    [-0.14,  0.14,  0.00]
     fov:        22
     aperture:   0.012
-    focal_dist: 0.275
+    focus_distance: 0.275
 
     #center:   [-0.174, 0.140, 0.000]
     #radius:   0.016
@@ -71,31 +73,31 @@ cameras:
   - name:       zenitale        # Prospettiva zenitale — planimetria
     position:   [ 0.00,  0.85,  0.00]
     look_at:    [ 0.00,  0.10,  0.00]
-    vup:        [0, 0, -1]      # vup lungo -Z: il pendolo appare dritto dall'alto
+    up:         [0, 0, -1]      # vup lungo -Z: il pendolo appare dritto dall'alto
     fov:        45
     aperture:   0.0
-    focal_dist: 0.75
+    focus_distance: 0.75
 
   - name:       executive       # Grandangolare — mostra tutta la scrivania
     position:   [-0.60,  0.45, -0.75]
     look_at:    [ 0.05,  0.12,  0.00]
     fov:        40
     aperture:   0.003
-    focal_dist: 1.05
+    focus_distance: 1.05
 
   - name:       impact          # "Point of Contact" — basso raggio vicino al punto d'impatto
     position:   [-0.15,  0.12, -0.22]
     look_at:    [-0.032, 0.095,  0.00]
     fov:        28
     aperture:   0.008
-    focal_dist: 0.25
+    focus_distance: 0.25
 
   - name:       ball         # "Point of Contact" — basso raggio vicino al punto d'impatto
     position:   [-0.032, 0.135, 0.000]
     look_at:    [-0.174, 0.145, 0.000]
     fov:        20
     aperture:   0.01
-    focal_dist: 0.134
+    focus_distance: 0.134
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -105,7 +107,7 @@ materials:
   # ── Piano scrivania: noce scuro con venature ──────────────────────────────
   - id: "scrivania_noce"
     type: "lambertian"
-    texture:
+    color:
       type: "wood"
       scale: 14                        # Leggermente più fitta
       noise_strength: 3.5
@@ -122,37 +124,37 @@ materials:
   - id: "mogano_base"
     type: "metal"                      # Simulazione lacca lucida
     color: [0.25, 0.10, 0.05]
-    fuzz: 0.06
+    roughness: 0.06
 
   # ── Bordo base: filetto dorato ────────────────────────────────────────────
   - id: "filetto_oro"
     type: "metal"
     color: [0.85, 0.70, 0.25]
-    fuzz: 0.04
+    roughness: 0.04
 
   # ── Frame: cromo lucido tubolare ──────────────────────────────────────────
   - id: "cromo_frame"
     type: "metal"
     color: [0.90, 0.90, 0.92]
-    fuzz: 0.008                        # Minimal fuzz per realismo
+    roughness: 0.008                        # Minimal fuzz per realismo
 
   # ── Sfere: acciaio cromato specchio perfetto ─────────────────────────────
   - id: "cromo_sfera"
     type: "metal"
     color: [0.92, 0.92, 0.94]
-    fuzz: 0.0
+    roughness: 0.0
 
   # ── Fili sospensione: acciaio chirurgico scuro ───────────────────────────
   - id: "filo_acciaio"
     type: "metal"
     color: [0.35, 0.35, 0.38]
-    fuzz: 0.2                          # Opacizzato
+    roughness: 0.2                          # Opacizzato
 
   # ── Ganci: cromo satinato ─────────────────────────────────────────────────
   - id: "gancio_cromo"
     type: "metal"
     color: [0.80, 0.80, 0.82]
-    fuzz: 0.05
+    roughness: 0.05
 
   # ── Piedini gomma antiscivolo ─────────────────────────────────────────────
   - id: "gomma_nera"
@@ -163,16 +165,16 @@ materials:
   - id: "penna_lacca"
     type: "metal"
     color: [0.04, 0.04, 0.05]
-    fuzz: 0.02
+    roughness: 0.02
   - id: "penna_oro"
     type: "metal"
     color: [0.92, 0.78, 0.22]
-    fuzz: 0.05
+    roughness: 0.05
 
   # ── Fermacarte cristallo ──────────────────────────────────────────────────
   - id: "cristallo"
     type: "dielectric"
-    refraction_index: 1.68             # Vetro ottico
+    ior: 1.68             # Vetro ottico
 
   # ── Libro: pelle marrone e pagine crema ──────────────────────────────────
   - id: "pelle_libro"
@@ -186,7 +188,7 @@ materials:
   - id: "ottone_targa"
     type: "metal"
     color: [0.70, 0.55, 0.20]
-    fuzz: 0.08
+    roughness: 0.08
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  LIGHTS
@@ -199,20 +201,20 @@ lights:
     u: [0.60, 0.00, 0.00]
     v: [0.00, 0.20, 0.40]
     color: [1.00, 0.95, 0.88]
-    intensity: 12.0
+    luminance: 11.466912
 
   # FILL — Point a destra, fredda
   - type: "point"
     position:  [0.80, 0.60, -0.30]
     color:     [0.65, 0.78, 1.00]
-    intensity: 4.0
+    intensity: 3.0729837
 
   # RIM — Spot dal retro-alto
   - type: "spot"
     position:    [0.10, 1.00, 0.80]
     direction:   [-0.10, -0.70, -0.80]
     color:       [0.88, 0.92, 1.00]
-    intensity:   14.0
+    intensity:   12.841808
     inner_angle: 15
     outer_angle: 35
 
@@ -221,7 +223,7 @@ lights:
     position:    [-0.45, 0.75, -0.45]
     direction:   [0.25, -0.55, 0.45]
     color:       [1.00, 0.98, 0.92]
-    intensity:   14.0
+    intensity:   13.718881
     inner_angle: 6
     outer_angle: 16
 
@@ -229,7 +231,7 @@ lights:
   - type: "point"
     position:    [0.00, 0.02, 0.00]
     color:       [0.85, 0.60, 0.35]
-    intensity:   1.0
+    intensity:   0.6351
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  LUCI ALTERNATIVE (Rimuovere uno dei commenti per attivare)

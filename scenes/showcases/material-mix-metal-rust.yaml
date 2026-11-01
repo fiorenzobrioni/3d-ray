@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # =============================================================================
 #  Showcase — MixMaterial sotto area light (chiaro miglioramento MIS)
 #
@@ -23,6 +24,7 @@
 #      -w 1024 -H 576 -s 256 -d 8 -S 4
 # =============================================================================
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -30,12 +32,12 @@ world:
   ground:
     type: "infinite_plane"
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
 
-camera:
-  position: [0, 2.0, -6]
-  look_at:  [0, 0.6, 0]
-  fov: 46
+cameras:
+  - position: [0, 2.0, -6]
+    look_at:  [0, 0.6, 0]
+    fov: 46
 
 materials:
   # ── Pavimento opaco ──────────────────────────────────────────────────────
@@ -47,7 +49,7 @@ materials:
   - id: "cromo"
     type: "metal"
     color: [0.92, 0.92, 0.95]
-    fuzz: 0.05
+    roughness: 0.05
 
   - id: "ruggine"
     type: "lambertian"
@@ -90,7 +92,7 @@ materials:
   - id: "luce_panel"
     type: "emissive"
     color: [1.0, 0.96, 0.88]
-    intensity: 5.0
+    luminance: 4.8136396
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  LIGHTS
@@ -103,7 +105,7 @@ lights:
     u:      [ 6.0, 0.0,  0.0]
     v:      [ 0.0, 0.0,  4.0]
     color:  [1.0, 0.96, 0.88]
-    intensity: 5.0
+    luminance: 4.8136396
 
 entities:
   # ── Area light visibile (geometria emissiva) ─────────────────────────────

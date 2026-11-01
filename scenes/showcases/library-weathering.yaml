@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Weathering Library Showcase — Overlay & Mix Material per invecchiamento
 #
@@ -27,68 +28,64 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 10 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.04, 0.04, 0.05]
 
-camera:
-  position: [0, 2.4, -9.0]
-  look_at:  [0, 2.0, 0]
-  fov: 45
+cameras:
+  - position: [0, 2.4, -9.0]
+    look_at:  [0, 2.0, 0]
+    fov: 45
 
 materials:
 
   # ── Primer di base condivisi ───────────────────────────────────────
   - id: "primer_grigio"
-    type: "disney"
-    color: [0.55, 0.53, 0.50]
-    roughness: 0.65
-    specular: 0.35
+    type: openpbr
+    base_color: [0.55, 0.53, 0.50]
+    specular_roughness: 0.65
+    specular_weight: 0.7
 
   - id: "primer_chiaro"
-    type: "disney"
-    color: [0.60, 0.58, 0.55]
-    roughness: 0.70
-    specular: 0.35
+    type: openpbr
+    base_color: [0.60, 0.58, 0.55]
+    specular_roughness: 0.70
+    specular_weight: 0.7
 
   # ── Materiali base (metalli / cementi / legni) ─────────────────────
 
   - id: "dis_acciaio_lucido"
-    type: "disney"
-    color: [0.58, 0.57, 0.55]
-    metallic: 1.0
-    roughness: 0.04
-    specular: 0.85
+    type: openpbr
+    base_color: [0.58, 0.57, 0.55]
+    base_metalness: 1.0
+    specular_roughness: 0.04
 
   - id: "dis_rame_lucido"
-    type: "disney"
-    color: [0.95, 0.64, 0.54]
-    metallic: 1.0
-    roughness: 0.06
-    specular: 0.8
-    specular_tint: 0.5
+    type: openpbr
+    base_color: [0.95, 0.64, 0.54]
+    base_metalness: 1.0
+    specular_roughness: 0.06
 
   - id: "dis_ferro_battuto"
-    type: "disney"
-    color: [0.30, 0.28, 0.26]
-    metallic: 0.85
-    roughness: 0.62
-    specular: 0.35
+    type: openpbr
+    base_color: [0.30, 0.28, 0.26]
+    base_metalness: 0.85
+    specular_roughness: 0.62
+    specular_weight: 0.7
 
   - id: "dis_cromo_specchio"
-    type: "disney"
-    color: [0.95, 0.93, 0.88]
-    metallic: 1.0
-    roughness: 0.03
-    specular: 1.0
+    type: openpbr
+    base_color: [0.95, 0.93, 0.88]
+    base_metalness: 1.0
+    specular_roughness: 0.03
 
   - id: "dis_cemento_armato_grezzo"
-    type: "disney"
-    color: [0.58, 0.56, 0.52]
-    roughness: 0.88
-    specular: 0.28
-    texture:
+    type: openpbr
+    specular_roughness: 0.88
+    specular_weight: 0.56
+    base_color:
       type: "noise"
       scale: 1.8
       noise_type: "fbm"
@@ -109,11 +106,10 @@ materials:
       strength: 0.5
 
   - id: "dis_cemento_industriale"
-    type: "disney"
-    color: [0.58, 0.58, 0.56]
-    roughness: 0.82
-    specular: 0.30
-    texture:
+    type: openpbr
+    specular_roughness: 0.82
+    specular_weight: 0.6
+    base_color:
       type: "noise"
       scale: 1.2
       noise_type: "fbm"
@@ -127,11 +123,11 @@ materials:
         - { position: 1.00, color: [0.72, 0.71, 0.68], interp: "linear" }
 
   - id: "dis_quercia_olio"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 4.5
-      grain_strength: 1.8
+      noise_strength: 1.8
       latewood_width: 0.24
       ring_sharpness: 4.0
       ring_color_variation: 0.22
@@ -152,19 +148,18 @@ materials:
         - { position: 0.00, color: [0.22, 0.12, 0.04], interp: "smoothstep" }
         - { position: 0.55, color: [0.72, 0.50, 0.24], interp: "smoothstep" }
         - { position: 1.00, color: [0.88, 0.74, 0.46], interp: "linear" }
-    roughness: 0.65
-    specular: 0.32
-    sheen: 0.10
-    sheen_tint: 0.7
+    specular_roughness: 0.65
+    specular_weight: 0.64
+    fuzz_weight: 0.10
+    fuzz_roughness: 0.3
 
   # ── Overlay di invecchiamento ──────────────────────────────────────
 
   - id: "over_rust_heavy"
-    type: "disney"
-    color: [0.30, 0.16, 0.08]
-    roughness: 0.95
-    specular: 0.18
-    texture:
+    type: openpbr
+    specular_roughness: 0.95
+    specular_weight: 0.36
+    base_color:
       type: "noise"
       scale: 2.5
       noise_type: "ridged"
@@ -199,14 +194,13 @@ materials:
       bound: 0.014
       autobump: true
       autobump_strength: 1.6
-      displacement_method: "bump_only"
+      method: "bump_only"
 
   - id: "over_rust_medium"
-    type: "disney"
-    color: [0.42, 0.22, 0.12]
-    roughness: 0.92
-    specular: 0.20
-    texture:
+    type: openpbr
+    specular_roughness: 0.92
+    specular_weight: 0.4
+    base_color:
       type: "noise"
       scale: 3.5
       noise_type: "ridged"
@@ -229,14 +223,12 @@ materials:
       strength: 1.4
 
   - id: "over_moss_dense"
-    type: "disney"
-    color: [0.16, 0.30, 0.10]
-    roughness: 0.95
-    specular: 0.16
-    sheen: 0.80
-    sheen_roughness: 0.9
-    sheen_tint: 0.4
-    texture:
+    type: openpbr
+    specular_roughness: 0.95
+    specular_weight: 0.32
+    fuzz_weight: 0.80
+    fuzz_roughness: 0.9
+    base_color:
       type: "voronoi"
       scale: 8.0
       output: "random"
@@ -252,11 +244,10 @@ materials:
       strength: 1.4
 
   - id: "over_paint_flake_verde_militare"
-    type: "disney"
-    color: [0.32, 0.38, 0.22]
-    roughness: 0.60
-    specular: 0.32
-    texture:
+    type: openpbr
+    specular_roughness: 0.60
+    specular_weight: 0.64
+    base_color:
       type: "voronoi"
       scale: 8.0
       output: "f2_minus_f1"
@@ -270,11 +261,10 @@ materials:
       strength: 1.6
 
   - id: "over_paint_flake_bianca"
-    type: "disney"
-    color: [0.85, 0.83, 0.78]
-    roughness: 0.65
-    specular: 0.32
-    texture:
+    type: openpbr
+    specular_roughness: 0.65
+    specular_weight: 0.64
+    base_color:
       type: "voronoi"
       scale: 8.0
       output: "f2_minus_f1"
@@ -289,11 +279,10 @@ materials:
       strength: 1.6
 
   - id: "over_sale_marino"
-    type: "disney"
-    color: [0.92, 0.92, 0.90]
-    roughness: 0.78
-    specular: 0.30
-    texture:
+    type: openpbr
+    specular_roughness: 0.78
+    specular_weight: 0.6
+    base_color:
       type: "noise"
       scale: 5.0
       noise_type: "fbm"
@@ -313,13 +302,12 @@ materials:
       strength: 0.6
 
   - id: "over_verderame"
-    type: "disney"
-    color: [0.32, 0.58, 0.48]
-    roughness: 0.85
-    specular: 0.22
-    sheen: 0.20
-    sheen_roughness: 0.7
-    texture:
+    type: openpbr
+    specular_roughness: 0.85
+    specular_weight: 0.44
+    fuzz_weight: 0.20
+    fuzz_roughness: 0.7
+    base_color:
       type: "noise"
       scale: 3.5
       noise_type: "fbm"
@@ -334,11 +322,10 @@ materials:
         - { position: 1.00, color: [0.58, 0.82, 0.72], interp: "linear" }
 
   - id: "over_limescale"
-    type: "disney"
-    color: [0.92, 0.92, 0.90]
-    roughness: 0.45
-    specular: 0.35
-    texture:
+    type: openpbr
+    specular_roughness: 0.45
+    specular_weight: 0.7
+    base_color:
       type: "noise"
       scale: 6.0
       noise_type: "fbm"
@@ -359,7 +346,7 @@ materials:
     type: "mix"
     material_a: "dis_acciaio_lucido"
     material_b: "over_rust_heavy"
-    mask:
+    blend:
       type: "noise"
       scale: 2.0
       noise_type: "ridged"
@@ -372,7 +359,7 @@ materials:
     type: "mix"
     material_a: "dis_cemento_armato_grezzo"
     material_b: "over_moss_dense"
-    mask:
+    blend:
       type: "voronoi"
       scale: 3.5
       output: "f1"
@@ -384,7 +371,7 @@ materials:
     type: "mix"
     material_a: "primer_grigio"
     material_b: "over_paint_flake_verde_militare"
-    mask:
+    blend:
       type: "voronoi"
       scale: 5.0
       output: "f2_minus_f1"
@@ -395,7 +382,7 @@ materials:
     type: "mix"
     material_a: "dis_ferro_battuto"
     material_b: "over_sale_marino"
-    mask:
+    blend:
       type: "noise"
       scale: 4.0
       noise_type: "fbm"
@@ -409,7 +396,7 @@ materials:
     type: "mix"
     material_a: "dis_rame_lucido"
     material_b: "over_verderame"
-    mask:
+    blend:
       type: "noise"
       scale: 2.5
       noise_type: "fbm"
@@ -427,7 +414,7 @@ materials:
     type: "mix"
     material_a: "dis_cromo_specchio"
     material_b: "over_rust_medium"
-    mask:
+    blend:
       type: "noise"
       scale: 2.5
       noise_type: "ridged"
@@ -442,7 +429,7 @@ materials:
     type: "mix"
     material_a: "dis_cemento_industriale"
     material_b: "over_moss_dense"
-    mask:
+    blend:
       type: "voronoi"
       scale: 3.5
       output: "f1"
@@ -455,7 +442,7 @@ materials:
     type: "mix"
     material_a: "primer_chiaro"
     material_b: "over_paint_flake_bianca"
-    mask:
+    blend:
       type: "voronoi"
       scale: 5.0
       output: "f2_minus_f1"
@@ -467,7 +454,7 @@ materials:
     type: "mix"
     material_a: "dis_quercia_olio"
     material_b: "over_limescale"
-    mask:
+    blend:
       type: "noise"
       scale: 3.0
       noise_type: "fbm"
@@ -481,7 +468,7 @@ materials:
     type: "mix"
     material_a: "dis_ferro_battuto"
     material_b: "over_sale_marino"
-    mask:
+    blend:
       type: "noise"
       scale: 4.0
       noise_type: "fbm"
@@ -492,14 +479,14 @@ materials:
 
   # ── Ambiente ───────────────────────────────────────────────────────
   - id: "floor"
-    type: "disney"
-    color: [0.18, 0.16, 0.14]
-    roughness: 0.85
+    type: openpbr
+    base_color: [0.18, 0.16, 0.14]
+    specular_roughness: 0.85
 
   - id: "backdrop"
-    type: "disney"
-    color: [0.08, 0.07, 0.06]
-    roughness: 0.92
+    type: openpbr
+    base_color: [0.08, 0.07, 0.06]
+    specular_roughness: 0.92
 
 entities:
 
@@ -622,17 +609,17 @@ lights:
   - type: "directional"
     direction: [-0.55, -0.55, 0.6]
     color: [1.00, 0.88, 0.68]
-    intensity: 5.5
+    illuminance: 4.900896
     angular_radius: 0.7
 
   # Fill freddo dall'alto — sky bounce.
   - type: "point"
     position: [0, 8, -3]
     color: [0.82, 0.88, 1.00]
-    intensity: 70
+    intensity: 61.313557
 
   # Rim caldo basso da dietro — enfatizza i bordi dei due livelli.
   - type: "point"
     position: [0, 2, 6]
     color: [1.0, 0.78, 0.55]
-    intensity: 45
+    intensity: 36.457466

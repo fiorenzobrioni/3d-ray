@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  daylight-units.yaml - cielo fisico in nit ed esposizione EV100
 #  (PIANO-REVIEW.md, Fase 6)
@@ -28,10 +29,10 @@
 #    -s 256 -w 960 -H 540 --denoiser none --aov beauty
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "hosek_wilkie"
-    units: "photometric"
     turbidity: 3
     ground_albedo: [0.18, 0.18, 0.18]
     sun:
@@ -39,15 +40,15 @@ world:
   ground:
     type: "infinite_plane"
     material: "grey18"
-    y: 0
+    point: [0, 0, 0]
 
 lights: []
 
-camera:
-  position: [0, 1.6, -7]
-  look_at: [0, 0.6, 0]
-  fov: 40
-  ev100: 15
+cameras:
+  - position: [0, 1.6, -7]
+    look_at: [0, 0.6, 0]
+    fov: 40
+    ev100: 15
 
 materials:
   - { id: "grey18", type: "lambertian", color: [0.18, 0.18, 0.18] }

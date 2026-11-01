@@ -92,7 +92,6 @@ Common orientations:
 > separately from the BVH acceleration structure. Use them sparingly
 > (1--3 per scene). For bounded flat surfaces, use a quad instead.
 
-Also available as `type: "plane"`.
 
 ---
 
@@ -159,7 +158,6 @@ When `top_radius` is 0 the result is a pointed cone. When it is greater
 than 0 the cone is truncated (a frustum) -- a useful shape for table
 legs, lampshades, and vases.
 
-Type aliases: `cone`, `truncated_cone`, `frustum`.
 
 ---
 
@@ -185,7 +183,6 @@ The torus is always created in the **XZ plane at the origin**. Use
 - To stand it upright, `rotate: [90, 0, 0]`.
 - The ratio `minor_radius / major_radius` controls the "fatness".
 
-Type aliases: `torus`, `donut`.
 
 > **Technical note:** The torus uses an analytic quartic solver for
 > ray intersection -- no tessellation, perfectly smooth at any zoom
@@ -212,7 +209,6 @@ Type aliases: `torus`, `donut`.
 A capsule is a cylinder with hemispherical caps on both ends -- like a
 pill or a sausage. The total height is `height + 2 * radius`.
 
-Type aliases: `capsule`, `pill`.
 
 ---
 
@@ -237,7 +233,6 @@ Type aliases: `capsule`, `pill`.
 An annulus is a flat disk with a circular hole in the middle -- like a
 washer or a ring viewed from above.
 
-Type aliases: `annulus`, `ring_disk`.
 
 ---
 
@@ -282,7 +277,7 @@ determines which side is the front face.
 ### Smooth Triangle
 
 ```yaml
-- type: "smooth_triangle"
+- type: triangle
   v0: [-1, 0, 0]
   v1: [1, 0, 0]
   v2: [0, 1.5, 0]
@@ -381,7 +376,6 @@ On load, the engine automatically builds a BVH for the mesh triangles,
 making intersection tests efficient even for meshes with millions of
 triangles.
 
-Type aliases: `mesh`, `obj`.
 
 All standard transform fields (`translate`, `rotate`, `scale`) work on
 meshes. OBJ models are often exported at vastly different scales, so
@@ -433,10 +427,9 @@ limit surface is smoother than the input.
 
 ### 4.12.2 Displacement (see Chapter 3)
 
-> **Since `2026-05`** displacement is declared on the **material**, not
-> on the entity. See **Chapter 3 — Materials,
-> "Surface Displacement"** for the full guide (scalar, vector, autobump,
-> `displacement_method`, Mix-displacement). The mesh entity only
+> Displacement is declared on the **material**, not on the entity. See
+> **Chapter 3, Materials, "Surface Displacement"** for the full guide
+> (scalar, vector, autobump, `method`, Mix-displacement). The mesh entity only
 > accepts `displacement_enabled: false` to bypass the resolved
 > material's displacement for that single instance.
 
@@ -474,7 +467,7 @@ tessellation, no mesh BVH, one entity replaces a terrain mesh.
   strata:
     - { min_altitude: 0.00, max_altitude: 0.18, material: "sand"  }
     - { min_altitude: 0.14, max_altitude: 0.55, material: "grass" }
-    - { min_altitude: 0.50, max_altitude: 0.85, min_slope_deg: 25, material: "rock" }
+    - { min_altitude: 0.50, max_altitude: 0.85, min_slope: 25, material: "rock" }
     - { min_altitude: 0.80, max_altitude: 1.00, material: "snow"  }
   material: "grass"                          # fallback when no band wins
 ```
@@ -506,33 +499,16 @@ runtime picks the highest-scoring band at each hit. See the **HeightField**
 section of the reference for the full schema; `docs/technical/heightfield.md`
 covers the algorithm.
 
-Type aliases: `heightfield`, `height_field`, `terrain`.
 
 ---
 
-## 4.14 Type Alias Summary
+## 4.14 Type Names
 
-Many primitives have multiple accepted type names:
-
-| Primary name     | Aliases                                |
-|------------------|----------------------------------------|
-| `sphere`         | --                                     |
-| `box`            | --                                     |
-| `infinite_plane` | `plane`                                |
-| `cylinder`       | --                                     |
-| `cone`           | `truncated_cone`, `frustum`            |
-| `torus`          | `donut`                                |
-| `capsule`        | `pill`                                 |
-| `annulus`        | `ring_disk`                            |
-| `disk`           | --                                     |
-| `triangle`       | --                                     |
-| `smooth_triangle`| --                                     |
-| `quad`           | --                                     |
-| `mesh`           | `obj`                                  |
-| `heightfield`    | `height_field`, `terrain`              |
-| `group`          | --                                     |
-| `instance`       | --                                     |
-| `csg`            | --                                     |
+Every primitive has exactly one type name: `sphere`, `box`,
+`infinite_plane`, `cylinder`, `cone`, `torus`, `capsule`, `annulus`,
+`disk`, `triangle` (flat, or smooth with `n0`/`n1`/`n2`), `quad`, `mesh`,
+`heightfield`, `lathe`, `extrusion`, plus `group`, `instance` and `csg`.
+A misspelt type is an error that suggests the closest name.
 
 ---
 
@@ -544,6 +520,7 @@ A scene that renders one of each primitive in a row.
 # shape-gallery.yaml
 # Every geometric primitive in a single scene.
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -561,58 +538,58 @@ lights:
     u: [10, 0, 0]
     v: [0, 0, 8]
     color: [1, 0.97, 0.93]
-    intensity: 25.0
+    luminance: 24.3
 
   - type: "point"
     position: [5, 4, -6]
     color: [0.7, 0.8, 1.0]
-    intensity: 30.0
+    intensity: 23.8
 
 materials:
   - id: "floor"
     type: "lambertian"
     color: [0.35, 0.35, 0.35]
   - id: "red"
-    type: "disney"
-    color: [0.85, 0.12, 0.1]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.85, 0.12, 0.1]
+    specular_roughness: 0.3
   - id: "blue"
-    type: "disney"
-    color: [0.1, 0.2, 0.85]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.1, 0.2, 0.85]
+    specular_roughness: 0.3
   - id: "green"
-    type: "disney"
-    color: [0.1, 0.7, 0.15]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.1, 0.7, 0.15]
+    specular_roughness: 0.3
   - id: "orange"
-    type: "disney"
-    color: [0.9, 0.45, 0.05]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.9, 0.45, 0.05]
+    specular_roughness: 0.3
   - id: "purple"
-    type: "disney"
-    color: [0.5, 0.1, 0.7]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.5, 0.1, 0.7]
+    specular_roughness: 0.3
   - id: "gold"
-    type: "disney"
-    color: [1.0, 0.76, 0.33]
-    metallic: 1.0
-    roughness: 0.1
+    type: openpbr
+    base_color: [1.0, 0.76, 0.33]
+    base_metalness: 1.0
+    specular_roughness: 0.1
   - id: "glass"
     type: "dielectric"
-    refraction_index: 1.52
+    ior: 1.52
   - id: "cyan"
-    type: "disney"
-    color: [0.1, 0.7, 0.75]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.1, 0.7, 0.75]
+    specular_roughness: 0.3
   - id: "pink"
-    type: "disney"
-    color: [0.9, 0.3, 0.5]
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.9, 0.3, 0.5]
+    specular_roughness: 0.3
   - id: "white"
-    type: "disney"
-    color: [0.9, 0.88, 0.85]
-    roughness: 0.25
-    specular: 0.6
+    type: openpbr
+    base_color: [0.9, 0.88, 0.85]
+    specular_roughness: 0.25
+    specular_weight: 1.2
 
 entities:
   # Floor
@@ -705,7 +682,7 @@ RayTracer -i shape-gallery.yaml -w 1600 -H 700 -s 256 -d 6
 - **Quads** are for bounded flat surfaces (panels, frames, light
   emitters).
 - **Meshes** load OBJ files with automatic BVH construction.
-- Most primitives have type aliases for convenience.
+- Every primitive has one type name; a misspelt one is an error with a suggestion.
 
 ---
 

@@ -25,10 +25,10 @@ Consulta le convenzioni del progetto:
 
 ### 1. Struttura
 
-- [ ] YAML valido (nessun errore di sintassi)
-- [ ] Sezioni nell'ordine raccomandato: `imports` → `templates` → `world` → `cameras` → `lights` → `materials` → `entities`
-- [ ] `imports:` è la prima sezione (se presente)
-- [ ] Usa `cameras:` lista (**non** il legacy `camera:` singolo)
+- [ ] `format_version: 2` presente (senza è una scena del formato 1: convertirla con `dotnet run --project src/Tools/SceneMigrate -- <scena>`)
+- [ ] La scena carica senza errori né avvisi del validatore (chiavi sconosciute, valori di tipo sbagliato, chiavi senza effetto sul `type`): eseguire un render `-q draft-tiny` e leggere i messaggi
+- [ ] Sezioni nell'ordine raccomandato: `format_version` → `units` → `render` → `imports` → `templates` → `world` → `cameras` → `lights` → `materials` → `mediums` → `entities`
+- [ ] Usa `cameras:` lista
 - [ ] Almeno 2 camere con nomi univoci e descrittivi
 - [ ] File naming: `kebab-case.yaml`, showcase: `<feature>-showcase.yaml`
 
@@ -39,12 +39,12 @@ Consulta le convenzioni del progetto:
 - [ ] Nessun materiale orfano (definito ma mai usato in entities/ground/templates)
 - [ ] Nessun materiale fantasma (referenziato in entities ma mai definito né importato)
 - [ ] Colori RGB in range 0.0–1.0 (non 0–255)
-- [ ] `lambertian` per superfici grandi (pavimenti, muri) — `disney` solo per hero objects
-- [ ] `metal.fuzz`: 0.0–1.0
-- [ ] `dielectric.refraction_index`: range realistico 1.0–2.5
-- [ ] `emissive.intensity`: proporzionata alla scena (0.5–100)
-- [ ] `disney` parametri: `metallic`, `roughness`, `specular`, `clearcoat`, `sheen`, `spec_trans` tutti in 0.0–1.0
-- [ ] SSS: se `subsurface_radius` presente → deve essere array `[r, g, b]` con valori > 0; se manca `spec_trans: 0` esplicito avvisare (il motore auto-promuove a traslucido)
+- [ ] `lambertian` per superfici grandi (pavimenti, muri) — `openpbr` solo per hero objects
+- [ ] `metal.roughness`: 0.0–1.0
+- [ ] `dielectric.ior`: range realistico 1.0–2.5
+- [ ] `emissive.luminance`: proporzionata alla scena (0.5–100 senza esposizione, nit reali con `ev100`)
+- [ ] `openpbr`: pesi (`*_weight`, `base_metalness`) e rugosità in 0.0–1.0; `thin_film_thickness` in micrometri (0.1–1)
+- [ ] SSS: `subsurface_weight` > 0 con `subsurface_radius` scalare > 0 e `subsurface_radius_scale` `[r, g, b]`
 - [ ] `interior_medium:` su entità chiuse: referenzia un medium definito nella scena
 
 ### 3. Geometria e posizionamento
@@ -63,27 +63,26 @@ Consulta le convenzioni del progetto:
 
 - [ ] `fov`: 20–90° (avviso se < 15° o > 100°)
 - [ ] `aperture`: ≥ 0.0 (errore se negativo)
-- [ ] Se `aperture` > 0: `focal_dist` deve corrispondere alla distanza camera→soggetto (non un valore generico come 1.0)
-- [ ] `vup`: `[0, 1, 0]` standard, `[0, 0, ±1]` per zenitali — altri valori richiedono giustificazione
+- [ ] Se `aperture` > 0: `focus_distance` (o `focus_point`) deve corrispondere alla distanza camera→soggetto (non il default 1)
+- [ ] `up`: `[0, 1, 0]` standard, `[0, 0, ±1]` per zenitali — altri valori richiedono giustificazione
 - [ ] Nomi camera univoci
 
 ### 5. Luci
 
 - [ ] Almeno una sorgente di luce (esplicita o oggetto emissivo)
-- [ ] Parametri obbligatori per tipo: `point` → position+intensity, `spot` → position+direction+inner_angle+outer_angle, `directional` → direction+intensity, `area` → corner+u+v, `sphere` → position+radius+intensity
+- [ ] Parametri per tipo: `point` → position+`intensity` (cd), `spot` → position+direction+`intensity`+inner_angle+outer_angle, `directional` → direction+`illuminance` (lux), `area` → corner+u+v+`luminance` (nit), `sphere` → position+radius+`luminance`; oppure `power` al posto della grandezza; il `color` è solo una tinta
 - [ ] `spot`: `inner_angle` < `outer_angle`
-- [ ] Intensità proporzionate (nessuna luce con intensità 0 o valori estremi non giustificati)
+- [ ] Luminosità proporzionate (nessuna luce a 0 o valori estremi non giustificati); valori reali (lux, nit) solo con l'`ev100` della camera
 - [ ] Coerenza luce-cielo: direzione `directional` allineata con `sky.sun.direction` se entrambi presenti
 
 ### 6. World e ambiente
 
-- [ ] `sky` presente o omesso (default = flat azzurro).
+- [ ] `sky` presente o omesso (omesso = ambiente nero).
 - [ ] Se `sky.type: flat`: `color` con valori 0.0–1.0; `[0,0,0]` ammesso per black-void.
-- [ ] Se `sky.type: gradient`: `zenith_color`, `horizon_color`, `ground_color` presenti; eventualmente `sun:` con `direction`/`color`/`intensity`/`size`/`falloff`.
-- [ ] Se `sky.type: hdri`: `path:` esiste sotto la directory di scena; `intensity` ragionevole (0.5–3.0); `rotation` in gradi.
-- [ ] Se `sky.type: nishita`: `sun_direction` valido (array [x,y,z]); altitudine solare ≥ −10°; non aggiungere `directional` separato (il `physical_sun` è auto-generato).
-- [ ] Se `sky.type: hosek_wilkie` o `preetham`: `sun_elevation_deg` in range 0–90.
-- [ ] `ground.type`: valido tra `infinite_plane | plane | quad | disk | heightfield | terrain` (default `infinite_plane`).
+- [ ] Se `sky.type: gradient`: `zenith_color`, `horizon_color`, `ground_color` presenti; eventualmente `sun:` con `direction`/`color`/`luminance`/`angular_radius`.
+- [ ] Se `sky.type: hdri`: `path:` esiste sotto la directory di scena; `exposure` ragionevole (−2..+2 stop); `rotate` in gradi.
+- [ ] Se `sky.type: nishita`, `hosek_wilkie` o `preetham`: `sun.direction` valido (verso il sole), altitudine ≥ −10°; non aggiungere `directional` separato (il sole è auto-generato); cielo in nit: `ev100` sulla camera oppure `exposure` sul cielo (circa −10).
+- [ ] `ground.type`: valido tra `infinite_plane | quad | disk` (default `infinite_plane`); un terreno è un'entità `heightfield`.
 - [ ] `ground.material`: referenzia un materiale definito.
 - [ ] `world.medium` (globale) e `interior_medium:` su entità (locale): entrambi validi, non devono coincidere.
 - [ ] Se `world.medium` o `interior_medium:` presente: `type` valido, `sigma_a`/`sigma_s` > 0, `phase` valida, `g` in (-1, 1) per HG.
@@ -114,7 +113,7 @@ Produci il report in questo formato:
 - **[CAMERA]** Aperture negativa (-0.05) nella camera "macro"
 
 ### 🟡 Avvisi (da valutare)
-- **[PERFORMANCE]** Pavimento usa `disney` — suggerito `lambertian` per superfici grandi
+- **[PERFORMANCE]** Pavimento usa `openpbr` — suggerito `lambertian` per superfici grandi
 - **[POSIZIONE]** Box "tavolo" con translate [0, 0, 0] — probabile Y errato (serve height/2)
 
 ### 🟢 Suggerimenti

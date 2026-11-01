@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  white-furnace-classic.yaml - fornace bianca dei materiali classici
 #  (PIANO-REVIEW.md, Fase 5)
@@ -11,6 +12,7 @@
 #    -s 256 -d 32 --view standard --denoiser none -w 640 -H 360 --aov beauty
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -21,16 +23,16 @@ world:
 # Nessuna luce: senza questa riga il loader aggiunge due luci di default.
 lights: []
 
-camera:
-  position: [0, 0, -12]
-  look_at: [0, 0, 0]
-  fov: 40
+cameras:
+  - position: [0, 0, -12]
+    look_at: [0, 0, 0]
+    fov: 40
 
 materials:
   - { id: "lambert", type: "lambertian", color: [1, 1, 1] }
   - { id: "metal",   type: "metal", color: [1, 1, 1], roughness: 0.6 }
   - { id: "mirror",  type: "metal", color: [1, 1, 1], roughness: 0 }
-  - { id: "glass",   type: "dielectric", color: [1, 1, 1], refraction_index: 1.5, roughness: 0.3 }
+  - { id: "glass",   type: "dielectric", color: [1, 1, 1], ior: 1.5, roughness: 0.3 }
 
 entities:
   - { name: "lambert", type: "sphere", center: [ 3.0, 0, 0], radius: 0.8, material: "lambert" }

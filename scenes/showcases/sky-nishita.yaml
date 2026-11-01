@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Showcase: Nishita physical atmosphere (Rayleigh + Mie single-scattering).
 #
 # Demonstrates:
@@ -8,48 +9,48 @@
 # Render: dotnet run -c Release --project src/RayTracer/RayTracer.csproj -- \
 #         -i scenes/showcase-sky-nishita.yaml -o renders/nishita.png -w 1280 -H 720 -s 256 -d 6
 
+format_version: 2
 world:
   ground:
     type: "infinite_plane"
     material: "ground"
-    y: 0
+    point: [0, 0, 0]
   sky:
     type: "nishita"
     turbidity: 3.0                          # remapped internally to a Mie-dust scalar
-    intensity: 1.0
+    exposure: -12.70779
     sun:
       direction: [-0.85, 0.12, 0.4]         # sun low on the horizon → sunset palette
-      angular_radius: 0.265
       shadow_samples: 4
 
 cameras:
   - name: "wide"
     position: [0, 1.5, 5.5]
     look_at: [0, 0.8, 0]
-    vup: [0, 1, 0]
+    up: [0, 1, 0]
     fov: 50
 
 materials:
   - id: "ground"
-    type: "disney"
-    color: [0.38, 0.34, 0.28]
-    roughness: 0.85
-    specular: 0.3
+    type: openpbr
+    base_color: [0.38, 0.34, 0.28]
+    specular_roughness: 0.85
+    specular_weight: 0.6
   - id: "chrome"
-    type: "disney"
-    color: [0.95, 0.95, 0.95]
-    metallic: 1.0
-    roughness: 0.06
+    type: openpbr
+    base_color: [0.95, 0.95, 0.95]
+    base_metalness: 1.0
+    specular_roughness: 0.06
   - id: "matte"
-    type: "disney"
-    color: [0.85, 0.45, 0.30]
-    roughness: 0.55
+    type: openpbr
+    base_color: [0.85, 0.45, 0.30]
+    specular_roughness: 0.55
   - id: "glass"
-    type: "disney"
-    color: [0.95, 0.95, 0.95]
-    spec_trans: 1.0
-    ior: 1.5
-    roughness: 0.02
+    type: openpbr
+    base_color: [0.95, 0.95, 0.95]
+    transmission_weight: 1.0
+    specular_roughness: 0.02
+    transmission_color: [0.95, 0.95, 0.95]
 
 entities:
   - type: "sphere"

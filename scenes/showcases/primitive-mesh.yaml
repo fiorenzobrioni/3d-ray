@@ -1,14 +1,16 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ============================================================================
 # Scene: Mesh Loading Showcase
 # Tests: Smooth sphere OBJ, flat cube OBJ, torus mesh OBJ, transforms, materials
 # NOTE: Place test-sphere.obj, test-cube.obj, test-torus-mesh.obj in the models folder
 # ============================================================================
 
-camera:
-  position: [0, 3, -8]
-  look_at: [0, 1, 0]
-  fov: 50
-  aperture: 0.0
+format_version: 2
+cameras:
+  - position: [0, 3, -8]
+    look_at: [0, 1, 0]
+    fov: 50
+    aperture: 0.0
 
 world:
   sky:
@@ -17,56 +19,55 @@ world:
     horizon_color: [0.4, 0.35, 0.5]
     ground_color: [0.06, 0.06, 0.06]
   ground:
-    type: "plane"
+    type: infinite_plane
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
 
 materials:
   - id: "pavimento"
-    type: "disney"
-    roughness: 0.7
-    texture:
+    type: openpbr
+    specular_roughness: 0.7
+    base_color:
       type: "checker"
       colors: [[0.1, 0.1, 0.1], [0.2, 0.2, 0.2]]
       scale: 1.0
 
   # ── Mesh materials ─────────────────────────────────────────────────────────
   - id: "ceramica"
-    type: "disney"
-    color: [0.92, 0.88, 0.82]
-    roughness: 0.3
-    metallic: 0.0
+    type: openpbr
+    base_color: [0.92, 0.88, 0.82]
+    specular_roughness: 0.3
 
   - id: "oro"
-    type: "disney"
-    color: [1.0, 0.84, 0.0]
-    roughness: 0.15
-    metallic: 1.0
+    type: openpbr
+    base_color: [1.0, 0.84, 0.0]
+    specular_roughness: 0.15
+    base_metalness: 1.0
 
   - id: "vetro"
     type: "dielectric"
-    refraction_index: 1.5
+    ior: 1.5
 
   - id: "legno"
-    type: "disney"
-    color: [0.55, 0.35, 0.15]
-    roughness: 0.7
+    type: openpbr
+    base_color: [0.55, 0.35, 0.15]
+    specular_roughness: 0.7
 
   - id: "rosso_lucido"
-    type: "disney"
-    color: [0.85, 0.1, 0.1]
-    roughness: 0.15
+    type: openpbr
+    base_color: [0.85, 0.1, 0.1]
+    specular_roughness: 0.15
 
   - id: "acciaio"
-    type: "disney"
-    color: [0.8, 0.8, 0.82]
-    roughness: 0.2
-    metallic: 1.0
+    type: openpbr
+    base_color: [0.8, 0.8, 0.82]
+    specular_roughness: 0.2
+    base_metalness: 1.0
 
   - id: "neon_mesh"
     type: "emissive"
     color: [0.5, 0.8, 1.0]
-    intensity: 8.0
+    luminance: 6.00528
 
 lights:
   - type: "point"
@@ -77,7 +78,7 @@ lights:
   - type: "point"
     position: [-4, 5, -3]
     color: [0.85, 0.9, 1.0]
-    intensity: 40
+    intensity: 35.8636
 
 entities:
   # ═══════════════════════════════════════════════════════════════════════════

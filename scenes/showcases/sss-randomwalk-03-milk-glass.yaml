@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  SSS RANDOM WALK #03 — Bicchiere di latte (Cornell)
 #
@@ -22,18 +23,19 @@
 #    Showcase:  -q final
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.0, 0.0, 0.0]
 
-camera:
-  position: [0, 1.25, 2.6]
-  look_at:  [0, 1.25, -1.0]
-  vup:      [0, 1, 0]
-  fov:      54
-  aperture: 0.0
-  focal_dist: 3.6
+cameras:
+  - position: [0, 1.25, 2.6]
+    look_at:  [0, 1.25, -1.0]
+    up:       [0, 1, 0]
+    fov:      54
+    aperture: 0.0
+    focus_distance: 3.6
 
 mediums:
   - id: milk_int
@@ -59,17 +61,17 @@ materials:
   - id: ceiling_light
     type: emissive
     color:     [1.0, 0.93, 0.85]
-    intensity: 11.0
+    luminance: 10.330167
 
   - id: milk_surface
-    type: disney
-    color: [1.0, 1.0, 1.0]
-    roughness: 0.05
-    specular: 0.5
-    spec_trans: 1.0
-    ior: 1.35
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.05
+    transmission_weight: 1.0
+    specular_ior: 1.35
+    transmission_color: [1, 1, 1]
 
-lights:
+lights: []
   # No explicit lights — the emissive ceiling becomes a GeometryLight in NEE.
 
 entities:

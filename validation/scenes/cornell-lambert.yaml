@@ -1,8 +1,10 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Validation scene (PIANO-REVIEW.md, Phase 0): Cornell box, Lambertian only,
 # emissive ceiling panel. Pure global illumination with no glossy lobe: any
 # gap against the reference is in the integrator, the light/emission MIS or
 # the Lambertian BSDF. Two runs: deep (converged GI) and depth 2 (direct + one
 # bounce), which probes the MIS bookkeeping at the last bounce.
+format_version: 2
 validation:
   width: 128
   height: 128
@@ -15,17 +17,17 @@ validation:
 world:
   sky: { type: "flat", color: [0, 0, 0] }
 
-camera:
-  position: [0.0, 1.0, 3.4]
-  look_at: [0.0, 1.0, -1.0]
-  vup: [0, 1, 0]
-  fov: 40
+cameras:
+  - position: [0.0, 1.0, 3.4]
+    look_at: [0.0, 1.0, -1.0]
+    up: [0, 1, 0]
+    fov: 40
 
 materials:
   - { id: "white", type: "lambertian", color: [0.73, 0.73, 0.73] }
   - { id: "red", type: "lambertian", color: [0.65, 0.05, 0.05] }
   - { id: "green", type: "lambertian", color: [0.12, 0.45, 0.15] }
-  - { id: "light", type: "emissive", color: [1.0, 0.9, 0.75], intensity: 20 }
+  - { id: "light", type: "emissive", color: [1.0, 0.9, 0.75], luminance: 18.2086 }
 
 entities:
   - { type: "quad", q: [-1, 0, 0], u: [0, 0, -2], v: [2, 0, 0], material: "white" }   # floor (two-sided)

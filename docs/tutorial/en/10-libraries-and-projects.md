@@ -59,7 +59,9 @@ scenes/assets/
 # in your scene
 materials:
   - id: "carrara_lucido"        # ← pasted from presets/materials-stone.md
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ...
 
 entities:
@@ -78,7 +80,7 @@ and renders without warnings.
 ## 10.2 Material Catalogues
 
 Eight themed catalogues cover every surface type you are likely to need.
-Most materials use the **Disney BSDF** (`type: disney`); a classic type
+Most materials use **OpenPBR** (`type: openpbr`); a classic type
 (`lambertian`, `metal`, `dielectric`) is used only where it is the correct
 choice (e.g. simple background surfaces).
 
@@ -88,16 +90,17 @@ choice (e.g. simple background surfaces).
 | `materials-metal.md`          | Gold, silver, copper, bronze, brass, steel, iron/cast iron, aluminium (incl. anodized), titanium (thin-film), chrome, plus industrial coatings |
 | `materials-wood.md`           | Light/medium/dark hardwoods, ebony, exotics, treated (shou-sugi-ban, barnwood), studio figured woods |
 | `materials-glass.md`          | Industrial/optical glass, crystal, gems (precious + semiprecious), ice, liquids, frosted |
-| `materials-organic.md`        | Fabrics (sheen), leathers, foods, wax, amber, ivory, mother-of-pearl, cork, paper |
+| `materials-organic.md`        | Fabrics (fuzz), leathers, foods, wax, amber, ivory, mother-of-pearl, cork, paper |
 | `materials-synthetic.md`      | Plastics, carbon fibre (anisotropic), kevlar, silicones, paints, ceramics, porcelain |
 | `materials-ground.md`         | Grass, undergrowth, desert sand, dry earth, rock, gravel, fresh snow, water — pairs with `world.md` |
 | `materials-weathering.md`     | `over_*` overlays for `type: mix` (rust, moss, dust, limescale) and ready `mix_*` recipes |
 
 ### Conventions
 
-Most materials are `type: disney` (full PBR with clearcoat, sheen,
-`spec_trans`, `thin_film`). Pair a Disney material with an `interior_medium`
-binding on the entity for Random Walk SSS. The weathering catalogue uses two
+Most materials are `type: openpbr` (full PBR with coat, fuzz,
+transmission, subsurface, thin film); the translucent ones carry their
+subsurface on the material (`subsurface_weight`), or pair with an
+`interior_medium` binding on the entity for Random Walk SSS. The weathering catalogue uses two
 families of ids:
 
 - **`over_`** — a weathering overlay, combined via `type: mix` over a base
@@ -112,14 +115,15 @@ then reference them by `id`:
 ```yaml
 materials:
   - id: "oro_lucido"            # ← pasted from presets/materials-metal.md
-    type: "disney"
-    color: [1.0, 0.71, 0.29]
-    metallic: 1.0
-    roughness: 0.05
-    specular: 0.8
+    type: openpbr
+    base_color: [1.0, 0.71, 0.29]
+    base_metalness: 1.0
+    specular_roughness: 0.05
 
   - id: "diamante"             # ← pasted from presets/materials-glass.md
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ...
 
 entities:
@@ -144,10 +148,10 @@ in place, and rename the `id` to whatever fits your scene:
 materials:
   # A warmer, glossier gold based on the polished-gold preset
   - id: "my_gold"
-    type: "disney"
-    color: [0.98, 0.8, 0.3]
-    metallic: 1.0
-    roughness: 0.08
+    type: openpbr
+    base_color: [0.98, 0.8, 0.3]
+    base_metalness: 1.0
+    specular_roughness: 0.08
 ```
 
 ---
@@ -182,10 +186,13 @@ your scene:
 ```yaml
 lights:                          # ← pasted from presets/lights.md (3-point)
   - type: "area"
+    luminance: 1
     # key light ...
   - type: "area"
+    luminance: 1
     # fill light ...
   - type: "area"
+    luminance: 1
     # rim light ...
 
 # Each light section suggests a matching world config in its notes.
@@ -211,6 +218,7 @@ includes it in NEE sampling:
 materials:
   - id: "emi_tungsteno"         # ← pasted from presets/lights.md
     type: "emissive"
+    luminance: 1
     # ...
 
 entities:
@@ -293,9 +301,9 @@ referenced by relative path from your scene file.
 ```yaml
 materials:
   - id: "brick_wall"
-    type: "disney"
-    roughness: 0.7
-    texture:
+    type: openpbr
+    specular_roughness: 0.7
+    base_color:
       type: "image"
       path: "assets/textures/brick-wall.png"
       uv_scale: [2, 2]
@@ -323,15 +331,14 @@ Reference a character template using `type: "instance"`:
 
 ```yaml
 imports:
-  - path: "assets/fonts/font-open-sans.yaml"
+  - "assets/fonts/font-open-sans.yaml"
 
 materials:
   # Define or override the font material used by all characters
   - id: "font_material"
-    type: "disney"
-    color: [0.9, 0.85, 0.7]
-    metallic: 0.0
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.9, 0.85, 0.7]
+    specular_roughness: 0.3
 
 entities:
   - type: "instance"
@@ -373,28 +380,11 @@ tessellation — with materials assigned to altitude/slope bands (`strata`).
 The engine intersects the heightfield directly via a min/max mipmap
 quadtree, so one primitive replaces an entire terrain mesh.
 
-### As a ground dispatcher (`world.ground`)
+### As an entity
 
-Paste the ground materials and the `world.ground` block from the catalogue;
-the heightfield becomes the scene's floor:
-
-```yaml
-world:
-  ground:
-    type: "heightfield"
-    heightmap_path: "assets/heightmaps/heightfield-strata-test-height.png"
-    bounds: [-50, -50, 50, 50]
-    height_scale: 25.0
-    strata:
-      - { min_altitude: 0.0, max_altitude: 0.36, min_slope_deg: 0, max_slope_deg: 35, blend_width: 0.04, material: "t_sand" }
-      - { min_altitude: 0.5, max_altitude: 1.0,  min_slope_deg: 0, max_slope_deg: 90, blend_width: 0.08, material: "t_rock" }
-    material: "t_ground"
-```
-
-### As a placeable entity
-
-The same fields work on a `type: heightfield` entity, which you can position
-and transform anywhere in the scene:
+Paste the terrain materials and the `heightfield` entity from the catalogue: a
+large one is the scene's floor, a small one a hill you can place and transform
+anywhere in the scene:
 
 ```yaml
 entities:
@@ -402,7 +392,10 @@ entities:
     heightmap_path: "assets/heightmaps/heightfield-strata-test-height.png"
     bounds: [-50, -50, 50, 50]
     height_scale: 25.0
-    material: "t_ground"
+    material: "t_ground"                 # where no stratum wins
+    strata:
+      - { min_altitude: 0.0, max_altitude: 0.36, min_slope: 0, max_slope: 35, blend_width: 0.04, material: "t_sand" }
+      - { min_altitude: 0.5, max_altitude: 1.0,  min_slope: 0, max_slope: 90, blend_width: 0.08, material: "t_rock" }
 ```
 
 ### Generating heightmaps
@@ -501,15 +494,20 @@ your scene's `materials:` and `lights:` sections:
 ```yaml
 materials:
   - id: "carrara_lucido"        # ← presets/materials-stone.md
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ...
   - id: "oro_lucido"            # ← presets/materials-metal.md
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ...
 
 lights:
   # ← 3-point block pasted from presets/lights.md
   - type: "area"
+    luminance: 1
     # ...
 ```
 
@@ -581,9 +579,14 @@ Once a scene grows past a couple hundred entities, a little structure pays off:
 ## 10.10 Troubleshooting Guide
 
 ### Black Image
-- **No lights.** Add lights to the `lights:` section or use emissive
-  objects / HDRI sky.
-- **All lights have zero intensity.** Check that `intensity` is positive.
+- **No lights and no sky.** The engine adds no default lights and a
+  scene without `world.sky` has a black environment: add lights to the
+  `lights:` section, a sky, or emissive objects.
+- **All lights are zero.** Check that each light's brightness key
+  (`intensity`, `luminance`, `illuminance` or `power`) is positive.
+- **A photometric scene without an exposure, or the other way round.**
+  Real values (a 100 000 lux sun, a physical sky) need the camera's
+  `ev100`; with `ev100: 15` a scene lit with small values is black.
 - **Camera inside an object.** Move the camera `position` outside all
   geometry.
 - **Camera facing the wrong way.** Check `look_at`.
@@ -596,10 +599,10 @@ Once a scene grows past a couple hundred entities, a little structure pays off:
 - **Sky is too bright relative to your key light.** A flat sky with a
   high `color` (e.g. `[0.5, 0.5, 0.5]`) bounces a lot of fill onto every
   surface; if it dominates your key light you lose shadow contrast.
-  Lower the sky colour or raise the key light's `intensity`.
+  Lower the sky colour or raise the key light's brightness.
 - **No dominant directional light.** A scene lit only by a sky has no
   clear shadow direction; add a key light (directional, area, or sun
-  disk inside a gradient sky) with higher intensity to establish
+  disk inside a gradient sky) with a higher brightness to establish
   contrast.
 - **All lights are the same color.** Real environments mix warm and cool
   light. Try a warm key light (`[1.0, 0.9, 0.75]`) paired with a cool
@@ -608,7 +611,7 @@ Once a scene grows past a couple hundred entities, a little structure pays off:
 ### Too Much Noise
 - Increase samples: `-s 64` or `-s 256`.
 - Increase shadow samples: `-S 16`.
-- Dense Disney materials (sheen, thin-film) and Random Walk SSS need
+- Layered OpenPBR materials (fuzz, thin film, coat) and Random Walk SSS need
   more samples than classic types.
 - **Depth of Field is enabled.** A non-zero `aperture` requires many
   more samples to clear bokeh noise. Use at least `-s 256` for clean
@@ -620,7 +623,7 @@ Once a scene grows past a couple hundred entities, a little structure pays off:
 ### Very Slow Render
 - Reduce resolution and samples during testing.
 - Use the preview/draft/final workflow.
-- Replace Disney materials with classic equivalents for background
+- Replace OpenPBR materials with classic equivalents for background
   surfaces.
 - **Too many shadow samples.** `-S` cost is multiplicative: `-S 9` with
   two area lights and `-s 256` at 6 bounces is over 27,000 shadow rays
@@ -676,6 +679,7 @@ into a cohesive project.
 # Materials pasted from presets/materials-metal.md and materials-glass.md;
 # the emi_daylight material from the geometry-lights section of presets/lights.md.
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -692,45 +696,47 @@ cameras:
     look_at: [0.5, 1.2, 0]
     fov: 35
     aperture: 0.08
-    focal_dist: 4.5
+    focus_distance: 4.5
 
 materials:
   # ── Pasted from the catalogues ──────────────────────────────────────
   - id: "oro_lucido"            # presets/materials-metal.md
-    type: "disney"
-    color: [1.0, 0.71, 0.29]
-    metallic: 1.0
-    roughness: 0.05
-    specular: 0.8
+    type: openpbr
+    base_color: [1.0, 0.71, 0.29]
+    base_metalness: 1.0
+    specular_roughness: 0.05
 
   - id: "diamante"             # presets/materials-glass.md
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ... (paste the full diamante block)
 
   - id: "emi_daylight"         # presets/lights.md (geometry lights)
     type: "emissive"
+    luminance: 1
     # ... (paste the full emi_daylight block)
 
   # ── Custom surfaces ─────────────────────────────────────────────────
   - id: "hall_floor"
-    type: "disney"
-    roughness: 0.1
-    specular: 0.8
-    texture:
+    type: openpbr
+    specular_roughness: 0.1
+    specular_weight: 1.6
+    base_color:
       type: "checker"
       scale: 0.3
       colors: [[0.85, 0.82, 0.78], [0.25, 0.22, 0.2]]
 
   - id: "pedestal"
-    type: "disney"
-    color: [0.2, 0.2, 0.22]
-    roughness: 0.08
-    specular: 0.7
+    type: openpbr
+    base_color: [0.2, 0.2, 0.22]
+    specular_roughness: 0.08
+    specular_weight: 1.4
 
   - id: "wall"
-    type: "disney"
-    color: [0.15, 0.14, 0.13]
-    roughness: 0.6
+    type: openpbr
+    base_color: [0.15, 0.14, 0.13]
+    specular_roughness: 0.6
 
 entities:
   # Floor
@@ -791,7 +797,7 @@ lights:
     position: [-2, 4, -1]
     direction: [0, -1, 0.2]
     color: [1, 0.97, 0.92]
-    intensity: 60.0
+    intensity: 58.4
     inner_angle: 10
     outer_angle: 22
     soft_radius: 0.08
@@ -801,7 +807,7 @@ lights:
     position: [0, 4, -1]
     direction: [0, -1, 0.2]
     color: [1, 0.97, 0.92]
-    intensity: 60.0
+    intensity: 58.4
     inner_angle: 10
     outer_angle: 22
     soft_radius: 0.08
@@ -811,7 +817,7 @@ lights:
     position: [2, 4, -1]
     direction: [0, -1, 0.2]
     color: [1, 0.97, 0.92]
-    intensity: 60.0
+    intensity: 58.4
     inner_angle: 10
     outer_angle: 22
     soft_radius: 0.08
@@ -823,7 +829,7 @@ lights:
     u: [6, 0, 0]
     v: [0, 0, 4]
     color: [0.6, 0.65, 0.8]
-    intensity: 5.0
+    luminance: 3.251
     shadow_samples: 4
 ```
 

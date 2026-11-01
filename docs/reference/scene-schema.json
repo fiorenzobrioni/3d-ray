@@ -1,0 +1,5112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/fiorenzobrioni/3d-ray/docs/reference/scene-schema.json",
+  "title": "3D-Ray scene, format 2",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "cameras": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/CameraData"
+      },
+      "description": "Cameras, picked with \u0027--camera name|index\u0027 (default the first)."
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/EntityData"
+      }
+    },
+    "format_version": {
+      "const": 2,
+      "description": "Version of the scene format: 2. Required."
+    },
+    "imports": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Scene files whose materials, mediums, lights, entities and templates join this scene\u0027s (paths relative to this file; local ids override imported ones; cycles are refused). \u0027world\u0027, \u0027cameras\u0027, \u0027render\u0027 and \u0027units\u0027 are not imported."
+    },
+    "lights": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/LightData"
+      }
+    },
+    "materials": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/MaterialData"
+      }
+    },
+    "mediums": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/MediumData"
+      },
+      "description": "Participating media, bound to entities by \u0027interior_medium\u0027 / \u0027exterior_medium\u0027."
+    },
+    "render": {
+      "$ref": "#/definitions/RenderData",
+      "description": "How to render the scene; the CLI overrides it."
+    },
+    "templates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/EntityData"
+      },
+      "description": "Blueprints: no geometry until an entity of \u0027type: instance\u0027 references one by \u0027name\u0027. A template\u0027s own transform composes under the instance\u0027s."
+    },
+    "units": {
+      "$ref": "#/definitions/UnitsData"
+    },
+    "validation": {
+      "type": "object",
+      "description": "Settings of the validation harness (\u0027validation/run.py\u0027); not read by the engine."
+    },
+    "world": {
+      "$ref": "#/definitions/WorldData"
+    }
+  },
+  "description": "A scene file.",
+  "required": [
+    "format_version"
+  ],
+  "definitions": {
+    "BumpMapData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scale": {
+          "type": "number",
+          "description": "Frequency multiplier of the height field."
+        },
+        "strength": {
+          "type": "number"
+        },
+        "texture": {
+          "$ref": "#/definitions/TextureData",
+          "description": "Height field; its luminance times \u0027strength\u0027 is a height in scene units."
+        }
+      }
+    },
+    "CameraData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "aperture": {
+          "type": "number",
+          "description": "Lens diameter in scene units (0 = pinhole)."
+        },
+        "aperture_blades": {
+          "type": "integer",
+          "description": "Straight aperture blades (polygonal bokeh); 0 = round."
+        },
+        "aperture_ratio": {
+          "type": "number",
+          "description": "Aperture width / height (below 1: anamorphic oval bokeh)."
+        },
+        "aperture_rotation": {
+          "type": "number",
+          "description": "Rotation of the blade polygon, degrees."
+        },
+        "ev100": {
+          "type": "number",
+          "description": "Exposure value at ISO 100 (15 sunny day, 7 lit interior), instead of ISO, shutter and f-number."
+        },
+        "f_stop": {
+          "type": "number",
+          "description": "f-number: the aperture is the focal length over N."
+        },
+        "focal_length": {
+          "type": "number",
+          "description": "Focal length in millimetres: with \u0027sensor_width\u0027 it sets the field of view."
+        },
+        "focus_distance": {
+          "type": "number",
+          "description": "Distance of the plane in focus, along the view axis (default 1)."
+        },
+        "focus_point": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "A point in focus: wins over \u0027focus_distance\u0027."
+        },
+        "fov": {
+          "type": "number",
+          "description": "Vertical field of view, degrees (default 60)."
+        },
+        "iso": {
+          "type": "number",
+          "description": "ISO of the physical exposure (with \u0027shutter_speed\u0027 and \u0027f_stop\u0027)."
+        },
+        "look_at": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "motion": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CameraMotionKeyData"
+          },
+          "description": "Camera keyframes; the base pose is the key at time 0."
+        },
+        "name": {
+          "type": "string"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "sensor_width": {
+          "type": "number",
+          "description": "Sensor width in millimetres, spanning the image width (default 36)."
+        },
+        "shutter_interval": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Motion-blur interval \u0027[open, close]\u0027 inside the animation range [0, 1]."
+        },
+        "shutter_speed": {
+          "type": "number",
+          "description": "Exposure time in seconds (0.008 = 1/125 s)."
+        },
+        "up": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Up direction, default \u0027[0, 1, 0]\u0027."
+        },
+        "white_balance": {
+          "type": "number",
+          "description": "White balance, kelvin: a light of this colour temperature renders neutral."
+        }
+      },
+      "description": "A thin-lens camera: a field of view, or the photographic \u0027focal_length\u0027 on a \u0027sensor_width\u0027; a lens \u0027aperture\u0027 in scene units, or an \u0027f_stop\u0027."
+    },
+    "CameraMotionKeyData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fov": {
+          "type": "number"
+        },
+        "look_at": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "time": {
+          "type": "number"
+        },
+        "up": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        }
+      }
+    },
+    "ColorRampStopData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "interp": {
+          "type": "string",
+          "enum": [
+            "linear",
+            "smoothstep",
+            "constant",
+            "ease"
+          ],
+          "description": "Interpolation towards the next stop."
+        },
+        "position": {
+          "type": "number"
+        }
+      }
+    },
+    "DisplacementData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "autobump": {
+          "type": "boolean",
+          "description": "Add the detail finer than the subdivision as a bump."
+        },
+        "autobump_scale": {
+          "type": "number"
+        },
+        "autobump_strength": {
+          "type": "number"
+        },
+        "blend_with_mask": {
+          "type": "boolean",
+          "description": "On a mix: blend the two materials\u0027 displacements with the mix\u0027s blend."
+        },
+        "bound": {
+          "type": "number",
+          "description": "Largest displacement, scene units, padding the bounds (0: from \u0027scale\u0027)."
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "both",
+            "displacement",
+            "bump_only"
+          ],
+          "description": "\u0027both\u0027 (default), \u0027displacement\u0027 (no autobump) or \u0027bump_only\u0027."
+        },
+        "midlevel": {
+          "type": "number",
+          "description": "Texture value that means no displacement (default 0)."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "scalar",
+            "vector"
+          ]
+        },
+        "scale": {
+          "type": "number",
+          "description": "Amplitude in scene units (default 0.1)."
+        },
+        "space": {
+          "type": "string",
+          "enum": [
+            "tangent",
+            "object"
+          ],
+          "description": "Vector mode: \u0027tangent\u0027 (default) or \u0027object\u0027."
+        },
+        "texture": {
+          "$ref": "#/definitions/TextureData"
+        },
+        "uv_scale": {
+          "type": "number",
+          "description": "UV multiplier on top of the texture\u0027s \u0027uv_scale\u0027."
+        }
+      },
+      "description": "Displacement of a mesh: scalar \u0027v \u002B scale (h \u2212 midlevel) n\u0027 along the smooth normals, or vector \u0027v \u002B scale (rgb \u2212 midlevel)\u0027 in tangent or object space."
+    },
+    "EntityData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "sphere",
+            "box",
+            "triangle",
+            "quad",
+            "cylinder",
+            "cone",
+            "torus",
+            "capsule",
+            "disk",
+            "annulus",
+            "infinite_plane",
+            "lathe",
+            "extrusion",
+            "mesh",
+            "heightfield",
+            "csg",
+            "group",
+            "instance"
+          ]
+        },
+        "bounds": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "\u0027[x_min, z_min, x_max, z_max]\u0027."
+        },
+        "caps": {
+          "type": "string",
+          "enum": [
+            "both",
+            "start",
+            "end",
+            "none"
+          ]
+        },
+        "center": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EntityData"
+          }
+        },
+        "crease_angle": {
+          "type": "number"
+        },
+        "curve_samples": {
+          "type": "integer"
+        },
+        "displacement_enabled": {
+          "type": "boolean",
+          "description": "False: this entity skips its material\u0027s displacement."
+        },
+        "exterior_medium": {
+          "type": "string",
+          "description": "Id of the medium outside, when the loader cannot infer it."
+        },
+        "height": {
+          "type": "number"
+        },
+        "height_scale": {
+          "type": "number"
+        },
+        "height_texture": {
+          "$ref": "#/definitions/TextureData",
+          "description": "Procedural height (its luminance in [0, 1])."
+        },
+        "heightmap_path": {
+          "type": "string",
+          "description": "Baked height map (16-bit PNG preferred), relative to the scene."
+        },
+        "inner_radius": {
+          "type": "number"
+        },
+        "interior_medium": {
+          "type": "string",
+          "description": "Id of the medium inside the entity (from \u0027mediums:\u0027)."
+        },
+        "left": {
+          "$ref": "#/definitions/EntityData"
+        },
+        "major_radius": {
+          "type": "number"
+        },
+        "material": {
+          "type": "string"
+        },
+        "material_overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Scene material ids for the file\u0027s own materials, by name (when \u0027material\u0027 is unset)."
+        },
+        "matrix": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "A 4\u00D74 matrix, 16 numbers row by row acting on column vectors (translation in the last column); instead of translate / rotate / scale."
+        },
+        "minor_radius": {
+          "type": "number"
+        },
+        "motion": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MotionKeyData"
+          },
+          "description": "Motion keyframes; the base transform is the key at time 0."
+        },
+        "n0": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Vertex normals: all three make the triangle smooth."
+        },
+        "n1": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "n2": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "normal": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "operation": {
+          "type": "string",
+          "enum": [
+            "union",
+            "intersection",
+            "subtraction"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "description": "Model file (\u0027.obj\u0027, \u0027.gltf\u0027, \u0027.glb\u0027, \u0027.ply\u0027), relative to the scene."
+        },
+        "point": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "profile": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "description": "lathe: \u0027[r, y]\u0027 points; extrusion: closed \u0027[x, z]\u0027 polygon."
+        },
+        "profile_bezier_controls": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "profile_type": {
+          "type": "string",
+          "enum": [
+            "linear",
+            "catmull_rom",
+            "bezier"
+          ]
+        },
+        "q": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Quad: corner \u0027q\u0027 and edges \u0027u\u0027, \u0027v\u0027."
+        },
+        "radius": {
+          "type": "number"
+        },
+        "resolution": {
+          "type": "integer"
+        },
+        "right": {
+          "$ref": "#/definitions/EntityData"
+        },
+        "rotate": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Euler degrees, applied in \u0027rotate_order\u0027 (default xyz: X first)."
+        },
+        "rotate_order": {
+          "type": "string",
+          "enum": [
+            "xyz",
+            "xzy",
+            "yxz",
+            "yzx",
+            "zxy",
+            "zyx"
+          ]
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          ],
+          "description": "A number or \u0027[sx, sy, sz]\u0027."
+        },
+        "sea_level": {
+          "type": "number"
+        },
+        "sea_material": {
+          "type": "string"
+        },
+        "seed": {
+          "type": "integer",
+          "description": "Seed of the randomised procedural textures (default from the entity\u0027s position in the file)."
+        },
+        "strata": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/StratumData"
+          }
+        },
+        "subdivision_boundary": {
+          "type": "string",
+          "enum": [
+            "edge_and_corner",
+            "edge_only"
+          ]
+        },
+        "subdivision_crease_angle": {
+          "type": "number"
+        },
+        "subdivision_crease_sharpness": {
+          "type": "number"
+        },
+        "subdivision_iterations": {
+          "type": "integer"
+        },
+        "subdivision_max_iterations": {
+          "type": "integer"
+        },
+        "subdivision_pixel_error": {
+          "type": "number",
+          "description": "Adaptive target: subdivide until the longest projected edge is below this many pixels."
+        },
+        "subdivision_scheme": {
+          "type": "string",
+          "enum": [
+            "none",
+            "loop",
+            "catmull_clark",
+            "auto"
+          ],
+          "description": "\u0027none\u0027 (default), \u0027loop\u0027, \u0027catmull_clark\u0027, \u0027auto\u0027."
+        },
+        "taper": {
+          "type": "number"
+        },
+        "template": {
+          "type": "string"
+        },
+        "top_radius": {
+          "type": "number"
+        },
+        "translate": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "twist": {
+          "type": "number"
+        },
+        "u": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "uv0": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Vertex UVs (with the normals)."
+        },
+        "uv1": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "uv2": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "v": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "v0": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "v1": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "v2": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "visibility": {
+          "$ref": "#/definitions/VisibilityData"
+        }
+      },
+      "description": "An entity: a primitive, a model file, a CSG, a group or an instance of a template. Every entity takes the same transform (\u0027scale\u0027, then \u0027rotate\u0027 in \u0027rotate_order\u0027, then \u0027translate\u0027; or a \u0027matrix\u0027) and motion keys.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "sphere"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "center",
+                "radius",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "box"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "triangle"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "v0",
+                "v1",
+                "v2",
+                "n0",
+                "n1",
+                "n2",
+                "uv0",
+                "uv1",
+                "uv2",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "quad"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "q",
+                "u",
+                "v",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "cylinder"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "center",
+                "radius",
+                "height",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "cone"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "center",
+                "radius",
+                "height",
+                "top_radius",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "torus"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "center",
+                "major_radius",
+                "minor_radius",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "capsule"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "center",
+                "radius",
+                "height",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "disk"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "center",
+                "radius",
+                "normal",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "annulus"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "center",
+                "radius",
+                "inner_radius",
+                "normal",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "infinite_plane"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "normal",
+                "point",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "lathe"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "center",
+                "profile",
+                "profile_type",
+                "profile_bezier_controls",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "extrusion"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "center",
+                "height",
+                "profile",
+                "profile_type",
+                "profile_bezier_controls",
+                "caps",
+                "twist",
+                "taper",
+                "curve_samples",
+                "crease_angle",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "mesh"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "path",
+                "material_overrides",
+                "subdivision_scheme",
+                "subdivision_iterations",
+                "subdivision_pixel_error",
+                "subdivision_max_iterations",
+                "subdivision_boundary",
+                "subdivision_crease_angle",
+                "subdivision_crease_sharpness",
+                "displacement_enabled",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "heightfield"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "bounds",
+                "height_scale",
+                "height_texture",
+                "heightmap_path",
+                "resolution",
+                "sea_level",
+                "sea_material",
+                "strata",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "csg"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "operation",
+                "left",
+                "right",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "group"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "children",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "instance"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "name",
+                "seed",
+                "type",
+                "material",
+                "interior_medium",
+                "exterior_medium",
+                "visibility",
+                "template",
+                "translate",
+                "rotate",
+                "rotate_order",
+                "scale",
+                "matrix",
+                "motion"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "GroundData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Default \u0027infinite_plane\u0027.",
+          "enum": [
+            "infinite_plane",
+            "quad",
+            "disk"
+          ]
+        },
+        "material": {
+          "type": "string",
+          "description": "Material id. Unset: a Lambertian of the sky\u0027s \u0027ground_albedo\u0027 (physical skies) or \u0027ground_color\u0027 (gradient), else grey 0.5."
+        },
+        "normal": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Surface normal, default \u0027[0, 1, 0]\u0027."
+        },
+        "point": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "A point on the plane, or the centre of the quad / disk. Default the origin."
+        },
+        "size": {
+          "type": "number",
+          "description": "Half side of the quad, radius of the disk. Default 50."
+        },
+        "uv_offset": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "uv_rotation": {
+          "type": "number",
+          "description": "UV rotation in degrees around (0.5, 0.5)."
+        },
+        "uv_scale": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "UV tiling \u0027[u, v]\u0027 on top of the surface\u0027s own UVs."
+        },
+        "visibility": {
+          "$ref": "#/definitions/VisibilityData"
+        }
+      },
+      "description": "The ground: a shorthand for a plane, quad or disk under the scene.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "infinite_plane"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "material",
+                "point",
+                "normal",
+                "uv_scale",
+                "uv_offset",
+                "uv_rotation",
+                "visibility"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "quad"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "material",
+                "point",
+                "normal",
+                "size",
+                "uv_scale",
+                "uv_offset",
+                "uv_rotation",
+                "visibility"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "disk"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "material",
+                "point",
+                "normal",
+                "size",
+                "uv_scale",
+                "uv_offset",
+                "uv_rotation",
+                "visibility"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "LightData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "point",
+            "spot",
+            "directional",
+            "area",
+            "sphere",
+            "portal"
+          ]
+        },
+        "angular_radius": {
+          "type": "number",
+          "description": "Half-angle of the light\u0027s disc, degrees (0 = sharp shadows; the sun 0.265)."
+        },
+        "color": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "corner": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Rectangle: a corner and the two edges \u0027u\u0027, \u0027v\u0027 (it emits on the side of u \u00D7 v)."
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "spot: the axis; directional: towards where the light travels; point: the axis of an IES profile."
+        },
+        "exposure": {
+          "type": "number",
+          "description": "Scales the light by 2^exposure."
+        },
+        "ies": {
+          "type": "string",
+          "description": "IES (LM-63) photometric file, relative to the scene: the light emits its candela distribution."
+        },
+        "illuminance": {
+          "type": "number",
+          "description": "Illuminance on a surface facing the light, lux (default 1)."
+        },
+        "inner_angle": {
+          "type": "number",
+          "description": "Half-angle where the spot starts to fall off, degrees (default 15)."
+        },
+        "intensity": {
+          "type": "number",
+          "description": "Luminous intensity, candela (default 1)."
+        },
+        "luminance": {
+          "type": "number",
+          "description": "Luminance of the emitting surface, nits (default 1)."
+        },
+        "name": {
+          "type": "string"
+        },
+        "outer_angle": {
+          "type": "number",
+          "description": "Half-angle of the spot\u0027s cone, degrees (default 30)."
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "power": {
+          "type": "number",
+          "description": "Emitted flux in \u0027power_unit\u0027, instead of the quantity above."
+        },
+        "power_unit": {
+          "type": "string",
+          "enum": [
+            "watt",
+            "lumen"
+          ],
+          "description": "\u0027watt\u0027 (default, 683 lm/W) or \u0027lumen\u0027."
+        },
+        "radius": {
+          "type": "number"
+        },
+        "shadow_samples": {
+          "type": "integer"
+        },
+        "soft_radius": {
+          "type": "number",
+          "description": "Floor of the 1/d\u00B2 term near the light (scene units), for lights in dense media."
+        },
+        "temperature": {
+          "type": "number",
+          "description": "Colour temperature in kelvin (black body), multiplying the colour."
+        },
+        "u": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "v": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "visibility": {
+          "$ref": "#/definitions/VisibilityData",
+          "description": "Visibility of the light\u0027s surface (area, sphere)."
+        }
+      },
+      "description": "A light. Its amount is the photometric quantity of the type, the colour a tint of luminance 1: \u0027intensity\u0027 in candela (point, spot), \u0027luminance\u0027 in nits (area, sphere), \u0027illuminance\u0027 in lux (directional), or \u0027power\u0027 for the finite lights.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "point"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "name",
+                "position",
+                "direction",
+                "color",
+                "temperature",
+                "intensity",
+                "power",
+                "power_unit",
+                "exposure",
+                "ies",
+                "soft_radius"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "spot"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "name",
+                "position",
+                "direction",
+                "color",
+                "temperature",
+                "intensity",
+                "power",
+                "power_unit",
+                "exposure",
+                "inner_angle",
+                "outer_angle",
+                "ies",
+                "soft_radius",
+                "shadow_samples"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "directional"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "name",
+                "direction",
+                "color",
+                "temperature",
+                "illuminance",
+                "exposure",
+                "angular_radius"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "area"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "name",
+                "color",
+                "temperature",
+                "luminance",
+                "power",
+                "power_unit",
+                "exposure",
+                "corner",
+                "u",
+                "v",
+                "soft_radius",
+                "shadow_samples",
+                "visibility"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "sphere"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "name",
+                "position",
+                "color",
+                "temperature",
+                "luminance",
+                "power",
+                "power_unit",
+                "exposure",
+                "radius",
+                "shadow_samples",
+                "visibility"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "portal"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "name",
+                "corner",
+                "u",
+                "v",
+                "shadow_samples"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "MaterialData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "lambertian",
+            "metal",
+            "dielectric",
+            "emissive",
+            "openpbr",
+            "mix"
+          ]
+        },
+        "base_color": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "base_diffuse_roughness": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "base_metalness": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "base_weight": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "blend": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ],
+          "description": "Share of \u0027material_b\u0027: a number (default 0.5) or a texture mask."
+        },
+        "bump_map": {
+          "$ref": "#/definitions/BumpMapData"
+        },
+        "coat_color": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "coat_darkening": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "coat_ior": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "coat_normal_map": {
+          "$ref": "#/definitions/NormalMapData"
+        },
+        "coat_roughness": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "coat_roughness_anisotropy": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "coat_weight": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "color": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ],
+          "description": "lambertian: albedo (default 0.5). metal: reflectance at normal incidence (default 1). dielectric: tint of the transmitted light (default 1). emissive: colour of the emission (a texture keeps its values, a colour is a tint of luminance 1)."
+        },
+        "displacement": {
+          "$ref": "#/definitions/DisplacementData",
+          "description": "Displacement of the meshes using the material (on a mix: \u0027blend_with_mask\u0027)."
+        },
+        "edge_color": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "metal: F82 tint, the colour near grazing incidence (default white)."
+        },
+        "emission_color": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "emission_luminance": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "eta": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "metal: complex IOR, real part per channel (with \u0027k\u0027)."
+        },
+        "fuzz_color": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "fuzz_roughness": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "fuzz_weight": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "geometry_opacity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "geometry_thin_walled": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "ior": {
+          "type": "number",
+          "description": "dielectric: index of refraction (default 1.5)."
+        },
+        "k": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "metal: complex IOR, extinction per channel."
+        },
+        "luminance": {
+          "type": "number",
+          "description": "emissive: luminance in nits (default 1)."
+        },
+        "material_a": {
+          "type": "string"
+        },
+        "material_b": {
+          "type": "string"
+        },
+        "multiple_scattering": {
+          "type": "boolean",
+          "description": "metal: Kulla-Conty multiple scattering (default on)."
+        },
+        "normal_map": {
+          "$ref": "#/definitions/NormalMapData"
+        },
+        "preset": {
+          "type": "string",
+          "description": "metal: measured complex IOR (gold, silver, copper, aluminium, ...), instead of the colours."
+        },
+        "roughness": {
+          "type": "number",
+          "description": "metal, dielectric: GGX roughness, \u03B1 = roughness\u00B2 (default 0, smooth)."
+        },
+        "specular_color": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "specular_ior": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "specular_rotation": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ],
+          "description": "Rotation of the anisotropic highlight around the normal, degrees."
+        },
+        "specular_roughness": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "specular_roughness_anisotropy": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "specular_weight": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "subsurface_color": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "subsurface_radius": {
+          "type": "number",
+          "description": "Mean free path in scene units (default 1), per channel times \u0027subsurface_radius_scale\u0027."
+        },
+        "subsurface_radius_scale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "subsurface_scatter_anisotropy": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "subsurface_weight": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "temperature": {
+          "type": "number",
+          "description": "emissive: colour temperature in kelvin (black body), multiplying the colour."
+        },
+        "thin_film_ior": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "thin_film_thickness": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ],
+          "description": "Film thickness in micrometres (default 0.5)."
+        },
+        "thin_film_weight": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "transmission_color": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "transmission_depth": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "transmission_scatter": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "transmission_scatter_anisotropy": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        },
+        "transmission_weight": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "$ref": "#/definitions/TextureData"
+            }
+          ]
+        }
+      },
+      "description": "A material. Every colour or scalar input marked as a parameter takes a number, a colour \u0027[r, g, b]\u0027 or a texture block.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "lambertian"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "id",
+                "type",
+                "color",
+                "normal_map",
+                "bump_map",
+                "displacement"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "metal"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "id",
+                "type",
+                "color",
+                "roughness",
+                "edge_color",
+                "preset",
+                "eta",
+                "k",
+                "multiple_scattering",
+                "normal_map",
+                "bump_map",
+                "displacement"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "dielectric"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "id",
+                "type",
+                "color",
+                "roughness",
+                "ior",
+                "normal_map",
+                "bump_map",
+                "displacement"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "emissive"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "id",
+                "type",
+                "color",
+                "luminance",
+                "temperature",
+                "normal_map",
+                "bump_map",
+                "displacement"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "openpbr"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "id",
+                "type",
+                "normal_map",
+                "bump_map",
+                "displacement",
+                "base_weight",
+                "base_color",
+                "base_metalness",
+                "base_diffuse_roughness",
+                "specular_weight",
+                "specular_color",
+                "specular_roughness",
+                "specular_roughness_anisotropy",
+                "specular_rotation",
+                "specular_ior",
+                "transmission_weight",
+                "transmission_color",
+                "transmission_depth",
+                "transmission_scatter",
+                "transmission_scatter_anisotropy",
+                "subsurface_weight",
+                "subsurface_color",
+                "subsurface_radius",
+                "subsurface_radius_scale",
+                "subsurface_scatter_anisotropy",
+                "coat_weight",
+                "coat_color",
+                "coat_roughness",
+                "coat_roughness_anisotropy",
+                "coat_ior",
+                "coat_darkening",
+                "coat_normal_map",
+                "fuzz_weight",
+                "fuzz_color",
+                "fuzz_roughness",
+                "thin_film_weight",
+                "thin_film_thickness",
+                "thin_film_ior",
+                "emission_luminance",
+                "emission_color",
+                "geometry_opacity",
+                "geometry_thin_walled"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "mix"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "id",
+                "type",
+                "normal_map",
+                "bump_map",
+                "displacement",
+                "material_a",
+                "material_b",
+                "blend"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "MediumData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "homogeneous",
+            "height_fog",
+            "procedural",
+            "grid",
+            "atmosphere"
+          ]
+        },
+        "air_density": {
+          "type": "number",
+          "description": "Air (Rayleigh) density multiplier, 1 = the standard atmosphere."
+        },
+        "bounds_max": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "bounds_min": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "data": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Inline densities, nx\u00B7ny\u00B7nz values in z-major order (as a \u0027.vol\u0027 file)."
+        },
+        "dust_density": {
+          "type": "number",
+          "description": "Mie dust density (0 pristine, 1 clean, above 1 polluted)."
+        },
+        "file": {
+          "type": "string",
+          "description": "A \u0027.vol\u0027 file, relative to the scene."
+        },
+        "frequency": {
+          "type": "number"
+        },
+        "g": {
+          "type": "number",
+          "description": "Anisotropy of \u0027hg\u0027 and \u0027schlick\u0027."
+        },
+        "g1": {
+          "type": "number"
+        },
+        "g2": {
+          "type": "number"
+        },
+        "gain": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "interpolation": {
+          "type": "string",
+          "enum": [
+            "trilinear",
+            "tricubic"
+          ]
+        },
+        "lacunarity": {
+          "type": "number"
+        },
+        "nx": {
+          "type": "integer"
+        },
+        "ny": {
+          "type": "integer"
+        },
+        "nz": {
+          "type": "integer"
+        },
+        "octaves": {
+          "type": "integer"
+        },
+        "ozone_density": {
+          "type": "number"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "isotropic",
+            "hg",
+            "rayleigh",
+            "schlick",
+            "double_hg"
+          ],
+          "description": "Phase function (default isotropic; atmosphere: of the dust, default hg 0.76)."
+        },
+        "scale_height": {
+          "type": "number",
+          "description": "Exponential scale height H: the density falls by e every H."
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "sigma_a": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Absorption coefficient per channel (height fog: at \u0027y0\u0027; procedural, grid: at density 1)."
+        },
+        "sigma_s": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "w": {
+          "type": "number",
+          "description": "Weight of the forward lobe of \u0027double_hg\u0027."
+        },
+        "y0": {
+          "type": "number",
+          "description": "height_fog: altitude of the reference density; atmosphere: sea level."
+        }
+      },
+      "description": "A participating medium: \u0027world.medium\u0027, or an entry of \u0027mediums:\u0027 with an \u0027id\u0027. Coefficients are per scene unit.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "homogeneous"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "id",
+                "type",
+                "sigma_a",
+                "sigma_s",
+                "phase",
+                "g",
+                "g1",
+                "g2",
+                "w"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "height_fog"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "id",
+                "type",
+                "sigma_a",
+                "sigma_s",
+                "phase",
+                "g",
+                "g1",
+                "g2",
+                "w",
+                "y0",
+                "scale_height"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "procedural"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "id",
+                "type",
+                "sigma_a",
+                "sigma_s",
+                "phase",
+                "g",
+                "g1",
+                "g2",
+                "w",
+                "frequency",
+                "octaves",
+                "lacunarity",
+                "gain",
+                "seed"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "grid"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "id",
+                "type",
+                "sigma_a",
+                "sigma_s",
+                "phase",
+                "g",
+                "g1",
+                "g2",
+                "w",
+                "bounds_min",
+                "bounds_max",
+                "nx",
+                "ny",
+                "nz",
+                "data",
+                "file",
+                "interpolation"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "atmosphere"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "id",
+                "type",
+                "phase",
+                "g",
+                "g1",
+                "g2",
+                "w",
+                "y0",
+                "air_density",
+                "ozone_density",
+                "dust_density"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "MotionKeyData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rotate": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          ]
+        },
+        "time": {
+          "type": "number"
+        },
+        "translate": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        }
+      }
+    },
+    "NormalMapData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "flip_y": {
+          "type": "boolean",
+          "description": "Flip the green channel (DirectX-style maps)."
+        },
+        "path": {
+          "type": "string",
+          "description": "Tangent-space normal map image, relative to the scene."
+        },
+        "strength": {
+          "type": "number"
+        },
+        "uv_scale": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        }
+      }
+    },
+    "RenderData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "adaptive": {
+          "type": "boolean"
+        },
+        "adaptive_min_spp": {
+          "type": "integer"
+        },
+        "adaptive_threshold": {
+          "type": "number"
+        },
+        "bit_depth": {
+          "type": "integer"
+        },
+        "camera": {
+          "type": "string",
+          "description": "The camera to render, by name or index."
+        },
+        "clamp": {
+          "type": "number"
+        },
+        "denoise_quality": {
+          "type": "string",
+          "enum": [
+            "fast",
+            "high"
+          ]
+        },
+        "denoiser": {
+          "type": "string",
+          "enum": [
+            "none",
+            "nlm",
+            "nfor",
+            "oidn"
+          ]
+        },
+        "depth": {
+          "type": "integer"
+        },
+        "depth_diffuse": {
+          "type": "integer"
+        },
+        "depth_glossy": {
+          "type": "integer"
+        },
+        "depth_transmission": {
+          "type": "integer"
+        },
+        "depth_transparent": {
+          "type": "integer"
+        },
+        "depth_volume": {
+          "type": "integer"
+        },
+        "dither": {
+          "type": "boolean"
+        },
+        "exposure": {
+          "type": "number",
+          "description": "Exposure in stops, added to the camera\u0027s physical exposure."
+        },
+        "filter": {
+          "type": "string",
+          "enum": [
+            "gaussian",
+            "blackman-harris",
+            "box"
+          ]
+        },
+        "guiding": {
+          "type": "boolean"
+        },
+        "guiding_training": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        },
+        "indirect_clamp_factor": {
+          "type": "number"
+        },
+        "integrator": {
+          "type": "string",
+          "enum": [
+            "path",
+            "bdpt",
+            "vcm"
+          ]
+        },
+        "light_sampling": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "all",
+            "power",
+            "uniform",
+            "bvh"
+          ]
+        },
+        "look": {
+          "type": "string",
+          "enum": [
+            "none",
+            "punchy",
+            "golden"
+          ]
+        },
+        "mis": {
+          "type": "string",
+          "enum": [
+            "balance",
+            "power"
+          ]
+        },
+        "quality": {
+          "type": "string",
+          "enum": [
+            "draft-tiny",
+            "draft-small",
+            "draft",
+            "standard-tiny",
+            "standard-small",
+            "standard",
+            "pre-final-tiny",
+            "pre-final-small",
+            "pre-final",
+            "final-tiny",
+            "final-small",
+            "final",
+            "ultra"
+          ]
+        },
+        "sampler": {
+          "type": "string",
+          "enum": [
+            "sobol",
+            "prng"
+          ]
+        },
+        "samples": {
+          "type": "integer"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "shadow_samples": {
+          "type": "integer"
+        },
+        "sss_mode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "off"
+          ]
+        },
+        "texture_filtering": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "on",
+            "off"
+          ]
+        },
+        "transparent_shadows": {
+          "type": "boolean"
+        },
+        "vcm_radius": {
+          "type": "number"
+        },
+        "view": {
+          "type": "string",
+          "enum": [
+            "agx",
+            "aces",
+            "standard"
+          ]
+        },
+        "white_balance": {
+          "type": "number"
+        },
+        "width": {
+          "type": "integer"
+        }
+      },
+      "description": "How to render the scene. Each key is the CLI flag of the same name (\u0027light_sampling\u0027 = \u0027--light-sampling\u0027); a flag given on the command line wins, and a \u0027-q\u0027 preset given there wins over the keys it sets. A preset with a \u0027-tiny\u0027 / \u0027-small\u0027 suffix scales the scene\u0027s \u0027width\u0027 \u00D7 \u0027height\u0027 to a quarter / a half."
+    },
+    "SkyData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "flat",
+            "gradient",
+            "hdri",
+            "preetham",
+            "hosek_wilkie",
+            "nishita"
+          ]
+        },
+        "background": {
+          "$ref": "#/definitions/SkyData",
+          "description": "A separate plate shown to camera rays only."
+        },
+        "color": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Radiance of a flat sky (nits)."
+        },
+        "exposure": {
+          "type": "number",
+          "description": "Brightness in stops (\u00D72^exposure)."
+        },
+        "ground_albedo": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Albedo of the ground below the horizon of a physical sky (default 0.3), and of \u0027world.ground\u0027 when it has no material."
+        },
+        "ground_color": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Below the horizon (gradient), and the albedo of \u0027world.ground\u0027 when it has no material."
+        },
+        "horizon_color": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "path": {
+          "type": "string",
+          "description": "Equirectangular image (\u0027.hdr\u0027, \u0027.exr\u0027), relative to the scene."
+        },
+        "rotate": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Rotation of the sky, Euler degrees as an entity\u0027s \u0027rotate\u0027."
+        },
+        "rotate_order": {
+          "type": "string",
+          "enum": [
+            "xyz",
+            "xzy",
+            "yxz",
+            "yzx",
+            "zxy",
+            "zyx"
+          ]
+        },
+        "sun": {
+          "$ref": "#/definitions/SunData"
+        },
+        "turbidity": {
+          "type": "number",
+          "description": "Atmospheric turbidity: 1 pristine, 3 clear (default), 5 haze, 10 smog."
+        },
+        "visibility": {
+          "$ref": "#/definitions/VisibilityData"
+        },
+        "zenith_color": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        }
+      },
+      "description": "The environment: what a ray that leaves the scene sees.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "flat"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "color",
+                "ground_color",
+                "exposure",
+                "rotate",
+                "rotate_order",
+                "ground_albedo",
+                "visibility",
+                "background"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "gradient"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "zenith_color",
+                "horizon_color",
+                "ground_color",
+                "exposure",
+                "rotate",
+                "rotate_order",
+                "sun",
+                "ground_albedo",
+                "visibility",
+                "background"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "hdri"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "ground_color",
+                "path",
+                "exposure",
+                "rotate",
+                "rotate_order",
+                "sun",
+                "ground_albedo",
+                "visibility",
+                "background"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "preetham"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "ground_color",
+                "exposure",
+                "rotate",
+                "rotate_order",
+                "sun",
+                "turbidity",
+                "ground_albedo",
+                "visibility",
+                "background"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "hosek_wilkie"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "ground_color",
+                "exposure",
+                "rotate",
+                "rotate_order",
+                "sun",
+                "turbidity",
+                "ground_albedo",
+                "visibility",
+                "background"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "nishita"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "ground_color",
+                "exposure",
+                "rotate",
+                "rotate_order",
+                "sun",
+                "turbidity",
+                "ground_albedo",
+                "visibility",
+                "background"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "StratumData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "blend_width": {
+          "type": "number"
+        },
+        "material": {
+          "type": "string"
+        },
+        "max_altitude": {
+          "type": "number"
+        },
+        "max_slope": {
+          "type": "number"
+        },
+        "min_altitude": {
+          "type": "number"
+        },
+        "min_slope": {
+          "type": "number"
+        }
+      },
+      "description": "One altitude/slope band of a heightfield: altitude normalised to [0, 1] above \u0027sea_level\u0027, slope in degrees off the horizontal plane."
+    },
+    "SunData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "angular_radius": {
+          "type": "number",
+          "description": "Gradient sky: half-angle of the disc in degrees (default 1.5; the real sun 0.265)."
+        },
+        "color": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Tint of the gradient sky\u0027s disc (luminance 1)."
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Direction towards the sun."
+        },
+        "extract_from_hdri": {
+          "type": "boolean",
+          "description": "HDRI: extract the brightest peak as an analytic sun."
+        },
+        "extract_threshold": {
+          "type": "number",
+          "description": "HDRI: threshold of the extraction, multiple of the mean luminance (default 50)."
+        },
+        "luminance": {
+          "type": "number",
+          "description": "Gradient sky: luminance of the disc, nits (default 10)."
+        },
+        "shadow_samples": {
+          "type": "integer"
+        },
+        "visibility": {
+          "$ref": "#/definitions/VisibilityData",
+          "description": "Only \u0027camera\u0027 applies: \u0027false\u0027 hides the disc from camera rays."
+        }
+      },
+      "description": "The sun of a sky. Gradient sky: a disc of \u0027luminance\u0027 nits. HDRI: a sun extracted from the image. Physical skies: the direction only (the disc follows from the atmosphere)."
+    },
+    "TextureData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "image",
+            "checker",
+            "noise",
+            "marble",
+            "wood",
+            "voronoi",
+            "brick",
+            "gradient",
+            "coordinate"
+          ]
+        },
+        "axial_grain": {
+          "type": "number"
+        },
+        "axis": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "background_octaves": {
+          "type": "integer"
+        },
+        "background_scale": {
+          "type": "number"
+        },
+        "bounds_max": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "bounds_min": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "brick_height": {
+          "type": "number"
+        },
+        "brick_width": {
+          "type": "number"
+        },
+        "color_ramp": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ColorRampStopData"
+          },
+          "description": "Multi-stop colour ramp, replacing \u0027colors\u0027."
+        },
+        "color_space": {
+          "type": "string",
+          "enum": [
+            "srgb",
+            "linear"
+          ],
+          "description": "How the stored values relate to linear light: \u0027srgb\u0027 or \u0027linear\u0027. Unset: sRGB where the texture is a colour, linear where it is data (roughness, weights, masks, heights)."
+        },
+        "color_variation": {
+          "type": "number"
+        },
+        "colors": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "description": "The pattern\u0027s colours (two; brick three: brick, alternate brick, mortar)."
+        },
+        "cracks_density": {
+          "type": "number"
+        },
+        "cracks_scale": {
+          "type": "number"
+        },
+        "cracks_softness": {
+          "type": "number"
+        },
+        "cracks_weight": {
+          "type": "number"
+        },
+        "distortion": {
+          "type": "number"
+        },
+        "earlywood_transition": {
+          "type": "number"
+        },
+        "figure_aspect": {
+          "type": "number"
+        },
+        "figure_scale": {
+          "type": "number"
+        },
+        "figure_strength": {
+          "type": "number"
+        },
+        "fold_amplitude": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "fold_scale": {
+          "type": "number"
+        },
+        "fractal_increment": {
+          "type": "number"
+        },
+        "fractal_offset": {
+          "type": "number"
+        },
+        "gain": {
+          "type": "number"
+        },
+        "grain_scale": {
+          "type": "number"
+        },
+        "heartwood_blend": {
+          "type": "number"
+        },
+        "heartwood_radius": {
+          "type": "number"
+        },
+        "impurities_density": {
+          "type": "number"
+        },
+        "impurities_scale": {
+          "type": "number"
+        },
+        "impurities_texture": {
+          "$ref": "#/definitions/TextureData"
+        },
+        "impurity_weight": {
+          "type": "number"
+        },
+        "knot_density": {
+          "type": "number"
+        },
+        "knot_scale": {
+          "type": "number"
+        },
+        "lacunarity": {
+          "type": "number"
+        },
+        "latewood_width": {
+          "type": "number"
+        },
+        "length": {
+          "type": "number"
+        },
+        "metric": {
+          "type": "string",
+          "enum": [
+            "euclidean",
+            "euclidean_squared",
+            "manhattan",
+            "chebyshev"
+          ]
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "linear",
+            "quadratic",
+            "easing",
+            "spherical",
+            "radial",
+            "object",
+            "uv",
+            "generated",
+            "world"
+          ],
+          "description": "gradient: linear, quadratic, easing, spherical, radial. coordinate: object, uv, generated, world."
+        },
+        "mortar_size": {
+          "type": "number"
+        },
+        "noise_scale": {
+          "type": "number"
+        },
+        "noise_strength": {
+          "type": "number",
+          "description": "Amplitude of the turbulence (noise), of the vein distortion (marble), of the grain (wood)."
+        },
+        "noise_type": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "perlin",
+            "fbm",
+            "turbulence",
+            "ridged",
+            "billow",
+            "hetero_terrain",
+            "hybrid_multifractal"
+          ]
+        },
+        "octaves": {
+          "type": "integer"
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "output": {
+          "type": "string",
+          "enum": [
+            "color",
+            "mask",
+            "f1",
+            "f2",
+            "f3",
+            "f4",
+            "f2_minus_f1",
+            "f3_minus_f1",
+            "f1_plus_f2",
+            "cell",
+            "random",
+            "position"
+          ],
+          "description": "marble, wood: \u0027color\u0027 or \u0027mask\u0027; voronoi: the feature it outputs."
+        },
+        "path": {
+          "type": "string",
+          "description": "Image file, relative to the scene."
+        },
+        "pore_aspect": {
+          "type": "number"
+        },
+        "pore_density": {
+          "type": "number"
+        },
+        "pore_scale": {
+          "type": "number"
+        },
+        "pore_strength": {
+          "type": "number"
+        },
+        "radial_anisotropy": {
+          "type": "number"
+        },
+        "randomize_offset": {
+          "type": "boolean",
+          "description": "A per-object random offset (from the entity\u0027s seed)."
+        },
+        "randomize_rotation": {
+          "type": "boolean"
+        },
+        "randomness": {
+          "type": "number"
+        },
+        "ring_axis": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "ring_color_variation": {
+          "type": "number"
+        },
+        "ring_sharpness": {
+          "type": "number"
+        },
+        "ring_width_variation": {
+          "type": "number"
+        },
+        "rotation": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ],
+          "description": "Rotation of the pattern space, Euler degrees."
+        },
+        "row_offset": {
+          "type": "number"
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          ],
+          "description": "Frequency: a number, or \u0027[sx, sy, sz]\u0027 to stretch a solid pattern per axis."
+        },
+        "smoothness": {
+          "type": "number"
+        },
+        "soft_max_sharpness": {
+          "type": "number"
+        },
+        "space_stretch": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "uv_scale": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "vein_axis": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "vein_layers": {
+          "type": "integer"
+        },
+        "vein_scale": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "vein_softness": {
+          "type": "number"
+        },
+        "vein_thickness": {
+          "type": "number"
+        },
+        "vein_weight": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            }
+          ]
+        },
+        "warp_amplitude": {
+          "type": "number"
+        },
+        "warp_iterations": {
+          "type": "integer"
+        },
+        "warp_scale": {
+          "type": "number"
+        }
+      },
+      "description": "A texture: an image or a procedural pattern.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "image"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "path",
+                "uv_scale",
+                "color_space"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "checker"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "colors",
+                "scale"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "noise"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "colors",
+                "scale",
+                "noise_strength",
+                "offset",
+                "rotation",
+                "randomize_offset",
+                "randomize_rotation",
+                "noise_type",
+                "octaves",
+                "lacunarity",
+                "gain",
+                "distortion",
+                "fractal_increment",
+                "fractal_offset",
+                "color_ramp"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "marble"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "colors",
+                "scale",
+                "noise_strength",
+                "offset",
+                "rotation",
+                "randomize_offset",
+                "randomize_rotation",
+                "octaves",
+                "lacunarity",
+                "gain",
+                "vein_axis",
+                "warp_amplitude",
+                "warp_scale",
+                "warp_iterations",
+                "fold_amplitude",
+                "fold_scale",
+                "vein_layers",
+                "vein_scale",
+                "vein_weight",
+                "vein_thickness",
+                "vein_softness",
+                "soft_max_sharpness",
+                "background_scale",
+                "background_octaves",
+                "impurities_density",
+                "impurities_scale",
+                "impurity_weight",
+                "impurities_texture",
+                "space_stretch",
+                "cracks_density",
+                "cracks_scale",
+                "cracks_softness",
+                "cracks_weight",
+                "output",
+                "color_variation",
+                "color_ramp"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "wood"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "colors",
+                "scale",
+                "noise_strength",
+                "offset",
+                "rotation",
+                "randomize_offset",
+                "randomize_rotation",
+                "octaves",
+                "lacunarity",
+                "gain",
+                "warp_amplitude",
+                "warp_scale",
+                "warp_iterations",
+                "fold_amplitude",
+                "fold_scale",
+                "space_stretch",
+                "ring_axis",
+                "ring_sharpness",
+                "axial_grain",
+                "grain_scale",
+                "figure_scale",
+                "figure_strength",
+                "figure_aspect",
+                "radial_anisotropy",
+                "knot_density",
+                "knot_scale",
+                "latewood_width",
+                "earlywood_transition",
+                "ring_color_variation",
+                "ring_width_variation",
+                "pore_density",
+                "pore_scale",
+                "pore_strength",
+                "pore_aspect",
+                "heartwood_radius",
+                "heartwood_blend",
+                "output",
+                "color_ramp"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "voronoi"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "colors",
+                "scale",
+                "offset",
+                "rotation",
+                "randomize_offset",
+                "randomize_rotation",
+                "distortion",
+                "output",
+                "metric",
+                "randomness",
+                "smoothness",
+                "color_ramp"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "brick"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "colors",
+                "offset",
+                "rotation",
+                "randomize_offset",
+                "randomize_rotation",
+                "brick_width",
+                "brick_height",
+                "mortar_size",
+                "row_offset",
+                "color_variation",
+                "noise_scale"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "gradient"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "colors",
+                "offset",
+                "rotation",
+                "randomize_offset",
+                "randomize_rotation",
+                "mode",
+                "axis",
+                "length",
+                "color_ramp"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "coordinate"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "propertyNames": {
+              "enum": [
+                "type",
+                "scale",
+                "offset",
+                "rotation",
+                "mode",
+                "bounds_min",
+                "bounds_max"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "UnitsData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "length": {
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "enum": [
+                "m",
+                "cm",
+                "mm",
+                "km",
+                "in",
+                "ft"
+              ]
+            }
+          ],
+          "description": "Length of one scene unit: metres as a number, or \u0027m\u0027, \u0027cm\u0027, \u0027mm\u0027, \u0027km\u0027, \u0027in\u0027, \u0027ft\u0027. Default 1 m. Used where a quantity carries metres: the aperture of \u0027f_stop\u0027 (millimetres), candela and power of the lights, the atmosphere."
+        }
+      },
+      "description": "Physical scale of the scene."
+    },
+    "VisibilityData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "camera": {
+          "type": "boolean"
+        },
+        "diffuse": {
+          "type": "boolean"
+        },
+        "glossy": {
+          "type": "boolean"
+        },
+        "shadow": {
+          "type": "boolean"
+        },
+        "transmission": {
+          "type": "boolean"
+        }
+      },
+      "description": "Per-ray-category visibility: \u0027false\u0027 makes the surface invisible to rays of that category, which go on as if it were not there."
+    },
+    "WorldData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ground": {
+          "$ref": "#/definitions/GroundData"
+        },
+        "medium": {
+          "$ref": "#/definitions/MediumData",
+          "description": "The medium filling the scene (fog, atmosphere)."
+        },
+        "sky": {
+          "$ref": "#/definitions/SkyData"
+        }
+      }
+    }
+  }
+}

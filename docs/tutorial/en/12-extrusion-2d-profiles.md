@@ -110,7 +110,7 @@ of an aluminium extrusion or a CNC-cut acrylic shape.
 | `profile`        | --       | Closed list of `[x, z]` points, minimum 3                  |
 | `height`         | `1`      | Length of the extrusion along +Y                           |
 | `caps`           | `both`   | `both` / `start` / `end` / `none`                          |
-| `twist_degrees`  | `0`      | Total rotation of the top profile around Y, in degrees     |
+| `twist`          | `0`      | Total rotation of the top profile around Y, in degrees     |
 | `taper`          | `1`      | Uniform XZ scale at the top (1 = straight, < 1 narrows)    |
 | `curve_samples`  | `16`     | Polyline resolution for curved modes (ignored by `linear`) |
 | `crease_angle`   | `0`      | Normal-blend threshold for `linear` walls, degrees (0 = flat) |
@@ -206,9 +206,9 @@ point, is C¹ continuous, and never overshoots.
 ```yaml
 - name: "fluted_column"
   type: "extrusion"
-  profile_type: "catmull_rom"           # aliases: "catmull", "smooth"
+  profile_type: "catmull_rom"
   height: 3.4
-  twist_degrees: 60                     # gentle spiral up the column
+  twist: 60                     # gentle spiral up the column
   taper: 0.88                           # narrows slightly at the top
   curve_samples: 24                     # smoother silhouette
   caps: "both"
@@ -355,7 +355,7 @@ multi-step modifier stack in a 3D modelling tool.
 
 ### Twist
 
-`twist_degrees` rotates the top of the extrusion around the Y axis
+`twist` rotates the top of the extrusion around the Y axis
 by the given angle, with the rotation interpolating linearly along
 the height.
 
@@ -396,7 +396,7 @@ finials** — all from a single primitive, no modifier stack required.
   type: "extrusion"
   profile_type: "linear"
   height: 4.0
-  twist_degrees: 180
+  twist: 180
   taper: 0.80
   caps: "both"
   material: "marble"
@@ -417,10 +417,11 @@ on the same stage. Here is a distilled version you can paste into a
 new file:
 
 ```yaml
-camera:
-  position: [0, 2.0, -5.6]
-  look_at: [0, 1.4, 0]
-  fov: 42
+format_version: 2
+cameras:
+  - position: [0, 2.0, -5.6]
+    look_at: [0, 1.4, 0]
+    fov: 42
 
 world:
   sky:
@@ -428,45 +429,48 @@ world:
     zenith_color: [0.06, 0.08, 0.14]
     horizon_color: [0.20, 0.18, 0.22]
   ground:
-    type: "plane"
+    type: infinite_plane
     material: "floor"
-    y: 0
+    point: [0, 0, 0]
 
 materials:
   - id: "floor"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "checker"
       colors: [[0.92, 0.90, 0.85], [0.10, 0.10, 0.12]]
       scale: 1.5
-    roughness: 0.18
+    specular_roughness: 0.18
   - id: "gold"
-    type: "disney"
-    color: [1.00, 0.78, 0.34]
-    metallic: 1.0
-    roughness: 0.22
+    type: openpbr
+    base_color: [1.00, 0.78, 0.34]
+    base_metalness: 1.0
+    specular_roughness: 0.22
   - id: "marble"
-    type: "disney"
-    color: [0.94, 0.93, 0.90]
-    roughness: 0.15
-    clearcoat: 0.8
+    type: openpbr
+    base_color: [0.94, 0.93, 0.90]
+    specular_roughness: 0.15
+    coat_weight: 0.8
+    coat_roughness: 0.031622775
+    coat_ior: 1.5
   - id: "emerald"
-    type: "disney"
-    color: [0.22, 0.78, 0.42]
-    roughness: 0.05
-    spec_trans: 1.0
-    ior: 1.55
+    type: openpbr
+    base_color: [0.22, 0.78, 0.42]
+    specular_roughness: 0.05
+    transmission_weight: 1.0
+    specular_ior: 1.55
+    transmission_color: [0.22, 0.78, 0.42]
 
 lights:
   - type: "directional"
     direction: [0.45, -0.7, 0.55]
     color: [1.0, 0.92, 0.78]
-    intensity: 2.6
-    angular_radius_deg: 0.55
+    illuminance: 2.41
+    # angular_radius_deg: 0.55
   - type: "point"
     position: [-4.5, 3.5, -3.0]
     color: [1.0, 0.74, 0.50]
-    intensity: 22
+    intensity: 17.1
 
 entities:
   # Hero 1 — gold star (linear concave profile)
@@ -495,7 +499,7 @@ entities:
     type: "extrusion"
     profile_type: "catmull_rom"
     height: 3.4
-    twist_degrees: 60
+    twist: 60
     taper: 0.88
     curve_samples: 24
     caps: "both"
@@ -670,7 +674,7 @@ it to 24-32 for primary subjects.
 | Reproducing an SVG/Illustrator path or CAD curve                  | `bezier`                             |
 | Heart, teardrop, deliberate cusp/tangent breaks                   | `bezier`                             |
 | Cookie-cutter / stencil shapes                                    | `linear`, `caps: "none"`             |
-| Helical drill bit                                                 | `linear`, `twist_degrees: 360+`      |
+| Helical drill bit                                                 | `linear`, `twist: 360+`      |
 | Pyramids, obelisks, finials                                       | any mode, `taper: 0.0`–`0.3`         |
 | Polyline polygon smoothed to read as a curved surface             | `linear` + `crease_angle: 30`        |
 
@@ -708,7 +712,7 @@ looks smooth in mid-shots but reads as faceted in tight close-ups.
 **My twisted column shows visible facets winding around.**
 Same fix: increase `curve_samples`. Twist makes the wall triangulation
 visible because each ring of triangles is rotated relative to the next.
-A column at `twist_degrees: 360` with `curve_samples: 8` will look
+A column at `twist: 360` with `curve_samples: 8` will look
 clearly faceted; the same column at `curve_samples: 24` looks smooth.
 
 **My Bezier shield has a kink at one segment boundary.**
@@ -754,7 +758,7 @@ discussion of transform order.)
   jobs.
 - `caps: both | start | end | none` chooses which ends are closed,
   enabling solid prisms, trays, hats, and pure tubes.
-- `twist_degrees` and `taper` turn straight prisms into sculpted
+- `twist` and `taper` turn straight prisms into sculpted
   columns, helical drill bits, finials, and pyramids — without
   needing a modifier stack or a CSG chain.
 - `crease_angle` (linear only, default 0) blends vertex normals across

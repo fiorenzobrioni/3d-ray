@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═════════════════════════════════════════════════════════════════════════════
 #  3D-RAY Logo — Hero Showcase v2 (production-grade ground + 3-point pro)
 # ═════════════════════════════════════════════════════════════════════════════
@@ -31,8 +32,9 @@
 #   ─ Final    : -w 1920 -H 1080 -s 1536 -d 12 -S 6 -c hero -C 30 --sampler sobol
 # ═════════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 imports:
-  - path: "assets/fonts/font-open-sans.yaml"
+  - "assets/fonts/font-open-sans.yaml"
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  WORLD — Preetham golden hour + ground marmo + leggera foschia
@@ -43,36 +45,35 @@ world:
     zenith_color:  [0.005, 0.005, 0.020]
     horizon_color: [0.020, 0.020, 0.045]
     ground_color:  [0.005, 0.005, 0.010]
-    intensity: 1.0
     sun:
       direction:      [-0.4, 0.6, -0.7]   # moon position
       color:          [0.70, 0.75, 0.90]  # cool blue moonlight
-      intensity:      3.0
+      luminance:     2.2506
       angular_radius: 0.5                  # moon disc
       shadow_samples: 4
 
-  commented_sky:
-    type: "nishita"
-    turbidity: 4.0
-    intensity: 1.0
-    sun:
-      direction:      [-0.85, 0.12, 0.4]   # sun just above horizon
-      angular_radius: 0.5                   # slightly enlarged for cinematic glow
-      shadow_samples: 4
+  # commented_sky:
+  #   type: "nishita"
+  #   turbidity: 4.0
+  #   intensity: 1.0
+  #   sun:
+  #     direction:      [-0.85, 0.12, 0.4]   # sun just above horizon
+  #     angular_radius: 0.5                   # slightly enlarged for cinematic glow
+  #     shadow_samples: 4
 
   ground:
     type: "infinite_plane"
-    y:    0.0
+    point: [0, 0, 0]
     material: "mat_ground_marmo"
 
-  commented_medium:
-    type: "height_fog"
-    sigma_a: [0.003, 0.004, 0.005]
-    sigma_s: [0.006, 0.008, 0.010]
-    y0: 0
-    scale_height: 1.5
-    phase: "hg"
-    g: 0.5
+  # commented_medium:
+  #   type: "height_fog"
+  #   sigma_a: [0.003, 0.004, 0.005]
+  #   sigma_s: [0.006, 0.008, 0.010]
+  #   y0: 0
+  #   scale_height: 1.5
+  #   phase: "hg"
+  #   g: 0.5
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -83,26 +84,26 @@ cameras:
   - name: "hero"                                    # 3/4 centrale con DOF
     position: [0.0, 2.2, 6.2]
     look_at:  [0.0, 1.0, 0.0]
-    vup:      [0.0, 1.0, 0.0]
+    up:       [0.0, 1.0, 0.0]
     fov: 48
     aperture:  0.02
-    focal_pos: [0.0, 1.3, 0.5]
+    focus_point: [0.0, 1.3, 0.5]
 
   - name: "three_quarter"                           # angolo laterale
     position: [-6.5, 3.0, 10.5]
     look_at:  [-0.5, 1.1, 0.0]
-    vup:      [0.0, 1.0, 0.0]
+    up:       [0.0, 1.0, 0.0]
     fov: 44
     aperture:   0.10
-    focal_dist: 11.0
+    focus_distance: 11.0
 
   - name: "closeup_D"                               # macro sul marmo
     position: [1.94, 1.0, 3.2]
     look_at:  [1.94, 0.9, 0.0]
-    vup:      [0.0, 1.0, 0.0]
+    up:       [0.0, 1.0, 0.0]
     fov: 50
     aperture:   0.06
-    focal_dist: 3.2
+    focus_distance: 3.2
 
   # ─── Closeup Y (porcellana) — opzione 4 commentata per debug visivo ──────
   # - name: "closeup_y"
@@ -127,16 +128,16 @@ lights:
     position: [4.5, 4.0, 3.5]
     radius:   0.6
     color:    [1.00, 0.92, 0.78]
-    intensity: 80
-    visible_to_camera: false
+    luminance: 74.152
+    visibility: { camera: false }
 
   # ─── RIM — sphere light dietro alto-sinistra (separa dall'orizzonte) ─────
   - type: "sphere"
     position: [-4.5, 3.5, -2.5]
     radius:   0.4
     color:    [1.00, 0.70, 0.40]
-    intensity: 50
-    visible_to_camera: false
+    luminance: 37.106
+    visibility: { camera: false }
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  MATERIALS — tutti inline (lettere, sfere cristallo, chrome, ground marmo)
@@ -151,30 +152,28 @@ materials:
   # ─── Lettere ──────────────────────────────────────────────────────────────
   #   "3" oro lucido / "A" argento brunito (metalli)
   - id: "dis_oro_lucido"
-    type: "disney"
-    color: [1.0, 0.71, 0.29]
-    metallic: 1.0
-    roughness: 0.05
-    specular: 0.8
+    type: openpbr
+    base_color: [1.0, 0.71, 0.29]
+    base_metalness: 1.0
+    specular_roughness: 0.05
 
   - id: "dis_argento_brunito"
-    type: "disney"
-    color: [0.50, 0.48, 0.46]
-    metallic: 0.92
-    roughness: 0.25
-    specular: 0.6
-    specular_tint: 0.2
+    type: openpbr
+    base_color: [0.50, 0.48, 0.46]
+    base_metalness: 0.92
+    specular_roughness: 0.25
+    specular_weight: 1.2
+    specular_color: [1.0071217, 0.9988368, 0.99055195]
 
   # "D" marmo Carrara lucido (opaco: spec_trans 0.0, no SSS)
   - id: "dis_carrara_studio_lucido"
-    type: "disney"
-    spec_trans: 0.0
-    roughness: 0.10
-    clearcoat: 0.90
+    type: openpbr
+    specular_roughness: 0.10
+    coat_weight: 0.90
     coat_roughness: 0.05
     coat_ior: 1.5
-    specular: 0.72
-    texture:
+    specular_weight: 1.44
+    base_color:
       type: "marble"
       scale: 2.4
       vein_axis: [0, 1, 0]
@@ -197,11 +196,11 @@ materials:
 
   # "R" mogano flame studio (figure 1.6 + ramp 3-stop)
   - id: "dis_mogano_flame_studio"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "wood"
       scale: 4.8
-      grain_strength: 0.40
+      noise_strength: 0.40
       latewood_width: 0.16
       ring_sharpness: 4.5
       ring_color_variation: 0.14
@@ -219,18 +218,19 @@ materials:
         - { position: 0.00, color: [0.20, 0.06, 0.03], interp: "smoothstep" }
         - { position: 0.50, color: [0.50, 0.18, 0.10], interp: "smoothstep" }
         - { position: 1.00, color: [0.74, 0.36, 0.22], interp: "linear" }
-    roughness: 0.28
-    specular: 0.52
-    clearcoat: 0.78
+    specular_roughness: 0.28
+    specular_weight: 1.04
+    coat_weight: 0.78
     coat_roughness: 0.08
+    coat_ior: 1.5
 
   # "Y" porcellana bianca (ceramica)
   - id: "dis_porcellana_bianca"
-    type: "disney"
-    color: [0.95, 0.93, 0.88]
-    roughness: 0.12
-    specular: 0.8
-    clearcoat: 0.4
+    type: openpbr
+    base_color: [0.95, 0.93, 0.88]
+    specular_roughness: 0.12
+    specular_weight: 1.6
+    coat_weight: 0.4
     coat_roughness: 0.10
     coat_ior: 1.5
 
@@ -250,8 +250,8 @@ materials:
   # Il blocco marble appare due volte (per `texture` e `roughness_texture`)
   # con parametri IDENTICI così colore e mask sono in fase spaziale.
   - id: "mat_ground_marmo"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "marble"
       scale: 10
       vein_axis: [0.6, 0, 1]                       # diagonale (non camera-aligned)
@@ -280,8 +280,7 @@ materials:
     # produce il riflesso variabile delle lettere sopra al pavimento. La
     # base avorio appare come marmo levigato, le vene oro/scure come marmo
     # lavorato a specchio che riflette nitido il logo.
-    roughness: 0.25
-    roughness_texture:
+    specular_roughness:
       type: "marble"
       output: "mask"
       scale: 1.5
@@ -303,37 +302,36 @@ materials:
       color_ramp:
         - { position: 0.0, color: [0.25, 0.25, 0.25] }   # base: roughness 0.25
         - { position: 1.0, color: [0.06, 0.06, 0.06] }   # vena: roughness 0.06 (specchio)
-    specular: 0.65
-    clearcoat: 0.85
+    specular_weight: 1.3
+    coat_weight: 0.85
     coat_roughness: 0.05
+    coat_ior: 1.5
 
   # ─── Sfera cromata DIETRO il logo (riflette le 5 lettere) ─────────────────
   - id: "mat_chrome_sphere"
-    type: "disney"
-    color: [0.95, 0.96, 0.97]
-    metallic: 1.0
-    roughness: 0.02
-    specular: 1.0
+    type: openpbr
+    base_color: [0.95, 0.96, 0.97]
+    base_metalness: 1.0
+    specular_roughness: 0.02
 
   # ─── Sfera cristallo limpido in primo piano (vetro neutro) ────────────────
   - id: "mat_crystal_sphere"
-    type: "disney"
-    color: [1.0, 1.0, 1.0]
-    metallic: 0.0
-    roughness: 0.0
-    spec_trans: 1.0
-    ior: 1.55
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.55
+    transmission_color: [1, 1, 1]
 
   # ─── Sfera cristallo ZAFFIRO BLU in primo piano (vetro tinto cool) ────────
   # Beer-Lambert: la luce attraversa il volume e viene tinta dal cammino,
   # producendo blu profondo nei punti più spessi (cuore della sfera).
   - id: "mat_crystal_sphere_sapphire"
-    type: "disney"
-    color: [1.0, 1.0, 1.0]
-    metallic: 0.0
-    roughness: 0.0
-    spec_trans: 1.0
-    ior: 1.77
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.77
     transmission_color: [0.10, 0.25, 0.85]
     transmission_depth: 0.5
 
@@ -343,7 +341,7 @@ materials:
   - id: "mat_y_emissivo"
     type: "emissive"
     color: [0.0, 0.0, 1.00]
-    intensity: 8
+    luminance: 0.5776
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  ENTITIES — 5 lettere "3DRAY" + 2 sfere cristallo davanti + chrome dietro

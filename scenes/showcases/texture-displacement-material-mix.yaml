@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Material-Level Displacement Showcase — Cycles/RenderMan parity
 #
@@ -22,11 +23,12 @@
 #     Final:    -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
-camera:
-  position: [0, 1.6, -5.0]
-  look_at:  [0, 1.2,  0]
-  fov: 48
-  aperture: 0.0
+format_version: 2
+cameras:
+  - position: [0, 1.6, -5.0]
+    look_at:  [0, 1.2,  0]
+    fov: 48
+    aperture: 0.0
 
 world:
   sky:
@@ -40,10 +42,10 @@ materials:
   # Porcellana base con displacement scalar Perlin: una sola definizione,
   # condivisa tra due entity per dimostrare il riuso.
   - id: "porcellana_disp"
-    type: "disney"
-    color: [0.92, 0.88, 0.82]
-    roughness: 0.55
-    specular: 0.45
+    type: openpbr
+    base_color: [0.92, 0.88, 0.82]
+    specular_roughness: 0.55
+    specular_weight: 0.9
     displacement:
       texture:
         type: "noise"
@@ -61,10 +63,10 @@ materials:
 
   # Variante voronoi per il blend del Mix.
   - id: "porcellana_disp_voronoi"
-    type: "disney"
-    color: [0.92, 0.88, 0.82]
-    roughness: 0.55
-    specular: 0.45
+    type: openpbr
+    base_color: [0.92, 0.88, 0.82]
+    specular_roughness: 0.55
+    specular_weight: 0.9
     displacement:
       texture:
         type: "voronoi"
@@ -85,7 +87,7 @@ materials:
     type: "mix"
     material_a: "porcellana_disp"
     material_b: "porcellana_disp_voronoi"
-    mask:
+    blend:
       type: "noise"
       noise_type: "fbm"
       scale: 1.5
@@ -95,22 +97,22 @@ materials:
       blend_with_mask: true
 
   - id: "pavimento"
-    type: "disney"
-    color: [0.14, 0.14, 0.17]
-    roughness: 0.85
+    type: openpbr
+    base_color: [0.14, 0.14, 0.17]
+    specular_roughness: 0.85
 
 lights:
 
   - type: "directional"
     direction: [1.0, -0.25, 0.3]
     color: [1.0, 0.97, 0.92]
-    intensity: 2.5
+    illuminance: 2.43192
     angular_radius: 0.5
 
   - type: "point"
     position: [5, 4.5, -1.5]
     color: [1.0, 0.92, 0.80]
-    intensity: 80
+    intensity: 74.26752
 
 entities:
 

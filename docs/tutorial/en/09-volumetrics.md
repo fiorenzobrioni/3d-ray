@@ -111,8 +111,6 @@ Allows directional bias of scattering:
 Forward scattering (`g > 0`) is physically accurate for most real-world
 media (fog, dust, aerosols) and creates bright halos around light sources.
 
-Aliases: `"hg"`, `"henyey_greenstein"`.
-
 ### Rayleigh (Atmospheric Scattering)
 
 ```yaml
@@ -320,8 +318,7 @@ voxels, 3D-Ray interpolates density in one of two ways:
 - **`tricubic`** (64 taps, C¹, Catmull-Rom cardinal spline with τ = 0.5).
   About 8× per-sample cost, but the density field is continuously
   differentiable → no kinks even on tiny grids. The result is clamped to
-  `[0,1]`, and the grid of majorants allows for its overshoot between voxels. Accepted
-  aliases: `cubic`, `catmull-rom`, `smooth`. Provides smooth density
+  `[0,1]`, and the grid of majorants allows for its overshoot between voxels. Provides smooth density
   reconstruction on VDB grids at the cost of higher tap count.
 
 **Tip:** outside the AABB the medium is vacuum → rays that miss it are
@@ -504,6 +501,7 @@ Keep these tips in mind:
 # cathedral-fog.yaml
 # Stone pillars in fog with a spot light creating a visible beam.
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -527,7 +525,7 @@ lights:
     position: [0, 4.8, 4]
     direction: [0, -0.7, -0.3]
     color: [1.0, 0.92, 0.75]
-    intensity: 120.0
+    intensity: 111
     inner_angle: 10
     outer_angle: 22
 
@@ -535,22 +533,22 @@ lights:
   - type: "point"
     position: [0, 4, -4]
     color: [0.5, 0.55, 0.7]
-    intensity: 8.0
+    intensity: 4.4
 
 materials:
   - id: "floor"
-    type: "disney"
-    roughness: 0.7
-    texture:
+    type: openpbr
+    specular_roughness: 0.7
+    base_color:
       type: "checker"
       scale: 0.5
       colors: [[0.25, 0.22, 0.2], [0.15, 0.13, 0.12]]
 
   - id: "stone_pillar"
-    type: "disney"
-    roughness: 0.6
-    specular: 0.3
-    texture:
+    type: openpbr
+    specular_roughness: 0.6
+    specular_weight: 0.6
+    base_color:
       type: "marble"
       scale: 5.0
       noise_strength: 3.0

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═════════════════════════════════════════════════════════════════════════════
 #  GROUND — Alpine Lake (heightfield + strata + sea_level)
 # ═════════════════════════════════════════════════════════════════════════════
@@ -22,31 +23,16 @@
 #   ─ Final     : -w 1920 -H 1080 -s 1024 -d 12 -S 6  -C 30  --sampler sobol
 # ═════════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   # ── Sky: Nishita alba di montagna ─────────────────────────────────────────
   sky:
     type: "nishita"
     turbidity: 2.5
-    intensity: 1.0
+    exposure: -12.70779
     sun:
       direction:      [-0.7, 0.18, 0.45]   # sole basso, ~10° sull'orizzonte
-      angular_radius: 0.5
       shadow_samples: 4
-
-  # ── Ground: heightfield con strata + lago glaciale ────────────────────────
-  ground:
-    type: "heightfield"
-    bounds:        [-50, -50, 50, 50]                # 100×100 m
-    height_scale:  25                                # picchi fino a 25 m
-    heightmap_path: "../assets/heightmaps/heightfield-strata-test-height.png"
-    sea_level:     7.5                               # quota lago glaciale
-    sea_material:  "water_alpine"                    # mat definito sotto
-    material:      "rock_dark"                       # fallback (oltre strata)
-    strata:
-      - { min_altitude: 0.00, max_altitude: 0.36, min_slope_deg:  0, max_slope_deg: 35, blend_width: 0.04, material: "dis_sabbia_desertica" }
-      - { min_altitude: 0.34, max_altitude: 0.75, min_slope_deg:  0, max_slope_deg: 45, blend_width: 0.06, material: "dis_erba_prato" }
-      - { min_altitude: 0.50, max_altitude: 1.00, min_slope_deg:  0, max_slope_deg: 90, blend_width: 0.08, material: "rock_dark" }
-      - { min_altitude: 0.85, max_altitude: 1.00, min_slope_deg:  0, max_slope_deg: 60, blend_width: 0.05, material: "dis_neve_fresca" }
 
   # ── Medium: foschia mattutina di valle ────────────────────────────────────
   medium:
@@ -72,7 +58,7 @@ cameras:
     look_at:  [0, 9, 0]
     fov: 38
     aperture:   0.5
-    focal_dist: 80
+    focus_distance: 80
 
   - name: "aerial"                       # vista top-down (debug strata)
     position: [0, 110, 0.001]
@@ -89,71 +75,84 @@ materials:
   # ─── Sand / grass / snow / rock dei strata ────────────────────────────────
 
   - id: "dis_sabbia_desertica"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "noise"
       scale: 5.0
       noise_strength: 0.6
       colors: [[0.82, 0.72, 0.48], [0.62, 0.50, 0.30]]
-    roughness: 0.92
+    specular_roughness: 0.92
 
   - id: "dis_erba_prato"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "noise"
       scale: 4.0
       noise_strength: 0.5
       colors: [[0.42, 0.50, 0.20], [0.30, 0.36, 0.14]]
-    roughness: 0.95
+    specular_roughness: 0.95
 
   - id: "dis_neve_fresca"
-    type: "disney"
-    color: [0.95, 0.97, 1.00]
-    roughness: 0.78
-    metallic: 0.0
-    specular: 0.30
+    type: openpbr
+    base_color: [0.95, 0.97, 1.00]
+    specular_roughness: 0.78
+    specular_weight: 0.6
 
   - id: "rock_dark"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "noise"
       scale: 6.0
       noise_strength: 0.7
       colors: [[0.32, 0.30, 0.28], [0.18, 0.17, 0.18]]
-    roughness: 0.85
-    metallic: 0.0
-    specular: 0.20
+    specular_roughness: 0.85
+    specular_weight: 0.4
 
   # ─── Lago glaciale ────────────────────────────────────────────────────────
   - id: "water_alpine"
-    type: "disney"
-    color: [0.04, 0.18, 0.28]
-    roughness: 0.02
-    metallic: 0.0
-    spec_trans: 1.0
-    ior: 1.33
+    type: openpbr
+    base_color: [0.04, 0.18, 0.28]
+    specular_roughness: 0.02
+    transmission_weight: 1.0
+    specular_ior: 1.33
     transmission_color: [0.30, 0.55, 0.65]
     transmission_depth: 4.0
 
   # ─── Tenda e boe ─────────────────────────────────────────────────────────
   - id: "tent_red"
-    type: "disney"
-    color: [0.78, 0.10, 0.08]
-    roughness: 0.55
-    metallic: 0.0
-    sheen: 0.35
+    type: openpbr
+    base_color: [0.78, 0.10, 0.08]
+    specular_roughness: 0.55
+    fuzz_weight: 0.35
+    fuzz_color: [2.1041198, 0.7056564, 0.6645251]
+    fuzz_roughness: 0.3
 
   - id: "buoy_orange"
-    type: "disney"
-    color: [0.95, 0.40, 0.10]
-    roughness: 0.35
-    metallic: 0.0
-    clearcoat: 0.7
+    type: openpbr
+    base_color: [0.95, 0.40, 0.10]
+    specular_roughness: 0.35
+    coat_weight: 0.7
+    coat_roughness: 0.031622775
+    coat_ior: 1.5
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  ENTITIES
 # ═════════════════════════════════════════════════════════════════════════════
 entities:
+  # The terrain (a ground of type heightfield in format 1).
+  - name: "terrain"
+    type: "heightfield"
+    bounds:        [-50, -50, 50, 50]                # 100×100 m
+    height_scale:  25                                # picchi fino a 25 m
+    heightmap_path: "../assets/heightmaps/heightfield-strata-test-height.png"
+    sea_level:     7.5                               # quota lago glaciale
+    sea_material:  "water_alpine"                    # mat definito sotto
+    material:      "rock_dark"                       # fallback (oltre strata)
+    strata:
+      - { min_altitude: 0.00, max_altitude: 0.36, min_slope:      0, max_slope: 35, blend_width: 0.04, material: "dis_sabbia_desertica" }
+      - { min_altitude: 0.34, max_altitude: 0.75, min_slope:      0, max_slope: 45, blend_width: 0.06, material: "dis_erba_prato" }
+      - { min_altitude: 0.50, max_altitude: 1.00, min_slope:      0, max_slope: 90, blend_width: 0.08, material: "rock_dark" }
+      - { min_altitude: 0.85, max_altitude: 1.00, min_slope:      0, max_slope: 60, blend_width: 0.05, material: "dis_neve_fresca" }
 
   # ── Campo base (tenda rossa) ──────────────────────────────────────────────
   # Cubo scalato lungo la riva nord, sopra il livello lago.

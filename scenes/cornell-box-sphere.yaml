@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  CORNELL BOX — Variante a 3 SFERE con CAUSTICHE
 #
@@ -67,6 +68,7 @@
 #  Nessuna luce esterna: tutta la GI dipende dai rimbalzi interni.
 #  È la configurazione che esalta il color bleeding rosso/verde.
 # ─────────────────────────────────────────────────────────────────────────────
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -91,42 +93,42 @@ cameras:
   - name:       canonica        # Replica la fotocamera dell'esperimento originale (1984)
     position:   [ 0.00,  1.00, +4.00]
     look_at:    [ 0.00,  1.00, -1.00]
-    vup:        [0, 1, 0]
+    up:         [0, 1, 0]
     fov:        39              # FOV ≈ 39° verticale (dato dal paper)
     aperture:   0.0             # tutto a fuoco
-    focal_dist: 5.00            # distanza camera → centro = 5.0u
+    focus_distance: 5.00            # distanza camera → centro = 5.0u
 
   - name:       tre_quarti      # Vista cinematografica 3/4 dall'alto-destra
     position:   [ 1.80,  2.60, +3.80]
     look_at:    [-0.05,  0.75, -1.00]
-    vup:        [0, 1, 0]
+    up:         [0, 1, 0]
     fov:        46              # valorizza la differenza di altezza tra i due blocchi
     aperture:   0.0
-    focal_dist: 5.34
+    focus_distance: 5.34
 
   - name:       macro           # Macro con DOF pronunciato — focus sul blocco corto
     position:   [ 0.10,  1.10, +2.60]
     look_at:    [-0.30,  0.55, -0.72]
-    vup:        [0, 1, 0]
+    up:         [0, 1, 0]
     fov:        34              # simula un obiettivo 85mm f/1.8 da studio
     aperture:   0.14            # blocco corto nitido, blocco alto e fondo in bokeh
-    focal_dist: 3.44
+    focus_distance: 3.44
 
   - name:       zenitale        # Vista top-down — pianta della scatola con ombre
     position:   [ 0.00,  5.80, -1.00]
     look_at:    [ 0.00,  0.00, -1.00]
-    vup:        [0, 0, -1]      # vup lungo -Z: la scatola appare dritta dall'alto
+    up:         [0, 0, -1]      # vup lungo -Z: la scatola appare dritta dall'alto
     fov:        36
     aperture:   0.0
-    focal_dist: 5.80
+    focus_distance: 5.80
 
   - name:       dutch           # Dutch angle ~13.5° — atmosfera tesa e dinamica
     position:   [ 0.90,  1.40, +4.00]
     look_at:    [-0.10,  0.90, -1.00]
-    vup:        [0.233, 0.972, 0]   # vup ruotato per l'inclinazione dell'orizzonte
+    up:         [0.233, 0.972, 0]   # vup ruotato per l'inclinazione dell'orizzonte
     fov:        42
     aperture:   0.0
-    focal_dist: 5.12
+    focus_distance: 5.12
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -174,7 +176,7 @@ materials:
   - id: "luce_cornell"
     type: "emissive"
     color: [1.00, 0.98, 0.94]
-    intensity: 12.0
+    luminance: 11.776368
 
   # ─────────────────────────────────────────────────────────────────────────
   #  VARIANTI MATERIALI
@@ -183,20 +185,20 @@ materials:
   - id: "cromo_specchio"
     type: "metal"
     color: [0.95, 0.95, 0.97]
-    fuzz: 0.0
+    roughness: 0.0
 
   - id: "vetro_crown"
     type: "dielectric"
-    refraction_index: 1.52
+    ior: 1.52
 
   - id: "oro_satinato"
     type: "metal"
     color: [0.94, 0.76, 0.12]
-    fuzz: 0.05
+    roughness: 0.05
 
   - id: "marmo_fondo"
     type: "lambertian"
-    texture:
+    color:
       type: "marble"
       scale: 6.0
       noise_strength: 9.0
@@ -205,25 +207,25 @@ materials:
       randomize_rotation: false
 
   - id: "dis_bianco_opaco"
-    type: "disney"
-    color: [0.90, 0.90, 0.88]
-    roughness: 0.55
-    specular: 0.4
+    type: openpbr
+    base_color: [0.90, 0.90, 0.88]
+    specular_roughness: 0.55
+    specular_weight: 0.8
 
   - id: "dis_cromo_specchio"
-    type: "disney"
-    color: [0.95, 0.93, 0.88]
-    metallic: 1.0
-    roughness: 0.01
-    specular: 1.0
+    type: openpbr
+    base_color: [0.95, 0.93, 0.88]
+    base_metalness: 1.0
+    specular_roughness: 0.01
 
   - id: "dis_cristallo"
-    type: "disney"
-    color: [0.99, 0.99, 1.0]
-    roughness: 0.0
-    spec_trans: 1.0
-    ior: 1.8
-    specular: 0.95
+    type: openpbr
+    base_color: [0.99, 0.99, 1.0]
+    specular_roughness: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.8
+    specular_weight: 1.9
+    transmission_color: [0.99, 0.99, 1]
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES

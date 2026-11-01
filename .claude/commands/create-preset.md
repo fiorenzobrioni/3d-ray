@@ -70,28 +70,32 @@ Replica la struttura di `materials-stone.md`, nell'ordine:
 ```yaml
 materials:
   - id: "carrara_lucido"
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ... parametri ...
 ```
 
-Bianco caldo a vene grigio-blu. La pelle lucida è il `clearcoat` su `roughness`
-basso; `spec_trans: 0` esplicito tiene la pietra opaca.
+Bianco caldo a vene grigio-blu. La pelle lucida è il coat (`coat_weight` con
+`coat_roughness` basso) sopra la base; senza `transmission_weight` né
+`subsurface_weight` la pietra resta opaca.
 ```
 
 ## Regole per famiglia
 
 ### Pietra e vetro — opaco vs traslucido
 
-Per i cataloghi pietra/vetro la nota in evidenza **deve** chiarire la distinzione,
-perché il motore auto-promuove `spec_trans` a 1.0 se trova `subsurface_radius`
-**senza** uno `spec_trans` esplicito:
+Per i cataloghi pietra/vetro la nota in evidenza **deve** chiarire la distinzione
+(materiali `openpbr`):
 
 - **Marmo lucido opaco** (Carrara, Calacatta, Statuario, graniti): lucentezza data
-  da `clearcoat` + `coat_roughness` basso; `spec_trans: 0` **esplicito**;
-  **nessun** `subsurface_radius` grande (eviterebbe l'auto-promozione a vetro).
-- **Marmo traslucido** (onice, alabastro, gesso): `spec_trans` esplicito (onice
-  0.3–0.7, alabastro 0.05–0.10) + `transmission_color` + `transmission_depth`
-  (Beer-Lambert) + `subsurface_radius` per la diffusione interna.
+  da `coat_weight` + `coat_roughness` basso; né `transmission_weight` né
+  `subsurface_weight`.
+- **Marmo traslucido** (onice, alabastro, gesso): `subsurface_weight` (onice
+  0.3–0.7, alabastro 0.05–0.10) con `subsurface_color`, `subsurface_radius` e
+  `subsurface_radius_scale` per la diffusione interna; per le lastre sottili e
+  trasparenti `transmission_weight` + `transmission_color` + `transmission_depth`
+  (Beer-Lambert).
 
 Rimanda a [docs/technical/subsurface-scattering.md](../../docs/technical/subsurface-scattering.md).
 
@@ -128,7 +132,7 @@ Se un preset usa una texture, cita il path sotto `assets/`.
 - [ ] Nota in evidenza con la regola d'oro della famiglia
 - [ ] Blocco "Schema rilevante" annotato
 - [ ] 6–12 preset in sezioni tematiche, ognuno con motivazione breve
-- [ ] Per pietra/vetro: guida opaco-vs-traslucido (`clearcoat`+`spec_trans: 0` vs `spec_trans`+`transmission_*`+`subsurface_radius`)
+- [ ] Per pietra/vetro: guida opaco-vs-traslucido (`coat_weight` senza trasmissione vs `subsurface_weight`/`transmission_*`)
 - [ ] Matrice decisionale + CLI tips
 - [ ] ID univoci, brevi, rinominabili
 - [ ] Texture/heightmap referenziate da `assets/`, mai incluse nel catalogo

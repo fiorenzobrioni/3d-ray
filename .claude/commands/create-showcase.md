@@ -79,7 +79,7 @@ world:
   ground:
     type: "infinite_plane"
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
 
 cameras:
   - name: "principale"  # Vista d'insieme — tutti gli oggetti visibili
@@ -111,7 +111,7 @@ entities:
 **Materiali — tutti inline:**
 - `pavimento`: sempre `lambertian` con texture `checker` (colori neutri grigi)
 - Oggetti: variare tipo materiale per mostrare interazioni con la feature
-- Includere almeno: un opaco (`lambertian`/`disney`), un metallico, un vetro (`dielectric`) — se pertinente alla feature
+- Includere almeno: un opaco (`lambertian`/`openpbr`), un metallico, un vetro (`dielectric`) — se pertinente alla feature
 
 **Luci:**
 - Setup semplice: 1–2 point light (key + fill), eventualmente 1 directional
@@ -144,7 +144,7 @@ entities:
 - File: `scenes/showcases/<categoria>-<feature>.yaml` (niente suffisso
   `-showcase`: la cartella già lo indica).
 - Prefissi di categoria usati nel repo:
-  - `material-` — tecniche materiali (Disney, classic, mix, emissive)
+  - `material-` — tecniche materiali (OpenPBR, classic, mix, emissive)
   - `material-sss` — subsurface scattering (pelle, cera, alabastro, liquidi organici); richiede `-q pre-final` o superiore
   - `preset-` — demo di un catalogo di preset materiali (`scenes/presets/materials-*.md`)
   - `texture-` — texture procedurali/immagini, bump, normal, displacement

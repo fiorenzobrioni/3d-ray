@@ -252,7 +252,7 @@ public partial class Renderer
         float? maxSampleRadiance = null,
         bool verbose = false,
         MisHeuristic misHeuristic = MisHeuristic.Balance,
-        LightSamplingStrategy lightSamplingStrategy = LightSamplingStrategy.All,
+        LightSamplingStrategy lightSamplingStrategy = LightSamplingStrategy.Auto,
         float indirectClampFactor = DefaultIndirectClampFactor,
         TextureFilteringMode textureFiltering = TextureFilteringMode.Auto,
         float exposureEv = DefaultExposureEv,
@@ -266,8 +266,8 @@ public partial class Renderer
         PathDepths? depths = null)
     {
         _depths = depths ?? PathDepths.Uniform(maxDepth);
-        _pixelFilter = pixelFilter ?? PixelFilter.Box;
-        _display = displayTransform ?? DisplayTransform.Legacy;
+        _pixelFilter = pixelFilter ?? PixelFilter.Create(PixelFilterKind.Gaussian);
+        _display = displayTransform ?? DisplayTransform.Default;
         _referenceMode = referenceMode;
         _transparentShadows = transparentShadows && !referenceMode;
         _seedMix = seed == 0 ? 0u : MixSeed((uint)seed);

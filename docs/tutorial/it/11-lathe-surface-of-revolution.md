@@ -132,7 +132,7 @@ con due proprietà importanti:
 ```yaml
 - name: "vaso"
   type: "lathe"
-  profile_type: "catmull_rom"           # alias: "catmull", "smooth"
+  profile_type: "catmull_rom"
   material: "porcellana"
   profile:
     - [0.00, 0.00]                      # base chiusa (sull'asse)
@@ -266,10 +266,11 @@ sullo stesso palcoscenico. Ecco una versione distillata da copiare
 in un nuovo file:
 
 ```yaml
-camera:
-  position: [0, 3.5, -9]
-  look_at: [0, 1.2, 0]
-  fov: 42
+format_version: 2
+cameras:
+  - position: [0, 3.5, -9]
+    look_at: [0, 1.2, 0]
+    fov: 42
 
 world:
   sky:
@@ -279,24 +280,25 @@ world:
 
 materials:
   - id: "pavimento"
-    type: "disney"
-    roughness: 0.85
-    texture:
+    type: openpbr
+    specular_roughness: 0.85
+    base_color:
       type: "checker"
       colors: [[0.10, 0.10, 0.11], [0.22, 0.22, 0.23]]
       scale: 0.7
   - id: "porcellana"
-    type: "disney"
-    color: [0.94, 0.92, 0.88]
-    roughness: 0.25
-    specular: 0.6
+    type: openpbr
+    base_color: [0.94, 0.92, 0.88]
+    specular_roughness: 0.25
+    specular_weight: 1.2
   - id: "marmo"
-    type: "disney"
-    color: [0.88, 0.85, 0.80]
-    roughness: 0.4
+    type: openpbr
+    base_color: [0.88, 0.85, 0.80]
+    specular_roughness: 0.4
   - id: "luce"
     type: "emissive"
-    emission: [6.0, 4.0, 1.8]
+    luminance: 1
+    # emission: [6.0, 4.0, 1.8]
 
 entities:
   # Vaso liscio -- Catmull-Rom

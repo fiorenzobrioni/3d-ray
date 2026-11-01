@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  MEDIUM INTERFACE #04 — Atmosfera legata a una sfera (aerial perspective locale)
 #
@@ -25,18 +26,19 @@
 #    Final:      -q final-small
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.0008, 0.0010, 0.0018]   # Quasi vacuum scuro (no stelle)
 
-camera:
-  position: [0, 0, 5.6]
-  look_at:  [0, 0, 0]
-  vup:      [0, 1, 0]
-  fov:      38
-  aperture: 0.0
-  focal_dist: 5.6
+cameras:
+  - position: [0, 0, 5.6]
+    look_at:  [0, 0, 0]
+    up:       [0, 1, 0]
+    fov:      38
+    aperture: 0.0
+    focus_distance: 5.6
 
 mediums:
   # Atmosfera con scattering Rayleigh (blu eccesso). σ_s sui canali bilanciati
@@ -50,26 +52,27 @@ mediums:
 
 materials:
   - id: planet_surface
-    type: disney
-    color: [0.18, 0.28, 0.42]        # Tipo oceano + nuvole
-    roughness: 0.50
-    specular: 0.35
+    type: openpbr
+    base_color: [0.18, 0.28, 0.42]        # Tipo oceano + nuvole
+    specular_roughness: 0.50
+    specular_weight: 0.7
 
   - id: atmosphere_shell
-    type: disney
-    color: [1.0, 1.0, 1.0]
-    roughness: 0.0
-    specular: 0.0
-    spec_trans: 1.0
-    ior: 1.0                          # Matched IOR → niente refrazione, solo medium
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.0
+    specular_weight: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.0                          # Matched IOR → niente refrazione, solo medium
+    transmission_color: [1, 1, 1]
 
 lights:
   # Sole (directional con soft disk per il terminator).
   - type: directional
     direction: [-0.65, -0.10, -0.45]
     color:     [1.0, 0.97, 0.90]
-    intensity: 4.0
-    angular_radius_deg: 0.27
+    illuminance: 3.8852959
+    # angular_radius_deg: 0.27
 
 entities:
   # Guscio atmosfera: trasparente, interior = atmosphere medium.

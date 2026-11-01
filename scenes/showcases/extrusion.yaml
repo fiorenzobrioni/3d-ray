@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ============================================================================
 # Scene: Extrusion Showcase
 # Tests: Extrusion primitive — three hero subjects exercising all three profile
@@ -9,6 +10,7 @@
 #        floor with a gradient sky for atmosphere.
 # ============================================================================
 
+format_version: 2
 cameras:
   # ── Vista principale — tutti e 3 gli oggetti visibili ──────────────────
   - name:       principale
@@ -16,16 +18,15 @@ cameras:
     look_at:    [0, 2.0,  0.0]
     fov:        50
     aperture:   0.15
-    focal_dist: 5.6
+    focus_distance: 5.6
 
 world:
   sky:
     type: "nishita"
     turbidity: 4.0
-    intensity: 1.0
+    exposure: -12.70779
     sun:
       direction:      [-0.85, 0.12, 0.4]   # sun just above horizon
-      angular_radius: 0.5                   # slightly enlarged for cinematic glow
       shadow_samples: 4
 #   sky:
 #     type: "gradient"
@@ -33,60 +34,61 @@ world:
 #     horizon_color: [0.20, 0.18, 0.22]
 #     ground_color:  [0.04, 0.04, 0.05]
   ground:
-    type: "plane"
+    type: infinite_plane
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
 
 materials:
   - id: "pavimento"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "checker"
       colors: [[0.92, 0.90, 0.85], [0.10, 0.10, 0.12]]
       scale: 1.5
-    roughness: 0.18
-    clearcoat: 0.4
+    specular_roughness: 0.18
+    coat_weight: 0.4
     coat_roughness: 0.08
-    specular: 0.6
+    specular_weight: 1.2
+    coat_ior: 1.5
 
   # ── Hero 1: gold (linear star) ───────────────────────────────────────────
   - id: "oro"
-    type: "disney"
-    color: [1.00, 0.78, 0.34]
-    metallic: 1.0
-    roughness: 0.22
-    specular: 0.95
-    clearcoat: 0.0
+    type: openpbr
+    base_color: [1.00, 0.78, 0.34]
+    base_metalness: 1.0
+    specular_roughness: 0.22
 
   # ── Hero 2: white marble (twisted column) ────────────────────────────────
   - id: "marmo"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "marble"
       scale: 1.0
       noise_strength: 1.8
       colors: [[0.96, 0.95, 0.93], [0.50, 0.52, 0.58]]
       randomize_offset: true
-    roughness: 0.12
-    clearcoat: 0.85
+    specular_roughness: 0.12
+    coat_weight: 0.85
     coat_roughness: 0.06
-    specular: 0.72
+    specular_weight: 1.44
+    coat_ior: 1.5
 
   # ── Hero 3: emerald glass (bezier shield) ────────────────────────────────
   - id: "smeraldo"
-    type: "disney"
-    color: [0.22, 0.78, 0.42]
-    roughness: 0.05
-    spec_trans: 1.0
-    ior: 1.55
-    specular: 0.9
+    type: openpbr
+    base_color: [0.22, 0.78, 0.42]
+    specular_roughness: 0.05
+    transmission_weight: 1.0
+    specular_ior: 1.55
+    specular_weight: 1.8
+    transmission_color: [0.22, 0.78, 0.42]
 
   # ── Pedestals (dark stone) ───────────────────────────────────────────────
   - id: "piedistallo"
-    type: "disney"
-    color: [0.10, 0.10, 0.12]
-    roughness: 0.55
-    specular: 0.45
+    type: openpbr
+    base_color: [0.10, 0.10, 0.12]
+    specular_roughness: 0.55
+    specular_weight: 0.9
 
 lights:
   # Sun-like key light with a real-Sun angular radius for soft penumbrae.
@@ -101,14 +103,14 @@ lights:
   - type: "point"
     position: [-4.5, 3.5, -3.0]
     color: [1.00, 0.74, 0.50]
-    intensity: 60
+    intensity: 46.67688
     soft_radius: 0.25
 
   # Cool rim from behind for silhouette separation.
   - type: "point"
     position: [3.8, 4.2, 4.0]
     color: [0.45, 0.62, 1.00]
-    intensity: 60
+    intensity: 36.677643
     soft_radius: 0.25
 
 entities:
@@ -169,7 +171,7 @@ entities:
     type: "extrusion"
     profile_type: "catmull_rom"
     height: 3.4
-    twist_degrees: 60
+    twist: 60
     taper: 0.88
     curve_samples: 24
     caps: "both"

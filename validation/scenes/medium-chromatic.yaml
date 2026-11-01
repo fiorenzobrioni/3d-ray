@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Validation scene (PIANO-REVIEW.md, Phase 8): a sphere of strongly
 # chromatic scattering medium (red scatters more than blue, blue is
 # absorbed most) bounded by an index-matched shell, on a floor, lit by an
@@ -5,6 +6,7 @@
 # random walk's case: it must match the volume transport exactly when the
 # boundary neither reflects nor refracts. Mitsuba: volpath, the shell 'null'
 # with the medium as its interior.
+format_version: 2
 validation:
   width: 128
   height: 96
@@ -16,11 +18,11 @@ validation:
 world:
   sky: { type: "flat", color: [0.05, 0.05, 0.06] }
 
-camera:
-  position: [0.0, 1.5, 4.5]
-  look_at: [0.0, 0.7, 0.0]
-  vup: [0, 1, 0]
-  fov: 38
+cameras:
+  - position: [0.0, 1.5, 4.5]
+    look_at: [0.0, 0.7, 0.0]
+    up: [0, 1, 0]
+    fov: 38
 
 mediums:
   - id: "jelly"
@@ -31,12 +33,12 @@ mediums:
 
 materials:
   - { id: "floor", type: "lambertian", color: [0.6, 0.6, 0.6] }
-  - { id: "shell", type: "dielectric", color: [1, 1, 1], refraction_index: 1.0 }
+  - { id: "shell", type: "dielectric", color: [1, 1, 1], ior: 1.0 }
 
 entities:
   - { type: "quad", q: [-5, 0, 5], u: [10, 0, 0], v: [0, 0, -10], material: "floor" }
   - { type: "sphere", center: [0, 0.75, 0], radius: 0.75, material: "shell", interior_medium: "jelly" }
 
 lights:
-  - { type: "area", corner: [-0.8, 3.0, -0.4], u: [1.2, 0, 0], v: [0, 0, 1.0], color: [1, 1, 1], intensity: 6 }
-  - { type: "point", position: [-1.8, 1.2, 1.5], color: [1.0, 0.9, 0.8], intensity: 2 }
+  - { type: "area", corner: [-0.8, 3.0, -0.4], u: [1.2, 0, 0], v: [0, 0, 1.0], color: [1, 1, 1], luminance: 6 }
+  - { type: "point", position: [-1.8, 1.2, 1.5], color: [1.0, 0.9, 0.8], intensity: 1.8280799 }

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Primitive Heightfield Showcase — Terreno come primitiva matematica
 #
@@ -23,6 +24,7 @@
 #    Finale:   -w 1920 -H 1080 -s 1024 -d 6  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -32,8 +34,8 @@ world:
     sun:
       direction: [-0.50, -0.75, -0.30]
       color: [1.00, 0.96, 0.88]
-      intensity: 10.0
-      size: 2.0
+      luminance:  9.62728
+      angular_radius: 1
 
 cameras:
   - name: "principale"
@@ -55,22 +57,22 @@ lights:
   - type: "directional"
     direction: [0.45, -0.70, 0.55]
     color: [0.95, 0.94, 0.92]
-    intensity: 1.2
+    illuminance: 1.1288184
 
 materials:
 
   # Roccia procedurale chiara — per il terreno Musgrave a sinistra.
   - id: "roccia_chiara"
-    type: "disney"
-    base_color: [0.50, 0.42, 0.34]
-    roughness: 0.92
+    type: openpbr
+    specular_roughness: 0.92
+    base_color: [0.5, 0.5, 0.5]
 
   # Roccia più scura — terreno heightmap a destra, per leggere meglio
   # le quote.
   - id: "roccia_scura"
-    type: "disney"
-    base_color: [0.38, 0.32, 0.26]
-    roughness: 0.92
+    type: openpbr
+    specular_roughness: 0.92
+    base_color: [0.5, 0.5, 0.5]
 
 entities:
 
@@ -105,5 +107,5 @@ entities:
     height_texture:
       type: "image"
       path: "../assets/heightmaps/heightfield-strata-test-height.png"
-      colors: [[0, 0, 0], [1, 1, 1]]
+      # colors: [[0, 0, 0], [1, 1, 1]]
     material: "roccia_scura"

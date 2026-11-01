@@ -1,6 +1,8 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Validation scene (PIANO-REVIEW.md, Phase 0): one of each analytic light type
 # (point, sphere, area) over a diffuse floor with a diffuse sphere. Checks the
 # radiometric conventions of each light (intensity vs radiance) and their NEE.
+format_version: 2
 validation:
   width: 128
   height: 96
@@ -12,11 +14,11 @@ validation:
 world:
   sky: { type: "flat", color: [0, 0, 0] }
 
-camera:
-  position: [0.0, 2.5, 5.0]
-  look_at: [0.0, 0.3, 0.0]
-  vup: [0, 1, 0]
-  fov: 40
+cameras:
+  - position: [0.0, 2.5, 5.0]
+    look_at: [0.0, 0.3, 0.0]
+    up: [0, 1, 0]
+    fov: 40
 
 materials:
   - { id: "floor", type: "lambertian", color: [0.6, 0.6, 0.6] }
@@ -27,6 +29,6 @@ entities:
   - { type: "sphere", center: [0, 0.5, 0], radius: 0.5, material: "ball" }
 
 lights:
-  - { type: "point", position: [-1.8, 1.5, 0.5], color: [1.0, 0.8, 0.6], intensity: 3 }
-  - { type: "sphere", position: [1.8, 1.2, 0.3], radius: 0.25, color: [0.6, 0.8, 1.0], intensity: 6, shadow_samples: 1 }
-  - { type: "area", corner: [-0.5, 2.5, -1.5], u: [1, 0, 0], v: [0, 0, 1], color: [1, 1, 1], intensity: 3, shadow_samples: 1 }
+  - { type: "point", position: [-1.8, 1.5, 0.5], color: [1.0, 0.8, 0.6], intensity: 2.48424 }
+  - { type: "sphere", position: [1.8, 1.2, 0.3], radius: 0.25, color: [0.6, 0.8, 1.0], luminance: 4.6315203, shadow_samples: 1 }
+  - { type: "area", corner: [-0.5, 2.5, -1.5], u: [1, 0, 0], v: [0, 0, 1], color: [1, 1, 1], luminance: 3, shadow_samples: 1 }

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Liquids Showcase — Liquidi
 #
@@ -17,82 +18,82 @@
 #    Finale: -w 1920 -H 1080 -s 2048 -d 14 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.18, 0.18, 0.20]
 
-camera:
-  position: [0, 1.8, -11.0]
-  look_at:  [0, 0.9, 0]
-  fov: 50
+cameras:
+  - position: [0, 1.8, -11.0]
+    look_at:  [0, 0.9, 0]
+    fov: 50
 
 materials:
 
   - id: "dis_vino_rosso"
-    type: "disney"
-    color: [0.45, 0.06, 0.10]
-    roughness: 0.05
-    specular: 0.50
-    spec_trans: 1.0
-    ior: 1.345
+    type: openpbr
+    base_color: [0.45, 0.06, 0.10]
+    specular_roughness: 0.05
+    transmission_weight: 1.0
+    specular_ior: 1.345
     transmission_color: [0.45, 0.04, 0.06]
     transmission_depth: 0.4
 
   - id: "dis_latte_intero"
-    type: "disney"
-    color: [0.97, 0.95, 0.90]
-    subsurface_radius: [0.50, 0.55, 0.65]
-    subsurface_anisotropy: 0.8
-    spec_trans: 0.0
-    roughness: 0.25
-    specular: 0.42
+    type: openpbr
+    base_color: [0.97, 0.95, 0.90]
+    subsurface_radius_scale: [0.50, 0.55, 0.65]
+    subsurface_scatter_anisotropy: 0.8
+    subsurface_weight: 0.0
+    specular_roughness: 0.25
+    specular_weight: 0.84
+    subsurface_color: [0.97, 0.95, 0.9]
 
   - id: "dis_miele"
-    type: "disney"
-    color: [0.95, 0.68, 0.18]
-    roughness: 0.05
-    specular: 0.50
-    spec_trans: 0.95
-    ior: 1.484
+    type: openpbr
+    base_color: [0.95, 0.68, 0.18]
+    specular_roughness: 0.05
+    transmission_weight: 0.95
+    specular_ior: 1.484
     transmission_color: [0.88, 0.45, 0.05]
     transmission_depth: 0.3
 
   - id: "dis_olio_motore"
-    type: "disney"
-    color: [0.05, 0.04, 0.04]
-    roughness: 0.05
-    specular: 0.55
-    spec_trans: 0.30
-    ior: 1.470
+    type: openpbr
+    base_color: [0.05, 0.04, 0.04]
+    specular_roughness: 0.05
+    specular_weight: 1.1
+    transmission_weight: 0.30
+    specular_ior: 1.470
     transmission_color: [0.02, 0.02, 0.02]
     transmission_depth: 0.1
-    thin_film_thickness: 380
+    thin_film_thickness: 0.38
     thin_film_ior: 1.40
-    clearcoat: 0.4
+    coat_weight: 0.4
     coat_roughness: 0.05
     coat_ior: 1.5
+    thin_film_weight: 1
 
   - id: "dis_acqua_piscina"
-    type: "disney"
-    color: [0.85, 0.95, 1.00]
-    roughness: 0.02
-    specular: 0.50
-    spec_trans: 1.0
-    ior: 1.33
+    type: openpbr
+    base_color: [0.85, 0.95, 1.00]
+    specular_roughness: 0.02
+    transmission_weight: 1.0
+    specular_ior: 1.33
     transmission_color: [0.78, 0.92, 0.98]
     transmission_depth: 2.0
 
   - id: "floor"
-    type: "disney"
-    color: [0.62, 0.62, 0.60]
-    roughness: 0.65
-    specular: 0.35
+    type: openpbr
+    base_color: [0.62, 0.62, 0.60]
+    specular_roughness: 0.65
+    specular_weight: 0.7
 
   - id: "backdrop"
-    type: "disney"
-    color: [0.35, 0.35, 0.36]
-    roughness: 0.88
+    type: openpbr
+    base_color: [0.35, 0.35, 0.36]
+    specular_roughness: 0.88
 
 entities:
 
@@ -157,15 +158,15 @@ lights:
   - type: "directional"
     direction: [-0.4, -0.5, 0.6]
     color: [1.0, 0.97, 0.92]
-    intensity: 7.0
+    illuminance: 6.8093762
     angular_radius: 0.4
 
   - type: "point"
     position: [0, 5, -4]
     color: [1.0, 1.0, 0.95]
-    intensity: 90
+    intensity: 89.6751
 
   - type: "point"
     position: [0, 3, 5]
     color: [1.0, 0.92, 0.78]
-    intensity: 65
+    intensity: 60.2485

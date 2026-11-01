@@ -10,5 +10,6 @@
     <Project Path="src/Tools/TerrainGen/TerrainGen.csproj" />
     <Project Path="src/Tools/FontGen/FontGen.csproj" />
     <Project Path="src/Tools/ImageCompare/ImageCompare.csproj" />
+    <Project Path="src/Tools/SceneMigrate/SceneMigrate.csproj" />
   </Folder>
 </Solution>

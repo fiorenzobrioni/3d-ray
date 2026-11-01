@@ -30,7 +30,7 @@ environment emitter. It does three jobs at once:
 > delta), the sky body is shown **without** the analytical sun — the
 > `PhysicalSun` covers it via NEE. On delta bounces (mirror, refraction)
 > and camera rays the sky body **includes** the sun. This avoids
-> double-counting and matches Arnold / Cycles HDRI-sun-extraction
+> double-counting and matches the standard HDRI-sun-extraction
 > behaviour.
 
 > **Sun direction convention (since the sky overhaul).** `sun.direction`
@@ -50,44 +50,44 @@ world:
     # ── Common: all models ─────────────────────────────────────────────
     type: "flat"                    # [required] flat | gradient | preetham
                                     #            hosek_wilkie | nishita | hdri
-    intensity: 1.0                  # global multiplier on sky body + sun
+    exposure: 0                     # stops: sky body + sun × 2^exposure
+    # rotate: [0, 0, 0]             # Euler degrees, as an entity's rotate
+    # rotate_order: xyz             # optional
 
     # ── Flat-only ──────────────────────────────────────────────────────
-    color: [0.5, 0.7, 1.0]          # uniform sphere colour (linear)
+    color: [0.5, 0.7, 1.0]          # uniform sphere colour (linear, default 1)
 
     # ── Gradient-only ──────────────────────────────────────────────────
-    zenith_color:  [0.10, 0.30, 0.80]
-    horizon_color: [0.70, 0.85, 1.00]
-    ground_color:  [0.30, 0.25, 0.20]
+    # zenith_color:  [0.10, 0.30, 0.80]
+    # horizon_color: [0.70, 0.85, 1.00]
+    # ground_color:  [0.30, 0.25, 0.20]
 
-    # ── Hosek-Wilkie / Preetham / Nishita ──────────────────────────────
-    turbidity:     3.0              # 1 = pristine, 3 = clear, 5 = haze, 10 = smog
-    ground_albedo: [0.30, 0.30, 0.30]  # tints sky's ground bounce
+    # ── Hosek-Wilkie / Preetham / Nishita (in nits: ev100 or exposure) ─
+    # turbidity:     3.0              # 1 = pristine, 3 = clear, 5 = haze, 10 = smog
+    # ground_albedo: [0.30, 0.30, 0.30]  # tints sky's ground bounce
 
     # ── HDRI-only ──────────────────────────────────────────────────────
-    path: "studio.hdr"              # .hdr (Radiance RGBE) or .exr (OpenEXR)
+    # path: "studio.hdr"              # .hdr (Radiance RGBE) or .exr (OpenEXR)
                                     # Resolved relative to the scene YAML.
-    rotation: 0.0                   # legacy Y-axis rotation in degrees
-                                    # (prefer `orientation:` below for full 3D)
 
-    # ── Sun (optional sub-block; applies to all models) ────────────────
-    sun:
-      direction:         [0.3, 0.8, 0.2]   # direction TOWARDS the sun
-      color:             [1.0, 1.0, 1.0]   # disc tint (overrides physical model's)
-      intensity:         10.0
-      angular_radius:    0.265        # half-angle in degrees (real Sun)
-      size:              3.0          # full diameter — used only if angular_radius <= 0
-      shadow_samples:    4            # stratified samples for PhysicalSun shadows
-      visible_to_camera: true         # false = hide disc from camera rays
-      # HDRI only:
-      extract_from_hdri: false        # detect bright peak, split as PhysicalSun
-      extract_threshold: 50           # luminance threshold (× HDRI mean)
+    # ── Sun (optional sub-block) ───────────────────────────────────────
+    # sun:
+    #   direction:         [0.3, 0.8, 0.2]   # direction TOWARDS the sun
+    #   shadow_samples:    4            # stratified samples for PhysicalSun shadows
+    #   visibility: { camera: false }   # hide the disc from camera rays
+    #   # Gradient only:
+    #   color:             [1.0, 1.0, 1.0]   # disc tint
+    #   luminance:         10           # luminance of the disc
+    #   angular_radius:    1.5          # half-angle in degrees (real Sun 0.265)
+    #   # HDRI only:
+    #   extract_from_hdri: false        # detect bright peak, split as PhysicalSun
+    #   extract_threshold: 50           # luminance threshold (× HDRI mean)
 
-    # ── Per-ray-category visibility (Cycles/Arnold parity) ─────────────
+    # ── Per-ray-category visibility ────────────────────────────────────
     visibility:
       camera:       true     # primary camera rays
-      diffuse:      true     # diffuse / sheen / SSS bounces
-      glossy:       true     # glossy / clearcoat bounces
+      diffuse:      true     # diffuse / fuzz / SSS bounces
+      glossy:       true     # glossy / coat bounces
       transmission: true     # refractions through dielectrics
       shadow:       true     # NEE shadow rays return sky radiance
 
@@ -95,14 +95,11 @@ world:
     background:                     # optional separate sky for camera rays
       type: "hdri"                  # any sky model — same schema as above
       path: "background.hdr"
-      intensity: 1.0
       # ... all other model-specific fields apply here too
 
-    # ── 3D orientation (replaces legacy `rotation:`) ───────────────────
-    orientation:
-      euler:      [10, 45, 0]              # XYZ intrinsic Euler degrees
-      # OR
-      quaternion: [0, 0.38, 0, 0.92]       # XYZW; quaternion wins if both given
+    # ── 3D rotation (as an entity's rotate) ────────────────────────────
+    # rotate: [10, 45, 0]                    # Euler degrees, X first
+    # rotate_order: xyz                      # optional
 ```
 
 ### Companion: aerial perspective (Nishita medium)
@@ -110,11 +107,11 @@ world:
 Pair `type: nishita` with this `world.medium:` for physical depth-of-air:
 
 ```yaml
+units: { length: 1000 }
 world:
   medium:
-    type: "atmosphere"            # aliases: nishita | aerial_perspective
-    world_scale: 1000.0           # metres per world unit (1000 = "1 wu : 1 km")
-    sea_level_y: 0.0              # world Y of altitude 0
+    type: "atmosphere"
+    y0: 0.0                       # world Y of altitude 0 (sea level)
     air_density: 1.0              # Rayleigh (air) density
     dust_density: 1.0             # Mie density (0=pristine, 1=clean, >1=polluted)
     phase: "hg"                   # default Henyey-Greenstein g=0.76 (Mie forward)
@@ -127,8 +124,8 @@ Window opening, virtual rectangle, ~10× variance reduction:
 
 ```yaml
 lights:
-  - type: "portal"           # alias: portal_light
-    anchor: [3.0, 1.2, -2.5] # one corner of the window rectangle
+  - type: "portal"
+    corner: [3.0, 1.2, -2.5] # one corner of the window rectangle
     u: [0.0, 0.0, 2.5]       # edge along U
     v: [0.0, 1.2, 0.0]       # edge along V
     shadow_samples: 8        # default 8
@@ -176,10 +173,9 @@ world:
     type: "hosek_wilkie"
     turbidity: 3.0
     ground_albedo: [0.25, 0.25, 0.22]
-    intensity: 1.0
+    exposure: -9.97
     sun:
       direction:      [0.3, 1.0, 0.4]    # high in the sky
-      angular_radius: 0.265
       shadow_samples: 4
 ```
 
@@ -196,10 +192,9 @@ world:
   sky:
     type: "nishita"
     turbidity: 4.0
-    intensity: 1.0
+    exposure: -12.7
     sun:
       direction:      [-0.85, 0.12, 0.4]   # sun just above horizon
-      angular_radius: 0.5                   # slightly enlarged for cinematic glow
       shadow_samples: 4
 ```
 
@@ -212,17 +207,16 @@ for full atmospheric realism.
 ## 5. Sunset with aerial perspective — full atmospheric stack
 
 ```yaml
+units: { length: 500 }
 world:
   sky:
     type: "nishita"
-    intensity: 1.0
+    exposure: -12.7
     sun:
       direction:      [-0.7, 0.25, 0.6]
-      angular_radius: 0.4
       shadow_samples: 4
   medium:
     type: "atmosphere"
-    world_scale: 500.0          # 500 m/wu — "country road" scale
     dust_density: 1.5           # slightly hazy
     air_density: 1.0
 ```
@@ -243,11 +237,10 @@ world:
     zenith_color:  [0.005, 0.005, 0.020]
     horizon_color: [0.020, 0.020, 0.045]
     ground_color:  [0.005, 0.005, 0.010]
-    intensity: 1.0
     sun:
       direction:      [-0.4, 0.6, -0.7]   # moon position
       color:          [0.70, 0.75, 0.90]  # cool blue moonlight
-      intensity:      3.0
+      luminance:     2.25
       angular_radius: 0.5                  # moon disc
       shadow_samples: 4
 ```
@@ -264,9 +257,7 @@ world:
   sky:
     type: "hdri"
     path: "showcases/hdri/your_outdoor_hdri.hdr"   # .hdr or .exr
-    intensity: 1.0
-    orientation:
-      euler: [0, 90, 0]                            # full 3D rotation
+    # rotate: [0, 90, 0]                             # full 3D rotation
     sun:
       extract_from_hdri:  true
       extract_threshold:  40                       # lower if the HDRI sun is soft
@@ -287,14 +278,14 @@ world:
   sky:
     type: "hdri"
     path: "showcases/hdri/your_outdoor_hdri.hdr"
-    intensity: 5.0                                 # bright outside, dim inside
+    exposure: 2.32                                 # bright outside, dim inside
     sun:
       extract_from_hdri: true
       shadow_samples: 4
 
 lights:
   - type: "portal"
-    anchor: [3.0, 1.2, -2.5]                       # window position (right wall)
+    corner: [3.0, 1.2, -2.5]                       # window position (right wall)
     u: [0.0, 0.0, 2.5]                             # width along Z
     v: [0.0, 1.2, 0.0]                             # height along Y
     shadow_samples: 8
@@ -313,7 +304,7 @@ world:
   sky:
     type: "hdri"
     path: "showcases/hdri/your_lighting_hdri.hdr"
-    intensity: 1.5
+    exposure: 0.585
     visibility:
       camera:       false        # invisible to camera (clean alpha for compositing)
       diffuse:      true
@@ -321,7 +312,7 @@ world:
       transmission: true
       shadow:       true
     sun:
-      visible_to_camera: false   # hide the hot sun disc too
+      visibility: { camera: false }   # hide the hot sun disc too
 ```
 
 Production / VFX setup: HDRI lights the scene and shows in reflections,
@@ -339,11 +330,10 @@ world:
     zenith_color:  [0.18, 0.35, 0.75]
     horizon_color: [0.78, 0.88, 1.00]
     ground_color:  [0.30, 0.25, 0.20]
-    intensity: 1.0
     sun:
       direction:      [0.4, 0.9, 0.2]
       color:          [1.0, 0.97, 0.90]
-      intensity:      15.0
+      luminance:     14.6
       angular_radius: 0.8                # slightly enlarged for nicer specular
       shadow_samples: 4
 ```

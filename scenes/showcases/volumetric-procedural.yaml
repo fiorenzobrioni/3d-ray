@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # =============================================================================
 # Volumetrics #03 — Nebbia procedurale (Perlin fBm)
 # =============================================================================
@@ -52,11 +53,12 @@
 #
 # =============================================================================
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.005, 0.005, 0.008]
-  ground: { y: 0, material: floor }
+  ground: { point: [0, 0, 0], material: floor }
   medium:
     type: procedural
     sigma_a: [0.01, 0.01, 0.01]
@@ -68,16 +70,16 @@ world:
     seed: 42
     phase: hg
     g: 0.5
-camera: { position: [0, 2.0, 8], look_at: [0, 1.5, 0], vup: [0,1,0], fov: 35, aperture: 0, focal_dist: 8 }
+cameras: [{ position: [0, 2.0, 8], look_at: [0, 1.5, 0], up: [0,1,0], fov: 35, aperture: 0, focus_distance: 8 }]
 materials:
-  - { id: floor, type: lambertian, albedo: [0.25, 0.22, 0.20] }
-  - { id: pillar, type: lambertian, albedo: [0.55, 0.5, 0.45] }
+  - { id: floor, type: lambertian }
+  - { id: pillar, type: lambertian }
 lights:
   - type: spot
     position: [-3, 6, 2]
     direction: [0.5, -1, -0.3]
     color: [1.0, 0.92, 0.78]
-    intensity: 1200
+    intensity: 1112.28
     inner_angle: 4
     outer_angle: 9
 entities:

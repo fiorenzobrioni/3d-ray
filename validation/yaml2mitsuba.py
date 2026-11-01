@@ -8,13 +8,15 @@ Documented approximations (listed in APPROXIMATIONS) are the exception and are
 reported with the results.
 
 Conventions matched:
-  camera     vertical fov, look-at with vup, thin lens radius = aperture / 2
-  pixels     box reconstruction filter (3D-Ray jitters uniformly in the pixel)
+  format     scene format 2 (PIANO-REVIEW.md Phase 10)
+  camera     vertical fov, look-at with up, thin lens radius = aperture / 2
+  pixels     Gaussian reconstruction filter, sigma 0.5 px (the engine's default)
   depth      3D-Ray "-d D" lights paths up to D + 1 segments: Mitsuba max_depth = D + 1
   quad       q (corner), u, v; normal = normalize(cross(u, v)); emits on the front side only
-  emissive   radiance = color * intensity, front side only, does not reflect
-  sphere light / area light   radiance = color * intensity (visible proxy)
-  point light                 radiant intensity = color * intensity (W/sr)
+  emissive   radiance = tint(color) * luminance, front side only, does not reflect
+  sphere light / area light   radiance = tint(color) * luminance (visible proxy)
+  point light                 intensity = tint(color) * intensity / metres-per-unit^2
+                              (tint = the colour over its luminance)
   flat sky                    constant environment of radiance = color
   media (Phase 8)             homogeneous and grid, global (the sensor's medium) or
                               bound to an entity (interior); integrator volpath.
@@ -36,8 +38,8 @@ class UnsupportedFeature(Exception):
 
 # Model differences the converter cannot remove; reported next to the numbers.
 APPROXIMATIONS = {
-    "disney": "Disney BSDF mapped to Mitsuba 'principled' (Disney 2015 base model; "
-              "3D-Ray adds Kulla-Conty multiscatter and Charlie sheen, so a gap is expected).",
+    "openpbr": "OpenPBR mapped to Mitsuba 'principled' through the Disney parameters (different "
+               "layering, Kulla-Conty multiscatter, Zeltner fuzz: a gap is expected).",
 }
 
 
@@ -49,8 +51,8 @@ def _vec(v, default=None):
     return [float(x) for x in v]
 
 
-# The engine's default for a material without 'color' (SceneLoader): grey 0.5,
-# for every material type, glass and emitters included.
+# The engine's default colour of a Lambertian (format 2: glass, metal and
+# emitters default to white).
 ENGINE_DEFAULT_COLOR = (0.5, 0.5, 0.5)
 
 
@@ -79,12 +81,12 @@ def _rect_to_world(mi, corner, u, v):
 
 def _camera(mi, scene, width, height, spp, camera_index=0):
     cams = scene.get("cameras")
-    cam = cams[camera_index] if cams else scene.get("camera")
+    cam = cams[camera_index] if cams else None
     if cam is None:
         raise UnsupportedFeature("scene has no camera")
     origin = _vec(cam.get("position"))
     target = _vec(cam.get("look_at"))
-    up = _vec(cam.get("vup"), (0, 1, 0))
+    up = _vec(cam.get("up"), (0, 1, 0))
     aperture = float(cam.get("aperture", 0.0))
     fov = float(cam.get("fov", 60.0))
     # Physical camera keys, converted as SceneLoader.ApplyPhysicalCamera does.
@@ -95,7 +97,7 @@ def _camera(mi, scene, width, height, spp, camera_index=0):
         fov = math.degrees(2.0 * math.atan(sensor_height / (2.0 * float(cam["focal_length"]))))
     if cam.get("f_stop"):
         focal = float(cam.get("focal_length") or sensor_height / (2.0 * math.tan(math.radians(fov) / 2.0)))
-        aperture = focal / float(cam["f_stop"]) / 1000.0 / float(cam.get("meters_per_unit", 1.0))
+        aperture = focal / float(cam["f_stop"]) / 1000.0 / _metres_per_unit(scene)
     sensor = {
         "type": "perspective" if aperture <= 0 else "thinlens",
         "fov_axis": "y",
@@ -111,8 +113,24 @@ def _camera(mi, scene, width, height, spp, camera_index=0):
     }
     if aperture > 0:
         sensor["aperture_radius"] = aperture / 2.0
-        sensor["focus_distance"] = float(cam.get("focal_dist", 1.0))
+        sensor["focus_distance"] = float(cam.get("focus_distance", 1.0))
     return sensor
+
+
+def _metres_per_unit(scene):
+    length = (scene.get("units") or {}).get("length", 1.0)
+    names = {"m": 1.0, "cm": 0.01, "mm": 0.001, "km": 1000.0, "in": 0.0254, "ft": 0.3048}
+    return names[length] if isinstance(length, str) else float(length)
+
+
+def _luminance(c):
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+
+def _tint(c):
+    # Format 2: a light's colour is a tint of luminance 1.
+    lum = _luminance(c)
+    return [x / lum for x in c] if lum > 0 else [1.0, 1.0, 1.0]
 
 
 def _two_sided(b):
@@ -135,9 +153,9 @@ def _bsdf_one_sided(m, used):
     if t == "lambertian":
         return {"type": "diffuse", "reflectance": _rgb(color)}
     if t == "dielectric":
-        if any(abs(c - 1.0) > 1e-6 for c in _vec(color, ENGINE_DEFAULT_COLOR)):
+        if any(abs(c - 1.0) > 1e-6 for c in _vec(color, (1.0, 1.0, 1.0))):
             raise UnsupportedFeature("tinted dielectric")
-        ior = float(m.get("refraction_index", 1.5))
+        ior = float(m.get("ior", 1.5))
         if abs(ior - 1.0) < 1e-6:
             # Index-matched: no reflection, no bending. Mitsuba's pass-through BSDF.
             return {"type": "null"}
@@ -153,8 +171,7 @@ def _bsdf_one_sided(m, used):
         # Mitsuba conductor) or the F82 model from color (exact twin only for
         # white, where F = 1). Mitsuba has no multiple-scattering lobe, so a
         # rough metal must set multiple_scattering: false to be compared.
-        # `roughness` is the loader's alias of `fuzz` for a metal.
-        fuzz = float(m.get("fuzz", m.get("roughness", 0.0)))
+        fuzz = float(m.get("roughness") or 0.0)
         if fuzz > 0 and m.get("multiple_scattering", True):
             raise UnsupportedFeature("rough Metal with multiple scattering (Mitsuba has none)")
         presets = {"gold": "Au", "silver": "Ag", "copper": "Cu", "aluminium": "Al", "chromium": "Cr",
@@ -166,38 +183,48 @@ def _bsdf_one_sided(m, used):
         elif m.get("eta") is not None:
             fres = {"eta": _rgb(m["eta"]), "k": _rgb(m.get("k", [0, 0, 0]))}
         else:
-            if any(abs(c - 1.0) > 1e-6 for c in _vec(color, ENGINE_DEFAULT_COLOR)) or m.get("edge_color"):
+            if any(abs(c - 1.0) > 1e-6 for c in _vec(color, (1.0, 1.0, 1.0))) or m.get("edge_color"):
                 raise UnsupportedFeature("coloured F82 Metal (no exact Mitsuba twin)")
             fres = {"material": "none"}
         if fuzz <= 0:
             return {"type": "conductor", **fres}
         return {"type": "roughconductor", **fres, "distribution": "ggx",
                 "alpha": max(fuzz * fuzz, 1e-4), "sample_visible": True}   # the engine's floor
-    if t in ("disney", "disney_bsdf", "pbr"):
-        used.add("disney")
-        for key in ("subsurface", "diff_trans", "thin_film_thickness", "transmission_color",
-                    "transmission_depth", "coat_roughness", "thin_walled"):
+    if t == "openpbr":
+        # Compared with Mitsuba's principled BSDF through the inverse of the
+        # Disney mapping (RayTracer.Materials.DisneyMaterial), for the inputs
+        # both models share.
+        used.add("openpbr")
+        for key in ("subsurface_weight", "thin_film_weight", "transmission_depth", "geometry_thin_walled",
+                    "base_diffuse_roughness", "coat_color", "specular_color", "fuzz_color", "emission_luminance"):
             if m.get(key):
-                raise UnsupportedFeature(f"disney parameter '{key}'")
+                raise UnsupportedFeature(f"openpbr input '{key}'")
+        tw = float(m.get("transmission_weight", 0.0))
+        coat_r = float(m.get("coat_roughness", 0.0))
         b = {
             "type": "principled",
-            "base_color": _rgb(color),
-            "metallic": float(m.get("metallic", 0.0)),
-            "roughness": float(m.get("roughness", 0.5)),
-            "specular": float(m.get("specular", 0.5)),
-            "spec_tint": float(m.get("specular_tint", 0.0)),
-            "sheen": float(m.get("sheen", 0.0)),
-            "sheen_tint": float(m.get("sheen_tint", 0.5)),
-            "clearcoat": float(m.get("clearcoat", 0.0)),
-            "clearcoat_gloss": float(m.get("clearcoat_gloss", 1.0)),
-            "spec_trans": float(m.get("spec_trans") or 0.0),
-            "anisotropic": float(m.get("anisotropic", 0.0)),
+            "base_color": _rgb(m.get("base_color", [0.8, 0.8, 0.8])),
+            "metallic": float(m.get("base_metalness", 0.0)),
+            "roughness": float(m.get("specular_roughness", 0.3)),
+            "specular": float(m.get("specular_weight", 1.0)) / 2.0,
+            "spec_tint": 0.0,
+            "sheen": float(m.get("fuzz_weight", 0.0)),
+            "sheen_tint": 0.0,
+            "clearcoat": float(m.get("coat_weight", 0.0)),
+            # coat_roughness = sqrt(lerp(0.1, 0.001, gloss)).
+            "clearcoat_gloss": min(1.0, max(0.0, (0.1 - coat_r * coat_r) / 0.099)),
+            "spec_trans": tw,
+            "anisotropic": float(m.get("specular_roughness_anisotropy", 0.0)) / 0.9,
         }
+        if b["clearcoat"] > 0 and abs(float(m.get("coat_ior", 1.6)) - 1.5) > 1e-6:
+            raise UnsupportedFeature("coat_ior other than 1.5 (Mitsuba's clearcoat)")
+        if b["sheen"] > 0 and abs(float(m.get("fuzz_roughness", 0.5)) - 0.3) > 1e-6:
+            raise UnsupportedFeature("fuzz_roughness other than 0.3")
         # Mitsuba derives eta from 'specular' unless eta is given, and refuses
         # both: transmissive materials pass the IOR, opaque ones the specular.
-        if b["spec_trans"] > 0:
+        if tw > 0:
             del b["specular"]
-            b["eta"] = float(m.get("ior", 1.5))
+            b["eta"] = float(m.get("specular_ior", 1.5))
         return b
     if t == "emissive":
         return None
@@ -301,7 +328,7 @@ def convert(path: str, width: int, height: int, spp: int, depth: int, camera_ind
         bsdf = _bsdf(m, used)
         if bsdf is None:  # emissive
             shape["bsdf"] = {"type": "diffuse", "reflectance": {"type": "rgb", "value": [0, 0, 0]}}
-            radiance = [c * float(m.get("intensity", 1.0)) for c in _vec(m.get("color"), ENGINE_DEFAULT_COLOR)]
+            radiance = [c * float(m.get("luminance", 1.0)) for c in _tint(_vec(m.get("color"), (1.0, 1.0, 1.0)))]
             shape["emitter"] = {"type": "area", "radiance": {"type": "rgb", "value": radiance}}
         else:
             shape["bsdf"] = bsdf
@@ -316,21 +343,25 @@ def convert(path: str, width: int, height: int, spp: int, depth: int, camera_ind
 
     for i, l in enumerate(scene.get("lights") or []):
         t = (l.get("type") or "").lower()
-        color = _vec(l.get("color"), (1, 1, 1))
-        k = float(l.get("intensity", 1.0))
+        color = _tint(_vec(l.get("color"), (1, 1, 1)))
+        mpu = _metres_per_unit(scene)
+        if l.get("power") is not None or l.get("temperature") is not None or l.get("exposure"):
+            raise UnsupportedFeature("light power, temperature or exposure")
+        # Candela carries metres; luminance does not.
+        k = float(l.get("intensity", 1.0)) / (mpu * mpu) if t in ("point", "spot") else float(l.get("luminance", 1.0))
         value = [c * k for c in color]
         if l.get("soft_radius"):
             raise UnsupportedFeature("soft_radius")
         if t == "point":
             d[f"light_{i}"] = {"type": "point", "position": _vec(l.get("position")),
                                "intensity": {"type": "rgb", "value": value}}
-        elif t in ("sphere", "sphere_light", "ball", "ball_light"):
+        elif t == "sphere":
             d[f"light_{i}"] = {
                 "type": "sphere", "center": _vec(l.get("position")), "radius": float(l.get("radius", 0.5)),
                 "bsdf": {"type": "diffuse", "reflectance": {"type": "rgb", "value": [0, 0, 0]}},
                 "emitter": {"type": "area", "radiance": {"type": "rgb", "value": value}},
             }
-        elif t in ("area", "area_light", "rect", "rect_light"):
+        elif t == "area":
             d[f"light_{i}"] = {
                 "type": "rectangle",
                 "to_world": _rect_to_world(mi, _vec(l.get("corner")), _vec(l.get("u")), _vec(l.get("v"))),

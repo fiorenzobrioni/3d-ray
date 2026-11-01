@@ -14,17 +14,68 @@ namespace RayTracer;
 
 class Program
 {
-    static void Main(string[] args)
+    static void Main(string[] cli)
     {
         // Show help if no arguments or help requested
-        if (args.Length == 0 || HasFlag(args, "--help", "-h"))
+        if (cli.Length == 0 || HasFlag(cli, "--help", "-h"))
         {
             ShowHelp();
             return;
         }
 
-        // Parse CLI arguments
-        string? inputPath = GetArg(args, "--input", "-i");
+        string? inputPath = GetArg(cli, "--input", "-i");
+        if (string.IsNullOrEmpty(inputPath))
+        {
+            Console.WriteLine("Error: Missing required argument --input (-i)");
+            Console.WriteLine();
+            ShowHelp();
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        // File existence check — accept the path as-is, or append .yaml/.yml
+        // when the user omitted the extension (e.g. `-i scenes/chess`).
+        if (!File.Exists(inputPath))
+        {
+            if (File.Exists(inputPath + ".yaml"))     inputPath += ".yaml";
+            else if (File.Exists(inputPath + ".yml")) inputPath += ".yml";
+            else
+            {
+                Console.WriteLine($"Error: Scene file not found: {inputPath}");
+                Environment.ExitCode = 1;
+                return;
+            }
+        }
+
+        SceneLoader.SetVerbose(HasFlag(cli, "--verbose", "-v"));
+
+        // The scene is read (and validated) first: its `render:` block is the
+        // base of every setting below, the command line overrides it.
+        SceneLoader.ParsedScene scene;
+        try
+        {
+            scene = SceneLoader.Parse(inputPath);
+        }
+        catch (SceneFormatException ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        // --list-cameras: print available cameras and exit
+        if (HasFlag(cli, "--list-cameras", null))
+        {
+            SceneLoader.TryListCameras(inputPath);
+            return;
+        }
+
+        // Effective arguments: the scene's render block as flags, then the
+        // command line (GetArg takes the last occurrence, so the CLI wins).
+        // A -q given on the command line also wins over the scene's keys
+        // that a preset sets.
+        bool cliQuality = GetArg(cli, "--quality", "-q") != null;
+        string[] args = [.. RenderBlock.ToArgs(scene.Data.Render, cliQuality), .. cli];
         string? outputArg = GetArg(args, "--output", "-o");
         string outputPath;
 
@@ -102,10 +153,8 @@ class Program
             switch (samplerArg.ToLowerInvariant())
             {
                 case "prng":
-                case "random":
                     samplerKind = SamplerKind.Prng; break;
                 case "sobol":
-                case "owen":
                     samplerKind = SamplerKind.Sobol; break;
                 default:
                     Console.WriteLine($"Error: Unknown --sampler '{samplerArg}'. Valid: prng, sobol.");
@@ -288,7 +337,7 @@ class Program
         // `--denoiser oidn` is an error there.
         if (denoiserKind == DenoiserKind.Oidn && !Oidn.IsAvailable)
         {
-            if (denoiserArg != null)
+            if (GetArg(cli, "--denoiser", null) != null)
             {
                 Console.WriteLine($"Error: --denoiser oidn: Open Image Denoise did not load ({Oidn.LoadError}).");
                 return;
@@ -349,7 +398,6 @@ class Program
         }
 
         bool verbose = HasFlag(args, "--verbose", "-v");
-        SceneLoader.SetVerbose(verbose);
 
         // ── Reference mode ───────────────────────────────────────────────────
         // `--reference` renders with the pure, unbiased estimator used to
@@ -366,9 +414,9 @@ class Program
                 Console.WriteLine("Error: --integrator vcm is biased (it merges nearby vertices): use bdpt with --reference.");
                 return;
             }
-            if (denoiserArg != null && denoiserKind != DenoiserKind.None)
+            if (GetArg(cli, "--denoiser", null) != null && denoiserKind != DenoiserKind.None)
                 Console.WriteLine("Warning: --denoiser ignored in --reference mode.");
-            if (clampOverride.HasValue || indirectClampArg != null)
+            if (GetArg(cli, "--clamp", "-C") != null || GetArg(cli, "--indirect-clamp-factor", null) != null)
                 Console.WriteLine("Warning: --clamp / --indirect-clamp-factor ignored in --reference mode.");
             denoiserKind = DenoiserKind.None;
             clampOverride = null;
@@ -414,7 +462,7 @@ class Program
                 : null;
             if (why != null)
             {
-                if (adaptiveArg != null)
+                if (GetArg(cli, "--adaptive", null) != null)
                 {
                     Console.WriteLine($"Error: --adaptive is not available with {why}.");
                     return;
@@ -441,7 +489,8 @@ class Program
         }
         if (referenceMode && transparentShadows)
         {
-            Console.WriteLine("Warning: --transparent-shadows on ignored in --reference mode.");
+            if (GetArg(cli, "--transparent-shadows", null) != null)
+                Console.WriteLine("Warning: --transparent-shadows on ignored in --reference mode.");
             transparentShadows = false;
         }
 
@@ -456,14 +505,13 @@ class Program
             return;
         }
 
-        // Colour management: `--view <agx|aces|standard|legacy>` (default agx)
-        // turns scene-linear radiance into the display image; `--look` picks
-        // an AgX look. `legacy` reproduces the pre-review curve.
+        // Colour management: `--view <agx|aces|standard>` (default agx) turns
+        // scene-linear radiance into the display image; `--look` picks an AgX look.
         var view = ViewTransform.AgX;
         string? viewArg = GetArg(args, "--view", null);
         if (viewArg != null && !DisplayTransform.TryParseView(viewArg, out view))
         {
-            Console.WriteLine($"Error: Unknown --view '{viewArg}'. Valid: agx, aces, standard, legacy.");
+            Console.WriteLine($"Error: Unknown --view '{viewArg}'. Valid: agx, aces, standard.");
             return;
         }
         var look = ViewLook.None;
@@ -528,37 +576,15 @@ class Program
             return;
         }
 
-        // Required argument check
-        if (string.IsNullOrEmpty(inputPath))
+        // Default values and validation. A quality preset supplies the baseline
+        // for every value no flag overrides. A scene that sets its resolution
+        // keeps its aspect: the preset scales it (tiny 1/4, small 1/2, ultra 2).
+        if (scene.Data.Render is { Width: int sceneW, Height: int sceneH } && sceneW > 0 && sceneH > 0)
         {
-            Console.WriteLine("Error: Missing required argument --input (-i)");
-            Console.WriteLine();
-            ShowHelp();
-            return;
+            float presetScale = (quality?.Width ?? 1920) / 1920f;
+            if (!wParsed || width <= 0) { width = Math.Max(1, (int)MathF.Round(sceneW * presetScale)); wParsed = true; }
+            if (!hParsed || height <= 0) { height = Math.Max(1, (int)MathF.Round(sceneH * presetScale)); hParsed = true; }
         }
-
-        // File existence check — accept the path as-is, or append .yaml/.yml
-        // when the user omitted the extension (e.g. `-i scenes/chess`).
-        if (!File.Exists(inputPath))
-        {
-            if (File.Exists(inputPath + ".yaml"))     inputPath += ".yaml";
-            else if (File.Exists(inputPath + ".yml")) inputPath += ".yml";
-            else
-            {
-                Console.WriteLine($"Error: Scene file not found: {inputPath}");
-                return;
-            }
-        }
-
-        // --list-cameras: print available cameras and exit
-        if (HasFlag(args, "--list-cameras", null))
-        {
-            SceneLoader.TryListCameras(inputPath);
-            return;
-        }
-
-        // Default values and validation. A quality preset (if any) supplies the
-        // baseline for every value the user did NOT override with an explicit flag.
         if (!wParsed || width  <= 0) width   = quality?.Width   ?? 1200;
         if (!hParsed || height <= 0) height  = quality?.Height  ?? 800;
         if (!sParsed || samples <= 0) samples = quality?.Samples ?? 16;
@@ -641,7 +667,7 @@ class Program
         try
         {
             var (world, camera, lights, sky, globalMedium, motionBlur) =
-                SceneLoader.Load(inputPath, width, height, shadowSamplesOverride, cameraSelector);
+                SceneLoader.Load(scene, width, height, shadowSamplesOverride, cameraSelector);
 
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
             SceneLoader.FlushMessages();
@@ -755,6 +781,7 @@ class Program
         {
             Console.WriteLine("failed!");
             Console.WriteLine($"Error loading or rendering scene: {ex.Message}");
+            Environment.ExitCode = 1;
         }
     }
 
@@ -764,6 +791,11 @@ class Program
         Console.WriteLine();
         Console.WriteLine("Usage:");
         Console.WriteLine("  dotnet run --project src/RayTracer/RayTracer.csproj -- [options]");
+        Console.WriteLine();
+        Console.WriteLine("The scene's 'render:' block sets any of the long options below (same name,");
+        Console.WriteLine("underscores: light_sampling = --light-sampling); the command line wins, and a -q");
+        Console.WriteLine("given here wins over the scene's keys that a preset sets. A scene resolution is");
+        Console.WriteLine("scaled by the preset (-tiny 1/4, -small 1/2, ultra 2) instead of replaced.");
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  -i, --input <path>           Scene YAML file (required; .yaml/.yml extension is optional)");
@@ -825,9 +857,9 @@ class Program
         Console.WriteLine("                                casting its physical shadow and caustic (default: off)");
         Console.WriteLine("      --filter <box|gaussian|blackman-harris>  Pixel reconstruction filter (default: gaussian,");
         Console.WriteLine("                                sigma 0.5 px; blackman-harris is a little sharper, box the sharpest)");
-        Console.WriteLine("      --view <agx|aces|standard|legacy>  View transform from scene-linear to display");
+        Console.WriteLine("      --view <agx|aces|standard>  View transform from scene-linear to display");
         Console.WriteLine("                                (default: agx; aces = ACES 1.x SDR; standard = sRGB curve,");
-        Console.WriteLine("                                no tone mapping; legacy = the pre-2026-10 curve)");
+        Console.WriteLine("                                no tone mapping)");
         Console.WriteLine("      --look <none|punchy|golden>  Creative look for the agx view (default: none)");
         Console.WriteLine("      --white-balance <K>      White balance in kelvin: a light of this temperature renders");
         Console.WriteLine("                                neutral (default: the camera's white_balance, else none)");
@@ -1017,15 +1049,19 @@ class Program
     /// <summary>
     /// Returns the value of a CLI argument (the token following the flag).
     /// </summary>
+    /// <summary>The value of a flag; the last occurrence wins (the command
+    /// line comes after the scene's render block).</summary>
     static string? GetArg(string[] args, string longName, string? shortName)
     {
+        string? value = null;
         for (int i = 0; i < args.Length - 1; i++)
         {
             if (args[i] == longName || (shortName != null && args[i] == shortName))
-                return args[i + 1];
+                value = args[i + 1];
         }
-        return null;
+        return value;
     }
+
 
     /// <summary>
     /// Returns true if a boolean flag is present (no value expected).

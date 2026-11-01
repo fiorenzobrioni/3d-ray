@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  sphere-light-showcase.yaml — Sphere Light con Solid-Angle Sampling
 # ═══════════════════════════════════════════════════════════════════════════
@@ -11,6 +12,7 @@
 #    Final:    -s 1024 -d 8  -w 1920 -H 1080 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -18,13 +20,13 @@ world:
     horizon_color: [0.06, 0.08, 0.12]
     ground_color:  [0.02, 0.02, 0.02]
 
-camera:
-  position: [0, 5, 11]
-  look_at:  [0, 1.2, 0]
-  vup:      [0, 1, 0]
-  fov: 40
-  aperture: 0.0
-  focal_dist: 11
+cameras:
+  - position: [0, 5, 11]
+    look_at:  [0, 1.2, 0]
+    up:       [0, 1, 0]
+    fov: 40
+    aperture: 0.0
+    focus_distance: 11
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  MATERIALI
@@ -33,11 +35,10 @@ materials:
 
   # ── Pedana — grigio medio per leggere bene le ombre ─────────────────────
   - id: "floor"
-    type: "disney"
-    color: [0.65, 0.63, 0.60]
-    roughness: 0.45
-    metallic: 0.0
-    specular: 0.3
+    type: openpbr
+    base_color: [0.65, 0.63, 0.60]
+    specular_roughness: 0.45
+    specular_weight: 0.6
 
   # ── Parete di fondo — leggermente più chiara del pavimento ──────────────
   - id: "wall"
@@ -46,10 +47,10 @@ materials:
 
   # ── Oggetti test ─────────────────────────────────────────────────────────
   - id: "chrome"
-    type: "disney"
-    color: [0.95, 0.93, 0.90]
-    roughness: 0.02
-    metallic: 1.0
+    type: openpbr
+    base_color: [0.95, 0.93, 0.90]
+    specular_roughness: 0.02
+    base_metalness: 1.0
 
   - id: "clay"
     type: "lambertian"
@@ -58,14 +59,12 @@ materials:
   - id: "glass"
     type: "dielectric"
     color: [0.97, 0.98, 1.0]
-    refraction_index: 1.52
+    ior: 1.52
 
   - id: "ivory"
-    type: "disney"
-    color: [0.85, 0.82, 0.75]
-    roughness: 0.25
-    metallic: 0.0
-    specular: 0.5
+    type: openpbr
+    base_color: [0.85, 0.82, 0.75]
+    specular_roughness: 0.25
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  ENTITIES
@@ -129,24 +128,24 @@ lights:
     position: [-4.5, 6.0, 0.5]
     radius: 0.15
     color: [1.0, 0.95, 0.88]
-    intensity: 20.0
+    luminance: 19.11152
 
   # ── Sfera media (lampadina classica, penumbra moderata) ─────────────────
   - type: "sphere"
     position: [0, 6.0, 0.5]
     radius: 0.5
     color: [1.0, 0.95, 0.88]
-    intensity: 20.0
+    luminance: 19.11152
 
   # ── Sfera grande (lanterna/globo, ombre molto morbide) ──────────────────
   - type: "sphere"
     position: [4.5, 6.5, 0.5]
     radius: 1.2
     color: [1.0, 0.93, 0.80]
-    intensity: 20.0
+    luminance: 18.70992
 
   # ── Fill tenue dal retro-alto (evita nero assoluto nei recessi) ─────────
   - type: "point"
     position: [0, 7, 8]
     color: [0.55, 0.60, 0.75]
-    intensity: 2.0
+    intensity: 1.2004

@@ -9,20 +9,30 @@ how to combine them into professional setups.
 
 ## 6.1 Overview
 
-| Type          | Aliases                                      | Shadows  | Key use                   |
-|---------------|----------------------------------------------|----------|---------------------------|
-| `point`       | --                                           | Hard     | Lamps, candles, fill      |
-| `directional` | `sun`                                        | Hard     | Sunlight, distant sources |
-| `spot`        | `spotlight`                                  | Hard     | Stage lights, flashlights |
-| `area`        | `area_light`, `rect`, `rect_light`           | Soft     | Softboxes, windows        |
-| `sphere`      | `sphere_light`, `ball`, `ball_light`         | Soft     | Light bulbs, lanterns     |
-| *(geometry)*  | *(automatic from emissive entities)*         | Soft     | Neon signs, light panels  |
+| Type          | Brightness            | Shadows  | Key use                   |
+|---------------|-----------------------|----------|---------------------------|
+| `point`       | `intensity` (cd)      | Hard     | Lamps, candles, fill      |
+| `directional` | `illuminance` (lux)   | Hard     | Sunlight, distant sources |
+| `spot`        | `intensity` (cd)      | Hard     | Stage lights, flashlights |
+| `area`        | `luminance` (nit)     | Soft     | Softboxes, windows        |
+| `sphere`      | `luminance` (nit)     | Soft     | Light bulbs, lanterns     |
+| `portal`      | *(the sky behind it)* | Soft     | Windows onto the sky      |
+| *(geometry)*  | *(automatic from emissive entities)* | Soft | Neon signs, light panels |
 
-All lights are defined in the `lights:` section. If you omit the
-`lights:` section entirely, the engine adds default lights (one
-directional and one point). If you include an empty `lights: []`, the
-scene has no explicit lights -- useful when relying entirely on emissive
-objects or HDRI environment lighting.
+All lights are defined in the `lights:` section. A scene without lights
+(and without a sky or emissive objects) is black: the engine adds no
+default lights.
+
+**Brightness and colour.** Each type has one brightness key, in
+photometric units: `intensity` in candela for point and spot lights,
+`luminance` in nits for area and sphere lights, `illuminance` in lux for
+the directional light; the finite lights can give their `power` in watts
+or lumens instead (Section 6.14). The `color` is only a tint: it is
+scaled to luminance 1, so `[1, 0.5, 0.2]` and `[2, 1, 0.4]` are the same
+light, and only the brightness key changes how bright it is. A scene
+without a camera exposure works with small values (the ranges in this
+chapter); Section 6.14 shows real-world values with the camera's
+`ev100`.
 
 ### Where ambient lighting comes from
 
@@ -55,14 +65,14 @@ HDRI as their dominant light source.
 - type: "point"
   position: [2, 3, -1]
   color: [1.0, 0.95, 0.85]
-  intensity: 25.0
+  intensity: 23.8
 ```
 
 | Parameter     | Default | Description                                       |
 |---------------|---------|---------------------------------------------------|
 | `position`    | --      | Location in world space                            |
-| `color`       | --      | Light color `[R, G, B]`                            |
-| `intensity`   | --      | Brightness multiplier                              |
+| `color`       | white   | Light tint `[R, G, B]`                             |
+| `intensity`   | `1`     | Luminous intensity, candela                        |
 | `soft_radius` | `0`     | Optional. >0 floors d² at r² to suppress fireflies |
 
 A point light radiates equally in all directions from a single point. Its
@@ -74,7 +84,7 @@ with crisp edges. This looks unrealistic for large, nearby light sources
 but is fine for distant lights or small accents.
 
 **Intensity guideline:** Because of inverse-square falloff, point lights
-need higher intensity values than you might expect. For an object 2 units
+need higher `intensity` values than you might expect. For an object 2 units
 away, an intensity of 15--30 is typical. For 5 units, try 50--100.
 
 **`soft_radius` for fog/medium scenes:** when a participating medium is
@@ -93,15 +103,15 @@ behaviour).
 - type: "directional"
   direction: [-0.5, -1, 0.3]
   color: [1, 0.98, 0.92]
-  intensity: 3.0
+  illuminance: 2.94
   angular_radius: 0.0            # Optional. 0.27 = real Sun disc (soft shadows)
 ```
 
 | Parameter        | Default | Description                              |
 |------------------|---------|------------------------------------------|
 | `direction`      | --      | Direction *toward* the scene (from light)|
-| `color`          | --      | Light color                              |
-| `intensity`      | --      | Brightness multiplier                    |
+| `color`          | white   | Light tint                               |
+| `illuminance`    | `1`     | Illuminance on a surface facing the light, lux |
 | `angular_radius` | `0`     | Optional angular disc radius (degrees). 0 = hard shadows |
 
 A directional light sends parallel rays -- all traveling in the same
@@ -120,14 +130,13 @@ default `shadow_samples` is automatically raised to 4 when the disc is active.
 The real Sun subtends approximately 0.27°.
 
 ```yaml
-- type: "sun"
+- type: directional
   direction: [-0.5, -1, 0.3]
   color: [1.0, 0.95, 0.80]
-  intensity: 2.0
+  illuminance: 1.9
   angular_radius: 0.27    # Realistic solar disc — soft penumbra
 ```
 
-Also available as `type: "sun"`.
 
 ---
 
@@ -148,8 +157,8 @@ Also available as `type: "sun"`.
 |------------------|---------|---------------------------------------------------|
 | `position`       | --      | Location in world space                           |
 | `direction`      | --      | Direction the spot is aimed                       |
-| `color`          | --      | Light color                                       |
-| `intensity`      | --      | Brightness multiplier                             |
+| `color`          | white   | Light tint                                        |
+| `intensity`      | `1`     | Luminous intensity on the axis, candela (the cone cuts the light of a point light, it does not concentrate it) |
 | `inner_angle`    | `15`    | Half-angle of the full-intensity cone (degrees)   |
 | `outer_angle`    | `30`    | Half-angle of the zero-intensity cone (degrees)   |
 | `soft_radius`    | `0`     | Optional. Same role as on point lights — strongly recommended for spotlights inside a fog/medium |
@@ -169,7 +178,6 @@ disc for each shadow query, creating a soft penumbra and eliminating
 1/d² fireflies in fog. If `soft_radius == 0`, extra shadow samples have
 no effect — leave it at 1 for efficiency.
 
-Also available as `type: "spotlight"`.
 
 ---
 
@@ -181,7 +189,7 @@ Also available as `type: "spotlight"`.
   u: [2, 0, 0]
   v: [0, 0, 2]
   color: [1, 0.97, 0.93]
-  intensity: 35.0
+  luminance: 34.1
   soft_radius: 0.0               # Optional. >0 = floor distSq in cosLight/d²
 ```
 
@@ -190,11 +198,11 @@ Also available as `type: "spotlight"`.
 | `corner`            | --      | One corner of the rectangle                |
 | `u`                 | --      | First edge vector (from corner)            |
 | `v`                 | --      | Second edge vector (from corner)           |
-| `color`             | --      | Light color                                |
-| `intensity`         | --      | Brightness multiplier                      |
+| `color`             | white   | Light tint                                 |
+| `luminance`         | `1`     | Luminance of the panel, nits (or `power`, which keeps the light when you resize it) |
 | `shadow_samples`    | `4`     | Number of shadow samples (higher = softer) |
 | `soft_radius`       | `0`     | Optional. Clamps `distSq` in the cosLight/d² estimator |
-| `visible_to_camera` | `true`  | When `false`, hides the panel from primary camera rays only — NEE, mirror reflections and indirect bounces still see it. See Section 6.8. |
+| `visibility`        | all `true` | `{ camera: false }` hides the panel from primary camera rays only: NEE, mirror reflections and indirect bounces still see it. See Section 6.8. |
 
 An area light is a flat rectangle that emits light from its entire
 surface. Because it has physical size, it produces **soft shadows** with
@@ -234,7 +242,7 @@ RayTracer -i scene.yaml -s 256 -S 16    # Final render with smooth shadows
 
 ### Note: Area Lights Are Visible (Internally-Managed Proxy)
 
-Area lights are now visible to the camera and to specular rays: the
+Area lights are visible to the camera and to specular rays: the
 loader builds an emissive quad proxy at the same `corner`/`u`/`v` and
 binds it to the area light so BSDF samples that hit the rectangle
 contribute the same radiance NEE would assign — closing Veach's MIS
@@ -254,18 +262,18 @@ internal proxy without conflict.
   position: [0, 2, 0]
   radius: 0.3
   color: [1, 0.95, 0.85]
-  intensity: 30.0
+  luminance: 28.6
   shadow_samples: 12
 ```
 
 | Parameter           | Default | Description                             |
 |---------------------|---------|-----------------------------------------|
 | `position`          | --      | Center of the sphere                    |
-| `radius`            | --      | Radius of the light sphere; also defines proxy size |
-| `color`             | --      | Light color                             |
-| `intensity`         | --      | Brightness multiplier                   |
+| `radius`            | `0.5`   | Radius of the light sphere; also defines proxy size |
+| `color`             | white   | Light tint                              |
+| `luminance`         | `1`     | Luminance of the surface, nits (or `power`) |
 | `shadow_samples`    | `4`     | Number of shadow samples                |
-| `visible_to_camera` | `true`  | When `false`, hides the sphere proxy from primary camera rays only — NEE, mirror reflections and indirect bounces still see it. See Section 6.8. |
+| `visibility`        | all `true` | `{ camera: false }` hides the sphere proxy from primary camera rays only: NEE, mirror reflections and indirect bounces still see it. See Section 6.8. |
 
 A sphere light is like an area light, but spherical. It produces soft
 shadows with a circular penumbra and creates perfectly round highlights
@@ -283,8 +291,8 @@ or polished metal balls in the scene reflect the light correctly
 (rather than showing a dark hole at the mirror direction), which is
 the expected behaviour for an analytic sphere light.
 
-Sphere lights deliberately ignore `soft_radius`: the solid-angle
-estimator `L = Intensity × Ω / N` is bounded by `4π · Intensity` even
+Sphere lights take no `soft_radius`: the solid-angle
+estimator `L = luminance × Ω / N` is bounded by `4π × luminance` even
 when the receiver is inside the sphere, so the 1/d² floor used by
 point/spot/area lights is unnecessary here.
 
@@ -301,7 +309,7 @@ materials:
   - id: "panel_glow"
     type: "emissive"
     color: [1, 0.95, 0.9]
-    intensity: 25.0
+    luminance: 23.9
 
 entities:
   # A visible light panel on the ceiling
@@ -323,8 +331,8 @@ entities:
 | Soft shadows                  | Yes                  | Yes                          |
 | Sampling efficiency           | Good                 | Slightly better (analytic)   |
 
-Both kinds of light support a `visible_to_camera` flag (default `true`) — see
-the next section for the camera-visibility toggle.
+Both kinds of light take a `visibility` block: see the next section for
+the camera-visibility toggle.
 
 Use geometry lights when the light source must be a **custom-shaped**
 emitter (neon signs, lava flows, light tubes, irregular meshes). Use
@@ -345,7 +353,7 @@ direction from the material. Weighting the two with the **balance
 heuristic** (default) or the **power heuristic** (`--mis power`)
 reduces variance compared to using either strategy alone.
 
-Every supported material — `lambertian`, `metal`, `mix`, `disney` —
+Every material (`lambertian`, `metal`, `dielectric`, `openpbr`, `mix`)
 exposes the `Sample`/`Pdf`/`Evaluate` triple the MIS estimator needs. No
 configuration is required: the renderer picks the correct weight
 automatically based on the material and light types involved. Pure
@@ -360,14 +368,15 @@ phase-sampled bounce, suppressing the fireflies that typically appear in
 
 ---
 
-## 6.8 Camera Visibility (`visible_to_camera`)
+## 6.8 Camera Visibility (`visibility: { camera: false }`)
 
 Production renderers let you decouple **how a light contributes to the
 image** from **whether the light is itself visible in the frame**.
-3D-Ray exposes this control under the underscore_case key
-`visible_to_camera`.
+3D-Ray exposes this control in the `visibility` block (the same block as
+on the sky, the ground and every entity: `camera`, `diffuse`, `glossy`,
+`transmission`, `shadow`).
 
-When set to `false`:
+With `camera: false`:
 
 - The light still illuminates the scene at full intensity via NEE
   (direct lighting).
@@ -380,9 +389,9 @@ When set to `false`:
 
 | Use case | Setup |
 |----------|-------|
-| Off-frame fill light that should not appear as a bright shape in the sky | `visible_to_camera: false` on a `sphere`/`area` light placed outside the framing |
-| Practical lamp visible only in a mirror in the room | `visible_to_camera: false` on the emissive entity |
-| Soft area panel for product photography — clean sky, panel only visible via reflections on the product | `visible_to_camera: false` on the `area` light |
+| Off-frame fill light that should not appear as a bright shape in the sky | `visibility: { camera: false }` on a `sphere`/`area` light placed outside the framing |
+| Practical lamp visible only in a mirror in the room | `visibility: { camera: false }` on the emissive entity |
+| Soft area panel for product photography: clean sky, panel only visible via reflections on the product | `visibility: { camera: false }` on the `area` light |
 | Light card just outside the FOV that would otherwise clip the edge of the frame | same |
 
 ### On explicit lights
@@ -394,22 +403,21 @@ lights:
     position: [ 3.5, 3.8, 1.5]
     radius: 0.35
     color: [1.0, 0.96, 0.88]
-    intensity: 45.0
+    luminance: 43.3
 
   # FILL: invisible to camera, but reflects in mirrors/glass and lights the scene
   - type: "sphere"
     position: [-3.5, 3.8, 1.5]
     radius: 0.35
     color: [0.65, 0.78, 1.0]
-    intensity: 45.0
-    visible_to_camera: false
+    luminance: 34.6
+    visibility: { camera: false }
 ```
 
 ### On emissive entities
 
-`visible_to_camera` is also a common per-entity field, so any entity —
-not only proxies of explicit lights — can be hidden from primary camera
-rays. The natural use is a custom-shaped emissive panel that you want
+`visibility` is also a common per-entity field, so any entity (not only
+proxies of explicit lights) can be hidden from primary camera rays. The natural use is a custom-shaped emissive panel that you want
 the surface to illuminate the scene without showing up in the frame:
 
 ```yaml
@@ -417,7 +425,7 @@ materials:
   - id: "panel_glow"
     type: "emissive"
     color: [1.0, 0.92, 0.80]
-    intensity: 2.5
+    luminance: 2.32
 
 entities:
   - name: "ceiling_panel"
@@ -425,7 +433,7 @@ entities:
     material: "panel_glow"
     scale: [4.0, 0.05, 2.5]
     translate: [0, 4.0, 0]
-    visible_to_camera: false       # clean ceiling, but room is lit
+    visibility: { camera: false }       # clean ceiling, but room is lit
 ```
 
 On a `group` the flag propagates to every child (the wrapper is applied
@@ -434,9 +442,8 @@ which composes by OR (parent OR child invisible ⇒ invisible).
 
 ### Limitations
 
-- `visible_to_camera` has no observable effect on `point`/`directional`/
-  `spot` (delta) lights — they have no proxy geometry to hide in the
-  first place.
+- `point`/`directional`/`spot` (delta) lights take no `visibility`:
+  they have no proxy geometry to hide in the first place.
 - A camera ray that hits an invisible proxy is simply advanced past it
   (with a safety cap of 8 successive skips), so an unbounded stack of
   overlapping invisible emitters in front of the camera will eventually
@@ -488,7 +495,7 @@ above and to one side.
   u: [2, 0, 0]
   v: [0, 0, 2]
   color: [1.0, 0.96, 0.90]
-  intensity: 45.0
+  luminance: 43.4
 ```
 
 ### Fill Light
@@ -503,7 +510,7 @@ Typically 1/3 the intensity of the key, and slightly cooler in color.
   u: [1.2, 0, 0]
   v: [0, 0, 1.2]
   color: [0.72, 0.82, 1.0]
-  intensity: 15.0
+  luminance: 12.2
   shadow_samples: 9
 ```
 
@@ -517,7 +524,7 @@ adding a sense of depth.
 - type: "point"
   position: [1, 4.5, 4.5]
   color: [1.0, 0.97, 0.88]
-  intensity: 55.0
+  intensity: 53.3
 ```
 
 The warm/cool contrast (warm key, cool fill, warm rim) is a classic
@@ -539,7 +546,7 @@ lights:
     u: [6, 0, 0]
     v: [0, 0, 6]
     color: [1, 1, 1]
-    intensity: 50.0
+    luminance: 50.0
 
   - type: "point"
     position: [0, 1, -4]
@@ -558,7 +565,7 @@ lights:
     position: [-3, 5, -2]
     direction: [0.6, -1, 0.4]
     color: [1.0, 0.9, 0.75]
-    intensity: 80.0
+    intensity: 72.8
     inner_angle: 12
     outer_angle: 25
 ```
@@ -572,17 +579,17 @@ lights:
   - type: "directional"
     direction: [-0.3, -1, 0.5]
     color: [1.0, 0.98, 0.92]
-    intensity: 3.0
+    illuminance: 2.94
 
   - type: "directional"
     direction: [0, -1, 0]
     color: [0.5, 0.6, 0.85]
-    intensity: 0.5
+    illuminance: 0.298
 
   - type: "point"
     position: [5, 1, -5]
     color: [0.8, 0.85, 1.0]
-    intensity: 8.0
+    intensity: 6.8
 ```
 
 ---
@@ -596,6 +603,7 @@ A single sphere and pedestal lit by different light types.
 # The same subject under five different lights.
 # Render with: RayTracer -i lighting-comparison.yaml -w 1600 -H 500 -s 64
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -612,13 +620,13 @@ lights:
   - type: "point"
     position: [-6, 3.5, -1]
     color: [1, 0.95, 0.9]
-    intensity: 25.0
+    intensity: 23.9
 
   # 2. Directional light for the second sphere
   - type: "directional"
     direction: [-0.3, -1, 0.5]
     color: [1, 0.98, 0.92]
-    intensity: 2.5
+    illuminance: 2.45
 
   # 3. Spot light for the third sphere
   - type: "spot"
@@ -635,26 +643,26 @@ lights:
     u: [2, 0, 0]
     v: [0, 0, 2]
     color: [1, 0.97, 0.93]
-    intensity: 30.0
+    luminance: 29.2
 
 materials:
   - id: "floor"
     type: "lambertian"
     color: [0.35, 0.35, 0.35]
   - id: "white_plastic"
-    type: "disney"
-    color: [0.9, 0.88, 0.85]
-    roughness: 0.3
-    specular: 0.6
+    type: openpbr
+    base_color: [0.9, 0.88, 0.85]
+    specular_roughness: 0.3
+    specular_weight: 1.2
   - id: "pedestal"
-    type: "disney"
-    color: [0.6, 0.6, 0.6]
-    roughness: 0.15
-    specular: 0.7
+    type: openpbr
+    base_color: [0.6, 0.6, 0.6]
+    specular_roughness: 0.15
+    specular_weight: 1.4
   - id: "glow"
     type: "emissive"
     color: [1, 0.9, 0.75]
-    intensity: 15.0
+    luminance: 13.7
 
 entities:
   - type: "infinite_plane"
@@ -819,21 +827,21 @@ is *which slice* of the ACES curve your radiance lands on.
 
 ## 6.14 Physical Units and Photographic Exposure
 
-Every light so far had a unitless `intensity`. Each one can instead be
-written in the units a lighting catalogue uses, and the camera then
-exposes the image as a photograph:
+The brightness keys are physical units, so a light can be written with
+the values a lighting catalogue gives, and the camera then exposes the
+image as a photograph:
 
 ```yaml
-camera:
-  position: [0, 1.6, 4]
-  look_at:  [0, 1, 0]
-  ev100: 6                       # a lit living room
+cameras:
+  - position: [0, 1.6, 4]
+    look_at:  [0, 1, 0]
+    ev100: 6                       # a lit living room
 
 lights:
   - type: "point"                # a 60 W-equivalent bulb
     position: [0, 2.4, 0]
     power: 800
-    power_unit: "lumen"
+    power_unit: lumen
     temperature: 2700            # warm white, black-body colour
   - type: "area"                 # an LED panel
     corner: [1, 2.79, -0.3]
@@ -849,19 +857,21 @@ lights:
 
 | Key | Unit | Lights |
 |---|---|---|
-| `power` (+ `power_unit`) | watt or lumen | point, spot, area, sphere |
-| `candela` | cd | point, spot |
+| `intensity` | cd | point, spot |
 | `luminance` | nit (cd/m²) | area, sphere, `emissive` material |
 | `illuminance` | lux | directional |
+| `power` (+ `power_unit`) | watt or lumen | point, spot, area, sphere (instead of the key above) |
 | `temperature` | kelvin | all |
+| `exposure` | stops | all (× 2^exposure) |
 | `ies` | IES LM-63 file | point, spot |
 
-With a photometric unit the `color` only tints the light. The camera's
-`ev100` (or `iso`, `shutter_speed` and `f_stop`) then plays the part of a
-real exposure: 15 for a sunny day, 7-8 for a lit interior, 3-5 for a dim
-one. A physical sky can be written in nits too (`units: "photometric"`,
-chapter 7). `scenes/review/light-units.yaml` checks each unit against a
-hand calculation.
+The camera's `ev100` (or `iso`, `shutter_speed` and `f_stop`) plays the
+part of a real exposure: 15 for a sunny day, 7-8 for a lit interior, 3-5
+for a dim one. The physical skies are in nits too (chapter 7). Candela
+and power carry metres: a scene modelled in centimetres says so with
+`units: { length: cm }` and keeps the same light.
+`scenes/review/light-units.yaml` checks each unit against a hand
+calculation.
 
 **Many lights.** With more than 16 lights the renderer picks one light
 per shading point through a light BVH that favours the lights near the
@@ -887,7 +897,7 @@ strategy converges to the same image.
 - `area` and `sphere` lights are also visible to camera and specular
   rays via an internally-managed emissive proxy primitive, ensuring
   full Veach-MIS convergence.
-- Per-light and per-entity **`visible_to_camera: false`** hides the
+- Per-light and per-entity **`visibility: { camera: false }`** hides the
   proxy/geometry from primary camera rays only; NEE, mirrors, glass and
   indirect bounces still see it.
 - The `-S` CLI flag overrides shadow samples globally for fast drafts.
@@ -897,7 +907,7 @@ strategy converges to the same image.
   - `soft_radius` on point/spot/area lights → floors the attenuation denominator
   - `-C 10 --indirect-clamp-factor 0.25` → opt-in clamp (biased), tighter on bounce ≥ 1
   - `--light-sampling bvh` → pick one light by power, distance and orientation (the default `auto` switches to it above 16 lights)
-- **Physical units** (`power`, `candela`, `luminance`, `illuminance`, `temperature`, `ies`) with the camera's `ev100` light and expose a scene as in reality.
+- Every light has one **photometric brightness key** (`intensity` in cd, `luminance` in nits, `illuminance` in lux, or `power`), the colour is a tint; with the camera's `ev100` real values light and expose a scene as in reality.
 
 ---
 

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Classico vs Disney affiancato
 #
@@ -9,6 +10,7 @@
 #    Confronto:   -s 1024 -d 8  -w 1920 -H 1080 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -18,32 +20,32 @@ world:
   ground:
     type: "infinite_plane"
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
 
-camera:
-  position: [0, 5, -10]
-  look_at: [0, 1.0, 1.5]
-  fov: 45
+cameras:
+  - position: [0, 5, -10]
+    look_at: [0, 1.0, 1.5]
+    fov: 45
 
 lights:
   - type: "point"
     position: [4, 7, -4]
     color: [1.0, 0.95, 0.88]
-    intensity: 60
+    intensity: 57.33456
   - type: "point"
     position: [-4, 5, -2]
     color: [0.8, 0.85, 1.0]
-    intensity: 30
+    intensity: 25.506002
   - type: "directional"
     direction: [-0.5, -0.6, 0.5]
     color: [1.0, 0.95, 0.9]
-    intensity: 0.15
+    illuminance: 0.143553
 
 materials:
   # ── Pavimento LAMBERTIAN (nessun rumore Disney) ────────────────────────
   - id: "pavimento"
     type: "lambertian"
-    texture:
+    color:
       type: "checker"
       colors: [[0.15, 0.15, 0.15], [0.35, 0.35, 0.35]]
       scale: 1.5
@@ -58,39 +60,42 @@ materials:
   # ═════════════════════════════════════════════════════════════════════════
   - id: "cl_vetro_bianco"
     type: "dielectric"
-    refraction_index: 1.52
+    ior: 1.52
     color: [1.0, 1.0, 1.0]
 
   - id: "di_vetro_bianco"
-    type: "disney"
-    color: [1.0, 1.0, 1.0]
-    roughness: 0.0
-    spec_trans: 1.0
-    ior: 1.52
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.52
+    transmission_color: [1, 1, 1]
 
   - id: "cl_vetro_rosso"
     type: "dielectric"
-    refraction_index: 1.52
+    ior: 1.52
     color: [0.9, 0.15, 0.15]
 
   - id: "di_vetro_rosso"
-    type: "disney"
-    color: [0.9, 0.15, 0.15]
-    roughness: 0.0
-    spec_trans: 1.0
-    ior: 1.52
+    type: openpbr
+    base_color: [0.9, 0.15, 0.15]
+    specular_roughness: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.52
+    transmission_color: [0.9, 0.15, 0.15]
 
   - id: "cl_vetro_verde"
     type: "dielectric"
-    refraction_index: 1.52
+    ior: 1.52
     color: [0.15, 0.9, 0.15]
 
   - id: "di_vetro_verde"
-    type: "disney"
-    color: [0.15, 0.9, 0.15]
-    roughness: 0.0
-    spec_trans: 1.0
-    ior: 1.52
+    type: openpbr
+    base_color: [0.15, 0.9, 0.15]
+    specular_roughness: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.52
+    transmission_color: [0.15, 0.9, 0.15]
 
   # ═════════════════════════════════════════════════════════════════════════
   #  FILA 2 — PLASTICA OPACA (Z = 2)
@@ -100,30 +105,27 @@ materials:
     color: [0.8, 0.1, 0.1]
 
   - id: "di_plastica_rossa"
-    type: "disney"
-    color: [0.8, 0.1, 0.1]
-    roughness: 0.5
-    specular: 0.5
+    type: openpbr
+    base_color: [0.8, 0.1, 0.1]
+    specular_roughness: 0.5
 
   - id: "cl_plastica_blu"
     type: "lambertian"
     color: [0.1, 0.2, 0.8]
 
   - id: "di_plastica_blu"
-    type: "disney"
-    color: [0.1, 0.2, 0.8]
-    roughness: 0.5
-    specular: 0.5
+    type: openpbr
+    base_color: [0.1, 0.2, 0.8]
+    specular_roughness: 0.5
 
   - id: "cl_plastica_bianca"
     type: "lambertian"
     color: [0.9, 0.9, 0.88]
 
   - id: "di_plastica_bianca"
-    type: "disney"
-    color: [0.9, 0.9, 0.88]
-    roughness: 0.5
-    specular: 0.5
+    type: openpbr
+    base_color: [0.9, 0.9, 0.88]
+    specular_roughness: 0.5
 
   # ═════════════════════════════════════════════════════════════════════════
   #  FILA 3 — METALLI (Z = 0)
@@ -131,35 +133,35 @@ materials:
   - id: "cl_oro"
     type: "metal"
     color: [1.0, 0.71, 0.29]
-    fuzz: 0.15
+    roughness: 0.15
 
   - id: "di_oro"
-    type: "disney"
-    color: [1.0, 0.71, 0.29]
-    metallic: 1.0
-    roughness: 0.15
+    type: openpbr
+    base_color: [1.0, 0.71, 0.29]
+    base_metalness: 1.0
+    specular_roughness: 0.15
 
   - id: "cl_cromo"
     type: "metal"
     color: [0.95, 0.93, 0.88]
-    fuzz: 0.02
+    roughness: 0.02
 
   - id: "di_cromo"
-    type: "disney"
-    color: [0.95, 0.93, 0.88]
-    metallic: 1.0
-    roughness: 0.02
+    type: openpbr
+    base_color: [0.95, 0.93, 0.88]
+    base_metalness: 1.0
+    specular_roughness: 0.02
 
   - id: "cl_rame"
     type: "metal"
     color: [0.95, 0.64, 0.54]
-    fuzz: 0.25
+    roughness: 0.25
 
   - id: "di_rame"
-    type: "disney"
-    color: [0.95, 0.64, 0.54]
-    metallic: 1.0
-    roughness: 0.25
+    type: openpbr
+    base_color: [0.95, 0.64, 0.54]
+    base_metalness: 1.0
+    specular_roughness: 0.25
 
 entities:
   # ── Separatore centrale (sottile barra tra colonne classico/Disney) ────

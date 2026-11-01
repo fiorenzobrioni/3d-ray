@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  disney-materials-showcase.yaml — Le feature del Disney BSDF
 #
@@ -35,6 +36,7 @@
 #  che rimbalzano ancora dopo la bolla.
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -44,15 +46,15 @@ world:
   ground:
     type: "infinite_plane"
     material: "floor"
-    y: 0
+    point: [0, 0, 0]
 
-camera:
-  position: [0, 3.4, 11.0]
-  look_at:  [0, 0.95, 0]
-  vup:      [0, 1, 0]
-  fov: 46
-  aperture: 0.04
-  focal_dist: 11.0
+cameras:
+  - position: [0, 3.4, 11.0]
+    look_at:  [0, 0.95, 0]
+    up:       [0, 1, 0]
+    fov: 46
+    aperture: 0.04
+    focus_distance: 11.0
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  LIGHTS — key calda, fill fredda, rim emissivo
@@ -64,7 +66,7 @@ lights:
     u:         [ 0.0, 0.0, -2.0]
     v:         [ 2.2, 0.0,  0.0]
     color:     [1.00, 0.92, 0.78]
-    intensity: 32
+    luminance: 29.6608
 
   # Fill: area light fredda dall'alto-sinistra, più grande e tenue
   - type: "area"
@@ -72,7 +74,7 @@ lights:
     u:         [ 0.0, 0.0, -1.6]
     v:         [ 2.4, 0.0,  0.0]
     color:     [0.72, 0.82, 1.00]
-    intensity: 14
+    luminance: 11.364304
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -81,11 +83,9 @@ materials:
 
   # ── Pavimento: calcestruzzo lucido medio-scuro, riflette le sfere ────────
   - id: "floor"
-    type: "disney"
-    color: [0.16, 0.165, 0.18]
-    metallic: 0.0
-    roughness: 0.28
-    specular: 0.5
+    type: openpbr
+    base_color: [0.16, 0.165, 0.18]
+    specular_roughness: 0.28
 
   # ── Pannello di fondo: basalto opaco per chiudere la scena ───────────────
   - id: "backdrop"
@@ -96,7 +96,7 @@ materials:
   - id: "rim_warm"
     type: "emissive"
     color: [1.00, 0.55, 0.25]
-    intensity: 6.0
+    luminance: 3.74406
 
   # ═════════════════════════════════════════════════════════════════════════
   #  1. FOGLIA / CARTA TRASLUCIDA — diff_trans + thin_walled + subsurface_color
@@ -106,13 +106,14 @@ materials:
   #     per l'aspetto HK appiattito tipico del cartaceo.
   # ═════════════════════════════════════════════════════════════════════════
   - id: "leaf_paper"
-    type: "disney"
-    color: [0.35, 0.62, 0.15]
-    metallic: 0.0
-    roughness: 0.40
-    specular: 0.40
-    thin_walled: true
-    diff_trans: 0.55
+    type: openpbr
+    base_color: [0.35, 0.62, 0.15]
+    specular_roughness: 0.40
+    specular_weight: 0.8
+    geometry_thin_walled: true
+    subsurface_scatter_anisotropy: 0.1
+    subsurface_weight: 1
+    subsurface_color: [0.35, 0.62, 0.15]
 
   # ═════════════════════════════════════════════════════════════════════════
   #  2. INTONACO MATTE — flatness indipendente da subsurface
@@ -121,13 +122,13 @@ materials:
   #     cemento, senza il retro-riflesso Lambert classico.
   # ═════════════════════════════════════════════════════════════════════════
   - id: "matte_stucco"
-    type: "disney"
-    color: [0.72, 0.70, 0.68]
-    metallic: 0.0
-    roughness: 0.80
-    specular: 0.25
-    sheen: 0.10
-    sheen_roughness: 0.50
+    type: openpbr
+    base_color: [0.72, 0.70, 0.68]
+    specular_roughness: 0.80
+    specular_weight: 0.5
+    fuzz_weight: 0.10
+    fuzz_roughness: 0.50
+    fuzz_color: [1.012231, 0.9980023, 0.9837737]
 
   # ═════════════════════════════════════════════════════════════════════════
   #  3. PELLE UMANA — subsurface_color + subsurface + sheen fine
@@ -137,13 +138,12 @@ materials:
   #     alta varianza (0.7) e produce un render pulito a -s 1024.
   # ═════════════════════════════════════════════════════════════════════════
   - id: "human_skin"
-    type: "disney"
-    color: [0.87, 0.65, 0.61]
-    metallic: 0.0
-    roughness: 0.40
-    specular: 0.5
-    sheen: 0.08
-    sheen_roughness: 0.35
+    type: openpbr
+    base_color: [0.87, 0.65, 0.61]
+    specular_roughness: 0.40
+    fuzz_weight: 0.08
+    fuzz_roughness: 0.35
+    fuzz_color: [1.1269059, 0.968378, 0.9395548]
 
   # ═════════════════════════════════════════════════════════════════════════
   #  4. BRUSHED STEEL — anisotropic GGX con frame tangente ruotato
@@ -151,12 +151,12 @@ materials:
   #     corrisponde a un quarto di giro ≈ π/2).
   # ═════════════════════════════════════════════════════════════════════════
   - id: "brushed_steel"
-    type: "disney"
-    color: [0.78, 0.80, 0.82]
-    metallic: 1.0
-    roughness: 0.28
-    anisotropic: 0.85
-    anisotropic_rotation: 0.25
+    type: openpbr
+    base_color: [0.78, 0.80, 0.82]
+    base_metalness: 1.0
+    specular_roughness: 0.28
+    specular_roughness_anisotropy: 0.765
+    specular_rotation: 90
 
   # ═════════════════════════════════════════════════════════════════════════
   #  5. ORO RUGOSO — Kulla-Conty multi-scattering compensation
@@ -165,11 +165,10 @@ materials:
   #     di farlo virare su un oro "sporco" e bruno.
   # ═════════════════════════════════════════════════════════════════════════
   - id: "rough_gold"
-    type: "disney"
-    color: [1.00, 0.78, 0.35]
-    metallic: 1.0
-    roughness: 0.70
-    specular: 0.6
+    type: openpbr
+    base_color: [1.00, 0.78, 0.35]
+    base_metalness: 1.0
+    specular_roughness: 0.70
 
   # ═════════════════════════════════════════════════════════════════════════
   #  6. VETRO AMBRATO — Beer-Lambert lungo il cammino interno
@@ -178,12 +177,11 @@ materials:
   #     Il centro della sfera (2·r = 1.8 unità) esce più saturo del bordo.
   # ═════════════════════════════════════════════════════════════════════════
   - id: "amber_glass"
-    type: "disney"
-    color: [1.0, 1.0, 1.0]
-    metallic: 0.0
-    roughness: 0.0
-    spec_trans: 1.0
-    ior: 1.52
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.52
     transmission_color: [0.98, 0.55, 0.12]
     transmission_depth: 1.5
 
@@ -193,15 +191,16 @@ materials:
   #     thin_walled evita la doppia rifrazione e rende la bolla un guscio.
   # ═════════════════════════════════════════════════════════════════════════
   - id: "soap_bubble"
-    type: "disney"
-    color: [1.0, 1.0, 1.0]
-    metallic: 0.0
-    roughness: 0.02
-    spec_trans: 1.0
-    ior: 1.33
-    thin_walled: true
-    thin_film_thickness: 520
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.02
+    transmission_weight: 1.0
+    specular_ior: 1.33
+    geometry_thin_walled: true
+    thin_film_thickness: 0.52
     thin_film_ior: 1.33
+    transmission_color: [1, 1, 1]
+    thin_film_weight: 1
 
   # ═════════════════════════════════════════════════════════════════════════
   #  8. VELLUTO MOSS — Charlie sheen (Estevez-Kulla 2017)
@@ -209,13 +208,12 @@ materials:
   #     microfibra. sheen_roughness=0.28 ⇒ halo stretto e definito.
   # ═════════════════════════════════════════════════════════════════════════
   - id: "moss_velvet"
-    type: "disney"
-    color: [0.13, 0.27, 0.10]
-    metallic: 0.0
-    roughness: 0.95
-    sheen: 1.0
-    sheen_tint: 0.7
-    sheen_roughness: 0.28
+    type: openpbr
+    base_color: [0.13, 0.27, 0.10]
+    specular_roughness: 0.95
+    fuzz_weight: 1.0
+    fuzz_color: [0.6991893, 1.1290855, 0.60706866]
+    fuzz_roughness: 0.28
 
   # ═════════════════════════════════════════════════════════════════════════
   #  9. VERNICE PERLA — coat stile Arnold (coat_ior + coat_roughness)
@@ -224,12 +222,12 @@ materials:
   #     abilita il percorso Arnold al posto del legacy clearcoat_gloss.
   # ═════════════════════════════════════════════════════════════════════════
   - id: "pearl_paint"
-    type: "disney"
-    color: [0.04, 0.09, 0.32]
-    metallic: 0.85
-    roughness: 0.22
-    specular: 0.6
-    clearcoat: 1.0
+    type: openpbr
+    base_color: [0.04, 0.09, 0.32]
+    base_metalness: 0.85
+    specular_roughness: 0.22
+    specular_weight: 1.2
+    coat_weight: 1.0
     coat_ior: 1.55
     coat_roughness: 0.08
 

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  visible-to-camera-showcase.yaml — `visible_to_camera` (Arnold/Cycles)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -32,18 +33,19 @@
 #    Final:    -s 1024 -d 8 -w 1920 -H 1080 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.015, 0.018, 0.025]   # quasi-nero: differenza pannello luminoso vs. assente è palese
 
-camera:
-  position: [0, 2.6, 9]
-  look_at:  [0, 1.2, 0]
-  vup:      [0, 1, 0]
-  fov: 38
-  aperture: 0.0
-  focal_dist: 9
+cameras:
+  - position: [0, 2.6, 9]
+    look_at:  [0, 1.2, 0]
+    up:       [0, 1, 0]
+    fov: 38
+    aperture: 0.0
+    focus_distance: 9
 
 materials:
 
@@ -52,20 +54,20 @@ materials:
     color: [0.72, 0.70, 0.66]
 
   - id: "chrome"
-    type: "disney"
-    color: [0.95, 0.93, 0.90]
-    roughness: 0.02
-    metallic: 1.0
+    type: openpbr
+    base_color: [0.95, 0.93, 0.90]
+    specular_roughness: 0.02
+    base_metalness: 1.0
 
   - id: "glass"
     type: "dielectric"
     color: [0.97, 0.98, 1.0]
-    refraction_index: 1.52
+    ior: 1.52
 
   - id: "ceiling_emissive"
     type: "emissive"
     color: [1.0, 0.92, 0.80]
-    intensity: 2.0
+    luminance: 1.856688
 
 entities:
 
@@ -91,7 +93,7 @@ entities:
     material: "ceiling_emissive"
     scale: [4.0, 0.05, 2.5]
     translate: [0, 4.0, 0]
-    visible_to_camera: false
+    visibility: { camera: false }
 
 lights:
 
@@ -100,7 +102,7 @@ lights:
     position: [ 3.5, 3.8, 1.5]
     radius: 0.35
     color: [1.0, 0.96, 0.88]
-    intensity: 45.0
+    luminance: 43.322758
     # visible_to_camera default true
 
   # ── FILL: nascosto dai raggi primari, ma visibile in mirror/glass ───────
@@ -108,5 +110,5 @@ lights:
     position: [-3.5, 3.8, 1.5]
     radius: 0.35
     color: [0.65, 0.78, 1.0]
-    intensity: 45.0
-    visible_to_camera: false
+    luminance: 34.571068
+    visibility: { camera: false }

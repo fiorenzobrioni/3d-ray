@@ -63,7 +63,8 @@ public class IesProfileTests
         File.WriteAllText(Path.Combine(dir, "down.ies"),
             Ies(V, new[] { 0f }, (v, _) => v <= 90f ? 500f * MathF.Cos(v * MathF.PI / 180f) : 0f));
         string yaml = @"
-camera: { position: [0, 0, 5], look_at: [0, 0, 0] }
+format_version: 2
+cameras: [{ position: [0, 0, 5], look_at: [0, 0, 0] }]
 lights:
   - { type: point, position: [0, 0, 0], ies: down.ies, power: 1200, power_unit: lumen }
   - { type: point, position: [0, 0, 0], ies: down.ies }

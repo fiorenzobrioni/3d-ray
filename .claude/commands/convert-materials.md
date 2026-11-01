@@ -1,11 +1,11 @@
 ---
-description: "Converte i materiali classici (lambertian/metal/dielectric) di una scena 3D-Ray in Disney BSDF PBR equivalenti, preservando i riferimenti nelle entità"
+description: "Converte i materiali classici (lambertian/metal/dielectric) di una scena 3D-Ray in materiali OpenPBR equivalenti, preservando i riferimenti nelle entità"
 argument-hint: "<path/to/scene.yaml> [solo hero | tutti]"
 ---
 
 # Skill: Convert Materials
 
-Converte i materiali "classici" di una scena YAML (`lambertian`, `metal`, `dielectric`) nei loro equivalenti **Disney BSDF** PBR, preservando tutti i riferimenti nelle `entities`.
+Converte i materiali "classici" di una scena YAML (`lambertian`, `metal`, `dielectric`) nei loro equivalenti **OpenPBR** (`type: openpbr`), preservando tutti i riferimenti nelle `entities`.
 
 ## Input
 
@@ -16,25 +16,26 @@ Interpreta come `<path/to/scene.yaml> [scope]` dove scope è:
 - `tutti` — converte ogni materiale classico non-emissivo; avvisa che è un cambio pesante
 - `<lista-id>` — converte solo gli ID indicati
 
-Se manca il file, chiedi quale scena.
+Se manca il file, chiedi quale scena. Se la scena non ha `format_version: 2` è del formato 1: prima va convertita con `dotnet run --project src/Tools/SceneMigrate -- <scena>` (che trasforma anche i vecchi materiali `disney` in `openpbr`).
 
 ## Riferimenti
 
-- Schema materiali → [docs/reference/scene-reference.md](../../docs/reference/scene-reference.md)
-- Disney BSDF → [docs/technical/shading-model.md](../../docs/technical/shading-model.md)
+- Schema materiali → [docs/reference/scene-reference.md](../../docs/reference/scene-reference.md) §5
+- Modello OpenPBR → [docs/technical/shading-model.md](../../docs/technical/shading-model.md)
 - Convenzioni → [CLAUDE.md](../../CLAUDE.md)
 
 ## Principi di conversione
 
-- **Preserva gli ID esistenti** — non cambiare `id:`, così le `entities` continuano a funzionare senza modifiche. (Se l'utente chiede la convenzione `dis_` prefix, applica un rename coordinato con aggiornamento di tutti i riferimenti.)
-- **Emissive non si converte**: Disney BSDF non copre l'emissione. Lascia `emissive` invariati.
-- **Dielectric**: Disney li può rappresentare via `spec_trans: 1.0` + `ior`, ma con compromessi. Converti solo se l'utente lo chiede esplicitamente.
+- **Preserva gli ID esistenti** — non cambiare `id:`, così le `entities` continuano a funzionare senza modifiche. (Se l'utente chiede la convenzione `pbr_` prefix, applica un rename coordinato con aggiornamento di tutti i riferimenti.)
+- **Emissive non si converte**: lascia `emissive` invariati (l'emissione di `openpbr` non è campionata come luce).
+- **Dielectric**: OpenPBR lo rappresenta con `transmission_weight: 1` + `specular_ior`, con gli stessi risultati per il vetro liscio. Converti solo se l'utente lo chiede esplicitamente o se serve un parametro in più (coat, film sottile, tinta in profondità).
 - **Mix material**: se un mix referenzia un materiale che stai convertendo, il mix continua a funzionare (stesso ID). Non convertire ricorsivamente l'albero — solo le foglie classiche.
-- **Raggruppa le superfici grandi** (pavimenti, muri, soffitti): avvisa l'utente prima di convertirle. Disney su superfici grandi è costoso e spesso indistinguibile da `lambertian`. Di default NON convertirle.
+- **Raggruppa le superfici grandi** (pavimenti, muri, soffitti): avvisa l'utente prima di convertirle. OpenPBR su superfici grandi è più costoso e spesso indistinguibile da `lambertian`. Di default NON convertirle.
+- Ogni chiave va scritta con il nome del formato 2: il loader rifiuta chiavi sconosciute (con un suggerimento) e avvisa per le chiavi senza effetto sul tipo.
 
 ## Tabella di conversione
 
-### lambertian → disney
+### lambertian → openpbr
 
 ```yaml
 # Prima
@@ -44,80 +45,73 @@ Se manca il file, chiedi quale scena.
 
 # Dopo
 - id: "legno_scuro"
-  type: "disney"
-  color: [0.3, 0.2, 0.1]
-  metallic: 0.0
-  roughness: 0.85       # lambertian puro → matte
-  specular: 0.3         # riflesso ambientale minimo per realismo
+  type: openpbr
+  base_color: [0.3, 0.2, 0.1]
+  specular_roughness: 0.85     # lambertian puro → matte
+  specular_weight: 0.6         # riflesso ambientale minimo per realismo
 ```
 
-**Roughness inferita dall'aspetto implicito:**
+**Rugosità inferita dall'aspetto implicito:**
 - Materiale generico diffuso → `0.85`
 - Materiale che dovrebbe avere finish satinato (pelle liscia, tessuto seta) → `0.5–0.7`
 - Materiale "liscio" ma non lucido (plastica opaca) → `0.4–0.5`
 
-### metal → disney
+### metal → openpbr
 
 ```yaml
 # Prima
 - id: "oro"
   type: "metal"
   color: [1.0, 0.84, 0.0]
-  fuzz: 0.15
+  roughness: 0.15
 
 # Dopo
 - id: "oro"
-  type: "disney"
-  color: [1.0, 0.84, 0.0]
-  metallic: 1.0
-  roughness: 0.15       # fuzz ≈ roughness (mappatura diretta)
-  specular: 1.0
+  type: openpbr
+  base_color: [1.0, 0.84, 0.0]
+  base_metalness: 1.0
+  specular_roughness: 0.15     # stessa scala della roughness del metal (alpha = r²)
 ```
 
-**Mapping fuzz → roughness:**
-- `fuzz 0.0` → `roughness 0.05` (specchio)
-- `fuzz 0.1–0.3` → `roughness 0.1–0.3` (metallo spazzolato)
-- `fuzz 0.5+` → `roughness 0.5+` (metallo molto ruvido, quasi diffuso)
+- Un `metal` con `preset` (misurato) va lasciato `metal`: OpenPBR usa il modello F82 (`base_color` + `specular_color` come colore radente), non l'IOR complesso.
+- `edge_color` del metal → `specular_color` di OpenPBR.
 
-### dielectric → disney (opzionale, solo se richiesto)
+### dielectric → openpbr (opzionale, solo se richiesto)
 
 ```yaml
 # Prima
 - id: "vetro_trasparente"
   type: "dielectric"
-  refraction_index: 1.5
+  ior: 1.5
 
 # Dopo
 - id: "vetro_trasparente"
-  type: "disney"
-  color: [1.0, 1.0, 1.0]
-  metallic: 0.0
-  roughness: 0.0
-  specular: 0.5
-  spec_trans: 1.0
-  ior: 1.5
+  type: openpbr
+  specular_roughness: 0.0
+  specular_ior: 1.5
+  transmission_weight: 1.0
 ```
 
-**Nota**: `dielectric` classico ha comportamento fisicamente corretto per vetro puro. Disney con `spec_trans: 1.0` approssima lo stesso effetto ma con più parametri tunabili. Per scene con molti vetri (bicchieri, prismi), valuta se la conversione porta valore.
+**Nota**: il `color` del dielectric è una tinta applicata alla rifrazione; in OpenPBR è `transmission_color` (una volta all'ingresso con `transmission_depth: 0`, oppure la trasmittanza a quella profondità).
 
-### lambertian → disney con SSS (pelle, cera, alabastro)
+### lambertian → openpbr con SSS (pelle, cera, alabastro)
 
-Se il `lambertian` rappresentava una superficie organica traslucente (pelle, cera, frutta, alabastro), aggiungi i parametri SSS durante la conversione:
+Se il `lambertian` rappresentava una superficie organica traslucente (pelle, cera, frutta, alabastro), aggiungi il subsurface durante la conversione:
 
 ```yaml
 - id: "pelle_chiara"
-  type: "disney"
-  color: [0.95, 0.78, 0.65]
-  metallic: 0.0
-  roughness: 0.75
-  specular: 0.2
-  subsurface_radius: [0.35, 0.18, 0.12]  # array [r, g, b], scala in unità scena
-  subsurface_color:  [1.0, 0.85, 0.70]
-  spec_trans: 0.0    # OBBLIGATORIO: senza questo il motore auto-promuove a vetro traslucido
+  type: openpbr
+  base_color: [0.95, 0.78, 0.65]
+  specular_roughness: 0.75
+  specular_weight: 0.4
+  subsurface_weight: 1.0                        # attiva il random walk
+  subsurface_color: [1.0, 0.85, 0.70]           # albedo che mostra un pezzo spesso
+  subsurface_radius: 1.0                        # cammino libero medio (unità di scena)
+  subsurface_radius_scale: [0.35, 0.18, 0.12]   # per canale r, g, b
 ```
 
-- `subsurface_radius` deve essere un array `[r, g, b]` — **non** uno scalare.
-- `spec_trans: 0.0` esplicito è **obbligatorio** quando si usa SSS su superfici opache: il motore promuove automaticamente a traslucido se trova `subsurface_radius` senza un `spec_trans` esplicito.
+- `subsurface_radius` è **uno scalare**; il colore del cammino libero medio va in `subsurface_radius_scale`.
+- Il loader costruisce il mezzo e lo lega a ogni entità che usa il materiale (un `interior_medium` esplicito vince).
 - Le scene con SSS beneficiano di `-q pre-final` o superiore (il random walk è senza tetti di rimbalzi: servono solo più campioni).
 
 ## Procedura
@@ -147,22 +141,22 @@ Mostra all'utente:
 
 - Modifica **in place** i materiali nel file YAML
 - Mantieni i commenti esistenti sopra ogni materiale (se presenti)
-- Aggiungi un commento `# Convertito lambertian → disney` o simile solo se chiarisce
+- Aggiungi un commento `# Convertito lambertian → openpbr` o simile solo se chiarisce
 - Non toccare `entities` — gli ID restano invariati
-- Se non vuoi sostituire un materiale classico ma serve comunque una versione Disney, crea un nuovo materiale con prefisso `dis_` accanto e aggiorna solo le entità che vuoi convertire
+- Se non vuoi sostituire un materiale classico ma serve comunque una versione OpenPBR, crea un nuovo materiale con prefisso `pbr_` accanto e aggiorna solo le entità che vuoi convertire
 
 ### 4. Validazione post-conversione
 
-- [ ] YAML sintatticamente valido
+- [ ] La scena carica senza errori (il loader controlla chiavi, tipi e valori con riga e colonna)
 - [ ] Nessun ID duplicato
 - [ ] Tutti i riferimenti in `entities` risolti
 - [ ] Mix material che referenziano convertiti: ancora validi
-- [ ] Eventuale raccomandazione di alzare `-s` (Disney più rumoroso su scene con molti lobi)
+- [ ] Eventuale raccomandazione di alzare `-s` (OpenPBR più rumoroso su scene con molti lobi)
 
 ## Output
 
 Riepilogo della conversione:
 - N materiali convertiti, N saltati, N ID aggiunti (se rename)
-- Lista dei materiali convertiti con mapping roughness/metallic scelti
+- Lista dei materiali convertiti con mapping rugosità/metalness scelti
 - Raccomandazioni di profilo render (se la scena ora richiede più campioni o `-d` più alto)
 - Comando preview suggerito per verificare la resa: `/render <scena>` o comando equivalente

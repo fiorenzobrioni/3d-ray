@@ -242,8 +242,8 @@ Man mano che le scene crescono, tenere tutto in un unico file diventa complicato
 
 ```yaml
 imports:
-  - path: "templates/props.yaml"             # un tuo file di template
-  - path: "assets/fonts/font-open-sans.yaml" # template dei caratteri generati da FontGen
+  - "templates/props.yaml"             # un tuo file di template
+  - "assets/fonts/font-open-sans.yaml" # template dei caratteri generati da FontGen
 ```
 
 > Materiali e luci pronti all'uso **non** si importano — vivono nei cataloghi
@@ -270,15 +270,15 @@ imports:
 
 ```yaml
 imports:
-  - path: "assets/fonts/font-open-sans.yaml"   # Usa "font_material"
+  - "assets/fonts/font-open-sans.yaml"   # Usa "font_material"
 
 materials:
   # Definisce il materiale referenziato da tutti i caratteri importati
   - id: "font_material"
-    type: "disney"
-    color: [0.95, 0.7, 0.2]
-    metallic: 1.0
-    roughness: 0.1
+    type: openpbr
+    base_color: [0.95, 0.7, 0.2]
+    base_metalness: 1.0
+    specular_roughness: 0.1
 ```
 
 ---
@@ -308,6 +308,7 @@ Una scena che utilizza template, gruppi, istanze e import contemporaneamente.
 # Una tavola da pranzo con quattro coperti, a dimostrazione di template,
 # gruppi, istanze e sovrascrittura di materiali.
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -326,54 +327,57 @@ lights:
     u: [1.2, 0, 0]
     v: [0, 0, 0.8]
     color: [1.0, 0.92, 0.78]
-    intensity: 40.0
+    luminance: 37.076
 
   # Riempimento freddo dal lato
   - type: "point"
     position: [3, 2, -2]
     color: [0.7, 0.8, 1.0]
-    intensity: 15.0
+    intensity: 11.9
 
 materials:
   # Tavolo
   - id: "dark_wood"
-    type: "disney"
-    roughness: 0.25
-    clearcoat: 0.5
-    clearcoat_gloss: 0.85
-    texture:
+    type: openpbr
+    specular_roughness: 0.25
+    coat_weight: 0.5
+    coat_roughness: 0.12589678
+    base_color:
       type: "wood"
       scale: 6.0
       noise_strength: 1.2
       colors: [[0.35, 0.2, 0.1], [0.22, 0.12, 0.06]]
+    coat_ior: 1.5
 
   # Piatto di porcellana (qui tenuto matte; abbina `interior_medium`
   # sull'entity piatto per vero SSS random-walk — vedi Capitolo 7).
   - id: "porcelain"
-    type: "disney"
-    color: [0.95, 0.93, 0.88]
-    roughness: 0.12
-    specular: 0.7
+    type: openpbr
+    base_color: [0.95, 0.93, 0.88]
+    specular_roughness: 0.12
+    specular_weight: 1.4
 
   # Posate in acciaio
   - id: "steel"
-    type: "disney"
-    color: [0.75, 0.75, 0.78]
-    metallic: 1.0
-    roughness: 0.15
+    type: openpbr
+    base_color: [0.75, 0.75, 0.78]
+    base_metalness: 1.0
+    specular_roughness: 0.15
 
   # Vetro di cristallo
   - id: "crystal"
     type: "dielectric"
-    refraction_index: 1.65
+    ior: 1.65
     color: [0.98, 0.98, 1.0]
 
   # Tovaglia (accento opzionale)
   - id: "linen"
-    type: "disney"
-    color: [0.88, 0.85, 0.78]
-    roughness: 0.7
-    sheen: 0.3
+    type: openpbr
+    base_color: [0.88, 0.85, 0.78]
+    specular_roughness: 0.7
+    fuzz_weight: 0.3
+    fuzz_color: [1.0168419, 0.9992224, 0.95810986]
+    fuzz_roughness: 0.3
 
   # Pavimento
   - id: "floor"

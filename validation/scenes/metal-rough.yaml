@@ -1,9 +1,11 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Validation scene (PIANO-REVIEW.md, Phases 0 and 5): white rough metal spheres
 # lit by an emissive panel and a dim sky. White metal (F0 = 1) is the one case
 # where 3D-Ray's F82 Fresnel and Mitsuba's conductor coincide exactly, so the
 # comparison isolates the GGX lobe, its sampling and its direct lighting.
 # Mitsuba has no multiple-scattering lobe: it is turned off here (its energy is
 # checked analytically, white furnace = 1, in MetalTests).
+format_version: 2
 validation:
   width: 128
   height: 96
@@ -15,17 +17,17 @@ validation:
 world:
   sky: { type: "flat", color: [0.05, 0.05, 0.05] }
 
-camera:
-  position: [0.0, 1.6, 4.5]
-  look_at: [0.0, 0.8, 0.0]
-  vup: [0, 1, 0]
-  fov: 35
+cameras:
+  - position: [0.0, 1.6, 4.5]
+    look_at: [0.0, 0.8, 0.0]
+    up: [0, 1, 0]
+    fov: 35
 
 materials:
   - { id: "floor", type: "lambertian", color: [0.5, 0.5, 0.5] }
-  - { id: "metal-03", type: "metal", color: [1, 1, 1], fuzz: 0.3, multiple_scattering: false }
-  - { id: "metal-07", type: "metal", color: [1, 1, 1], fuzz: 0.7, multiple_scattering: false }
-  - { id: "panel", type: "emissive", color: [1, 1, 1], intensity: 8 }
+  - { id: "metal-03", type: "metal", color: [1, 1, 1], roughness: 0.3, multiple_scattering: false }
+  - { id: "metal-07", type: "metal", color: [1, 1, 1], roughness: 0.7, multiple_scattering: false }
+  - { id: "panel", type: "emissive", color: [1, 1, 1], luminance: 8 }
 
 entities:
   - { type: "quad", q: [-4, 0, 4], u: [8, 0, 0], v: [0, 0, -8], material: "floor" }

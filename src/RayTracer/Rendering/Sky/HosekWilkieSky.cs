@@ -32,8 +32,8 @@ public sealed class HosekWilkieSky : AnalyticSky
     private readonly float _scale;
 
     public HosekWilkieSky(Vector3 sunDirToSun, float turbidity = 3f, Vector3? groundAlbedo = null,
-                          float intensity = 1f, SkyUnits units = SkyUnits.Relative)
-        : base(sunDirToSun, groundAlbedo ?? new Vector3(0.3f), intensity, units,
+                          float intensity = 1f)
+        : base(sunDirToSun, groundAlbedo ?? new Vector3(0.3f), intensity,
                new Atmosphere(dustDensity: Atmosphere.DustFromTurbidity(Math.Clamp(turbidity, 1f, 10f))))
     {
         Turbidity = Math.Clamp(turbidity, 1f, 10f);
@@ -46,8 +46,8 @@ public sealed class HosekWilkieSky : AnalyticSky
             _config[c] = Cook(coeffs[c], 9, Turbidity, albedo[c], elevation);
             _radiance[c] = Cook(rads[c], 1, Turbidity, albedo[c], elevation)[0];
         }
-        _scale = units == SkyUnits.Photometric ? 683f : 0.683f;
-        Finish(units == SkyUnits.Photometric ? Atmosphere.SolarIlluminanceTop : Atmosphere.SolarIlluminanceTop / 1000f);
+        _scale = 683f;
+        Finish(Atmosphere.SolarIlluminanceTop);
     }
 
     /// <summary>

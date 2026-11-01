@@ -1,7 +1,9 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Validation scene (PIANO-REVIEW.md, Phase 0): clear glass sphere on a diffuse
 # floor under an emissive panel. The light under the sphere is a caustic
 # (L S S D); the default mode's straight-through transparent shadow adds a
 # second estimate of it, reference mode leaves it to the path tracer alone.
+format_version: 2
 validation:
   width: 128
   height: 96
@@ -15,16 +17,16 @@ validation:
 world:
   sky: { type: "flat", color: [0.02, 0.02, 0.02] }
 
-camera:
-  position: [0.0, 2.2, 3.6]
-  look_at: [0.0, 0.4, 0.0]
-  vup: [0, 1, 0]
-  fov: 35
+cameras:
+  - position: [0.0, 2.2, 3.6]
+    look_at: [0.0, 0.4, 0.0]
+    up: [0, 1, 0]
+    fov: 35
 
 materials:
   - { id: "floor", type: "lambertian", color: [0.7, 0.7, 0.7] }
-  - { id: "glass", type: "dielectric", color: [1, 1, 1], refraction_index: 1.5 }
-  - { id: "panel", type: "emissive", color: [1, 1, 1], intensity: 12 }
+  - { id: "glass", type: "dielectric", color: [1, 1, 1], ior: 1.5 }
+  - { id: "panel", type: "emissive", color: [1, 1, 1], luminance: 12 }
 
 entities:
   - { type: "quad", q: [-4, 0, 4], u: [8, 0, 0], v: [0, 0, -8], material: "floor" }

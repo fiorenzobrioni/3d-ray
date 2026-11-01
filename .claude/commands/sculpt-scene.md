@@ -36,7 +36,7 @@ A meno che l'utente chieda esplicitamente "semplice" o "minimale":
 | Aspetto | Minimo |
 |---------|--------|
 | Entità totali | 15+ |
-| Materiali unici | 8+ (almeno 3 Disney PBR) |
+| Materiali unici | 8+ (almeno 3 OpenPBR) |
 | Sorgenti luminose | 3+ (setup multi-sorgente con ruoli distinti) |
 | Operazioni CSG o gruppi gerarchici | ≥ 1 gruppo con 3+ figli o ≥ 1 CSG |
 | Texture (procedurali o immagine) | ≥ 1 |
@@ -66,12 +66,12 @@ Aggiungi smussi visivi e dettagli di superficie (bordi, rivetti, rilievi) con pr
 ### Fase 4 — Finitura materiali (stratificazione)
 
 Ogni superficie importante deve avere:
-- **Base PBR corretta**: `disney` con parametri coerenti (metallic, roughness realistici)
+- **Base PBR corretta**: `openpbr` con parametri coerenti (`base_metalness`, `specular_roughness` realistici)
 - **Texture dove serve varietà**: checker, marble, wood, noise, image
 - **Mix material per realismo**: ruggine su metallo, polvere su legno, muschio su pietra (peso costante o mask di rumore)
 - **Normal map** per dettagli micro (tessuto, pietra scolpita, intonaco) — solo dove aggiunge valore
 
-Superfici grandi (muri, pavimenti, soffitti): `lambertian` con texture — non Disney (spreco di calcolo).
+Superfici grandi (muri, pavimenti, soffitti): `lambertian` con texture — non OpenPBR (spreco di calcolo).
 
 ### Fase 5 — Illuminazione (come scolpire con la luce)
 
@@ -121,13 +121,14 @@ Non bastano 2 camere. Minimo 3, meglio 4–5:
 # (scenes/presets/materials-*.md, scenes/presets/lights.md) direttamente
 # nelle sezioni `materials:` / `lights:` qui sotto, poi rinomina gli `id`.
 
+format_version: 2
 world: ...            # con almeno 1 variante commentata
 
 cameras: ...          # 3+ camere con nomi descrittivi
 
 lights: ...           # setup multi-sorgente se non importato
 
-materials: ...        # 8+ unici, mix di Disney e Classic dove sensato
+materials: ...        # 8+ unici, mix di OpenPBR e Classic dove sensato
 
 templates: ...        # per oggetti ripetuti o molto composti
 
@@ -141,7 +142,7 @@ entities: ...         # gerarchia con gruppi e CSG, commenti per zone della scen
 - **Cylinder** ha `center:` alla base → cresce verso +Y
 - **Gruppi** ereditano trasformazioni — figli in coordinate locali
 - **Template** istanziati con `type: "instance"` — ogni istanza può avere materiale e trasformazione propri
-- **ID materiali univoci**, prefisso `dis_` (Disney) o `cls_` (Classic)
+- **ID materiali univoci**, prefisso `pbr_` (OpenPBR) o `cls_` (Classic)
 - **Preset qualità**: usa `-q draft-small` per iterazione, `-q pre-final` per anteprima fedele, `-q final` per il render definitivo
 - **Override depth**: aggiungi `-d 12–20` solo se la scena ha dielectric stratificato o volumi densi (documenta nell'header)
 
@@ -157,7 +158,7 @@ File: `scenes/<nome-scena>.yaml` in `kebab-case`. Non in `scenes/showcases/` (qu
 - [ ] Almeno 1 elemento atmosferico (HDRI, sky con sun, o medium)
 - [ ] ≥ 3 camere tra cui una cinematografica o di dettaglio
 - [ ] Temperature colore luce coerenti e con contrasto caldo/freddo leggibile
-- [ ] Superfici grandi in `lambertian` (no Disney per muri/pavimenti)
+- [ ] Superfici grandi in `lambertian` (no OpenPBR per muri/pavimenti)
 - [ ] Header con composizione dichiarata (gruppi, materiali, luci, atmosfera)
 - [ ] Almeno 1 variante `world:` commentata
 - [ ] Se `-d < 12` e ci sono dielectric annidati → alza o documenta

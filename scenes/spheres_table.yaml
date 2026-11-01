@@ -1,9 +1,11 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ==============================================
 # SCENA: Stanza Chiusa con 3 Sfere (PBR Disney)
 # Motore: 3D-Ray
 # Validato con: 3D-Ray Scene Reference Guide
 # ==============================================
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -20,66 +22,68 @@ cameras:
     look_at: [0, 1.5, 0] 
     fov: 40
     aperture: 0.05      
-    focal_pos: [0, 1.4, 0]   
+    focus_point: [0, 1.4, 0]   
 
 lights:
   - type: "point"
     position: [2.5, 4.5, -2]
-    radius: 0.5
+    # radius: 0.5
     color: [1.0, 0.95, 0.9] 
-    intensity: 10.0        
+    intensity: 9.5702        
 
   - type: "point"
     position: [-2.5, 4.5, -2]
-    radius: 0.5
+    # radius: 0.5
     color: [1.0, 0.95, 0.9] 
-    intensity: 10.0        
+    intensity: 9.5702        
 
 materials:
   # [Rif. Cap. 3: Disney BSDF] Modello PBR Universale
   - id: "mat_muro"
-    type: "disney"
-    color: [0.52, 0.60, 0.48]
-    roughness: 0.80
-    specular: 0.10
+    type: openpbr
+    base_color: [0.52, 0.60, 0.48]
+    specular_roughness: 0.80
+    specular_weight: 0.2
 
   - id: "mat_pavimento"
-    type: "disney"
-    roughness: 0.10
-    specular: 0
-    clearcoat: 0.70
-    clearcoat_gloss: 0.90
-    texture:
+    type: openpbr
+    specular_roughness: 0.10
+    specular_weight: 0
+    coat_weight: 0.70
+    coat_roughness: 0.10440306
+    base_color:
       type: "checker"
       scale: 0.1
       colors: [[0.95, 0.95, 0.95], [0.05, 0.05, 0.05]]
+    coat_ior: 1.5
 
 
 
   - id: "mat_legno"
-    type: "disney"
-    base_color: [0.4, 0.2, 0.05] 
-    roughness: 0.7
+    type: openpbr
+    specular_roughness: 0.7
+    base_color: [0.5, 0.5, 0.5]
 
   - id: "mat_specchio"
-    type: "disney"
-    base_color: [0.95, 0.95, 0.95] 
-    metallic: 1.0                  
-    roughness: 0.0                 
+    type: openpbr
+    base_metalness: 1.0                  
+    specular_roughness: 0.0                 
+    base_color: [0.5, 0.5, 0.5]
 
   - id: "mat_cristallo"
-    type: "disney"
-    color: [0.99, 0.99, 1.0]
-    roughness: 0.0
-    spec_trans: 1.0
-    ior: 1.68
-    specular: 0.95
+    type: openpbr
+    base_color: [0.99, 0.99, 1.0]
+    specular_roughness: 0.0
+    transmission_weight: 1.0
+    specular_ior: 1.68
+    specular_weight: 1.9
+    transmission_color: [0.99, 0.99, 1]
 
   - id: "mat_plastica"
-    type: "disney"
-    base_color: [0.1, 0.4, 0.8] 
-    roughness: 0.2              
-    specular: 0.8               
+    type: openpbr
+    specular_roughness: 0.2              
+    specular_weight: 1.6               
+    base_color: [0.5, 0.5, 0.5]
 
 entities:
   # [Rif. Cap. 4 & 5: Primitive Box e Trasformazioni]

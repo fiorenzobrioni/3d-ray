@@ -59,7 +59,9 @@ scenes/assets/
 # nella tua scena
 materials:
   - id: "carrara_lucido"        # ← incollato da presets/materials-stone.md
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ...
 
 entities:
@@ -78,8 +80,8 @@ schema del motore e renderizza senza warning.
 ## 10.2 Cataloghi dei materiali
 
 Otto cataloghi a tema coprono ogni tipo di superficie di cui si potrebbe
-aver bisogno. La maggior parte dei materiali usa il **Disney BSDF**
-(`type: disney`); un tipo classico (`lambertian`, `metal`, `dielectric`)
+aver bisogno. La maggior parte dei materiali usa **OpenPBR**
+(`type: openpbr`); un tipo classico (`lambertian`, `metal`, `dielectric`)
 si usa solo dove è la scelta corretta (es. semplici superfici di sfondo).
 
 | Catalogo                      | Contenuti                                       |
@@ -88,16 +90,17 @@ si usa solo dove è la scelta corretta (es. semplici superfici di sfondo).
 | `materials-metal.md`          | Oro, argento, rame, bronzo, ottone, acciaio, ferro/ghisa, alluminio (incl. anodizzati), titanio (thin-film), cromo, più vernici industriali |
 | `materials-wood.md`           | Latifoglie chiare/medie/scure, ebano, esotici, trattati (shou-sugi-ban, barnwood), legni studio figurati |
 | `materials-glass.md`          | Vetri industriali/ottici, cristalli, gemme (preziose + semipreziose), ghiaccio, liquidi, frosted |
-| `materials-organic.md`        | Tessuti (sheen), pelli, cibi, cera, ambra, avorio, madreperla, sughero, carta |
+| `materials-organic.md`        | Tessuti (fuzz), pelli, cibi, cera, ambra, avorio, madreperla, sughero, carta |
 | `materials-synthetic.md`      | Plastiche, carbon fiber (anisotropic), kevlar, siliconi, vernici, ceramiche, porcellana |
 | `materials-ground.md`         | Erba, sottobosco, sabbia desertica, terra secca, roccia, ghiaia, neve fresca, acqua — si abbina a `world.md` |
 | `materials-weathering.md`     | Overlay `over_*` per `type: mix` (ruggine, muschio, polvere, calcare) e ricette `mix_*` pronte |
 
 ### Convenzioni
 
-La maggior parte dei materiali è `type: disney` (PBR completo con clearcoat,
-sheen, `spec_trans`, `thin_film`). Abbina un materiale Disney a un binding
-`interior_medium` sull'entity per il Random Walk SSS. Il catalogo
+La maggior parte dei materiali è `type: openpbr` (PBR completo con coat,
+fuzz, trasmissione, subsurface, thin film); quelli traslucidi portano il
+subsurface sul materiale (`subsurface_weight`), oppure si abbinano a un
+binding `interior_medium` sull'entity per il Random Walk SSS. Il catalogo
 weathering usa due famiglie di id:
 
 - **`over_`** — un overlay di invecchiamento, combinato via `type: mix` su un
@@ -112,14 +115,15 @@ tua scena, poi referenziali per `id`:
 ```yaml
 materials:
   - id: "oro_lucido"            # ← incollato da presets/materials-metal.md
-    type: "disney"
-    color: [1.0, 0.71, 0.29]
-    metallic: 1.0
-    roughness: 0.05
-    specular: 0.8
+    type: openpbr
+    base_color: [1.0, 0.71, 0.29]
+    base_metalness: 1.0
+    specular_roughness: 0.05
 
   - id: "diamante"             # ← incollato da presets/materials-glass.md
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ...
 
 entities:
@@ -144,10 +148,10 @@ sul posto, e rinomina l'`id` come preferisci:
 materials:
   # Un oro più caldo e lucido basato sul preset dell'oro lucido
   - id: "mio_oro"
-    type: "disney"
-    color: [0.98, 0.8, 0.3]
-    metallic: 1.0
-    roughness: 0.08
+    type: openpbr
+    base_color: [0.98, 0.8, 0.3]
+    base_metalness: 1.0
+    specular_roughness: 0.08
 ```
 
 ---
@@ -182,10 +186,13 @@ scena:
 ```yaml
 lights:                          # ← incollato da presets/lights.md (3-point)
   - type: "area"
+    luminance: 1
     # key light ...
   - type: "area"
+    luminance: 1
     # fill light ...
   - type: "area"
+    luminance: 1
     # rim light ...
 
 # Ogni sezione di luci suggerisce una configurazione world corrispondente nelle note.
@@ -211,6 +218,7 @@ nel campionamento NEE:
 materials:
   - id: "emi_tungsteno"         # ← incollato da presets/lights.md
     type: "emissive"
+    luminance: 1
     # ...
 
 entities:
@@ -294,9 +302,9 @@ incluse, referenziate per path relativo dal file della scena.
 ```yaml
 materials:
   - id: "brick_wall"
-    type: "disney"
-    roughness: 0.7
-    texture:
+    type: openpbr
+    specular_roughness: 0.7
+    base_color:
       type: "image"
       path: "assets/textures/brick-wall.png"
       uv_scale: [2, 2]
@@ -324,15 +332,14 @@ di estrusione. Riferisci un template di carattere usando `type: "instance"`:
 
 ```yaml
 imports:
-  - path: "assets/fonts/font-open-sans.yaml"
+  - "assets/fonts/font-open-sans.yaml"
 
 materials:
   # Definisci o sovrascrivi il materiale font usato da tutti i caratteri
   - id: "font_material"
-    type: "disney"
-    color: [0.9, 0.85, 0.7]
-    metallic: 0.0
-    roughness: 0.3
+    type: openpbr
+    base_color: [0.9, 0.85, 0.7]
+    specular_roughness: 0.3
 
 entities:
   - type: "instance"
@@ -375,28 +382,11 @@ a fasce di altitudine/pendenza (`strata`).
 Il motore interseca l'heightfield direttamente tramite un quadtree min/max
 mipmap, quindi una sola primitiva sostituisce un'intera mesh di terreno.
 
-### Come dispatcher di terreno (`world.ground`)
+### Come entità
 
-Incolla i materiali del terreno e il blocco `world.ground` dal catalogo;
-l'heightfield diventa il suolo della scena:
-
-```yaml
-world:
-  ground:
-    type: "heightfield"
-    heightmap_path: "assets/heightmaps/heightfield-strata-test-height.png"
-    bounds: [-50, -50, 50, 50]
-    height_scale: 25.0
-    strata:
-      - { min_altitude: 0.0, max_altitude: 0.36, min_slope_deg: 0, max_slope_deg: 35, blend_width: 0.04, material: "t_sand" }
-      - { min_altitude: 0.5, max_altitude: 1.0,  min_slope_deg: 0, max_slope_deg: 90, blend_width: 0.08, material: "t_rock" }
-    material: "t_ground"
-```
-
-### Come entità posizionabile
-
-Gli stessi campi funzionano su un'entità `type: heightfield`, che puoi
-posizionare e trasformare ovunque nella scena:
+Incolla i materiali del terreno e l'entità `heightfield` dal catalogo: una
+grande è il suolo della scena, una piccola una collina che puoi posizionare e
+trasformare ovunque nella scena:
 
 ```yaml
 entities:
@@ -404,7 +394,10 @@ entities:
     heightmap_path: "assets/heightmaps/heightfield-strata-test-height.png"
     bounds: [-50, -50, 50, 50]
     height_scale: 25.0
-    material: "t_ground"
+    material: "t_ground"                 # dove nessuno strato vince
+    strata:
+      - { min_altitude: 0.0, max_altitude: 0.36, min_slope: 0, max_slope: 35, blend_width: 0.04, material: "t_sand" }
+      - { min_altitude: 0.5, max_altitude: 1.0,  min_slope: 0, max_slope: 90, blend_width: 0.08, material: "t_rock" }
 ```
 
 ### Generare heightmap
@@ -504,15 +497,20 @@ Apri `presets/materials-metal.md`, `presets/materials-stone.md` e la sezione
 ```yaml
 materials:
   - id: "carrara_lucido"        # ← presets/materials-stone.md
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ...
   - id: "oro_lucido"            # ← presets/materials-metal.md
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ...
 
 lights:
   # ← blocco 3-point incollato da presets/lights.md
   - type: "area"
+    luminance: 1
     # ...
 ```
 
@@ -587,28 +585,29 @@ ripaga:
 ## 10.10 Guida alla risoluzione dei problemi
 
 ### Immagine nera
-- **Nessuna luce.** Aggiungere luci nella sezione `lights:` o usare oggetti emissivi / cielo HDRI.
-- **Tutte le luci hanno intensità zero.** Verificare che `intensity` sia positivo.
+- **Nessuna luce e nessun cielo.** Il motore non aggiunge luci predefinite e una scena senza `world.sky` ha un ambiente nero: aggiungere luci nella sezione `lights:`, un cielo o oggetti emissivi.
+- **Tutte le luci sono a zero.** Verificare che la chiave di luminosità di ogni luce (`intensity`, `luminance`, `illuminance` o `power`) sia positiva.
+- **Una scena fotometrica senza esposizione, o il contrario.** I valori reali (un sole da 100 000 lux, un cielo fisico) richiedono l'`ev100` della camera; con `ev100: 15` una scena illuminata con valori piccoli è nera.
 - **Fotocamera all'interno di un oggetto.** Spostare la `position` della fotocamera fuori da ogni geometria.
 - **Fotocamera rivolta nella direzione sbagliata.** Controllare il punto `look_at`.
 - **`sky.color: [0,0,0]` senza luci.** Una scena necessita di almeno una sorgente luminosa o un cielo non nullo. Impostare `sky.type: flat` con `color: [0.02, 0.02, 0.02]` fornisce un emettitore globale fioco che aiuta a localizzare la geometria anche senza luci esplicite.
 
 ### Scena piatta o sbiadita
-- **Cielo troppo luminoso rispetto alla key light.** Un cielo flat con `color` alto (es. `[0.5, 0.5, 0.5]`) inietta molto fill su ogni superficie; se domina la key light si perde il contrasto delle ombre. Abbassare il colore del cielo o aumentare l'`intensity` della key light.
+- **Cielo troppo luminoso rispetto alla key light.** Un cielo flat con `color` alto (es. `[0.5, 0.5, 0.5]`) inietta molto fill su ogni superficie; se domina la key light si perde il contrasto delle ombre. Abbassare il colore del cielo o aumentare la luminosità della key light.
 - **Nessuna luce direzionale dominante.** Una scena illuminata solo dal cielo non ha una direzione d'ombra chiara; aggiungere una key light (directional, area o sun disk in un gradient sky) con intensità maggiore per stabilire il contrasto.
 - **Tutte le luci hanno lo stesso colore.** Gli ambienti reali mescolano luce calda e fredda. Provare una key light calda (`[1.0, 0.9, 0.75]`) abbinata a un cielo flat freddo (`[0.05, 0.07, 0.1]`).
 
 ### Troppo rumore
 - Aumentare i campioni: `-s 64` o `-s 256`.
 - Aumentare i campioni d'ombra: `-S 16`.
-- I materiali Disney densi (sheen, thin-film) e il Random Walk SSS necessitano di più campioni rispetto ai tipi classici.
+- I materiali OpenPBR a strati (fuzz, thin film, coat) e il Random Walk SSS necessitano di più campioni rispetto ai tipi classici.
 - **La profondità di campo è attiva.** Un `aperture` non zero richiede molti più campioni per eliminare il rumore del bokeh. Usare almeno `-s 256` per render DOF puliti.
 - **Materiale emissivo dentro un nodo CSG.** Il motore avvisa di questo problema; la superficie emissiva non può partecipare alla Next Event Estimation e causa alta varianza. Spostare la primitiva emissiva fuori dall'albero CSG.
 
 ### Rendering molto lento
 - Ridurre la risoluzione e i campioni durante i test.
 - Usare il flusso di lavoro anteprima/bozza/finale.
-- Sostituire i materiali Disney con equivalenti classici per le superfici di sfondo.
+- Sostituire i materiali OpenPBR con equivalenti classici per le superfici di sfondo.
 - **Troppi campioni d'ombra.** Il costo di `-S` è moltiplicativo: `-S 9` con due area light e `-s 256` a 6 rimbalzi equivale a oltre 27.000 raggi ombra per pixel. Usare `-S 1` o `-S 4` a meno che non si necessiti specificamente di ombre morbide più nitide.
 
 ### Materiale mancante (l'oggetto appare grigio predefinito)
@@ -652,6 +651,7 @@ progetto coeso.
 # Materiali incollati da presets/materials-metal.md e materials-glass.md;
 # il materiale emi_daylight dalla sezione luci geometriche di presets/lights.md.
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -668,45 +668,47 @@ cameras:
     look_at: [0.5, 1.2, 0]
     fov: 35
     aperture: 0.08
-    focal_dist: 4.5
+    focus_distance: 4.5
 
 materials:
   # ── Incollati dai cataloghi ─────────────────────────────────────────
   - id: "oro_lucido"            # presets/materials-metal.md
-    type: "disney"
-    color: [1.0, 0.71, 0.29]
-    metallic: 1.0
-    roughness: 0.05
-    specular: 0.8
+    type: openpbr
+    base_color: [1.0, 0.71, 0.29]
+    base_metalness: 1.0
+    specular_roughness: 0.05
 
   - id: "diamante"             # presets/materials-glass.md
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ... (incolla il blocco diamante completo)
 
   - id: "emi_daylight"         # presets/lights.md (luci geometriche)
     type: "emissive"
+    luminance: 1
     # ... (incolla il blocco emi_daylight completo)
 
   # ── Superfici personalizzate ────────────────────────────────────────
   - id: "hall_floor"
-    type: "disney"
-    roughness: 0.1
-    specular: 0.8
-    texture:
+    type: openpbr
+    specular_roughness: 0.1
+    specular_weight: 1.6
+    base_color:
       type: "checker"
       scale: 0.3
       colors: [[0.85, 0.82, 0.78], [0.25, 0.22, 0.2]]
 
   - id: "pedestal"
-    type: "disney"
-    color: [0.2, 0.2, 0.22]
-    roughness: 0.08
-    specular: 0.7
+    type: openpbr
+    base_color: [0.2, 0.2, 0.22]
+    specular_roughness: 0.08
+    specular_weight: 1.4
 
   - id: "wall"
-    type: "disney"
-    color: [0.15, 0.14, 0.13]
-    roughness: 0.6
+    type: openpbr
+    base_color: [0.15, 0.14, 0.13]
+    specular_roughness: 0.6
 
 entities:
   # Pavimento
@@ -767,7 +769,7 @@ lights:
     position: [-2, 4, -1]
     direction: [0, -1, 0.2]
     color: [1, 0.97, 0.92]
-    intensity: 60.0
+    intensity: 58.4
     inner_angle: 10
     outer_angle: 22
     soft_radius: 0.08
@@ -777,7 +779,7 @@ lights:
     position: [0, 4, -1]
     direction: [0, -1, 0.2]
     color: [1, 0.97, 0.92]
-    intensity: 60.0
+    intensity: 58.4
     inner_angle: 10
     outer_angle: 22
     soft_radius: 0.08
@@ -787,7 +789,7 @@ lights:
     position: [2, 4, -1]
     direction: [0, -1, 0.2]
     color: [1, 0.97, 0.92]
-    intensity: 60.0
+    intensity: 58.4
     inner_angle: 10
     outer_angle: 22
     soft_radius: 0.08
@@ -799,7 +801,7 @@ lights:
     u: [6, 0, 0]
     v: [0, 0, 4]
     color: [0.6, 0.65, 0.8]
-    intensity: 5.0
+    luminance: 3.251
     shadow_samples: 4
 ```
 

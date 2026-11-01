@@ -4,29 +4,14 @@ using RayTracer.Lights;
 
 namespace RayTracer.Rendering.Sky;
 
-/// <summary>Units of a physical sky (YAML <c>units:</c>).</summary>
-public enum SkyUnits
-{
-    /// <summary>
-    /// The scale the sky body always had: kcd/m² for Preetham and Hosek-Wilkie,
-    /// a top-of-atmosphere illuminance of 20 for Nishita. The sun matches it.
-    /// </summary>
-    Relative,
-
-    /// <summary>
-    /// Luminance in nits, the scale of the photometric lights and of the
-    /// camera's EV100 exposure (<see cref="LightUnits"/>): a clear noon sky is
-    /// thousands of nits, the sun's disc about 10⁹.
-    /// </summary>
-    Photometric,
-}
-
 /// <summary>
 /// What the physical skies share (PIANO-REVIEW.md Phase 6): the sun's disc,
 /// derived from the same top-of-atmosphere illuminance as the sky body through
 /// <see cref="Rendering.Sky.Atmosphere"/>; the ground below the horizon, a
 /// Lambertian plane of <see cref="GroundAlbedo"/> lit by that sky and sun; and
-/// the spherical mean luminance, integrated rather than guessed.
+/// the spherical mean luminance, integrated rather than guessed. Luminance in
+/// nits, the scale of the photometric lights and of the camera's EV100
+/// exposure: a clear noon sky is thousands of nits, the sun's disc about 10⁹.
 /// </summary>
 public abstract class AnalyticSky : ISkyModel
 {
@@ -38,8 +23,6 @@ public abstract class AnalyticSky : ISkyModel
 
     /// <summary>Multiplier on the sky body and on the sun.</summary>
     public float Intensity { get; }
-
-    public SkyUnits Units { get; }
 
     /// <summary>The atmosphere the sun's light crosses.</summary>
     public Atmosphere Atmosphere { get; }
@@ -56,12 +39,11 @@ public abstract class AnalyticSky : ISkyModel
     private Vector3 _ground;
     private float _averageLuminance;
 
-    protected AnalyticSky(Vector3 sunDirToSun, Vector3 groundAlbedo, float intensity, SkyUnits units, Atmosphere atmosphere)
+    protected AnalyticSky(Vector3 sunDirToSun, Vector3 groundAlbedo, float intensity, Atmosphere atmosphere)
     {
         SunDirection = Vector3.Normalize(sunDirToSun);
         GroundAlbedo = Vector3.Clamp(groundAlbedo, Vector3.Zero, Vector3.One);
         Intensity = MathF.Max(0f, intensity);
-        Units = units;
         Atmosphere = atmosphere;
     }
 
@@ -71,7 +53,7 @@ public abstract class AnalyticSky : ISkyModel
     /// <summary>
     /// Completes the model once the derived class is ready to evaluate
     /// <see cref="Above"/>: the sun's disc for a top-of-atmosphere illuminance
-    /// of <paramref name="topIlluminance"/> (in the sky's units), the ground,
+    /// of <paramref name="topIlluminance"/> lux, the ground,
     /// and the mean luminance.
     /// </summary>
     protected void Finish(float topIlluminance)

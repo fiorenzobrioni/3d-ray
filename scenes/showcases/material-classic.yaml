@@ -1,14 +1,16 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Scena 2: Classic Ray Tracing Showcase (Riflessi, Rifrazioni, Materiali)
 
 # --- CONFIGURAZIONI WORLD E LIGHTS (Scommenta quella desiderata) ---
 # 1. Studio notturno con cielo scuro, luna tenue
+format_version: 2
 world:
   sky:
     type: "gradient"
     zenith_color:  [0.02, 0.04, 0.12]
     horizon_color: [0.06, 0.08, 0.12]
     ground_color:  [0.02, 0.02, 0.02]
-  ground: { type: "infinite_plane", material: "floor_checker", y: 0.0 }
+  ground: { type: "infinite_plane", material: "floor_checker", point: [0, 0, 0] }
 
 lights:
   # ── Sfera piccola (quasi-puntiforme, ombre nette con penumbra sottile) ──
@@ -16,27 +18,27 @@ lights:
     position: [-6.0, 6.5, -3]
     radius: 0.5
     color: [1.0, 0.95, 0.88]
-    intensity: 120.0
+    luminance: 114.66912
 
   # ── Sfera media (lampadina classica, penumbra moderata) ─────────────────
   - type: "sphere"
     position: [0, 6.5, -3]
     radius: 0.5
     color: [1.0, 0.95, 0.88]
-    intensity: 120.0
+    luminance: 114.66912
 
   # ── Sfera grande (lanterna/globo, ombre molto morbide) ──────────────────
   - type: "sphere"
     position: [6.0, 6.5, -3]
     radius: 0.5
     color: [1.0, 0.93, 0.80]
-    intensity: 120.0
+    luminance: 112.25952
 
   # ── Fill tenue dal retro-alto (evita nero assoluto nei recessi) ─────────
-  - type: "-point"
-    position: [0, 7, -8]
-    color: [0.55, 0.60, 0.75]
-    intensity: 2.0
+  # - type: "-point"
+  #   position: [0, 7, -8]
+  #   color: [0.55, 0.60, 0.75]
+  #   intensity: 2.0
 
 # 2. Natural Daylight (Esterno chiaro)
 #world:
@@ -92,47 +94,47 @@ cameras:
     look_at:    [0, 2, 0]
     fov:        50
     aperture:   0 #.05
-    focal_dist: 8.0
+    focus_distance: 8.0
 
   - name:       birds_eye       # Vista dall'alto (Bird's eye view) sui riflessi
     position:   [4, 7, -4]
     look_at:    [0, 1, 0]
     fov:        45
     aperture:   0.1
-    focal_dist: 8.5
+    focus_distance: 8.5
 
   - name:       closeup         # Close-up estremo sulla sfera di vetro centrale (Dettaglio caustico/rifrazioni)
     position:   [-1, 1.5, -2]
     look_at:    [-0.5, 1.5, 0]
     fov:        60
     aperture:   0.2
-    focal_dist: 2.0
+    focus_distance: 2.0
 
 # --- MATERIALI PENSATI PER IL MASSIMO SHOWCASE ---
 materials:
   - id: "floor_checker"
     type: "lambertian"
-    texture: { type: "checker", scale: 2.0, colors: [[0.1, 0.1, 0.1], [0.8, 0.8, 0.8]] }
+    color: { type: "checker", scale: 2.0, colors: [[0.1, 0.1, 0.1], [0.8, 0.8, 0.8]] }
   - id: "mirror_perfect"
     type: "metal"
     color: [1.0, 1.0, 1.0]
-    fuzz: 0.0
+    roughness: 0.0
   - id: "gold_rough"
     type: "metal"
     color: [0.9, 0.7, 0.1]
-    fuzz: 0.2
+    roughness: 0.2
   - id: "kglass_clear"
     type: "dielectric"
-    refraction_index: 1.5
+    ior: 1.5
     color: [1.0, 1.0, 1.0]
 
   - id: "glass_clear"
-    type: "disney"
-    color: [1.0, 1.0, 1.0]
-    spec_trans: 1.0
-    ior: 1.8
-    roughness: 0.0
-    specular: 1.0
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    transmission_weight: 1.0
+    specular_ior: 1.8
+    specular_roughness: 0.0
+    specular_weight: 2
     transmission_color: [0.97, 0.97, 1.0]
     transmission_depth: 1.0
 
@@ -140,21 +142,21 @@ materials:
 
   - id: "glass_red"
     type: "dielectric"
-    refraction_index: 1.5
+    ior: 1.5
     color: [0.9, 0.2, 0.2]
   - id: "wood_table"
     type: "lambertian"
-    texture: { type: "wood", scale: 8.0, noise_strength: 2.5, colors: [[0.5, 0.3, 0.1], [0.3, 0.15, 0.05]] }
+    color: { type: "wood", scale: 8.0, noise_strength: 2.5, colors: [[0.5, 0.3, 0.1], [0.3, 0.15, 0.05]] }
   - id: "blue_marble"
     type: "lambertian"
-    texture: { type: "marble", scale: 5.0, noise_strength: 8.0, colors: [[0.2, 0.4, 0.8], [0.8, 0.9, 1.0]] }
+    color: { type: "marble", scale: 5.0, noise_strength: 8.0, colors: [[0.2, 0.4, 0.8], [0.8, 0.9, 1.0]] }
   - id: "kwall"
     type: "lambertian"
     color: [0.48, 0.40, 0.32]
   - id: "wall"
     type: "metal"
     color: [0.9, 0.9, 0.9]
-    fuzz: 0.01
+    roughness: 0.01
 
 # --- ENTITIES (Tutte le primitive in una scena complessa) ---
 entities:

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Utah Teapot — Il classico benchmark del ray tracing
 #
@@ -15,6 +16,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  WORLD — Studio quasi-nero, sfondo scuro per esaltare la teiera
 # ═══════════════════════════════════════════════════════════════════════════
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -31,7 +33,7 @@ cameras:
     look_at: [0.2, 1.0, 0]
     fov: 32
     aperture: 0.0
-    focal_dist: 8.5
+    focus_distance: 8.5
 
   - name: "top"
     position: [0, 8, -0.1]
@@ -44,7 +46,7 @@ cameras:
     look_at: [0, 2, 0.5]
     fov: 35
     aperture: 0.08
-    focal_dist: 4.0
+    focus_distance: 4.0
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -52,13 +54,13 @@ cameras:
 materials:
   # ── Teiera — DISNEY (protagonista, clearcoat per smaltatura) ───────────
   - id: "porcellana"
-    type: "disney"
-    color: [0.95, 0.93, 0.88]
-    roughness: 0.12
-    metallic: 0.0
-    specular: 0.8
-    clearcoat: 0.4
+    type: openpbr
+    base_color: [0.95, 0.93, 0.88]
+    specular_roughness: 0.12
+    specular_weight: 1.6
+    coat_weight: 0.4
     coat_roughness: 0.10
+    coat_ior: 1.5
 
   # ── Tavolo — LAMBERTIAN (superficie grande, nessun feature Disney) ─────
   - id: "legno_scuro"
@@ -68,7 +70,7 @@ materials:
   # ── Pavimento — LAMBERTIAN (superficie più grande della scena) ─────────
   - id: "pavimento"
     type: "lambertian"
-    texture:
+    color:
       type: "checker"
       colors: [[0.06, 0.06, 0.06], [0.12, 0.1, 0.08]]
       scale: 1.5
@@ -82,12 +84,12 @@ materials:
   - id: "cromo"
     type: "metal"
     color: [0.95, 0.95, 0.97]
-    fuzz: 0.02
+    roughness: 0.02
 
   # ── Sfera vetro — già classico, invariato ──────────────────────────────
   - id: "vetro_ambra"
     type: "dielectric"
-    refraction_index: 1.5
+    ior: 1.5
     color: [1.0, 0.85, 0.6]
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -100,26 +102,26 @@ lights:
     u: [0, 0, 2]
     v: [0, 1, 0]
     color: [1.0, 0.92, 0.8]
-    intensity: 30
+    luminance: 27.85032
 
   # Fill — fredda da sinistra
   - type: "point"
     position: [-5, 4, -3]
     color: [0.7, 0.8, 1.0]
-    intensity: 220
+    intensity: 174.4996
 
   # Rim — posteriore
   - type: "point"
     position: [1.5, 3, 6]
     color: [1.0, 0.98, 0.95]
-    intensity: 120
+    intensity: 117.85032
 
   # Spot teatrale — faretto dall'alto puntato sulla teiera
   - type: "spot"
     position: [-2, 9, -4]
     direction: [0.22, -0.88, 0.42]
     color: [1.0, 0.96, 0.88]
-    intensity: 80
+    intensity: 77.018234
     inner_angle: 14
     outer_angle: 28
 
@@ -183,7 +185,7 @@ entities:
 
   # ─── Corpo: diamante con 4 facce ───────────────────────────────────────
   - name: "gru_corpo_top_fr"
-    type: "smooth_triangle"
+    type: triangle
     v0: [2.0, 1.55, 0.0]
     v1: [1.6, 1.1,  0.0]
     v2: [2.0, 1.1, -0.33]
@@ -193,7 +195,7 @@ entities:
     material: "carta_rossa"
 
   - name: "gru_corpo_top_re"
-    type: "smooth_triangle"
+    type: triangle
     v0: [2.0, 1.55, 0.0]
     v1: [2.0, 1.1, 0.33]
     v2: [1.6, 1.1, 0.0]
@@ -203,7 +205,7 @@ entities:
     material: "carta_rossa"
 
   - name: "gru_corpo_top_r"
-    type: "smooth_triangle"
+    type: triangle
     v0: [2.0, 1.55, 0.0]
     v1: [2.0, 1.1, -0.33]
     v2: [2.4, 1.1,  0.0]
@@ -213,7 +215,7 @@ entities:
     material: "carta_rossa"
 
   - name: "gru_corpo_top_re2"
-    type: "smooth_triangle"
+    type: triangle
     v0: [2.0, 1.55, 0.0]
     v1: [2.4, 1.1,  0.0]
     v2: [2.0, 1.1,  0.33]

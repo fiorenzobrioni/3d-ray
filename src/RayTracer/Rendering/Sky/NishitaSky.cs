@@ -22,9 +22,6 @@ namespace RayTracer.Rendering.Sky;
 /// </summary>
 public sealed class NishitaSky : AnalyticSky
 {
-    /// <summary>Top-of-atmosphere illuminance of the relative scale.</summary>
-    public const float RelativeSolarIlluminance = 20f;
-
     /// <summary>
     /// The dust of the YAML <c>turbidity</c> knob: 0.5 at 1, 2.3 at 10, an
     /// exceptionally clean atmosphere at the default 3. Deliberately lighter
@@ -42,11 +39,11 @@ public sealed class NishitaSky : AnalyticSky
     private readonly float _top;
 
     public NishitaSky(Vector3 sunDirToSun, float airDensity = 1f, float dustDensity = 1f, float intensity = 1f,
-                      Vector3? groundAlbedo = null, SkyUnits units = SkyUnits.Relative)
-        : base(sunDirToSun, groundAlbedo ?? new Vector3(0.3f), intensity, units,
+                      Vector3? groundAlbedo = null)
+        : base(sunDirToSun, groundAlbedo ?? new Vector3(0.3f), intensity,
                new Atmosphere(airDensity, dustDensity))
     {
-        _top = units == SkyUnits.Photometric ? Atmosphere.SolarIlluminanceTop : RelativeSolarIlluminance;
+        _top = Atmosphere.SolarIlluminanceTop;
         Finish(_top);
     }
 

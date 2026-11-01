@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../../docs/reference/scene-schema.json
 # ============================================================================
 # Libreria Oggetti — Font 3D "Open Sans" (Alfabeto e Numeri)
 # ============================================================================
@@ -8,6 +9,7 @@
 # Materiale di default (font_material) da sovrascrivere nella scena.
 # Naming: lettera_<char>_<maiusc|minusc>_open-sans, numero_<digit>_open-sans.
 #
+format_version: 2
 templates:
   - name: "lettera_a_maiusc_open-sans"
     children:

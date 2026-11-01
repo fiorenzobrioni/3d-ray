@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Marble + Wood "Studio Quality" Showcase — VFX Production-Grade, Step 5/7
 #
@@ -47,6 +48,7 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     # Studio cyclorama nero piatto: niente riflessioni speculari ambientali
@@ -57,10 +59,10 @@ world:
     type: "flat"
     color: [0.001, 0.001, 0.0012]
 
-camera:
-  position: [0, 1.6, -10.5]
-  look_at:  [0, 0.85, 0]
-  fov: 56
+cameras:
+  - position: [0, 1.6, -10.5]
+    look_at:  [0, 0.85, 0]
+    fov: 56
 
 materials:
 
@@ -72,16 +74,14 @@ materials:
   # Convenzione `colors:` post-fix: primo = BASE chiara (dominante), secondo
   # = VENA scura (sottile, stretta dalla sharpening).
   - id: "marble_carrara"
-    type: "disney"
-    color: [0.95, 0.94, 0.92]
-    roughness: 0.32
-    specular: 0.5
-    texture:
+    type: openpbr
+    specular_roughness: 0.32
+    base_color:
       type: "marble"
       scale: 5.0
       vein_axis: [0, 0, 1]
-      vein_frequency: 1.0
-      vein_sharpness: 4.0
+      # vein_frequency: 1.0
+      # vein_sharpness: 4.0
       noise_strength: 8.0
       octaves: 8
       colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]   # base bianca, vena nera
@@ -91,22 +91,20 @@ materials:
   # base (dominante, t→1). Sharpness 3.0 stringe la vena ma lascia spazio
   # al gold transition mid-tone tipico del Calacatta.
   - id: "marble_calacatta"
-    type: "disney"
-    color: [0.95, 0.94, 0.92]
-    roughness: 0.30
-    specular: 0.5
-    texture:
+    type: openpbr
+    specular_roughness: 0.30
+    base_color:
       type: "marble"
       scale: 4.0
       vein_axis: [0, 0, 1]
-      vein_frequency: 1.0
-      vein_sharpness: 3.0
+      # vein_frequency: 1.0
+      # vein_sharpness: 3.0
       noise_strength: 6.0
       octaves: 8
-      secondary_wave:
-        axis: [1, 0, 0]            # perpendicolare alla primaria
-        frequency: 0.65
-        strength: 0.45
+      # secondary_wave:
+      #   axis: [1, 0, 0]            # perpendicolare alla primaria
+      #   frequency: 0.65
+      #   strength: 0.45
       color_ramp:
         - { position: 0.00, color: [0.10, 0.08, 0.08], interp: "smoothstep" }  # vena scura (rara)
         - { position: 0.35, color: [0.85, 0.65, 0.30], interp: "smoothstep" }  # transizione aurea
@@ -117,23 +115,21 @@ materials:
   # Sharpness 2.0 = vena meno stretta, ramp più mediativo per il look
   # caotico tipico dell'Arabescato (blocchi grigi alternati a base chiara).
   - id: "marble_arabescato"
-    type: "disney"
-    color: [0.92, 0.90, 0.88]
-    roughness: 0.34
-    specular: 0.5
-    texture:
+    type: openpbr
+    specular_roughness: 0.34
+    base_color:
       type: "marble"
       scale: 3.5
       vein_axis: [0, 0, 1]
-      vein_frequency: 0.9
-      vein_sharpness: 2.0
+      # vein_frequency: 0.9
+      # vein_sharpness: 2.0
       noise_strength: 8.0
       octaves: 8
-      distortion: 0.35
-      secondary_wave:
-        axis: [1, 0.3, 0]
-        frequency: 1.2
-        strength: 0.7
+      # distortion: 0.35
+      # secondary_wave:
+      #   axis: [1, 0.3, 0]
+      #   frequency: 1.2
+      #   strength: 0.7
       color_ramp:
         - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "smoothstep" }  # vena nera (rara)
         - { position: 0.50, color: [0.55, 0.50, 0.48], interp: "smoothstep" }  # grigio caldo
@@ -144,10 +140,9 @@ materials:
   # fibre del grain appaiono "stretched" lungo la direzione radiale.
   # noise_strength alto evidenzia la fibra perturbata dal grain.
   - id: "wood_oak_quarter"
-    type: "disney"
-    color: [0.80, 0.62, 0.42]
-    roughness: 0.55
-    texture:
+    type: openpbr
+    specular_roughness: 0.55
+    base_color:
       type: "wood"
       scale: 4.5
       ring_axis: [0, 1, 0]
@@ -166,10 +161,9 @@ materials:
   # naturali degli anelli (rovere ha rings → curly è "banded all over").
   # noise_strength basso lascia il figure dominare la perturbazione.
   - id: "wood_curly_maple"
-    type: "disney"
-    color: [0.88, 0.78, 0.60]
-    roughness: 0.42
-    texture:
+    type: openpbr
+    specular_roughness: 0.42
+    base_color:
       type: "wood"
       scale: 5.0
       ring_axis: [0, 1, 0]
@@ -189,10 +183,9 @@ materials:
   # contengono visibilmente 2-3 anelli concentrici — cross-section di branca
   # come nel pino reale. knot_density 1.0 = max numero di nodi.
   - id: "wood_knotty_pine"
-    type: "disney"
-    color: [0.85, 0.70, 0.45]
-    roughness: 0.55
-    texture:
+    type: openpbr
+    specular_roughness: 0.55
+    base_color:
       type: "wood"
       scale: 6.0
       ring_axis: [0, 1, 0]
@@ -210,9 +203,9 @@ materials:
 
   # ── Pavimento neutro ───────────────────────────────────────────────────
   - id: "floor"
-    type: "disney"
-    color: [0.28, 0.28, 0.30]
-    roughness: 0.80
+    type: openpbr
+    base_color: [0.28, 0.28, 0.30]
+    specular_roughness: 0.80
 
 entities:
 
@@ -240,7 +233,7 @@ lights:
   - type: "directional"
     direction: [-0.4, -0.8, 0.45]
     color: [1.0, 0.98, 0.94]
-    intensity: 6.5
+    illuminance: 6.378866
     angular_radius: 0.6
 
   # ── Fill leggermente freddo dall'alto-sinistra. Tint contenuta per non
@@ -249,11 +242,11 @@ lights:
   - type: "point"
     position: [-7, 6, -4]
     color: [0.90, 0.93, 1.00]
-    intensity: 55
+    intensity: 51.07718
 
   # ── Rim caldo dal retro per staccare le sfere dal fondo nero. Intensity
   # bassa così il rim resta un accento, non un secondo key.
   - type: "point"
     position: [0, 3.5, 5]
     color: [1.0, 0.82, 0.62]
-    intensity: 45
+    intensity: 37.97226

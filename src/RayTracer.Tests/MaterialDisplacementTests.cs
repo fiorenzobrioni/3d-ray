@@ -267,10 +267,11 @@ public class MaterialDisplacementTests
         string tmp = Path.Combine(repoRoot, "scenes",
             $"legacy-displacement-{Guid.NewGuid():N}.yaml");
         File.WriteAllText(tmp, """
-            camera:
-              position: [0, 1, -3]
-              look_at: [0, 0, 0]
-              fov: 50
+            format_version: 2
+            cameras:
+              - position: [0, 1, -3]
+                look_at: [0, 0, 0]
+                fov: 50
 
             materials:
               - id: "porcellana"
@@ -292,9 +293,9 @@ public class MaterialDisplacementTests
 
         try
         {
-            var ex = Assert.Throws<InvalidOperationException>(
+            var ex = Assert.Throws<SceneFormatException>(
                 () => SceneLoader.Load(tmp, 320, 180));
-            Assert.Contains("material-level", ex.Message);
+            Assert.Contains("block of the material", ex.Message);
         }
         finally
         {

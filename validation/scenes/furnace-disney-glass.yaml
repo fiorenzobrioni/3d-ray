@@ -1,6 +1,8 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Validation scene (PIANO-REVIEW.md, Phase 0): white furnace. A clear Disney
 # glass sphere fills the frame inside a uniform environment of radiance 1.
 # Glass neither absorbs nor emits, so every pixel must read exactly 1.
+format_version: 2
 validation:
   width: 64
   height: 64
@@ -13,14 +15,14 @@ validation:
 world:
   sky: { type: "flat", color: [1, 1, 1] }
 
-camera:
-  position: [0.0, 0.0, 4.0]
-  look_at: [0.0, 0.0, 0.0]
-  vup: [0, 1, 0]
-  fov: 10
+cameras:
+  - position: [0.0, 0.0, 4.0]
+    look_at: [0.0, 0.0, 0.0]
+    up: [0, 1, 0]
+    fov: 10
 
 materials:
-  - { id: "glass", type: "disney", color: [1, 1, 1], roughness: 0.0, spec_trans: 1.0, ior: 1.5 }
+  - { id: "glass", type: openpbr, base_color: [1, 1, 1], specular_roughness: 0.0, transmission_weight: 1.0, transmission_color: [1, 1, 1] }
 
 entities:
   - { type: "sphere", center: [0, 0, 0], radius: 1.0, material: "glass" }

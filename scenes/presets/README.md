@@ -17,7 +17,9 @@ preset è validato contro lo schema del motore e renderizza senza warning.
 # nella tua scena
 materials:
   - id: "carrara_lucido"      # ← incollato da presets/materials-stone.md
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ...
 entities:
   - type: "sphere"
@@ -49,8 +51,9 @@ entities:
 
 - Gli `id` dei preset sono pensati per essere **rinominati** liberamente nella tua
   scena. Quelli proposti sono brevi e descrittivi.
-- I materiali usano il **Disney BSDF** (`type: disney`) salvo dove un tipo
-  classico è la scelta corretta.
+- I materiali usano **OpenPBR** (`type: openpbr`) salvo dove un tipo
+  classico è la scelta corretta. Tutti i blocchi sono nel formato di scena 2
+  (la scena che li riceve ha `format_version: 2`).
 - Le risorse binarie (texture immagine, font, heightmap) vivono in
   [`../assets/`](../assets/) e si referenziano per path relativo dalla scena.
 - Schema completo dei materiali: [`../../docs/reference/scene-reference.md`](../../docs/reference/scene-reference.md).

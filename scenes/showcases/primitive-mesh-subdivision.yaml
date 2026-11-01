@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ============================================================================
 # Scene: Mesh Subdivision Showcase (Loop + Catmull-Clark)
 # Surface displacement stack — step 2 of the DEVLOG roadmap.
@@ -8,11 +9,12 @@
 # heuristic — refines until the longest projected edge is below 6 px.
 # ============================================================================
 
-camera:
-  position: [0, 3.0, -10]
-  look_at:  [0, 1.0, 0]
-  fov: 38
-  aperture: 0.0
+format_version: 2
+cameras:
+  - position: [0, 3.0, -10]
+    look_at:  [0, 1.0, 0]
+    fov: 38
+    aperture: 0.0
 
 world:
   sky:
@@ -21,43 +23,44 @@ world:
     horizon_color: [0.30, 0.28, 0.32]
     ground_color:  [0.04, 0.04, 0.04]
   ground:
-    type: "plane"
+    type: infinite_plane
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
 
 materials:
   - id: "pavimento"
-    type: "disney"
-    roughness: 0.6
-    texture:
+    type: openpbr
+    specular_roughness: 0.6
+    base_color:
       type: "checker"
       colors: [[0.10, 0.10, 0.10], [0.18, 0.18, 0.18]]
       scale: 1.0
 
   - id: "porcellana"
-    type: "disney"
-    color: [0.92, 0.88, 0.82]
-    roughness: 0.20
-    specular: 0.7
-    clearcoat: 0.3
+    type: openpbr
+    base_color: [0.92, 0.88, 0.82]
+    specular_roughness: 0.20
+    specular_weight: 1.4
+    coat_weight: 0.3
     coat_roughness: 0.12
+    coat_ior: 1.5
 
   - id: "rame"
-    type: "disney"
-    color: [0.95, 0.55, 0.30]
-    roughness: 0.22
-    metallic: 1.0
+    type: openpbr
+    base_color: [0.95, 0.55, 0.30]
+    specular_roughness: 0.22
+    base_metalness: 1.0
 
 lights:
   - type: "point"
     position: [5, 9, -6]
     color: [1.0, 0.98, 0.95]
-    intensity: 220
+    intensity: 216.05891
 
   - type: "point"
     position: [-5, 6, -3]
     color: [0.85, 0.92, 1.0]
-    intensity: 80
+    intensity: 72.87152
 
 entities:
   # ── Row 1: Catmull-Clark on a unit-cube quad mesh ────────────────────────

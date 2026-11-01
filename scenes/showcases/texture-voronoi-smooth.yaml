@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Smooth Voronoi Showcase — VFX Production-Grade Textures, Step 3/7
 #
@@ -34,6 +35,7 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -41,19 +43,18 @@ world:
     horizon_color: [0.06, 0.08, 0.12]
     ground_color:  [0.02, 0.02, 0.02]
 
-camera:
-  position: [0, 1.4, -5.5]
-  look_at:  [0, 1.0, 0]
-  fov: 40
+cameras:
+  - position: [0, 1.4, -5.5]
+    look_at:  [0, 1.0, 0]
+    fov: 40
 
 materials:
 
   # ── A: classic hard Voronoi (smoothness = 0, back-compat byte-identica) ─
   - id: "voronoi_hard"
-    type: "disney"
-    color: [0.85, 0.85, 0.86]
-    roughness: 0.42
-    texture:
+    type: openpbr
+    specular_roughness: 0.42
+    base_color:
       type: "voronoi"
       scale: 6.0
       metric: "euclidean"
@@ -68,10 +69,9 @@ materials:
 
   # ── B: smoothness moderata (0.3) — creste smussate, niente step alias ──
   - id: "voronoi_smooth_low"
-    type: "disney"
-    color: [0.85, 0.85, 0.86]
-    roughness: 0.42
-    texture:
+    type: openpbr
+    specular_roughness: 0.42
+    base_color:
       type: "voronoi"
       scale: 6.0
       metric: "euclidean"
@@ -86,10 +86,9 @@ materials:
 
   # ── C: smoothness alta (0.7) — soft-blob, pelle di rettile levigata ────
   - id: "voronoi_smooth_high"
-    type: "disney"
-    color: [0.85, 0.85, 0.86]
-    roughness: 0.42
-    texture:
+    type: openpbr
+    specular_roughness: 0.42
+    base_color:
       type: "voronoi"
       scale: 6.0
       metric: "euclidean"
@@ -104,9 +103,9 @@ materials:
 
   # ── Pavimento neutro per ricevere ombre soft ───────────────────────────
   - id: "floor"
-    type: "disney"
-    color: [0.32, 0.32, 0.34]
-    roughness: 0.85
+    type: openpbr
+    base_color: [0.32, 0.32, 0.34]
+    specular_roughness: 0.85
 
 entities:
 
@@ -144,20 +143,20 @@ entities:
 lights:
 
   # ── Key directional 3/4-front (sole basso, accenti laterali) ───────────
-  - type: "-directional"
-    direction: [0.4, -0.7, 0.6]
-    color: [1.0, 0.96, 0.88]
-    intensity: 3.6
-    angular_radius: 0.6
+  # - type: "-directional"
+  #   direction: [0.4, -0.7, 0.6]
+  #   color: [1.0, 0.96, 0.88]
+  #   intensity: 3.6
+  #   angular_radius: 0.6
 
   # ── Fill morbido dall'alto-sinistra ────────────────────────────────────
   - type: "point"
     position: [-4, 4, -3]
     color: [0.70, 0.78, 0.95]
-    intensity: 60
+    intensity: 46.515957
 
   # ── Rim leggero dal retro per staccare le sfere dal fondo ──────────────
   - type: "point"
     position: [0, 2.5, 4.5]
     color: [1.0, 0.85, 0.70]
-    intensity: 35
+    intensity: 30.4871

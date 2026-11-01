@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Plasters Showcase — Intonaci e Stucchi
 #
@@ -18,37 +19,37 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.05, 0.05, 0.055]
 
-camera:
-  position: [0, 1.8, -11.0]
-  look_at:  [0, 0.9, 0]
-  fov: 50
+cameras:
+  - position: [0, 1.8, -11.0]
+    look_at:  [0, 0.9, 0]
+    fov: 50
 
 materials:
 
   - id: "floor"
-    type: "disney"
-    color: [0.22, 0.22, 0.22]
-    roughness: 0.80
+    type: openpbr
+    base_color: [0.22, 0.22, 0.22]
+    specular_roughness: 0.80
 
   - id: "backdrop"
-    type: "disney"
-    color: [0.12, 0.12, 0.13]
-    roughness: 0.92
+    type: openpbr
+    base_color: [0.12, 0.12, 0.13]
+    specular_roughness: 0.92
 
   - id: "dis_veneziano_avorio"
-    type: "disney"
-    color: [0.92, 0.86, 0.74]
-    roughness: 0.18
-    specular: 0.45
-    clearcoat: 0.85
+    type: openpbr
+    specular_roughness: 0.18
+    specular_weight: 0.9
+    coat_weight: 0.85
     coat_roughness: 0.08
     coat_ior: 1.5
-    texture:
+    base_color:
       type: "marble"
       scale: 1.4
       vein_axis: [1, 0, 0]
@@ -68,11 +69,10 @@ materials:
         - { position: 1.00, color: [0.60, 0.45, 0.22], interp: "linear" }
 
   - id: "dis_marmorino_blu_polvere"
-    type: "disney"
-    color: [0.62, 0.72, 0.78]
-    roughness: 0.65
-    specular: 0.35
-    texture:
+    type: openpbr
+    specular_roughness: 0.65
+    specular_weight: 0.7
+    base_color:
       type: "marble"
       scale: 1.4
       vein_axis: [1, 0, 0]
@@ -92,14 +92,13 @@ materials:
         - { position: 1.00, color: [0.40, 0.50, 0.58], interp: "linear" }
 
   - id: "dis_tadelakt_rosa"
-    type: "disney"
-    color: [0.88, 0.66, 0.58]
-    roughness: 0.28
-    specular: 0.42
-    clearcoat: 0.45
+    type: openpbr
+    specular_roughness: 0.28
+    specular_weight: 0.84
+    coat_weight: 0.45
     coat_roughness: 0.18
     coat_ior: 1.5
-    texture:
+    base_color:
       type: "noise"
       scale: 2.2
       noise_type: "fbm"
@@ -109,11 +108,10 @@ materials:
       randomize_offset: true
 
   - id: "dis_stucco_antico_crepato"
-    type: "disney"
-    color: [0.82, 0.76, 0.62]
-    roughness: 0.92
-    specular: 0.22
-    texture:
+    type: openpbr
+    specular_roughness: 0.92
+    specular_weight: 0.44
+    base_color:
       type: "noise"
       scale: 1.2
       noise_type: "fbm"
@@ -135,11 +133,10 @@ materials:
       strength: 0.8
 
   - id: "dis_graffiato_esterno"
-    type: "disney"
-    color: [0.82, 0.78, 0.70]
-    roughness: 0.92
-    specular: 0.24
-    texture:
+    type: openpbr
+    specular_roughness: 0.92
+    specular_weight: 0.48
+    base_color:
       type: "noise"
       scale: 2.5
       noise_strength: 0.20
@@ -165,7 +162,7 @@ materials:
       bound: 0.008
       autobump: true
       autobump_strength: 1.5
-      displacement_method: "bump_only"
+      method: "bump_only"
 
 entities:
 
@@ -231,18 +228,18 @@ lights:
   - type: "directional"
     direction: [-0.5, -0.7, 0.4]
     color: [1.0, 0.95, 0.88]
-    intensity: 5.0
+    illuminance: 4.77788
     angular_radius: 0.6
 
   # Fill freddo dall'alto: ambient indiretto neutro.
   - type: "point"
     position: [0, 8, -4]
     color: [0.92, 0.95, 1.00]
-    intensity: 55
+    intensity: 52.09776
 
   # Rim caldo dietro per separare dal backdrop. Più stretto perché i
   # materiali opachi hanno bordi meno definiti dei marmi.
   - type: "point"
     position: [0, 3, 4.5]
     color: [1.0, 0.85, 0.70]
-    intensity: 40
+    intensity: 34.8424

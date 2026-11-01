@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  Concretes Showcase — Cementi & Asfalti
 #
@@ -19,34 +20,34 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.04, 0.04, 0.045]
 
-camera:
-  position: [0, 1.8, -11.0]
-  look_at:  [0, 0.9, 0]
-  fov: 50
+cameras:
+  - position: [0, 1.8, -11.0]
+    look_at:  [0, 0.9, 0]
+    fov: 50
 
 materials:
 
   - id: "floor"
-    type: "disney"
-    color: [0.18, 0.18, 0.19]
-    roughness: 0.85
+    type: openpbr
+    base_color: [0.18, 0.18, 0.19]
+    specular_roughness: 0.85
 
   - id: "backdrop"
-    type: "disney"
-    color: [0.10, 0.10, 0.11]
-    roughness: 0.92
+    type: openpbr
+    base_color: [0.10, 0.10, 0.11]
+    specular_roughness: 0.92
 
   - id: "dis_cemento_tadao_ando"
-    type: "disney"
-    color: [0.55, 0.54, 0.52]
-    roughness: 0.58
-    specular: 0.40
-    texture:
+    type: openpbr
+    specular_roughness: 0.58
+    specular_weight: 0.8
+    base_color:
       type: "noise"
       scale: 1.5
       noise_type: "fbm"
@@ -67,11 +68,10 @@ materials:
       strength: 0.18
 
   - id: "dis_cemento_bocciardato"
-    type: "disney"
-    color: [0.60, 0.59, 0.56]
-    roughness: 0.90
-    specular: 0.26
-    texture:
+    type: openpbr
+    specular_roughness: 0.90
+    specular_weight: 0.52
+    base_color:
       type: "voronoi"
       scale: 8.0
       output: "f2_minus_f1"
@@ -91,11 +91,10 @@ materials:
       autobump_strength: 1.5
 
   - id: "dis_cemento_lavato_chiaro"
-    type: "disney"
-    color: [0.75, 0.73, 0.68]
-    roughness: 0.82
-    specular: 0.30
-    texture:
+    type: openpbr
+    specular_roughness: 0.82
+    specular_weight: 0.6
+    base_color:
       type: "voronoi"
       scale: 5.5
       output: "random"
@@ -114,14 +113,13 @@ materials:
       bound: 0.020
       autobump: true
       autobump_strength: 1.4
-      displacement_method: "bump_only"
+      method: "bump_only"
 
   - id: "dis_asfalto_consumato_heavy"
-    type: "disney"
-    color: [0.25, 0.24, 0.23]
-    roughness: 0.95
-    specular: 0.24
-    texture:
+    type: openpbr
+    specular_roughness: 0.95
+    specular_weight: 0.48
+    base_color:
       type: "voronoi"
       scale: 6.0
       output: "random"
@@ -143,14 +141,13 @@ materials:
       autobump_strength: 1.6
 
   - id: "dis_asfalto_bagnato"
-    type: "disney"
-    color: [0.05, 0.05, 0.06]
-    roughness: 0.22
-    specular: 0.55
-    clearcoat: 0.6
+    type: openpbr
+    specular_roughness: 0.22
+    specular_weight: 1.1
+    coat_weight: 0.6
     coat_roughness: 0.12
     coat_ior: 1.5
-    texture:
+    base_color:
       type: "noise"
       scale: 5.0
       noise_strength: 0.08
@@ -223,7 +220,7 @@ lights:
   - type: "directional"
     direction: [-0.45, -0.85, 0.30]
     color: [1.0, 0.97, 0.92]
-    intensity: 2.4
+    illuminance: 2.3346431
     angular_radius: 0.5
 
   # Fill freddo dall'alto-destra: stacca i piani d'ombra senza appiattire.
@@ -232,11 +229,11 @@ lights:
   - type: "point"
     position: [6, 7, -3]
     color: [0.85, 0.92, 1.00]
-    intensity: 28
+    intensity: 25.505033
 
   # Rim caldo dal retro: separa le sfere dal backdrop scuro. Strategico
   # per far brillare i bordi sull'asfalto bagnato (clearcoat → sparkle).
   - type: "point"
     position: [0, 4, 5]
     color: [1.0, 0.85, 0.65]
-    intensity: 22
+    intensity: 19.0839

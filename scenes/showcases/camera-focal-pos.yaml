@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # ═══════════════════════════════════════════════════════════════════════════
 #  focal-pos-showcase.yaml — `focal_pos` (Arnold/Cycles "Focus Object")
 # ═══════════════════════════════════════════════════════════════════════════
@@ -21,6 +22,7 @@
 #    Final:    -s 1024 -d 8 -w 1920 -H 1080 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
+format_version: 2
 world:
   sky:
     type: "gradient"
@@ -35,7 +37,7 @@ cameras:
     look_at:  [-1.6, 0.7, -8]
     fov: 45
     aperture: 0.30
-    focal_pos: [-3.0, 0.7, -4]
+    focus_point: [-3.0, 0.7, -4]
 
   # ── Fuoco sulla sfera centrale (verde, centro, z ≈ -8) ────────────────
   - name: "middle"
@@ -43,7 +45,7 @@ cameras:
     look_at:  [0, 0.7, -8]
     fov: 45
     aperture: 0.30
-    focal_pos: [0.0, 0.7, -8]
+    focus_point: [0.0, 0.7, -8]
 
   # ── Fuoco sulla sfera lontana (blu, destra, z ≈ -12) ──────────────────
   - name: "far"
@@ -51,7 +53,7 @@ cameras:
     look_at:  [0, 0.7, -8]
     fov: 45
     aperture: 0.30
-    focal_pos: [3.0, 0.7, -12]
+    focus_point: [3.0, 0.7, -12]
 
   # ── Sanity A/B: stesso piano focale di "middle" ma via focal_dist ─────
   # Camera (0, 1.6, 0) → look_at (0, 0.7, -8). Forward normalizzato:
@@ -65,37 +67,30 @@ cameras:
     look_at:  [0, 0.7, -8]
     fov: 45
     aperture: 0.30
-    focal_dist: 8.050
+    focus_distance: 8.050
 
 materials:
 
   - id: "floor"
-    type: "disney"
-    color: [0.55, 0.52, 0.48]
-    roughness: 0.55
-    metallic: 0.0
-    specular: 0.30
+    type: openpbr
+    base_color: [0.55, 0.52, 0.48]
+    specular_roughness: 0.55
+    specular_weight: 0.6
 
   - id: "red"
-    type: "disney"
-    color: [0.85, 0.20, 0.18]
-    roughness: 0.30
-    metallic: 0.0
-    specular: 0.50
+    type: openpbr
+    base_color: [0.85, 0.20, 0.18]
+    specular_roughness: 0.30
 
   - id: "green"
-    type: "disney"
-    color: [0.18, 0.70, 0.30]
-    roughness: 0.30
-    metallic: 0.0
-    specular: 0.50
+    type: openpbr
+    base_color: [0.18, 0.70, 0.30]
+    specular_roughness: 0.30
 
   - id: "blue"
-    type: "disney"
-    color: [0.18, 0.30, 0.85]
-    roughness: 0.30
-    metallic: 0.0
-    specular: 0.50
+    type: openpbr
+    base_color: [0.18, 0.30, 0.85]
+    specular_roughness: 0.30
 
 entities:
 
@@ -115,11 +110,11 @@ lights:
     u: [4, 0, 0]
     v: [0, 0, 4]
     color: [1.0, 0.96, 0.90]
-    intensity: 30.0
+    luminance: 28.92516
     shadow_samples: 4
 
   # Fill direzionale tenue
   - type: "directional"
     direction: [-0.3, -1.0, 0.4]
     color: [0.65, 0.72, 0.85]
-    intensity: 0.4
+    illuminance: 0.2858016

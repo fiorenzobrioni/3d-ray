@@ -1,9 +1,11 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # Scena di verifica caustiche — caster curvi + CSG su pavimento scuro, luce angolata.
 # Uso diagnostico (on/off + delta map). NON è uno showcase.
-camera:
-  position: [0, 7.5, 7.0]
-  look_at:  [0, 0.2, -0.3]
-  fov: 50
+format_version: 2
+cameras:
+  - position: [0, 7.5, 7.0]
+    look_at:  [0, 0.2, -0.3]
+    fov: 50
 
 world:
   sky:
@@ -12,7 +14,7 @@ world:
   ground:
     type: "infinite_plane"
     material: "darkfloor"
-    y: 0.0
+    point: [0, 0, 0]
 
 lights:
   # Area light alta e angolata da -Z (davanti) → i casters rifrangono verso il pavimento dietro/sotto.
@@ -21,7 +23,7 @@ lights:
     u: [2.0, 0.0, 0.0]
     v: [0.0, 1.4, 0.0]
     color: [1.0, 0.97, 0.92]
-    intensity: 120.0
+    luminance: 116.73216
     shadow_samples: 6
 
 materials:
@@ -31,33 +33,33 @@ materials:
 
   - id: "glass"
     type: "dielectric"
-    refraction_index: 1.5
+    ior: 1.5
     color: [.98, .98, 1]
 
   - id: "glass_red"
     #type: "dielectric"
     #refraction_index: 1.5
     #color: [1, 0, 0]
-    type: "disney"
-    color: [1, 0, 0]
-    roughness: 0.01
-    specular: 0
-    spec_trans: 0.92
-    ior: 1.5
+    type: openpbr
+    base_color: [1, 0, 0]
+    specular_roughness: 0.01
+    specular_weight: 0
+    transmission_weight: 0.92
+    transmission_color: [1, 0, 0]
 
   - id: "glass_green"
     type: "dielectric"
-    refraction_index: 1.5
+    ior: 1.5
     color: [0, 1, 0]
 
   - id: "glass_blue"
     type: "dielectric"
-    refraction_index: 1.5
+    ior: 1.5
     color: [0, 0, 1]
 
   - id: "glass_yellow"
     type: "dielectric"
-    refraction_index: 1.5
+    ior: 1.5
     color: [1, 1, 0]
 
 entities:

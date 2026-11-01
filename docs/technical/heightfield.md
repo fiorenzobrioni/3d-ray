@@ -116,7 +116,7 @@ L'ordine dei test:
 2. Intersezione del piano d'acqua → `t_water`, se valida E se il terreno sottostante è sotto il livello.
 3. Vince il `t` più piccolo. Sea hit: normale `(0, 1, 0)`, materiale `sea_material`.
 
-L'acqua è renderizzata come un disco trasparente Disney con `spec_trans` alto e absorption color teal — un singolo materiale, niente caustiche o complicazioni.
+L'acqua è renderizzata come un disco trasparente (`openpbr` con `transmission_weight` alto e un `transmission_color` teal con profondità): un singolo materiale, niente caustiche o complicazioni.
 
 ---
 

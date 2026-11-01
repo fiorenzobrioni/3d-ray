@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=../../docs/reference/scene-schema.json
 # =============================================================================
 # Volumetrics #02 — Height fog esponenziale (aerial perspective)
 # =============================================================================
@@ -46,11 +47,12 @@
 #
 # =============================================================================
 
+format_version: 2
 world:
   sky:
     type: "flat"
     color: [0.02, 0.02, 0.03]
-  ground: { y: 0, material: floor }
+  ground: { point: [0, 0, 0], material: floor }
   medium:
     type: height_fog
     sigma_a: [0.02, 0.02, 0.025]
@@ -59,15 +61,15 @@ world:
     scale_height: 2.0
     phase: hg
     g: 0.6
-camera: { position: [0, 3, 12], look_at: [0, 2, 0], vup: [0,1,0], fov: 45, aperture: 0, focal_dist: 12 }
+cameras: [{ position: [0, 3, 12], look_at: [0, 2, 0], up: [0,1,0], fov: 45, aperture: 0, focus_distance: 12 }]
 materials:
-  - { id: floor, type: lambertian, albedo: [0.35, 0.32, 0.28] }
-  - { id: pillar, type: lambertian, albedo: [0.7, 0.65, 0.55] }
+  - { id: floor, type: lambertian }
+  - { id: pillar, type: lambertian }
 lights:
   - type: directional
     direction: [-0.3, -1.0, -0.4]
     color: [1.0, 0.95, 0.85]
-    intensity: 4
+    illuminance: 3.81364
 entities:
   - { type: box, scale: [0.4, 8.0, 0.4], translate: [-3.0, 4.0, -2.0], material: pillar }
   - { type: box, scale: [0.4, 8.0, 0.4], translate: [ 3.0, 4.0, -2.0], material: pillar }

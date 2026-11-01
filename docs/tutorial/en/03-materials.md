@@ -8,14 +8,14 @@ This chapter covers every one of them, parameter by parameter.
 
 ## 3.1 Quick Reference: The Six Material Types
 
-| Type         | Aliases              | Key effect                    |
-|--------------|----------------------|-------------------------------|
-| `lambertian` | --                   | Diffuse matte                 |
-| `metal`      | --                   | Specular reflection           |
-| `dielectric` | --                   | Transparent glass / refraction|
-| `emissive`   | --                   | Self-luminous glow            |
-| `disney`     | `disney_bsdf`, `pbr` | Universal PBR (anisotropy, glass absorption, thin-film, sheen...) |
-| `mix`        | `blend`              | Blend two materials together  |
+| Type         | Key effect                    |
+|--------------|-------------------------------|
+| `lambertian` | Diffuse matte                 |
+| `metal`      | Specular reflection           |
+| `dielectric` | Transparent glass / refraction|
+| `emissive`   | Self-luminous glow            |
+| `openpbr`    | Universal layered material (metal, glass, coat, fuzz, subsurface, thin film...) |
+| `mix`        | Blend two materials together  |
 
 Every material is defined in the `materials:` section with a unique `id`:
 
@@ -31,9 +31,14 @@ Entities reference materials by their `id`:
 ```yaml
 entities:
   - type: "sphere"
+    center: [0, 1, 0]
+    radius: 1
     material: "my_material"
-    ...
 ```
+
+A colour is `[R, G, B]` (linear, 0 to 1), one grey number, or a hex string
+such as `"#d4af37"` (sRGB, as a colour picker gives it). Any colour can also
+be a texture block (Section 3.8).
 
 ---
 
@@ -51,11 +56,11 @@ highlights -- just a flat, matte finish.
 
 | Parameter | Type      | Default        | Description                 |
 |-----------|-----------|----------------|-----------------------------|
-| `color`   | `[R,G,B]` | `[0.5,0.5,0.5]` | Diffuse albedo (0.0--1.0) |
-| `texture` | block     | --             | Procedural or image texture (replaces color) |
+| `color`   | colour or texture | `0.5` | Diffuse albedo (0.0--1.0) |
 
-When a `texture:` block is present it overrides `color`. More on textures
-in Section 3.7.
+`color` can be a texture block instead of a fixed colour:
+`color: { type: "checker", scale: 4, colors: [[0.9, 0.9, 0.9], [0.1, 0.1, 0.1]] }`.
+More on textures in Section 3.8.
 
 ---
 
@@ -65,7 +70,7 @@ in Section 3.7.
 - id: "copper_satin"
   type: "metal"
   color: [0.95, 0.64, 0.54]
-  fuzz: 0.12
+  roughness: 0.12
 ```
 
 Metal surfaces reflect light specularly. The engine uses a GGX microfacet
@@ -75,13 +80,13 @@ a polished one instead of turning dark.
 
 | Parameter | Type      | Default | Description                            |
 |-----------|-----------|---------|----------------------------------------|
-| `color`   | `[R,G,B]` | --     | Colour at normal incidence              |
+| `color`   | colour or texture | white | Colour at normal incidence     |
 | `edge_color` | `[R,G,B]` | white | Colour near grazing angles (real metals shift hue toward the edge) |
-| `fuzz`    | `float`   | `0.0`  | Roughness: 0 = perfect mirror, higher = blurrier (`roughness` is an alias) |
+| `roughness` | `float` | `0.0`  | 0 = perfect mirror, higher = blurrier   |
 | `preset`  | `string`  | --     | A measured metal: `gold`, `silver`, `copper`, `aluminium`, `chromium`, `tungsten`, `nickel`, ... |
 
-The `fuzz` value maps internally to a roughness parameter
-(`alpha = fuzz * fuzz`).
+The `roughness` value maps internally to the width of the microfacet
+distribution (`alpha = roughness * roughness`).
 
 A preset uses the metal's measured complex index of refraction and gives its
 exact reflectance at every angle, so it is the quickest way to a believable
@@ -91,7 +96,7 @@ gold or copper:
 - id: "gold"
   type: "metal"
   preset: "gold"
-  fuzz: 0.2
+  roughness: 0.2
 ```
 
 ---
@@ -101,23 +106,23 @@ gold or copper:
 ```yaml
 - id: "window_glass"
   type: "dielectric"
-  refraction_index: 1.52
+  ior: 1.52
 
 - id: "red_glass"
   type: "dielectric"
-  refraction_index: 1.52
+  ior: 1.52
   color: [0.9, 0.1, 0.08]
 ```
 
 Dielectric materials are transparent. Light is split at each surface
 according to the Fresnel equations: some is reflected, some is refracted
-(bent). The `refraction_index` determines how much the light bends.
+(bent). The `ior` determines how much the light bends.
 
-| Parameter          | Type      | Default | Description                      |
-|--------------------|-----------|---------|----------------------------------|
-| `refraction_index` | `float`   | `1.5`  | Index of refraction (IOR)         |
-| `color`            | `[R,G,B]` | `[1,1,1]` | Tint color for colored glass   |
-| `roughness`        | `float`   | `0.0`  | Frosted glass: 0 = clear, higher = more diffuse transmission |
+| Parameter   | Type      | Default | Description                      |
+|-------------|-----------|---------|----------------------------------|
+| `ior`       | `float`   | `1.5`  | Index of refraction (IOR)         |
+| `color`     | colour or texture | `[1,1,1]` | Tint color for colored glass |
+| `roughness` | `float`   | `0.0`  | Frosted glass: 0 = clear, higher = more diffuse transmission |
 
 With `roughness` above zero the surface becomes frosted: the light that
 passes through is spread out, highlights blur, and the objects behind it
@@ -160,20 +165,25 @@ explanation of when to raise `-d`.
 - id: "warm_glow"
   type: "emissive"
   color: [1.0, 0.85, 0.6]
-  intensity: 10.0
+  luminance: 8
 ```
 
 An emissive surface radiates its own light. It does not reflect or scatter
 incoming light -- it glows.
 
-| Parameter   | Type      | Default | Description                         |
-|-------------|-----------|---------|-------------------------------------|
-| `color`     | `[R,G,B]` | --     | Emission color                       |
-| `intensity` | `float`   | `1.0`  | Brightness multiplier                |
+| Parameter     | Type      | Default | Description                         |
+|---------------|-----------|---------|-------------------------------------|
+| `luminance`   | `float`   | `1.0`  | Brightness of the surface, in nits   |
+| `color`       | colour or texture | white | Emission tint                 |
+| `temperature` | `float`   | --     | Black-body colour in kelvin, multiplying the tint |
 
-The actual emitted radiance is `color * intensity`. An intensity of 1.0
-is barely visible; values of 5--50 are typical for room lighting; 100+
-creates very bright sources.
+The colour is a tint: it is scaled to a luminance of 1, so `luminance`
+alone sets how bright the surface is, whatever the colour. In a scene
+without a camera exposure a luminance of 1 is barely visible, values of
+5--50 are typical for room lighting, 100+ creates very bright sources. A
+scene exposed like a photograph (the camera's `ev100`, Chapter 7) uses
+real values: a TV screen is 200--500 nits, an LED panel 3000--10 000. A
+texture keeps its own values and `luminance` scales it.
 
 ### Emissive Objects as Geometry Lights
 
@@ -182,13 +192,13 @@ engine and registered as a **geometry light** for Next Event Estimation
 (NEE). This means the engine actively samples these surfaces when
 computing direct illumination -- just like explicit light sources.
 
-Explicit `area` and `sphere` lights are now also visible via an
+Explicit `area` and `sphere` lights are also visible via an
 internally-managed emissive proxy, so the choice
 between free emissives and explicit lights is mostly about shape: use
 an explicit light when the emitter is a canonical rectangle or sphere
 (it samples more efficiently); use a free emissive material when you
 want a custom shape or texture-driven emission. `point`/`spot`/
-`directional` lights remain delta — they have no visible geometry by
+`directional` lights remain delta: they have no visible geometry by
 construction.
 
 Use emissive materials for light panels, glowing orbs, neon signs, lava,
@@ -196,78 +206,91 @@ fire, and anything that should both emit light and be seen.
 
 ---
 
-## 3.6 Disney/PBR (Principled Material)
+## 3.6 OpenPBR (Layered Uber-Material)
 
 ```yaml
 - id: "red_car_paint"
-  type: "disney"
-  color: [0.7, 0.05, 0.05]
-  metallic: 0.0
-  roughness: 0.3
-  specular: 0.6
-  clearcoat: 1.0
-  clearcoat_gloss: 0.9
+  type: openpbr
+  base_color: [0.7, 0.05, 0.05]
+  specular_roughness: 0.3
+  specular_weight: 1.2
+  coat_weight: 1.0
+  coat_roughness: 0.1
+  coat_ior: 1.5
 ```
 
-The Disney Principled BSDF (also known as PBR) is the most versatile
-material type. It combines diffuse, specular, metallic, clearcoat,
-sheen, and transmission into a single material with intuitive
-parameters. You can use it instead of lambertian, metal, or dielectric
-for any surface. For subsurface scattering, pair Disney's `spec_trans`
-with an `interior_medium` binding on the entity (see Chapter 7).
+OpenPBR Surface (the standard of the Academy Software Foundation) is the
+most versatile material type. It stacks a base (metal, or a dielectric
+with a diffuse, transmission or subsurface underneath), a coat, a fuzz
+layer and a thin film into one material, and it conserves energy in every
+combination: a white material under a uniform white sky disappears. You can
+use it instead of lambertian, metal or dielectric for any surface. The
+parameter names and defaults are those of the specification.
 
-Type aliases: `disney`, `disney_bsdf`, `pbr` (all create the same
-material).
+> Scenes of format 1 had a `disney` type with parameters such as
+> `metallic`, `specular`, `clearcoat`, `sheen` and `spec_trans`. It was
+> already translated onto OpenPBR inside the engine; `SceneMigrate` writes
+> those materials as `openpbr` (the mapping is in the
+> [scene reference §5.5](../../reference/scene-reference.md)).
 
 ### Complete Parameter Reference
 
-| Parameter             | Default  | Range        | Description                                     |
-|-----------------------|----------|--------------|-------------------------------------------------|
-| `color`               | --       | 0--1         | Base albedo color                                |
-| `metallic`            | `0.0`    | 0--1         | 0 = dielectric (plastic, wood), 1 = conductor (metal) |
-| `roughness`           | `0.5`    | 0--1         | 0 = mirror-smooth, 1 = fully diffuse            |
-| `specular`            | `0.5`    | 0--1         | Dielectric specular intensity (Fresnel F0)       |
-| `specular_tint`       | `0.0`    | 0--1         | Tint specular reflection by base color           |
-| `sheen`               | `0.0`    | 0--1         | Grazing-angle soft highlight (fabric, velvet)    |
-| `sheen_tint`          | `0.5`    | 0--1         | Tint the sheen by base color                     |
-| `sheen_roughness`     | `0.3`    | 0.04--1      | Charlie sheen α — width of the grazing halo     |
-| `clearcoat`           | `0.0`    | 0--1         | Second specular lobe (lacquer, varnish)          |
-| `clearcoat_gloss`     | `1.0`    | 0--1         | **Legacy** — prefer `coat_roughness` (≈ `1 - clearcoat_gloss`) |
-| `coat_ior`            | `1.5`    | 1+           | Clearcoat IOR (overrides the default lacquer)   |
-| `coat_roughness`      | `-1.0`   | -1 or 0--1   | Sentinel `-1` falls back to `clearcoat_gloss`; any `≥ 0` enables the physical coat model and `clearcoat_gloss` is ignored |
-| `coat_normal_map`     | --       | image path   | Normal map applied **only** to the clearcoat lobe |
-| `spec_trans`          | `0.0`    | 0--1         | Specular transmission (0 = opaque, 1 = glass)    |
-| `transmission_color`  | `[1,1,1]`| 0--1         | Colour of the glass interior at `transmission_depth` |
-| `transmission_depth`  | `0.0`    | 0+           | Distance (scene units) at which `transmission_color` is reached |
-| `ior`                 | `1.5`    | 1+           | Index of refraction (specular and transmission) |
-| `anisotropic`         | `0.0`    | 0--1         | 0 = isotropic, 1 = stretched along the tangent  |
-| `anisotropic_rotation`| `0.0`    | 0--1         | Fraction of 2π rotation around the normal       |
-| `diff_trans`          | `0.0`    | 0--1         | Diffuse transmission fraction (foliage, thin fabric) |
-| `thin_walled`         | `false`  | bool         | Skip refraction / double-hit — foliage, paper   |
-| `thin_film_thickness` | `0.0`    | 0+ (nm)      | Iridescent film thickness (bubbles, opal, AR)   |
-| `thin_film_ior`       | `1.5`    | 1+           | Iridescent film IOR (η₂)                        |
-| `texture`             | --       | --           | Procedural or image texture (replaces color)    |
-| `normal_map`          | --       | --           | Surface detail via normal perturbation          |
+Every parameter takes a number, a colour or a texture block.
 
-> **Texturing every parameter.** Every scalar parameter accepts a
-> `*_texture` variant (e.g. `roughness_texture`) and the two colour
-> inputs (`color`, `transmission_color`) accept a matching `*_texture`
-> block. Example: `roughness_texture: { type: "image", path: "rough.png" }`.
+| Parameter                         | Default  | Description                                     |
+|-----------------------------------|----------|-------------------------------------------------|
+| `base_weight`                     | `1`      | Scales the base colour                           |
+| `base_color`                      | `0.8`    | Base albedo (diffuse colour, or a metal's colour at normal incidence) |
+| `base_metalness`                  | `0`      | 0 = dielectric (plastic, wood), 1 = conductor (metal) |
+| `base_diffuse_roughness`          | `0`      | Roughness of the diffuse (0 = Lambert, 1 = chalky) |
+| `specular_weight`                 | `1`      | Scales the dielectric reflectance (0 = no reflection) |
+| `specular_color`                  | `1`      | Tint of the reflection (a metal's grazing colour) |
+| `specular_roughness`              | `0.3`    | 0 = mirror-smooth, 1 = very rough               |
+| `specular_roughness_anisotropy`   | `0`      | 0 = isotropic, 1 = stretched along the tangent  |
+| `specular_rotation`               | `0`      | Rotation of the anisotropy around the normal, degrees |
+| `specular_ior`                    | `1.5`    | Index of refraction of the dielectric            |
+| `transmission_weight`             | `0`      | 0 = opaque, 1 = glass                           |
+| `transmission_color`              | `1`      | Colour of the glass interior at `transmission_depth` |
+| `transmission_depth`              | `0`      | Distance (scene units) at which `transmission_color` is reached; 0 tints once on entry |
+| `transmission_scatter`            | `0`      | Scattering inside the glass (milky, murky liquids), with a depth |
+| `subsurface_weight`               | `0`      | Share of subsurface scattering (skin, wax, marble) |
+| `subsurface_color`                | `0.8`    | Colour a thick piece shows                      |
+| `subsurface_radius`               | `1`      | Mean free path in scene units                   |
+| `subsurface_radius_scale`         | `[1, 0.5, 0.25]` | Per-channel multiplier of the radius    |
+| `subsurface_scatter_anisotropy`   | `0`      | Phase function g of the interior                |
+| `coat_weight`                     | `0`      | A clear lacquer on top (car paint, varnish)     |
+| `coat_color`                      | `1`      | Tint of the coat                                |
+| `coat_roughness`                  | `0`      | Roughness of the coat                           |
+| `coat_ior`                        | `1.6`    | Index of refraction of the coat                 |
+| `coat_darkening`                  | `1`      | 1 = physical darkening under the coat, 0 = none |
+| `coat_normal_map`                 | --       | Normal map applied **only** to the coat         |
+| `fuzz_weight`                     | `0`      | Soft fibres on top (fabric, velvet, dust)       |
+| `fuzz_color`                      | `1`      | Colour of the fibres                            |
+| `fuzz_roughness`                  | `0.5`    | Width of the fuzz highlight                     |
+| `thin_film_weight`                | `0`      | Iridescent film on the base reflection          |
+| `thin_film_thickness`             | `0.5`    | Film thickness in **micrometres** (0.1--0.8 for iridescence) |
+| `thin_film_ior`                   | `1.4`    | Index of refraction of the film                 |
+| `emission_luminance`              | `0`      | Emitted luminance, nits (not sampled as a light) |
+| `emission_color`                  | `1`      | Emission colour                                 |
+| `geometry_opacity`                | `1`      | 0 = cut-out (leaves, fences)                    |
+| `geometry_thin_walled`            | `false`  | A sheet with no interior: leaves, paper, windows |
+| `normal_map`, `bump_map`          | --       | Surface detail (Sections 3.10, 3.11)            |
 
-> **Subsurface scattering.** The legacy Disney 2015 `subsurface` and
-> `flatness` fake-SSS fields have been removed. Physically-correct SSS
-> now comes from one of two interoperable paths:
+> **Texturing every parameter.** Every parameter takes a texture block in
+> place of its number or colour. Example:
+> `specular_roughness: { type: "image", path: "rough.png" }`.
+
+> **Subsurface scattering.** Two interoperable paths:
 >
-> 1. **Material-embedded** — declare `subsurface_radius` (plus optional
->    `subsurface_color`, `subsurface_scale`, `subsurface_anisotropy`) on
->    the Disney material. The loader auto-builds a `HomogeneousMedium`
->    with `σ_t = 1 / (radius · scale)`, `σ_s = α · σ_t`,
->    `σ_a = (1 − α) · σ_t` and auto-injects it on every entity that does
->    not already have an explicit `interior_medium`. This emulates
->    volumetric subsurface scattering inside the material.
-> 2. **Entity-bound** — declare a `mediums:` entry and bind it
+> 1. **Material-embedded** -- set `subsurface_weight` (with
+>    `subsurface_color`, `subsurface_radius`, `subsurface_radius_scale`)
+>    on the material. The loader builds a `HomogeneousMedium` whose mean
+>    free path is `radius × radius_scale` and whose albedo makes a thick
+>    piece show `subsurface_color`, and binds it on every entity that does
+>    not already have an explicit `interior_medium`.
+> 2. **Entity-bound** -- declare a `mediums:` entry and bind it
 >    via `interior_medium` on the entity. Maximum control, supports
->    heterogeneous media. See Chapter 7.
+>    heterogeneous media. See Chapter 9.
 >
 > An explicit `interior_medium` always wins over the embedded medium.
 > Full derivation in
@@ -275,90 +298,91 @@ material).
 
 ### How the Parameters Work Together
 
-Think of the Disney material as a layered system:
+Think of OpenPBR as a layered system:
 
-1. **Base layer** (`metallic` = 0): a dielectric surface with diffuse
-   reflection, controlled by `roughness`. Like plastic, wood, skin.
-2. **Metal mode** (`metallic` = 1): specular-only reflection tinted by
-   `color`. Like gold, steel, copper.
-3. **Clearcoat layer** (`clearcoat` > 0): an independent glossy coating
+1. **Base layer** (`base_metalness` = 0): a dielectric surface with diffuse
+   reflection under a specular one controlled by `specular_roughness`.
+   Like plastic, wood, skin.
+2. **Metal mode** (`base_metalness` = 1): specular-only reflection tinted by
+   `base_color`. Like gold, steel, copper.
+3. **Coat layer** (`coat_weight` > 0): an independent glossy coating
    on top of whatever is underneath. Like car paint or lacquered wood.
-4. **Transmission** (`spec_trans` > 0): light passes through the
-   material. Combined with `roughness` > 0 you get frosted glass.
-5. **Subsurface scattering** (`spec_trans: 1.0` + `interior_medium` on
-   the entity): light refracts through the surface and is transported
-   by a true volumetric random walk inside the bound medium. Used for
-   skin, wax, marble, milk, jade, candles. Configured at the entity
-   level rather than on the material — see Chapter 7.
-6. **Sheen** (`sheen` > 0): a soft glow at grazing angles. Used for
-   fabric, velvet, some organic materials. `sheen_roughness` controls
-   the width of the glow (small values = crisp halo, large = soft wash).
-7. **Anisotropy** (`anisotropic` > 0): stretches the specular highlight
-   along the tangent direction. Brushed metal, hair, vinyl records.
-   Rotate the tangent frame with `anisotropic_rotation`.
-8. **Thin-film iridescence** (`thin_film_thickness` > 0): multiplies the
+4. **Transmission** (`transmission_weight` > 0): light passes through the
+   material. Combined with `specular_roughness` > 0 you get frosted glass.
+5. **Subsurface scattering** (`subsurface_weight` > 0): light refracts
+   through the surface and is transported by a true volumetric random
+   walk inside the medium the loader binds. Used for skin, wax, marble,
+   milk, jade, candles.
+6. **Fuzz** (`fuzz_weight` > 0): a soft glow at grazing angles. Used for
+   fabric, velvet, some organic materials. `fuzz_roughness` controls
+   the width of the glow.
+7. **Anisotropy** (`specular_roughness_anisotropy` > 0): stretches the
+   specular highlight along the tangent direction. Brushed metal, hair,
+   vinyl records. Rotate it with `specular_rotation` (degrees).
+8. **Thin-film iridescence** (`thin_film_weight` > 0): multiplies the
    Fresnel by a wavelength-dependent thin-film factor. Soap bubbles,
    opal, dielectric AR coatings.
-9. **Coloured glass** (`spec_trans > 0` with `transmission_color` and a
-   `transmission_depth > 0`): switches the transmission path to
-   Beer-Lambert absorption, so the light passing through the glass is
-   exponentially tinted with distance (thicker sections are darker).
-10. **Thin-walled surfaces** (`thin_walled: true` with `diff_trans` or
-    `spec_trans`): the engine stops modelling refraction through two
-    interfaces — ideal for leaves, paper, thin fabric, stained-glass.
+9. **Coloured glass** (`transmission_weight` > 0 with `transmission_color`
+   and a `transmission_depth > 0`): Beer-Lambert absorption, so the light
+   passing through the glass is exponentially tinted with distance
+   (thicker sections are darker).
+10. **Thin-walled surfaces** (`geometry_thin_walled: true`): the engine
+    stops modelling refraction through two interfaces, ideal for leaves,
+    paper, thin fabric, stained glass. With `subsurface_weight: 1` the
+    sheet scatters light diffusely to both sides, split by
+    `subsurface_scatter_anisotropy` (-1 all reflected, 1 all transmitted).
 
 ### Recipes: Real-World Materials
 
 **Polished gold:**
 ```yaml
 - id: "polished_gold"
-  type: "disney"
-  color: [1.0, 0.76, 0.33]
-  metallic: 1.0
-  roughness: 0.05
-  specular: 0.8
+  type: openpbr
+  base_color: [1.0, 0.76, 0.33]
+  base_metalness: 1.0
+  specular_roughness: 0.05
 ```
 
 **Red plastic:**
 ```yaml
 - id: "red_plastic"
-  type: "disney"
-  color: [0.8, 0.1, 0.1]
-  metallic: 0.0
-  roughness: 0.3
-  specular: 0.5
+  type: openpbr
+  base_color: [0.8, 0.1, 0.1]
+  specular_roughness: 0.3
 ```
 
 **Car paint (with clearcoat):**
 ```yaml
 - id: "blue_car"
-  type: "disney"
-  color: [0.02, 0.1, 0.45]
-  metallic: 0.0
-  roughness: 0.4
-  clearcoat: 1.0
-  clearcoat_gloss: 0.9
+  type: openpbr
+  base_color: [0.02, 0.1, 0.45]
+  specular_roughness: 0.4
+  coat_weight: 1.0
+  coat_roughness: 0.1
+  coat_ior: 1.5
 ```
 
 **Frosted glass:**
 ```yaml
 - id: "frosted"
-  type: "disney"
-  color: [0.95, 0.97, 1.0]
-  roughness: 0.3
-  spec_trans: 0.85
-  ior: 1.52
-  specular: 0.7
+  type: openpbr
+  base_color: [0.95, 0.97, 1.0]
+  specular_roughness: 0.3
+  transmission_weight: 0.85
+  specular_ior: 1.52
+  specular_weight: 1.4
+  transmission_color: [0.95, 0.97, 1]
 ```
 
 **Velvet fabric:**
 ```yaml
 - id: "purple_velvet"
-  type: "disney"
-  color: [0.3, 0.05, 0.2]
-  roughness: 0.85
-  sheen: 1.0
-  sheen_tint: 0.5
+  type: openpbr
+  base_color: [0.3, 0.05, 0.2]
+  specular_roughness: 0.85
+  fuzz_weight: 1.0
+  fuzz_color: [1.8160204, 0.71933675, 1.3773469]
+  fuzz_roughness: 0.3
 ```
 
 **Porcelain (true SSS via interior_medium):**
@@ -373,12 +397,13 @@ mediums:
 
 materials:
   - id: porcelain
-    type: disney
-    color: [1.0, 1.0, 1.0]
-    roughness: 0.15
-    specular: 0.7
-    spec_trans: 1.0
-    ior: 1.46
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.15
+    specular_weight: 1.4
+    transmission_weight: 1.0
+    specular_ior: 1.46
+    transmission_color: [1, 1, 1]
 
 entities:
   - type: sphere
@@ -389,23 +414,21 @@ entities:
 **Brushed steel (anisotropic):**
 ```yaml
 - id: "brushed_steel"
-  type: "disney"
-  color: [0.7, 0.7, 0.72]
-  metallic: 1.0
-  roughness: 0.35
-  anisotropic: 0.75
-  anisotropic_rotation: 0.0    # brush aligned with the tangent U direction
+  type: openpbr
+  base_color: [0.7, 0.7, 0.72]
+  base_metalness: 1.0
+  specular_roughness: 0.35
+  specular_roughness_anisotropy: 0.675
 ```
 
 **Coloured glass (bottle of brandy):**
 ```yaml
 - id: "brandy_glass"
-  type: "disney"
-  color: [1.0, 1.0, 1.0]
-  metallic: 0.0
-  roughness: 0.0
-  spec_trans: 1.0
-  ior: 1.52
+  type: openpbr
+  base_color: [1.0, 1.0, 1.0]
+  specular_roughness: 0.0
+  transmission_weight: 1.0
+  specular_ior: 1.52
   transmission_color: [0.95, 0.55, 0.15]
   transmission_depth: 6.0      # the colour is reached after 6 scene units
 ```
@@ -413,50 +436,51 @@ entities:
 **Soap bubble (thin-film iridescence):**
 ```yaml
 - id: "soap_bubble"
-  type: "disney"
-  color: [1.0, 1.0, 1.0]
-  metallic: 0.0
-  roughness: 0.01
-  spec_trans: 1.0
-  thin_walled: true            # no double refraction
-  thin_film_thickness: 520     # ~520 nm film
+  type: openpbr
+  base_color: [1.0, 1.0, 1.0]
+  specular_roughness: 0.01
+  transmission_weight: 1.0
+  geometry_thin_walled: true            # no double refraction
+  thin_film_thickness: 0.52     # ~520 nm film
   thin_film_ior: 1.33
+  transmission_color: [1, 1, 1]
+  thin_film_weight: 1
 ```
 
 **Car paint with physical clearcoat and a coat normal map:**
 ```yaml
 - id: "metallic_pearl"
-  type: "disney"
-  color: [0.05, 0.1, 0.35]
-  metallic: 0.9
-  roughness: 0.25
-  clearcoat: 1.0
+  type: openpbr
+  base_color: [0.05, 0.1, 0.35]
+  base_metalness: 0.9
+  specular_roughness: 0.25
+  coat_weight: 1.0
   coat_ior: 1.55
-  coat_roughness: 0.15         # any ≥ 0 value switches to physical coat model
-  coat_normal_map: "textures/orange_peel_normal.png"
+  coat_roughness: 0.15
+  coat_normal_map: { path: "textures/orange_peel_normal.png" }
 ```
 
-**Velvet with Charlie sheen:**
+**Velvet with fuzz:**
 ```yaml
 - id: "moss_velvet"
-  type: "disney"
-  color: [0.1, 0.25, 0.08]
-  metallic: 0.0
-  roughness: 0.95
-  sheen: 1.0
-  sheen_tint: 1.0
-  sheen_roughness: 0.25        # crisp, slightly narrow halo
+  type: openpbr
+  base_color: [0.1, 0.25, 0.08]
+  specular_roughness: 0.95
+  fuzz_weight: 1.0
+  fuzz_color: [0.45, 0.9, 0.35]
+  fuzz_roughness: 0.25        # crisp, slightly narrow halo
 ```
 
-**Green leaf (diffuse transmission + thin-walled):**
+**Green leaf (thin-walled, translucent):**
 ```yaml
 - id: "tree_leaf"
-  type: "disney"
-  color: [0.25, 0.5, 0.18]
-  metallic: 0.0
-  roughness: 0.8
-  diff_trans: 0.55             # half of the diffuse energy goes through
-  thin_walled: true
+  type: openpbr
+  base_color: [0.25, 0.5, 0.18]
+  specular_roughness: 0.8
+  subsurface_scatter_anisotropy: 0.1   # -1 all reflected, 1 all transmitted: a bit more than half goes through
+  geometry_thin_walled: true
+  subsurface_weight: 1
+  subsurface_color: [0.25, 0.5, 0.18]
 ```
 
 **Skin (Random Walk SSS via interior_medium):**
@@ -471,13 +495,12 @@ mediums:
 
 materials:
   - id: skin_surface
-    type: disney
-    color: [1.0, 1.0, 1.0]
-    metallic: 0.0
-    roughness: 0.35
-    specular: 0.5
-    spec_trans: 1.0
-    ior: 1.4
+    type: openpbr
+    base_color: [1.0, 1.0, 1.0]
+    specular_roughness: 0.35
+    transmission_weight: 1.0
+    specular_ior: 1.4
+    transmission_color: [1, 1, 1]
 
 entities:
   - type: sphere
@@ -487,38 +510,35 @@ entities:
 
 ### Quick Cheat-Sheet
 
-A compact reference covering the whole Disney surface taxonomy.
-Use it to pick a starting point, then tune `roughness` and `specular` for
-the specific hero look. Only the non-default keys are listed — omit a key
+A compact reference covering the whole OpenPBR surface taxonomy.
+Use it to pick a starting point, then tune `specular_roughness` for
+the specific hero look. Only the non-default keys are listed: omit a key
 to keep its default.
 
 | Material family | Core recipe |
 |---|---|
-| Matte diffuse (plaster, unfinished wood) | `roughness: 0.9`, `specular: 0.2`, optional `sheen: 0.1–0.2` |
-| Flat matte (paper, concrete) | `roughness: 0.85`, `specular: 0.2` |
-| Polished plastic | `metallic: 0`, `roughness: 0.2–0.4`, `specular: 0.5`, optional `clearcoat: 0.3` |
-| Rubber / silicone | `metallic: 0`, `roughness: 0.7–0.9`, `specular: 0.25`, `sheen: 0.2`, `sheen_roughness: 0.5` |
-| Velvet / fabric | `roughness: 0.9`, `sheen: 1.0`, `sheen_tint: 0.7`, `sheen_roughness: 0.2–0.4` |
-| Skin / porcelain / marble / milk / wax | surface: `metallic: 0`, `roughness: 0.3–0.5`, `specular: 0.5`, `spec_trans: 1`, `ior: 1.4`; **entity binds `interior_medium`** to a `homogeneous` medium (Jensen 2001 preset) — see Chapter 7 |
-| Leaf / paper (translucent) | `roughness: 0.4`, `thin_walled: true`, `diff_trans: 0.5` |
-| Polished metal (gold, silver, chrome) | `metallic: 1`, `roughness: 0.02–0.15`, `specular: 0.9–1.0` |
-| Rough / satin metal | `metallic: 1`, `roughness: 0.4–0.7`, `specular: 0.6` |
-| Brushed metal | `metallic: 1`, `roughness: 0.25`, `anisotropic: 0.7–0.9`, `anisotropic_rotation: 0.0–1.0` |
-| Car paint (legacy slider) | `metallic: 0`, `roughness: 0.3`, `clearcoat: 1`, `clearcoat_gloss: 0.9` |
-| Car paint (physical coat) | `metallic: 0–0.9`, `roughness: 0.25`, `clearcoat: 1`, `coat_ior: 1.55`, `coat_roughness: 0.05–0.15` |
-| Lacquered wood / piano black | `roughness: 0.1`, `clearcoat: 1`, `coat_roughness: 0.05`, `specular: 0.7` |
-| Ceramic / porcelain (hard) | `metallic: 0`, `roughness: 0.15`, `specular: 0.7`, `clearcoat: 0.5`, `coat_roughness: 0.2` |
-| Clear glass | `spec_trans: 1`, `roughness: 0.0`, `ior: 1.5`, `specular: 1.0` |
-| Coloured glass / gemstone | `spec_trans: 1`, `roughness: 0.0–0.02`, `ior: 1.5–1.77`, `transmission_color: <tint>`, `transmission_depth: 0.3–1.0` |
-| Diamond | `spec_trans: 1`, `roughness: 0.003`, `ior: 2.42`, `specular: 1.0` |
-| Frosted glass | `spec_trans: 1`, `roughness: 0.2–0.3`, `ior: 1.5`, `specular: 0.7` |
-| Soap bubble / iridescent film | `spec_trans: 1`, `roughness: 0.02`, `ior: 1.33`, `thin_walled: true`, `thin_film_thickness: 300–700 (nm)`, `thin_film_ior: 1.33` |
-| Anodised / painted metal | `metallic: 0.9`, `roughness: 0.25`, `clearcoat: 0.4`, `coat_roughness: 0.15` |
+| Matte diffuse (plaster, unfinished wood) | `specular_roughness: 0.9`, `specular_weight: 0.4`, optional `fuzz_weight: 0.1–0.2` |
+| Flat matte (paper, concrete) | `specular_roughness: 0.85`, `specular_weight: 0.4`, `base_diffuse_roughness: 0.5` |
+| Polished plastic | `specular_roughness: 0.2–0.4`, optional `coat_weight: 0.3` |
+| Rubber / silicone | `specular_roughness: 0.7–0.9`, `specular_weight: 0.5`, `fuzz_weight: 0.2`, `fuzz_roughness: 0.5` |
+| Velvet / fabric | `specular_roughness: 0.9`, `fuzz_weight: 1`, `fuzz_color: <tint>`, `fuzz_roughness: 0.2–0.4` |
+| Skin / porcelain / marble / milk / wax | `subsurface_weight: 1`, `subsurface_color: <albedo>`, `subsurface_radius` + `subsurface_radius_scale`, `specular_roughness: 0.3–0.5`, `specular_ior: 1.4`; or `transmission_weight: 1` with an `interior_medium` on the entity (Jensen 2001 preset, Chapter 9) |
+| Leaf / paper (translucent) | `specular_roughness: 0.4`, `geometry_thin_walled: true`, `subsurface_weight: 1`, `subsurface_color: <albedo>` |
+| Polished metal (gold, silver, chrome) | `base_metalness: 1`, `specular_roughness: 0.02–0.15` |
+| Rough / satin metal | `base_metalness: 1`, `specular_roughness: 0.4–0.7` |
+| Brushed metal | `base_metalness: 1`, `specular_roughness: 0.25`, `specular_roughness_anisotropy: 0.6–0.8`, `specular_rotation: 0–360` |
+| Car paint | `base_metalness: 0–0.9`, `specular_roughness: 0.25`, `coat_weight: 1`, `coat_ior: 1.55`, `coat_roughness: 0.05–0.15` |
+| Lacquered wood / piano black | `specular_roughness: 0.1`, `coat_weight: 1`, `coat_roughness: 0.05`, `specular_weight: 1.4` |
+| Ceramic / porcelain (hard) | `specular_roughness: 0.15`, `specular_weight: 1.4`, `coat_weight: 0.5`, `coat_roughness: 0.2` |
+| Clear glass | `transmission_weight: 1`, `specular_roughness: 0`, `specular_ior: 1.5` |
+| Coloured glass / gemstone | `transmission_weight: 1`, `specular_roughness: 0–0.02`, `specular_ior: 1.5–1.77`, `transmission_color: <tint>`, `transmission_depth: 0.3–1.0` |
+| Diamond | `transmission_weight: 1`, `specular_roughness: 0`, `specular_ior: 2.42` |
+| Frosted glass | `transmission_weight: 1`, `specular_roughness: 0.2–0.3`, `specular_ior: 1.5` |
+| Soap bubble / iridescent film | `transmission_weight: 1`, `specular_roughness: 0.02`, `specular_ior: 1.33`, `geometry_thin_walled: true`, `thin_film_weight: 1`, `thin_film_thickness: 0.3–0.7`, `thin_film_ior: 1.33` |
+| Anodised / painted metal | `base_metalness: 0.9`, `specular_roughness: 0.25`, `coat_weight: 0.4`, `coat_roughness: 0.15` |
 
-> **Tip.** When converting a Disney-2012 scene to the modern parameters,
-> the near-one-liner is `coat_roughness ≈ 1 - clearcoat_gloss` (and drop
-> the old key). For sheen-heavy materials, set `sheen_roughness` to 0.4
-> or higher so the Charlie halo is softer than the default 0.3 peak.
+> **Tip.** For fuzz-heavy materials, set `fuzz_roughness` to 0.4 or higher
+> so the halo is softer.
 
 ---
 
@@ -539,8 +559,7 @@ and `material_b` must reference materials already defined (or imported).
 |--------------|---------|---------|--------------------------------------|
 | `material_a` | `string` | --    | ID of the first material              |
 | `material_b` | `string` | --    | ID of the second material             |
-| `blend`      | `float` | `0.5`  | Constant blend factor (0 = all A, 1 = all B) |
-| `mask`       | block   | --     | Texture that spatially controls the blend     |
+| `blend`      | number or texture | `0.5` | Share of `material_b` (0 = all A, 1 = all B); a texture block controls it spatially |
 
 ### Blend with a Texture Mask
 
@@ -550,22 +569,22 @@ Instead of a uniform blend, you can use a procedural texture to control
 ```yaml
 materials:
   - id: "clean_steel"
-    type: "disney"
-    color: [0.7, 0.7, 0.72]
-    metallic: 1.0
-    roughness: 0.15
+    type: openpbr
+    base_color: [0.7, 0.7, 0.72]
+    base_metalness: 1.0
+    specular_roughness: 0.15
 
   - id: "rust"
-    type: "disney"
-    color: [0.55, 0.25, 0.08]
-    metallic: 0.3
-    roughness: 0.7
+    type: openpbr
+    base_color: [0.55, 0.25, 0.08]
+    base_metalness: 0.3
+    specular_roughness: 0.7
 
   - id: "weathered_steel"
     type: "mix"
     material_a: "clean_steel"
     material_b: "rust"
-    mask:
+    blend:
       type: "noise"
       scale: 3.0
       noise_strength: 2.0
@@ -602,7 +621,7 @@ with `mode: "world"`.
 ### Checker
 
 ```yaml
-texture:
+color:
   type: "checker"
   scale: 1.0
   colors: [[0.9, 0.9, 0.9], [0.1, 0.1, 0.1]]
@@ -614,7 +633,7 @@ controls the size of each square (smaller scale = larger squares).
 ### Noise
 
 ```yaml
-texture:
+color:
   type: "noise"
   noise_type: "fbm"          # perlin | fbm | turbulence | ridged | billow | hetero_terrain | hybrid_multifractal
   scale: 4.0
@@ -670,7 +689,7 @@ for the four-panel comparison fBm / hetero / hybrid / low-offset alpine.
 ### Marble
 
 ```yaml
-texture:
+color:
   type: "marble"
   scale: 2.4
   vein_axis: [0, 1, 0]
@@ -725,7 +744,7 @@ layer.
 
 ```yaml
 # Calacatta — 3 layers + ramp 4-stop
-texture:
+color:
   type: "marble"
   scale: 1.9
   vein_axis: [0, 1, 0]
@@ -756,10 +775,10 @@ recursive IQ domain warp, multi-band noise, open-pore vessels, and
 ships ON by default with sensible values.
 
 ```yaml
-texture:
+color:
   type: "wood"
   scale: 4.5
-  grain_strength: 1.8
+  noise_strength: 1.8
   ring_axis: [0, 1, 0]
   latewood_width: 0.24
   ring_sharpness: 4.0
@@ -783,7 +802,7 @@ vector for a more organic look.
 | Parameter              | Default      | Description                                              |
 |------------------------|--------------|----------------------------------------------------------|
 | `ring_axis`            | `[0,1,0]`    | Trunk / log axis (rings live in the ⊥ plane)             |
-| `grain_strength`       | `1.5`        | Amplitude of the high-freq fBm grain band                |
+| `noise_strength`       | `1.5`        | Amplitude of the high-freq fBm grain band                |
 | `latewood_width`       | `0.22`       | Width of the dark latewood band per ring (0.15-0.30)     |
 | `ring_sharpness`       | `3.0`        | Crispness of the latewood transition (1-6)               |
 | `earlywood_transition` | `0.05`       | Smooth rise out of the prior latewood (0.005-0.5)        |
@@ -807,7 +826,7 @@ vector for a more organic look.
 | `knot_scale`           | `0.6`        | Knot frequency multiplier                                |
 | `heartwood_radius`     | `0.0`        | Sapwood/heartwood transition radius (0 = disabled)       |
 | `heartwood_blend`      | `0.25`       | +ve darkens centre (natural for walnut / cherry)         |
-| `output`               | `"color"`    | `"mask"` for FloatTexture-driven Disney params            |
+| `output`               | `"color"`    | `"mask"` to drive a scalar parameter (`specular_roughness`, ...) |
 
 #### Why the rewrite?
 
@@ -830,9 +849,8 @@ fake → looks real" upgrade.
   instead of CG. Keep both around 0.10-0.25 for natural year-to-year
   variation; 0 is the "every ring identical" legacy look (avoid).
 - **Recursive IQ domain warp.** `warp_amplitude` + `warp_iterations`
-  replace the single-iteration `distortion` knob. The legacy
-  `distortion:` YAML key is mapped to `warp_amplitude` for back-compat.
-- **Multi-band noise.** `grain_strength` (high-freq fBm fibre detail)
+  warp the domain recursively.
+- **Multi-band noise.** `noise_strength` (high-freq fBm fibre detail)
   + `figure_strength` (low-freq curly / flame / ribbon undulations) +
   `axial_grain` (long-wave along axis). The figure band can be axially
   elongated via `figure_aspect` to align its stripes perpendicular to
@@ -854,21 +872,21 @@ fake → looks real" upgrade.
   cell centre. Combine with a 4-5 stop `color_ramp:` for cuore-nodo
   / latewood / earlywood / sapwood tone authoring.
 
-#### Mask-driven Disney parameters
+#### Mask-driven parameters
 
 Set `output: "mask"` on a wood texture block to return the scalar ring
 parameter `t ∈ [0, 1]` (1 at the bright earlywood plateau, 0 at the
 dark latewood / pore) packed as `(t, t, t)`. Drop the same block under
-`roughness_texture` / `sheen_texture` to drive scalar BSDF parameters
-from the latewood pattern — latewood can be polished while earlywood
-stays matte (the "cera su quercia" look), sheen can ride on the
+`specular_roughness` / `fuzz_weight` to drive scalar BSDF parameters
+from the latewood pattern: latewood can be polished while earlywood
+stays matte (the "cera su quercia" look), fuzz can ride on the
 open-pore earlywood only.
 
 ```yaml
-texture:
+base_color:
   type: "wood"
   scale: 4.5
-  grain_strength: 1.8
+  noise_strength: 1.8
   latewood_width: 0.24
   ring_sharpness: 4.0
   ring_color_variation: 0.22
@@ -877,11 +895,10 @@ texture:
   color_ramp:
     - { position: 0.00, color: [0.26, 0.14, 0.05] }
     - { position: 1.00, color: [0.92, 0.78, 0.50] }
-roughness: 0.55
-roughness_texture:
+specular_roughness:
   type: "wood"
   scale: 4.5
-  grain_strength: 1.8
+  noise_strength: 1.8
   latewood_width: 0.24
   ring_sharpness: 4.0
   ring_color_variation: 0.22
@@ -932,16 +949,16 @@ lights:
   - type: "directional"
     direction: [-0.4, -0.8, 0.45]
     color: [1.0, 0.98, 0.94]
-    intensity: 6.5
+    illuminance: 6.38
     angular_radius: 0.6          # soft shadow edges
   - type: "point"
     position: [-7, 6, -4]
     color: [0.90, 0.93, 1.00]    # cool fill
-    intensity: 55
+    intensity: 51.1
   - type: "point"
     position: [0, 3.5, 5]
     color: [1.0, 0.82, 0.62]     # warm rim from behind for silhouette
-    intensity: 45
+    intensity: 38
 ```
 
 For an interior render with a textured environment (HDRI, kitchen
@@ -1021,29 +1038,28 @@ crossover is crisp; lower it for softer blending.
 vein_scale[1]` close to ~2.3, not integer ratios — that prevents the
 finer layers from beating audibly against the coarse one.
 
-#### Step 5 — Roughness, clearcoat, and the "polished marble" trick
+#### Step 5: Roughness, coat, and the "polished marble" trick
 
 For a kitchen-counter-grade polished marble you want **two specular
 layers**:
 
 ```yaml
-roughness: 0.32       # base layer — diffuse texture still reads
-specular: 0.5
-clearcoat: 0.9        # polished varnish on top
-coat_roughness: 0.05  # near-mirror clearcoat
+specular_roughness: 0.32   # base layer: the diffuse texture still reads
+coat_weight: 0.9           # polished varnish on top
+coat_roughness: 0.05       # near-mirror coat
 ```
 
-The `clearcoat` is a second specular layer over the base. The base layer
+The coat is a second specular layer over the base. The base layer
 is rough enough that the marble pattern survives, the coat adds the
 glass-like sheen on top. For a "satinato" / honed finish, drop the
-clearcoat entirely and raise `roughness` to 0.4–0.5.
+coat entirely and raise `specular_roughness` to 0.4–0.5.
 
 #### Step 6 — Wood: pick the cut and the figure
 
 Wood has three orthogonal cuts: plain-sawn, quartersawn, and rift. Plus
 optional figure (curly, flame, bird's-eye, burl) and optional knots.
 
-| Wood look       | `grain_strength` | `figure_strength` | `radial_anisotropy` | `pore_density` | `knot_density` |
+| Wood look       | `noise_strength` | `figure_strength` | `radial_anisotropy` | `pore_density` | `knot_density` |
 |-----------------|------------------|-------------------|---------------------|----------------|----------------|
 | Plain-sawn oak  | 1.8              | 0.30              | 0.0                 | 0.45           | 0.0            |
 | Quartersawn oak | 2.0              | 0.55              | 4.5                 | 0.45           | 0.0            |
@@ -1054,7 +1070,7 @@ optional figure (curly, flame, bird's-eye, burl) and optional knots.
 | Burr walnut     | 0.5              | 1.4               | 0.0                 | 0.0            | 0.5            |
 
 The pattern: **figure dominates the grain** — to get a clean figure look
-lower the grain (`grain_strength` ≤ 0.6) so the high-frequency fibres
+lower the grain (`noise_strength` ≤ 0.6) so the high-frequency fibres
 don't drown the slow undulations. The other way around for plain oak:
 figure subtle, grain dialled up to 1.8+ for clear fibrous lines, and
 `pore_density` 0.4+ for the vessel speckling.
@@ -1146,7 +1162,7 @@ center). Without an extra knob, a row of identical wooden spheres would
 therefore show the **identical** pattern. The randomization knob breaks that:
 
 ```yaml
-texture:
+color:
   type: "wood"
   randomize_offset: true     # decorrelate sample point (±10 wu hash-of-seed)
   randomize_rotation: true   # different ring-axis orientation per object
@@ -1173,7 +1189,9 @@ and reference its `id`:
 materials:
   # Pasted from scenes/presets/materials-stone.md
   - id: "calacatta_studio_lucido"
-    type: "disney"
+    type: openpbr
+    base_color: [0.5, 0.5, 0.5]
+    specular_roughness: 0.5
     # ...
 
 entities:
@@ -1200,7 +1218,7 @@ production-ready material.
 ### Voronoi / Worley (cellular)
 
 ```yaml
-texture:
+color:
   type: "voronoi"
   scale: 5.0
   metric: "euclidean"        # euclidean | manhattan | chebyshev | euclidean_squared
@@ -1285,7 +1303,7 @@ collapses features onto a regular grid; `1` is full random scatter.
 ### Brick
 
 ```yaml
-texture:
+color:
   type: "brick"
   brick_width: 0.4
   brick_height: 0.18
@@ -1306,7 +1324,7 @@ brick B, mortar). `row_offset: 0` switches to stack-bond. Set
 ### Gradient
 
 ```yaml
-texture:
+color:
   type: "gradient"
   mode: "spherical"          # linear | quadratic | easing | spherical | radial
   axis: [0, 1, 0]
@@ -1322,7 +1340,7 @@ line (cylindrical falloff).
 ### Coordinate (Texture Coordinate node)
 
 ```yaml
-texture:
+color:
   type: "coordinate"
   mode: "object"             # object | uv | generated | world
   scale: 1.0
@@ -1366,7 +1384,7 @@ cannot express — Statuario marble with golden mid-tone, sapwood/heartwood
 wood, photo-real sunset gradients, toon bands, voronoi heat maps.
 
 ```yaml
-texture:
+color:
   type: "marble"
   vein_thickness: 0.20
   color_ramp:
@@ -1421,7 +1439,7 @@ entities:
 ```yaml
 - id: "earth"
   type: "lambertian"
-  texture:
+  color:
     type: "image"
     path: "textures/earth.png"
     uv_scale: [1.0, 1.0]
@@ -1451,9 +1469,9 @@ normal at each shading point.
 
 ```yaml
 - id: "brick_wall"
-  type: "disney"
-  color: [0.65, 0.3, 0.2]
-  roughness: 0.7
+  type: openpbr
+  base_color: [0.65, 0.3, 0.2]
+  specular_roughness: 0.7
   normal_map:
     path: "textures/brick-normal.png"
     strength: 1.0
@@ -1471,8 +1489,8 @@ normal at each shading point.
 come from a tool that uses the DirectX convention (Y-down), set
 `flip_y: true`.
 
-Normal maps can be added to any material type that supports them
-(Lambertian, Metal, Disney). They are applied before all shading
+Normal maps can be added to every material type (lambertian, metal,
+dielectric, emissive, openpbr, mix). They are applied before all shading
 computations.
 
 ---
@@ -1487,9 +1505,9 @@ luminance (Blinn 1978).
 
 ```yaml
 - id: "marble_with_bump"
-  type: "disney"
-  color: [0.78, 0.78, 0.80]
-  roughness: 0.4
+  type: openpbr
+  base_color: [0.78, 0.78, 0.80]
+  specular_roughness: 0.4
   bump_map:
     texture:                   # ANY ITexture: noise, marble, wood,
       type: "marble"           # voronoi, brick, gradient, image, ...
@@ -1520,7 +1538,7 @@ luminance (Blinn 1978).
   applies first (medium-frequency relief), then `bump_map` layers
   high-frequency detail on top.
 
-The clearcoat lobe of `disney` materials keeps its independent
+The coat of `openpbr` materials keeps its independent
 `coat_normal_map` and does **not** see the bump perturbation — the coat
 sits on a stable substrate so scratches and orange-peel look correct.
 
@@ -1541,9 +1559,9 @@ material drives every mesh that uses it, with no per-entity duplication.
 ```yaml
 materials:
   - id: "carved_stone"
-    type: "disney"
-    color: [0.82, 0.66, 0.42]
-    roughness: 0.78
+    type: openpbr
+    base_color: [0.82, 0.66, 0.42]
+    specular_roughness: 0.78
     displacement:
       mode: "scalar"                   # scalar | vector
       texture:                          # any procedural or image
@@ -1555,7 +1573,7 @@ materials:
       scale: 0.30                       # signed world-unit amplitude
       midlevel: 0.5                     # texture value treated as "flat"
       bound: 0.30                       # BVH padding (auto-derived if omitted)
-      displacement_method: "both"       # both | displacement | bump_only
+      method: "both"       # both | displacement | bump_only
       autobump: true
       autobump_strength: 1.5
 
@@ -1583,7 +1601,7 @@ mode is what produces **overhangs** and **crinkles** that a height
 field cannot represent — exactly how sculpted hi-res detail is baked
 onto a low-poly cage.
 
-### `displacement_method`
+### `method`
 
 - `both` (default) — geometric displacement + autobump (if requested).
 - `displacement` — geometric only; no autobump even if requested.
@@ -1610,8 +1628,8 @@ geometry normal (post-displacement)
       → mesh.autobump            (← derived from displacement.texture)
 ```
 
-`coat_normal_map` on Disney materials remains independent — it
-perturbs only the clearcoat lobe.
+`coat_normal_map` on `openpbr` materials remains independent: it
+perturbs only the coat.
 
 ### Per-instance override
 
@@ -1631,7 +1649,7 @@ across material seams:
   type: "mix"
   material_a: "rock_clean"              # both children must have their own
   material_b: "rock_moss"               # displacement (loader warns otherwise)
-  mask:
+  blend:
     type: "noise"
     scale: 3.0
   displacement:
@@ -1751,6 +1769,7 @@ A scene that showcases eight different materials side by side.
 # material-gallery.yaml
 # Eight spheres on pedestals, each with a different material.
 
+format_version: 2
 world:
   sky:
     type: "flat"
@@ -1769,13 +1788,13 @@ lights:
     u: [8, 0, 0]
     v: [0, 0, 6]
     color: [1.0, 0.97, 0.92]
-    intensity: 30.0
+    luminance: 29.2
 
   # Fill light from lower right
   - type: "point"
     position: [6, 2, -5]
     color: [0.7, 0.8, 1.0]
-    intensity: 25.0
+    intensity: 19.8
 
 materials:
   # Floor
@@ -1792,57 +1811,58 @@ materials:
   - id: "mat_metal"
     type: "metal"
     color: [1.0, 0.76, 0.33]
-    fuzz: 0.15
+    roughness: 0.15
 
   # 3. Clear glass (Dielectric)
   - id: "mat_glass"
     type: "dielectric"
-    refraction_index: 1.52
+    ior: 1.52
 
   # 4. Blue glow (Emissive)
   - id: "mat_emissive"
     type: "emissive"
     color: [0.2, 0.4, 1.0]
-    intensity: 8.0
+    luminance: 3.21
 
-  # 5. Car paint (Disney, clearcoat)
+  # 5. Car paint (OpenPBR, coat)
   - id: "mat_carpaint"
-    type: "disney"
-    color: [0.6, 0.02, 0.02]
-    metallic: 0.0
-    roughness: 0.35
-    clearcoat: 1.0
-    clearcoat_gloss: 0.9
+    type: openpbr
+    base_color: [0.6, 0.02, 0.02]
+    specular_roughness: 0.35
+    coat_weight: 1.0
+    coat_roughness: 0.1
+    coat_ior: 1.5
 
-  # 6. Marble (Disney + texture)
+  # 6. Marble (OpenPBR + texture)
   - id: "mat_marble"
-    type: "disney"
-    roughness: 0.1
-    specular: 0.8
-    texture:
+    type: openpbr
+    specular_roughness: 0.1
+    specular_weight: 1.6
+    base_color:
       type: "marble"
       scale: 12.0
       noise_strength: 5.0
       colors: [[0.95, 0.92, 0.88], [0.5, 0.48, 0.45]]
 
-  # 7. Wood (Disney + texture)
+  # 7. Wood (OpenPBR + texture)
   - id: "mat_wood"
-    type: "disney"
-    roughness: 0.35
-    clearcoat: 0.4
-    clearcoat_gloss: 0.8
-    texture:
+    type: openpbr
+    specular_roughness: 0.35
+    coat_weight: 0.4
+    coat_roughness: 0.15
+    base_color:
       type: "wood"
       scale: 6.0
       noise_strength: 1.5
       colors: [[0.55, 0.35, 0.18], [0.30, 0.18, 0.08]]
+    coat_ior: 1.5
 
-  # 8. Checker floor (Disney + checker texture)
+  # 8. Checker floor (OpenPBR + checker texture)
   - id: "mat_checker"
-    type: "disney"
-    roughness: 0.15
-    specular: 0.6
-    texture:
+    type: openpbr
+    specular_roughness: 0.15
+    specular_weight: 1.2
+    base_color:
       type: "checker"
       scale: 0.5
       colors: [[0.9, 0.88, 0.85], [0.15, 0.12, 0.1]]
@@ -1909,8 +1929,8 @@ RayTracer -i material-gallery.yaml -w 1600 -H 600 -s 1024 -d 8 -S 4
 - **Dielectric** materials are transparent with controllable refraction.
   Glass needs higher ray depth.
 - **Emissive** materials glow and automatically act as light sources.
-- The **Disney/PBR** material replaces all other types with 12 intuitive
-  parameters. Use it for any surface from metal to glass to fabric.
+- The **OpenPBR** material covers every other type with one layered
+  model. Use it for any surface from metal to glass to fabric.
 - **Mix/Blend** materials spatially combine two materials using a blend
   factor or a texture mask.
 - **Procedural textures** (checker, noise, marble, wood) generate

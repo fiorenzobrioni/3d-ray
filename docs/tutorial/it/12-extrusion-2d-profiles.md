@@ -114,7 +114,7 @@ tagliata a CNC.
 | `profile`        | --       | Loop chiuso di punti `[x, z]`, almeno 3                              |
 | `height`         | `1`      | Lunghezza dell'estrusione lungo +Y                                   |
 | `caps`           | `both`   | `both` / `start` / `end` / `none`                                    |
-| `twist_degrees`  | `0`      | Rotazione totale del profilo superiore attorno a Y, in gradi         |
+| `twist`          | `0`      | Rotazione totale del profilo superiore attorno a Y, in gradi         |
 | `taper`          | `1`      | Scala XZ uniforme del profilo superiore (1 = dritto, < 1 si stringe) |
 | `curve_samples`  | `16`     | Risoluzione della polilinea per i modi curvi (ignorato da `linear`)  |
 | `crease_angle`   | `0`      | Soglia blend normali per le pareti `linear`, gradi (0 = piatto)      |
@@ -213,9 +213,9 @@ non sbanda mai.
 ```yaml
 - name: "colonna_scanalata"
   type: "extrusion"
-  profile_type: "catmull_rom"           # alias: "catmull", "smooth"
+  profile_type: "catmull_rom"
   height: 3.4
-  twist_degrees: 60                     # leggera spirale lungo la colonna
+  twist: 60                     # leggera spirale lungo la colonna
   taper: 0.88                           # si restringe leggermente in alto
   curve_samples: 24                     # silhouette più liscia
   caps: "both"
@@ -362,7 +362,7 @@ uno strumento 3D richiederebbe uno stack di modificatori multi-step.
 
 ### Twist
 
-`twist_degrees` ruota il profilo superiore attorno all'asse Y per
+`twist` ruota il profilo superiore attorno all'asse Y per
 l'angolo specificato, con la rotazione che interpola linearmente
 lungo l'altezza.
 
@@ -407,7 +407,7 @@ una singola primitiva, senza bisogno di stack di modificatori.
   type: "extrusion"
   profile_type: "linear"
   height: 4.0
-  twist_degrees: 180
+  twist: 180
   taper: 0.80
   caps: "both"
   material: "marmo"
@@ -428,10 +428,11 @@ modalità sullo stesso palco. Ecco una versione distillata da
 incollare in un nuovo file:
 
 ```yaml
-camera:
-  position: [0, 2.0, -5.6]
-  look_at: [0, 1.4, 0]
-  fov: 42
+format_version: 2
+cameras:
+  - position: [0, 2.0, -5.6]
+    look_at: [0, 1.4, 0]
+    fov: 42
 
 world:
   sky:
@@ -439,45 +440,48 @@ world:
     zenith_color: [0.06, 0.08, 0.14]
     horizon_color: [0.20, 0.18, 0.22]
   ground:
-    type: "plane"
+    type: infinite_plane
     material: "pavimento"
-    y: 0
+    point: [0, 0, 0]
 
 materials:
   - id: "pavimento"
-    type: "disney"
-    texture:
+    type: openpbr
+    base_color:
       type: "checker"
       colors: [[0.92, 0.90, 0.85], [0.10, 0.10, 0.12]]
       scale: 1.5
-    roughness: 0.18
+    specular_roughness: 0.18
   - id: "oro"
-    type: "disney"
-    color: [1.00, 0.78, 0.34]
-    metallic: 1.0
-    roughness: 0.22
+    type: openpbr
+    base_color: [1.00, 0.78, 0.34]
+    base_metalness: 1.0
+    specular_roughness: 0.22
   - id: "marmo"
-    type: "disney"
-    color: [0.94, 0.93, 0.90]
-    roughness: 0.15
-    clearcoat: 0.8
+    type: openpbr
+    base_color: [0.94, 0.93, 0.90]
+    specular_roughness: 0.15
+    coat_weight: 0.8
+    coat_roughness: 0.031622775
+    coat_ior: 1.5
   - id: "smeraldo"
-    type: "disney"
-    color: [0.22, 0.78, 0.42]
-    roughness: 0.05
-    spec_trans: 1.0
-    ior: 1.55
+    type: openpbr
+    base_color: [0.22, 0.78, 0.42]
+    specular_roughness: 0.05
+    transmission_weight: 1.0
+    specular_ior: 1.55
+    transmission_color: [0.22, 0.78, 0.42]
 
 lights:
   - type: "directional"
     direction: [0.45, -0.7, 0.55]
     color: [1.0, 0.92, 0.78]
-    intensity: 2.6
-    angular_radius_deg: 0.55
+    illuminance: 2.41
+    # angular_radius_deg: 0.55
   - type: "point"
     position: [-4.5, 3.5, -3.0]
     color: [1.0, 0.74, 0.50]
-    intensity: 22
+    intensity: 17.1
 
 entities:
   # Hero 1 — stella d'oro (linear concavo)
@@ -506,7 +510,7 @@ entities:
     type: "extrusion"
     profile_type: "catmull_rom"
     height: 3.4
-    twist_degrees: 60
+    twist: 60
     taper: 0.88
     curve_samples: 24
     caps: "both"
@@ -690,7 +694,7 @@ alzalo a 24-32 per i soggetti principali.
 | Riprodurre un path SVG/Illustrator o una curva CAD                 | `bezier`                             |
 | Cuore, lacrima, cuspidi/tangenti spezzate intenzionali             | `bezier`                             |
 | Forme da tagliabiscotti / stencil                                  | `linear`, `caps: "none"`             |
-| Punta da trapano elicoidale                                        | `linear`, `twist_degrees: 360+`      |
+| Punta da trapano elicoidale                                        | `linear`, `twist: 360+`      |
 | Piramidi, obelischi, finiali                                       | qualsiasi modo, `taper: 0.0`–`0.3`   |
 | Poligono polilinea letto come superficie curva (shading liscio)    | `linear` + `crease_angle: 30`        |
 
@@ -732,7 +736,7 @@ nei piani medi ma si legge come sfaccettato nei primi piani stretti.
 avvolgono.**
 Stesso rimedio: alza `curve_samples`. Il twist rende visibile la
 triangolazione delle pareti perché ogni anello di triangoli è
-ruotato rispetto al successivo. Una colonna a `twist_degrees: 360`
+ruotato rispetto al successivo. Una colonna a `twist: 360`
 con `curve_samples: 8` apparirà chiaramente sfaccettata; la stessa
 colonna con `curve_samples: 24` apparirà liscia.
 
@@ -771,7 +775,7 @@ trasformazioni.)
 
 ## Cosa Hai Imparato
 
-- `extrusion` (alias `prism` o `linear_extrude`) estrude un profilo
+- `extrusion` estrude un profilo
   2D chiuso nel piano XZ lungo l'asse +Y locale, producendo un
   prisma con pareti laterali e tappi opzionali alle estremità.
 - Tre modalità di profilo speculari al lathe: `linear` per ridge
@@ -783,7 +787,7 @@ trasformazioni.)
   job da una singola primitiva.
 - `caps: both | start | end | none` sceglie quali estremità
   chiudere, abilitando prismi pieni, vasche, cappelli e tubi puri.
-- `twist_degrees` e `taper` trasformano prismi dritti in colonne
+- `twist` e `taper` trasformano prismi dritti in colonne
   scolpite, punte da trapano elicoidali, finiali e piramidi —
   senza bisogno di stack di modificatori o catene CSG.
 - `crease_angle` (solo `linear`, default 0) fa il blend delle normali ai
