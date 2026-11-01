@@ -207,6 +207,10 @@ public sealed partial class Migrator
         string result = _ed.Apply();
         if (schemaComment != null && !result.StartsWith("# yaml-language-server"))
             result = schemaComment + "\n" + result;
+        // The lines inserted above end in \n: a file written with \r\n keeps
+        // its convention instead of coming out with mixed line endings.
+        if (_ed.Text.Contains("\r\n"))
+            result = result.ReplaceLineEndings("\r\n");
         return result;
     }
 

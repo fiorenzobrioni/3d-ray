@@ -383,11 +383,14 @@ public class GeometryAuditTests
         string first = "";
         void Fail(string what) { if (first == "") first = what; }
 
-        for (int i = 0; i < 3000; i++)
+        var replayed = Replayed.TryGetValue(name, out var known) ? known : [];
+        for (int i = 0; i < 3000 + replayed.Length; i++)
         {
             Vector3 o, d;
             bool inside = s.Implicit != null && i % 3 == 2;
-            if (inside)
+            if (i >= 3000)
+                (o, d) = (replayed[i - 3000].O, Vector3.Normalize(replayed[i - 3000].D));
+            else if (inside)
             {
                 // A point inside the solid, a random direction.
                 do o = s.Center + s.Radius * new Vector3(rng.NextSingle() * 2 - 1, rng.NextSingle() * 2 - 1, rng.NextSingle() * 2 - 1);
@@ -418,6 +421,11 @@ public class GeometryAuditTests
             if (tRef == null && hit)
             {
                 bool grazing = s.Implicit != null && minAbs < 1e-3f * s.Radius;
+                // A ray that clips an edge or a corner over less than the scan's
+                // step is an exact hit the coarse scan cannot see: the point is on
+                // the surface and the ray never gets deeper than the tolerance.
+                grazing |= s.Implicit != null && MathF.Abs(s.Implicit(rec.Point)) < 1e-3f * s.Radius
+                           && FineDepth(s.Implicit, ray, rec.T) < 1e-3f * s.Radius;
                 if (!grazing && !(s.PlaneHit != null && MathF.Abs(Vector3.Dot(s.Outward!(rec.Point), d)) < 1e-3f))
                 { phantoms++; Fail($"phantom: o={o} d={d} t={rec.T}"); }
                 continue;
@@ -440,6 +448,18 @@ public class GeometryAuditTests
                        $"wrong FrontFace {wrongFace}, wrong normal {wrongNormal}. {first}");
         Assert.True(holes + phantoms + wrongT + offSurface + wrongFace + wrongNormal == 0, first);
     }
+
+    /// <summary>
+    /// Rays that once failed (found by CI when the seed changed at every run),
+    /// checked at every run with the random ones: a cone ray almost parallel to
+    /// a generator (wrong t, now fixed in Cone.Hit) and a ray clipping an edge
+    /// of the sheared box over 5e-6 (a true hit the coarse scan missed).
+    /// </summary>
+    private static readonly Dictionary<string, (Vector3 O, Vector3 D)[]> Replayed = new()
+    {
+        ["cone"] = [(new(-0.043480076f, 2.0263186f, -1.3636061f), new(0.08247215f, -0.863778f, 0.49707744f))],
+        ["box-sheared"] = [(new(-0.24401857f, 0.9471648f, -2.0659497f), new(-0.0033672033f, -0.56822217f, 0.8228683f))],
+    };
 
     /// <summary>
     /// A seed from the name that is the same in every process (string.GetHashCode
@@ -488,6 +508,14 @@ public class GeometryAuditTests
     }
 
     /// <summary>How deep the ray goes below the surface around a root (0 for a tangent touch).</summary>
+    /// <summary>The deepest the ray gets inside within a scan step of t, finely sampled.</summary>
+    private static float FineDepth(Func<Vector3, float> f, Ray ray, float t)
+    {
+        float deepest = 0f;
+        for (int k = -400; k <= 400; k++) deepest = MathF.Min(deepest, f(ray.At(t + k * 5e-6f)));
+        return -deepest;
+    }
+
     private static float ScanDepth(Func<Vector3, float> f, Ray ray, float tRoot)
     {
         float deepest = 0f;

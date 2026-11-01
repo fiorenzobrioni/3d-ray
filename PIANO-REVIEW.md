@@ -1380,8 +1380,14 @@ coordinata) con un minimo proporzionale al raggio della scena. **Trovato e corre
 una generatrice ha a ≈ 0 e perdeva la radice vicina (t 2.3194 invece di 2.3275), e con a = 0 il
 raggio non colpiva il fianco. Ora radici in double con la forma stabile (q/a, c/q); test
 `Cone_RayAlongAGenerator_FindsTheNearRoot`. Il test che l'ha trovato (`GeometryAuditTests`)
-seminava i raggi con `string.GetHashCode`, diverso a ogni processo: ora un seme fisso per
-primitiva, e una prova con 40 semi su tutte le primitive (120 000 raggi ciascuna) non trova altro.
+seminava i raggi con `string.GetHashCode`, diverso a ogni processo (per questo la CI della Fase 10
+era rossa su macOS: un "hit fantasma" del box inclinato, in realtà un raggio che ne sfiora uno
+spigolo per 5e-6, visto dal motore e non dalla marcia a passo 2e-3 del riferimento): ora un seme
+fisso per primitiva, i raggi trovati dalla CI ripetuti a ogni run, uno spigolo sfiorato
+riconosciuto con una marcia fine attorno al punto; una prova con 40 semi su tutte le primitive
+(120 000 raggi ciascuna) non trova altro. Sempre dalla CI della Fase 10 (Windows): `SceneMigrate`
+inseriva righe con `\n` in un file scritto con `\r\n`, che usciva con fini riga misti; ora tiene
+la convenzione del file (test `KeepsTheFilesLineEndings`).
 Restava il limite misurato nella Fase 1, la precisione float delle coordinate stesse lontano
 dall'origine. Il double ovunque è scartato: raddoppia la memoria di vertici e BVH e dimezza la larghezza SIMD, quando il problema
 è solo la precisione locale vicino alla camera.
