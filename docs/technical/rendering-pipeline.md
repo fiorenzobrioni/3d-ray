@@ -67,6 +67,15 @@ La semantica prepend + dictionary last-write-wins garantisce che le definizioni 
 
 Il loader deserializza il file YAML in strutture dati intermedie (`SceneData`, `MaterialData`, `LightData`, ecc.) tramite la libreria YamlDotNet con naming convention `underscore_case`.
 
+### 1.2b Spazio di render (relativo alla camera)
+
+La scena si costruisce in uno **spazio di render**: il mondo traslato di −posizione della camera (`SceneLoader.RenderSpace.cs`). L'errore float di un punto d'intersezione è proporzionale alle sue coordinate, e con lui gli offset dei raggi (`MathUtils.OffsetOrigin`): con la camera nell'origine la geometria che vede ha coordinate piccole e precisione piena, comunque lontana dall'origine del mondo sia la scena.
+
+- Le posizioni (`List<double>` nelle classi del formato) si leggono in double e si traslano prima di diventare float, **in un solo punto per entità** (`Pos()`): un'entità con un transform (o `motion`, un'`instance`, un `box`) tiene le sue coordinate e ha la traslazione spostata (`BuildPlaced`, `ComputeTransformMatrix(e, shift)`); un'entità senza transform ha spostate le sue coordinate (centro, angolo, vertici, limiti, i vertici di un file modello). Lo stesso vale per i figli di un gruppo o di una CSG senza transform.
+- Non cambia nulla che dipenda dal posto: una texture legge il punto dello spazio originale (`Mesh.LocalPointOffset` per mesh e triangoli, `GeometryLight.TextureOffset` per i campioni della NEE, `CoordinateTexture.WorldOffset`), nebbia d'altezza, atmosfera e mezzi procedurali leggono quota e posizione originali, la suddivisione adattiva misura nello spazio originale.
+- Camera, luci e mezzi sono nello stesso spazio; `SceneLoader.LastRenderOrigin` dà l'origine dell'ultima scena caricata sul thread (un punto del mondo p è p − origine nella scena costruita), per i test che sondano il mondo caricato.
+- Limite: un'entità posta da un transform le cui coordinate locali sono a loro volta enormi resta in float, come i vertici dei file modello letti in float.
+
 ### 1.3 Costruzione dei Materiali (due passate)
 
 I materiali vengono costruiti in due passate per supportare `MixMaterial` (che referenzia altri materiali per ID):

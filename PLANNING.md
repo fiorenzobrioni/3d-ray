@@ -67,7 +67,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 | # | Feature | Stato |
 |---|---------|-------|
 | 23 | Path Guiding - PPG-style (SD-tree spaziale + quadtree direzionale per foglia, MIS tra guide PDF e BSDF PDF, `--path-guiding on\|off`, `--guiding-budget N` spp di training; dopo #13; il loop iterativo che lo rende possibile è fatto, review Fase 7; con MNEE/SMS per le caustiche da luci piccole: `PIANO-REVIEW.md` Fase 7b) | ✅ (Fase 7b: `--guiding on`) |
-| 24 | Spectral Rendering (lunghezze d'onda → dispersione prismatica) | ⬜ |
+| 24 | Spectral Rendering (lunghezze d'onda → dispersione prismatica). Deciso nella Fase 11 della review: hero wavelength (4 λ per cammino) e sollevamento RGB → spettro di Jakob-Hanika, metalli n,k spettrali, dispersione da Abbe, film XYZ; fase dedicata dopo la Fase 11 (`PIANO-REVIEW.md` Fase 11, esito) | ⬜ (deciso) |
 | 25 | Surface Displacement Stack (bump map, mesh subdivision Loop/Catmull-Clark, scalar/vector displacement, autobump) | ✅ |
 | 26 | GPU Acceleration (CUDA/Vulkan, progetto separato) | ⬜ |
 
@@ -103,14 +103,14 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
   **(c) Sun-aware aspect bias.** L'aspect bias legge `SkyData.SunDir` e calcola `aspectCool = -dot(horizontalNormal, horizontalSunDir)` invece di usare `+Z` hardcoded.
 
   Vincoli: normal-map per-band composte nel `n_shading` finale; MIS sampling weights coerenti; doc + showcase + tutorial IT+EN; regression test terreno flat a due band con verifica del lerp al confine. Aggiornare `docs/technical/heightfield.md` §5 e §8.
-- [ ] Refactoring: spostare `Seed` da `IHittable` a un'interfaccia dedicata (es. `ISeeded`); nodi strutturali (BvhNode, Transform) non hanno bisogno di seed.
+- [ ] Refactoring: spostare `Seed` da `IHittable` a un'interfaccia dedicata (es. `ISeeded`); nodi strutturali (Bvh, TriangleBvh, Transform) non hanno bisogno di seed.
 - [ ] Review completa dei tutorial (`tutorial/`): correttezza vs codice, omissioni, grammatica, esempi, indici.
-- [x] Spezzare `SceneLoader.cs`: fatto 2026-10-25 (review Fase 10, file parziali per sezione).
+- [x] Spezzare `SceneLoader.cs`: fatto 2026-10-25 (review Fase 10, file parziali per sezione). Fase 11: anche `Renderer` (6 parti), `SceneData` (8), `SceneLoader.Entities` (3), `Program` (4, `Program.Main` da 770 righe a 36).
 - [ ] **Formato scene, rimandati dalla Fase 10 della review**: OpenUSD come formato di interscambio (lungo periodo); una libreria di texture con `id` (oggi ogni texture è in linea nel suo ingresso); `wrap` e `filter` per texture; schema JSON con le condizioni fra chiavi (oggi solo le chiavi ammesse per tipo).
 - [ ] **Texture, rimandati dalla Fase 4 della review**: clamp delle ottave sul footprint per `marble` e `wood` (oggi campionate in un punto); compressioni EXR PIZ, DWAA/DWAB, B44, PXR24 e file a tile (oggi errore esplicito); UDIM e cache di texture a tile per scene grandi; l'autobump di una mesh dentro un transform scalato usa l'altezza del displacement in unità oggetto mentre il bump è in unità di scena (e la texture 3D del displacement è letta nello spazio oggetto non scalato); sui gradini piatti del lathe V va dal raggio interno all'esterno qualunque sia il verso del profilo; `UvTransformedHittable` ruota T e B come +U e +V (corretto ora che tutte le primitive li allineano, da ricontrollare se cambia una convenzione).
-- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅, Fase 1 (fondamenta matematiche e sampler) ✅, Fase 2 (geometria e intersezioni) ✅, Fase 3 (camera, film e colore) ✅, Fase 4 (texture e dati) ✅, Fase 5 (materiali e BSDF) ✅, Fase 6 (luci e cielo) ✅, Fase 7 (integratore) ✅, Fase 7b (path guiding) ✅, Fase 8 (volumi null-scattering) ✅, Fase 8b (BDPT e VCM al posto della photon map) ✅, Fase 9 (post-processing e denoiser) ✅, Fase 10 (formato scene 2, validazione, `SceneMigrate`) ✅.
+- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅, Fase 1 (fondamenta matematiche e sampler) ✅, Fase 2 (geometria e intersezioni) ✅, Fase 3 (camera, film e colore) ✅, Fase 4 (texture e dati) ✅, Fase 5 (materiali e BSDF) ✅, Fase 6 (luci e cielo) ✅, Fase 7 (integratore) ✅, Fase 7b (path guiding) ✅, Fase 8 (volumi null-scattering) ✅, Fase 8b (BDPT e VCM al posto della photon map) ✅, Fase 9 (post-processing e denoiser) ✅, Fase 10 (formato scene 2, validazione, `SceneMigrate`) ✅, Fase 11 (architettura e performance: codec immagine propri, BVH piatto, rendering relativo alla camera, spettrale deciso) ✅. Resta il rendering spettrale, in una fase dedicata, poi la revisione delle scene.
 - [ ] **Luci e cielo, rimandati dalla Fase 6 della review**: scattering multiplo per il cielo di Nishita (Hillaire 2020, tabella di multi-scattering): oggi il suo cielo è circa metà di uno misurato rispetto al sole, e per questo la sua `turbidity` mappa su poca polvere invece che sulla torbidità di Linke; un falloff fisico del cono degli spot (oggi smoothstep artistica, la distribuzione fisica la dà l'IES); dati TILT dei file IES; modello Prague 2021 se servisse un cielo diurno sopra Hosek-Wilkie (crepuscolo, cieli torbidi).
-- [ ] **Geometria, rimandati dalla Fase 2 della review**: l'emissione di un materiale `openpbr` (anche importato da glTF o MTL) è trovata solo dal campionamento BSDF, non è una luce per la NEE; spatial split del BVH (SBVH) e velocità (Fase 11); colori per vertice, skin e morph target del glTF, compressione Draco/meshopt, texture KTX2; normali esatte delle due falde di una piega (oggi medie per settore sulla mesh limite); pieghe da file (OBJ non le porta: oggi solo `subdivision_crease_angle`).
+- [ ] **Geometria, rimandati dalla Fase 2 della review**: l'emissione di un materiale `openpbr` (anche importato da glTF o MTL) è trovata solo dal campionamento BSDF, non è una luce per la NEE; spatial split del BVH (SBVH) e velocità (fatto nella Fase 11: BVH piatto e iterativo; SBVH valutato e non adottato); colori per vertice, skin e morph target del glTF, compressione Draco/meshopt, texture KTX2; normali esatte delle due falde di una piega (oggi medie per settore sulla mesh limite); pieghe da file (OBJ non le porta: oggi solo `subdivision_crease_angle`).
 - [ ] **Scene da rivedere alla fine della review** (decisione del proprietario; nessun vincolo di compatibilità, `PIANO-REVIEW.md` §2.0: le scene si correggono, si riscrivono o si spostano in `scenes/obsolete/`): le otto scene con un cielo fisico ora hanno il sole alla luminosità vera rispetto al cielo (`3d-ray-logo`, `extrusion`, `ground-alpine-lake`, `ground-feature-overview`, `sky-aerial`, `sky-nishita`, `sky-portal`, `sky-preetham`; prima/dopo in `scenes/review/images/sky-before-after.jpg`), e quelle con `hosek_wilkie` un modello diverso da Preetham; valutare il passaggio a unità fotometriche con `ev100` dove la scena descrive una situazione reale. Dopo la Fase 10 tutte le scene sono nel formato 2 (convertite da `SceneMigrate`, stessa immagine di prima): i valori convertiti hanno molte cifre (`intensity: 13.608299` = 15 × la luminanza del colore, `exposure: -9.965784` = la scala relativa di prima dei cieli fisici) e i materiali Disney sono diventati `openpbr` con i parametri tradotti; nella revisione vanno arrotondati e ripensati sui parametri OpenPBR, e le scene con un sole o un cielo fisico portate su `ev100`.
 
 ---
@@ -191,10 +191,26 @@ Emersi nella Fase 8 (volumi), tutti corretti: raggi camera non normalizzati nei 
 ## 💡 Idee / Appunti
 
 Ottimizzazioni valutate nel ciclo Review e **rimandate** (da riprendere):
-- **Traversata BVH a stack esplicito** - richiede un array di nodi appiattito +
-  stack di indici locale (`stackalloc int[]`, immune a rientranza) invece dello
-  stack di riferimenti condiviso per-thread, che si corromperebbe con i Group
-  annidati. Vale come step verso adaptive sampling/packet tracing.
+- ~~**Traversata BVH a stack esplicito**~~ - fatta nella Fase 11 (`Acceleration/Bvh.cs`,
+  `TriangleBvh.cs`). Resta il **packet tracing** / BVH a 4-8 figli SIMD.
+- **Embree** (Fase 11): valutato con TinyEmbree, ×2.8-3.3 sulle mesh a raggio singolo, ma
+  l'intersezione è il 14-27% del render: non adottato per ora (17 MB nativi per piattaforma,
+  solo triangoli). Da riprendere se lo shading diventa molto più veloce o per scene da milioni
+  di triangoli.
+- **Spatial split (SBVH)** (Fase 11): valutati, SAH −1/−10%, velocità nel rumore, build 6-20×
+  più lenta; codice nel commit 6b92667.
+- **Shading** (Fase 11): è il 73-86% del tempo di render nelle scene del repo. Prossimi
+  passi: `HitRecord` più snello, meno copie dei record (`HittableList` azzera e copia
+  un record di ~300 byte a ogni hit), profilo per scena con un campionatore non legato ai
+  safe point (quello di EventPipe in Linux attribuisce il tempo a `PollGC`).
+- **Scene istanziate** (Fase 11): `tempio-romano` spende il 60% in intersezione, 1.1 µs a
+  chiamata (36 colonne con estrusione e CSG dentro `Transform`): istanze a due livelli (BVH
+  dell'istanza condiviso, raggio trasformato una volta).
+- **Emissione con texture, NEE contro BSDF** (emerso nella Fase 11): un emissivo legge la
+  texture di emissione al punto del mondo nei campioni NEE (`GeometryLight`) e al punto locale
+  negli hit dei raggi BSDF; per le primitive analitiche il punto locale è relativo al centro,
+  quindi le due strategie MIS vedono due emissioni diverse. Il rendering relativo alla camera
+  conserva il comportamento (`GeometryLight.TextureOffset`); da unificare sul punto locale.
 - **Clamp di ottave footprint-aware per Marble/Wood** - come `NoiseTexture.ComputeMaxOctaves`:
   riduce ottave (e aliasing) a distanza. Modifica di anti-aliasing più ampia, da
   validare su scene marmo-pesanti.

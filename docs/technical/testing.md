@@ -7,7 +7,7 @@ Progetto xUnit dedicato ai test di correttezza dei componenti critici. Vive in `
 Il renderer ha due componenti *accelerati* le cui ottimizzazioni potrebbero introdurre regressioni silenziose — un pixel sbagliato in un angolo della scena è difficile da notare a occhio:
 
 - **`AABB.Hit`** — slab test Kay-Kajiya vettorizzato (`Vector3.Min/Max`) con `InvDirection` precomputato. Deve comportarsi come lo slab test scalare classico, anche nei casi degeneri (raggi assi-allineati → `1/0 = ±∞`).
-- **`BvhNode.Hit`** — BVH con SAH binning, fat leaves e ordered traversal. Deve produrre lo stesso `(hit, rec.T)` della fallback lineare `HittableList.Hit` su ogni raggio.
+- **`Bvh.Hit` e `TriangleBvh.Hit`**: BVH appiattito con SAH binning e traversata iterativa che visita prima il figlio più vicino. Deve produrre lo stesso `(hit, rec.T)` della fallback lineare `HittableList.Hit` su ogni raggio; `TriangleBvh` lo stesso record, bit per bit.
 
 La regola di test è: **differenziale vs oracolo**. Non asseriamo valori numerici precisi — asseriamo uguaglianza con un'implementazione di riferimento semplice e manifestamente corretta.
 
@@ -17,7 +17,7 @@ La regola di test è: **differenziale vs oracolo**. Non asseriamo valori numeric
 src/RayTracer.Tests/
 ├── RayTracer.Tests.csproj    # xunit 2.9.2, Microsoft.NET.Test.Sdk 17.11.1, net10.0
 ├── AabbTests.cs              # Differential test AABB.Hit vs slab scalare
-├── BvhEquivalenceTests.cs    # BvhNode.Hit vs HittableList.Hit
+├── BvhEquivalenceTests.cs    # Bvh/TriangleBvh.Hit vs HittableList.Hit
 ├── ...                       # geometria, materiali, luci, volumi, rendering (circa 50 file)
 ├── TestScenes/               # scene YAML usate dai test di regressione
 └── Validation/               # correttezza fisica (§4.3)
@@ -70,7 +70,7 @@ Contiene una versione scalare `ReferenceHit(box, ray, tMin, tMax)` — trascrizi
 
 ### 4.2 `BvhEquivalenceTests.cs`
 
-Ogni test costruisce due scene con le **stesse primitive** — una usa `HittableList` (fallback lineare), l'altra usa `BvhNode`. Per ogni raggio:
+Ogni test costruisce due scene con le **stesse primitive**: una usa `HittableList` (fallback lineare), l'altra usa `Bvh` (o `TriangleBvh` se sono tutti triangoli). Per ogni raggio:
 
 1.  Entrambe ritornano lo stesso `(hit, miss)`.
 2.  Se hit, entrambe ritornano lo stesso `rec.T` entro `1e-4`.
@@ -105,6 +105,7 @@ soglie fisse).
 | `SamplerQualityTests.cs` | Il sampler: integra funzioni 2D note (una gaussiana liscia e un disco, cioè un bordo d'ombra) su 512 pixel indipendenti e misura la pendenza dell'errore RMS rispetto al numero di campioni. Numeri indipendenti danno N^-0.5; una coppia stratificata in 2D N^-1.4 sul liscio e N^-0.75 sul bordo. Gate su `Sample2D` a varie profondità e sui blocchi di dimensioni per vertice (`Sampler.BeginVertex`). Report opt-in con `RAYTRACER_AUDIT=1` (anche correlazioni fra dimensioni). |
 | `SamplingRoutineTests.cs` | Chi-quadro e integrale della pdf delle routine di base: sfera e emisfero uniformi, cono verso una sfera (anche piccolissima o lontana), le phase function dei volumi, il campionamento importance della HDRI (continuo dentro i texel, pdf coerente con `PdfDirection`), disco concentrico; base ortonormale entro 1e-5 anche vicino a -Z. |
 | `ScaleInvarianceTests.cs` | Lo stesso angolo di stanza scalato a 10 µm e a 1 km, e spostato a 10 km dall'origine, deve dare la stessa luminanza media entro il 2%: gli offset dei raggi seguono la scena. |
+| `RenderSpaceTests.cs` | Rendering relativo alla camera: la stessa scena (primitive, CSG, gruppi, istanze, mesh con e senza transform, terreno procedurale, luci, emissivo con texture, nebbia d'altezza) a 131 km dall'origine e a 8 km di quota, caricata dal loader, deve dare l'immagine della scena nell'origine (rapporto entro 1e-3, relMSE < 1e-4); le posizioni si leggono in double; il punto letto dalle texture non cambia spostando la camera. |
 | `SolverPrecisionTests.cs` | Risolutore quartico e di Sturm su polinomi con radici note; intersezione del toro contro un riferimento in doppia precisione (marcia fitta della funzione implicita più bisezione): nessun hit perso o inventato, errore su t sotto 1e-5. |
 | `NoiseQualityTests.cs` | Perlin: intervallo, zeri sul reticolo, continuità di valore e gradiente attraverso le facce del reticolo (C1), isotropia del gradiente. Worley: F1 è 1-Lipschitz (nessuna cella vicina dimenticata). |
 | `RayDifferentialAccuracyTests.cs` | Footprint delle texture: le derivate UV dalla proiezione sul piano tangente dei differenziali di camera contro la differenza finita ottenuta intersecando davvero i raggi ausiliari. Esatto sul piano; sulla sfera l'errore cala con il pixel (primo ordine). |
@@ -151,7 +152,7 @@ La tecnica usata in `BvhEquivalenceTests` è riusabile per qualsiasi ottimizzazi
 private static void AssertEquivalent(List<IHittable> primitives, IEnumerable<Ray> rays)
 {
     var reference = new HittableList(new List<IHittable>(primitives));
-    var optimized = new BvhNode(new List<IHittable>(primitives));
+    IHittable optimized = TriangleBvh.Accepts(primitives) ? new TriangleBvh(primitives) : new Bvh(primitives);
 
     foreach (var ray in rays)
     {
@@ -169,7 +170,7 @@ private static void AssertEquivalent(List<IHittable> primitives, IEnumerable<Ray
 
 Punti chiave:
 
-- **Copia della lista** passata ad entrambe le implementazioni: `new BvhNode` può mutare la lista in place durante la build (swap della partizione).
+- **Input intatto**: la build partiziona un array di indici suo, la lista passata non cambia (`Bvh_DoesNotModifyItsInput`).
 - **Tolleranza `1e-4`** su `rec.T`: float, reassociation, ordine di somma → micro-differenze inevitabili.
 - **RNG seeded**: test riproducibili. Se fallisce, il seed è nella stack trace → replay esatto.
 

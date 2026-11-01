@@ -48,10 +48,10 @@ For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.
 - 🎞️ **Colour Management** - selectable view transforms: **AgX** (default: bright saturated light rolls off to white as on film, without hue shifts), **ACES 1.x** (the reference RRT + ODT for sRGB displays), **standard** (sRGB curve, no tone mapping). Optional AgX looks, white balance by colour temperature, dithered 8-bit or 16-bit PNG output, and a Gaussian pixel reconstruction filter for clean anti-aliasing.
 - 🧹 **Denoisers** - clean up residual image grain using the colour, albedo and normal information of the scene: **Intel Open Image Denoise** (default of the draft, standard and pre-final presets, a neural network that removes several times more noise than the built-in filter and runs in a fraction of a second) and the built-in **NFOR** feature-guided filter, which needs no native library and keeps the original pixels where it cannot win.
 - 📤 **HDR & AOV Output (PFM/EXR)** - with `-o scene.exr` the main image is saved as a high-dynamic-range OpenEXR before tone mapping: no blown highlights, with exposure and colour grading adjustable in post without re-rendering. Auxiliary buffers requested with `--aov albedo,normal,depth,beauty,variance` land as layers in the same multilayer file, or as separate PFM/EXR files (`--aov-format`).
-- 🖼️ **Multi-Format Output** - PNG, JPEG, BMP (display, tone-mapped) and EXR (linear HDR) with automatic format detection from the file extension.
+- 🖼️ **Multi-Format Output** - PNG (8 or 16 bits, tagged sRGB), JPEG (quality 95, no chroma subsampling), BMP (display, tone-mapped) and EXR (linear HDR) with automatic format detection from the file extension, all written by the engine's own codecs.
 
 ### Acceleration
-- 📦 **BVH (Bounding Volume Hierarchy)** - spatial acceleration structure that scales rendering even to scenes with large geometry counts, drastically reducing per-ray work. Construction is parallelised on large scenes and activation is automatic based on scene complexity.
+- 📦 **BVH (Bounding Volume Hierarchy)** - spatial acceleration structure that scales rendering even to scenes with large geometry counts, drastically reducing per-ray work. Construction is parallelised on large scenes and activation is automatic based on scene complexity; the tree is a flat array traversed without recursion, and meshes get their own triangle BVH.
 
 ### Geometry
 - ⚪ **Sphere** - analytic sphere

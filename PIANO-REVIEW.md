@@ -41,7 +41,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 8b | Integratori bidirezionali: BDPT, poi VCM per le caustiche | ✅ Chiusa (2026-10-24), esito in §4 Fase 8b |
 | 9 | Post-processing e denoiser | ✅ Chiusa (2026-10-25), esito in §4 Fase 9 |
 | 10 | Formato scene v2 | ✅ Chiusa (2026-10-25), esito in §4 Fase 10 |
-| 11 | Architettura e performance | ⬜ |
+| 11 | Architettura e performance | ✅ Chiusa (2026-11-01), esito in §4 Fase 11 |
 
 Correzioni anticipate fuori ordine: 3.19, 3.20, 3.21 (più 3.24 e 3.25 emersi nel farle) ✅ 2026-10-20.
 
@@ -173,7 +173,7 @@ fase indicata.
 | 3.13 | ✅ **verificato, nessun bug** | `DisneyBsdf` + `Renderer` | `Sample()` restituisce per i lobi non-delta `Evaluate`/`Pdf` della miscela, quindi peso e MIS sono coerenti: il chi-quadro e il cross-check dell'albedo passano su tutti i lobi rough (Fase 0). |
 | 3.14 | ✅ **corretto** (2026-10-22, Fase 6), era **[NON-STANDARD]** | tutte le luci + `Emissive` | `intensity` senza unità: impossibile illuminare "come nella realtà" (sole 100.000 lux, lampadina 800 lm) e scambiare scene con altri motori. Nessuna temperatura colore, nessun IES. **Esito**: `power` (W a 683 lm/W o lm), `candela`, `luminance` (nit), `illuminance` (lux), `temperature` (corpo nero), `normalize`, `exposure` su ogni luce; `luminance` e `temperature` sull'`emissive`; profili IES LM-63 tipo C su point e spot. Scena in nit, colore ridotto a tinta. Verificato contro un calcolo a mano entro lo 0.1% (`scenes/review/light-units.yaml`) e dai test `PhysicalUnitsTests`, `IesProfileTests`. Cieli fisici in nit con `units: photometric`. |
 | 3.15 | **[DEBITO]** | `scenes/cornell-box.yaml` e altre | Commenti obsoleti: dicono che l'emissivo "non usa NEE", mentre oggi entra nel pool NEE come `GeometryLight`. |
-| 3.16 | ✅ **corretto** il loop (2026-10-24, Fase 7), resta **[DEBITO]** la dimensione dei file | `Rendering/Renderer.cs` (2314 righe), `Scene/SceneLoader.cs` (4368), `Materials/DisneyBsdf.cs` (2006) | `TraceRay` è ricorsivo, con molti casi speciali: ostacola path guiding, light path expressions, BDPT e il debug. Fase 7: `TracePath` iterativo in `Rendering/PathIntegrator.cs`; le dimensioni dei file sono della Fase 11. |
+| 3.16 | ✅ **corretto** il loop (2026-10-24, Fase 7) e la dimensione dei file (2026-11-01, Fase 11) | `Rendering/Renderer.cs` (2314 righe), `Scene/SceneLoader.cs` (4368), `Materials/DisneyBsdf.cs` (2006) | `TraceRay` è ricorsivo, con molti casi speciali: ostacola path guiding, light path expressions, BDPT e il debug. Fase 7: `TracePath` iterativo in `Rendering/PathIntegrator.cs`; le dimensioni dei file sono della Fase 11. Fase 11: `Renderer` in 6 file `partial` (639 righe il principale), `SceneData` in 8, `SceneLoader.Entities` in 3 (il più grande dei `SceneLoader.*` ora 799), `Program.Main` da 770 righe a 36 (passi in `Program.Settings`, `Program.Output`, `Program.Help`). |
 | 3.17 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** | `Materials/DisneyBsdf.cs` (sheen, clearcoat, trasmissione) | **Guadagno di energia** nel white furnace (albedo > 1 con materiale bianco): sheen fino a 1.38, clearcoat liscio 1.39 a incidenza radente, vetro liscio 1.015-1.13, vetro rough 1.03-1.12; diffuso Disney r=1 1.026 a incidenza radente (retro-riflessione di Burley, [NON-STANDARD]). Render: sfera di vetro Disney in furnace +3.1% (deve valere 1), sfera sheen +34% e clearcoat +5% rispetto al principled di Mitsuba. Gli strati vanno sommati con albedo-scaling che conserva l'energia (OpenPBR). Test `KnownBug_Disney_WhiteFurnaceAlbedoDoesNotExceedOne`. Fase 5. **Esito**: con la traduzione su OpenPBR gli strati si compongono con l'albedo-scaling: test `Disney_WhiteFurnaceAlbedoDoesNotExceedOne` riattivato (sheen, coat liscio, vetro liscio e ruvido, diffuso r 1), fornace della sfera di vetro Disney 1.00 (`Furnace_GlassSphereFromOutside_StaysLossless`). Il diffuso è Lambert: la retro-riflessione di Burley creava energia a incidenza radente. |
 | 3.18 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** piccolo | `Materials/DisneyBsdf.cs:783-870` | La `Pdf` riporta la densità VNDF anche sotto l'orizzonte (convenzione legittima, il campione viene scartato), ma lì il lobo `diff_trans` ha supporto: per le direzioni posteriori la pdf dichiarata supera quella reale e il peso sottostima l'energia di circa l'1%. Test `KnownBug_Disney_DiffTransSampleWeightIntegratesTheBsdf`. Fase 5. **Esito**: `diff_trans` è il subsurface thin-walled di OpenPBR, ogni lobo scarta le direzioni fuori dal suo supporto. Test `Disney_DiffTransSampleWeightIntegratesTheBsdf` riattivato. |
 | 3.19 | ✅ **corretto** (2026-10-20), era **[BUG]** grave | `Geometry/ShadowRay.cs` (`TransmittanceToPoint`), `Lights/AreaLight.cs`, `SphereLight.cs`, `GeometryLight.cs`, `Geometry/Sphere.cs` | Il raggio d'ombra partiva da `OffsetOrigin` (punto + 1e-4 lungo la normale) ma con la direzione calcolata dal punto non spostato: colpiva il **proxy emissivo della luce stessa**, e oltre ~52° dalla normale di una luce d'area non arrivava luce diretta (-12% nella scena `lights`, ellisse netta sul pavimento; taglio anche su emissivi e luci sferiche). Corretto con il "spawn ray to" di PBRT: entrambi gli estremi spostati lungo la propria normale, il raggio corre esattamente fra i due. Due cause di precisione emerse nel farlo, corrette insieme: campionamento conico delle sfere (luce sferica ed emissivi sferici) rifatto con la costruzione geometrica di PBRT-v4 e la forma per angoli piccoli (prima l'1-2% dei campioni mancava le sfere piccole o lontane, e sotto 1e-4 sr la pdf valeva 0 e spegneva la NEE delle sfere emissive); `Sphere.Hit` con discriminante robusto `r² - |l|²` e radici stabili (errore su t fino a 1.8e-2 a 200 unità, ora pochi ulp). Misura: `lights` da 0.975 a **1.0000**. Test `LightSelfShadowTests`, `SphereIntersectionPrecisionTests`. |
@@ -406,7 +406,7 @@ impostato sui thread del pool alla fine del render; ora ogni tile lo azzera come
 (era il problema più serio: peggio del caso su ogni decisione dopo la prima), gli offset sono
 indipendenti dalla scala, solver e basi sono a precisione di macchina. Restano alla Fase 4 il
 Perlin migliorato e i differenziali dopo i rimbalzi, alla Fase 5 `Refract`, alla Fase 11 il
-rendering relativo alla camera.
+rendering relativo alla camera (fatto: la stessa scena a 100 e 1000 km ora è identica al bit).
 
 ### Fase 2 - Geometria e intersezioni (`Geometry/`, `Acceleration/`)
 
@@ -1309,12 +1309,143 @@ revisione finale delle scene (§2.0) dopo la Fase 11.
 
 ### Fase 11 - Architettura e performance (dopo la correttezza)
 
-- [ ] Aggiornare `SixLabors.ImageSharp` (vulnerabilità note).
-- [ ] BVH appiattito con traversata a stack esplicito (già nelle idee), SAH a bin, valutare
-      **Embree** (Apache-2.0) per mesh grandi.
-- [ ] Precisione: float vs double nei solver e nelle scene molto grandi.
-- [ ] Rendering spettrale (roadmap #24): necessario per dispersione e per metalli/thin film
+- [x] Aggiornare `SixLabors.ImageSharp` (vulnerabilità note): tolto, codec propri.
+- [x] BVH appiattito con traversata a stack esplicito (già nelle idee), SAH a bin, valutare
+      **Embree** (Apache-2.0) per mesh grandi. Più gli spatial split rimandati dalla Fase 2.
+- [x] Precisione: float vs double nei solver e nelle scene molto grandi. Più il rendering
+      relativo alla camera rimandato dalla Fase 1.
+- [x] Rendering spettrale (roadmap #24): necessario per dispersione e per metalli/thin film
       davvero accurati; da decidere dopo la Fase 5 (impatta tutta l'API dei materiali).
+- [x] Dimensione dei file (3.16).
+
+#### Esito (2026-11-01)
+
+**ImageSharp, tolto.** La 3.1.12 ha sei advisory (quattro high). Ogni versione corretta (3.2.0,
+4.x) rifiuta la build Release senza una chiave di licenza Six Labors, che un repository pubblico
+non può contenere e che la CI dovrebbe avere come secret. Il motore legge e scrive da sé i suoi
+formati raster (`Imaging/`), come faceva già con EXR, HDR e PFM: PNG (ogni tipo di colore, da 1 a
+16 bit, Adam7, `tRNS`, CRC dei chunk critici; scrittura a 8/16 bit col filtro per riga a somma
+minima, chunk `sRGB` sull'output), JPEG (baseline, esteso e progressivo, restart, qualsiasi
+sottocampionamento, Adobe CMYK/YCCK; scrittura baseline qualità 95 4:4:4), BMP (v1-v5, palette,
+RLE, bit field), TGA. Verifica: 74 varianti generate da pypng, libjpeg (PIL) e ImageMagick;
+formati lossless identici, JPEG entro 3 livelli da libjpeg (altra IDCT; a 4:1:1 libjpeg replica
+i campioni, noi interpoliamo); encoder identici in rilettura (PNG a 16 bit controllato con
+ImageMagick). Render identici bit per bit all'output di ImageSharp (un primo scarto, fino a 69
+livelli, veniva dall'arrotondamento 8 bit → float: ora passa dalla scala a 16 bit come prima).
+GIF, TIFF e WebP non si leggono più (come Mitsuba e PBRT), con un messaggio che dice cosa usare;
+`EXT_texture_webp` di glTF usa la sua immagine PNG/JPEG di riserva. Test `ImageCodecTests`,
+fixture scritte da altri encoder (`TestImages/generate.py`).
+
+**BVH appiattito.** `BvhBuilder` (SAH a 16 bin, foglie fino a 4, fino a 8 quando lo split non
+conviene, profondità limitata a 64 così bastano 128 posti di stack, build parallela) scrive nodi
+da 32 byte con i figli a coppie; `Bvh` (qualsiasi `IHittable`) e `TriangleBvh` (vertici
+nell'ordine delle foglie, shear watertight una volta per raggio, record riempito una volta dal
+triangolo vincente: identico bit per bit) li attraversano senza ricorsione, stack in
+`stackalloc` con `[SkipLocalsInit]` (azzerarlo costava un quarto del raggio), figlio più vicino
+per primo. La CSG interroga i figli in modo pigro (stesse query nello stesso ordine: render
+identici). Misure (VM a 4 core, rumore fino a ±25% fra un run e l'altro: ripetute alternando):
+
+| Misura | Prima | Dopo |
+|---|---|---|
+| teiera isolata, 13k triangoli, raggi incoerenti | ~770 ns/raggio | ~520 ns/raggio |
+| render 480×270 16 spp: teiera, suddivisione | 3.31 s, 3.29 s | 3.02 s, 2.81 s |
+| tempio, showcase | 10.32 s, 17.84 s | 9.60 s, 17.11 s |
+| chess, cornell, heightfield | 4.22, 1.77, 5.94 s | invariati |
+
+Il guadagno sui render è piccolo perché l'intersezione è una parte minore del tempo: misurata
+avvolgendo il mondo in un contatore, il 14-27% della CPU (cornell e showcase 14%, teiera 27%),
+salvo `tempio-romano` (60%: 36 colonne istanziate con estrusioni e CSG, 1.1 µs a chiamata). Il
+resto è shading, campionamento delle luci e texture.
+
+**Spatial split (SBVH), valutati e non adottati.** Builder di Stich et al. 2009 (taglio dei
+triangoli per piano, budget di duplicati del 30%, soglia di sovrapposizione 1e-5) con hit
+identici su sei insiemi: costo SAH da −1% (teiera) a −10% (zuppa di triangoli), 0% su sfera,
+toro e strisce diagonali; velocità entro il rumore; build da 6 a 20 volte più lenta; albero
+dipendente dai tempi dei thread (budget condiviso). Il builder è nel commit 6b92667, tolto nel
+successivo.
+
+**Embree, valutato e non adottato per ora.** Con TinyEmbree 1.2.0 (Embree 4, raggio singolo via
+P/Invoke) sugli stessi raggi: teiera 4.45 contro 1.54 Mray/s (×2.9), sfera di 960 triangoli
+×2.8, zuppa di 50k triangoli ×3.3, nessun disaccordo sulle distanze. Ma con l'intersezione al
+14-27% del tempo il guadagno sul render sarebbe al più del 9-18%, al prezzo di 17 MB di librerie
+native per piattaforma, un secondo percorso numerico per i soli triangoli (non primitive
+analitiche, CSG, istanze né motion blur nel wrapper). Da riprendere quando lo shading sarà più
+veloce o per scene da milioni di triangoli (binding proprio, BVH a 4-8 figli e raggi a pacchetti).
+
+**Precisione.** Verificato: i solver di quartica, cubica e quadratica e Sturm lavorano in double,
+il toro anche; le quadriche in float con formule stabili (Fasi 1-2), i triangoli watertight con
+ripiego in double sulle funzioni di spigolo nulle; offset dei raggi relativi (2^-15 della
+coordinata) con un minimo proporzionale al raggio della scena. Restava il limite misurato nella
+Fase 1, la precisione float delle coordinate stesse lontano dall'origine. Il double ovunque è
+scartato: raddoppia la memoria di vertici e BVH e dimezza la larghezza SIMD, quando il problema
+è solo la precisione locale vicino alla camera.
+
+**Rendering relativo alla camera.** La scena si costruisce in uno spazio di render, il mondo
+traslato di −posizione della camera (lo spazio "camera-world" dei motori di produzione;
+`SceneLoader.RenderSpace.cs`). Le posizioni del formato sono `List<double>` e diventano float in
+un solo punto per entità (`Pos()`), dopo la traslazione: un'entità con un transform (o `motion`,
+un'`instance`, un `box`) tiene le sue coordinate e ha spostata la traslazione (calcolata in
+double); un'entità senza transform ha spostate le sue coordinate (centro, angolo, vertici,
+limiti, i vertici di un file modello in double). Camera, luci e mezzi nello stesso spazio. Non
+cambia nulla che dipenda dal posto: le texture leggono il punto dello spazio originale (le
+primitive analitiche hanno già un punto locale relativo; per mesh e triangoli
+`Mesh.LocalPointOffset`, per i campioni NEE degli emissivi `GeometryLight.TextureOffset`,
+`CoordinateTexture.WorldOffset`), nebbia d'altezza, atmosfera di Nishita e mezzi procedurali
+leggono quota e posizione originali, l'heightfield procedurale campiona il rumore nel punto
+originale, la suddivisione adattiva misura nello spazio originale. L'avviso sulle scene lontane
+non serve più. Misura (scena d'angolo della Fase 1 spostata, 48×48, 64 spp, rapporto con la
+stessa scena nell'origine):
+
+| Distanza | Prima | Dopo |
+|---|---|---|
+| 10 km | 1.0114 (relMSE 8.9e-3) | **1.0000**, identica al bit |
+| 100 km | 0.839 (relMSE 0.105) | **1.0000**, identica al bit |
+| 1000 km | 0.637 (relMSE 0.272) | **1.0000**, identica al bit |
+
+Test `RenderSpaceTests` (scena a 131 km con mesh, mesh locale, nebbia d'altezza e camera
+spostata: rapporto entro 1e-3, relMSE < 1e-4; posizioni lette in double; punto delle texture
+invariato). Le 111 scene del repo, prima e dopo (64×36, 8 spp): tutte renderizzano, differenze
+sparse (cammini che divergono per un arrotondamento) da 15 a 10^4 volte sotto il rumore fra due
+seed, rapporti medi entro lo 0.5% dove quelli fra due seed arrivano al 10%. Resta float un'entità
+posta da un transform le cui coordinate locali sono a loro volta enormi (non realistico), come i
+vertici dei file modello letti in float dai loader. Emerso nel farlo (PLANNING): gli emissivi
+leggono la texture di emissione al punto del mondo per la NEE e al punto locale per i raggi
+BSDF; le primitive analitiche (punto locale relativo al centro) ne danno due valori diversi.
+Comportamento conservato com'era, da unificare.
+
+**Rendering spettrale: deciso, in una fase dedicata dopo la 11.** Oggi il thin film è già
+spettrale nella sostanza (Belcour-Barla proietta in forma chiusa l'integrale sulle lunghezze
+d'onda), i metalli usano le riduzioni RGB dei dati spettrali di Mitsuba (identici alla sua
+variante RGB), la dispersione manca. Un motore premium la richiede, e la sola via corretta è lo
+spettrale: un'approssimazione RGB della dispersione sposta i colori e il bianco. Progetto:
+- **Hero wavelength** (Wilkie et al. 2014): quattro lunghezze d'onda per cammino, campionate con
+  la densità del visibile, `SampledSpectrum` (4 float, SIMD) al posto di `Vector3` per throughput,
+  BSDF, luci e mezzi; a una rifrazione dispersiva le secondarie terminano.
+- **Colori e texture RGB** sollevati a spettri con le tabelle sigmoid-polinomiali di Jakob e
+  Hanika 2019 (albedo limitata, illuminanti, valori non limitati), generate da uno script in
+  `validation/` come le altre tabelle.
+- **Luci**: temperatura come corpo nero, RGB come illuminante del working space (D65), cieli
+  spettrali (Hosek-Wilkie e Preetham lo sono in origine). **Metalli**: n, k spettrali misurati.
+  **Dielettrici**: dispersione dal numero di Abbe (una chiave nuova del formato 2).
+  **Film**: XYZ con le CIE 1931, poi Rec.709 prima della view transform (il denoiser e gli AOV
+  restano RGB).
+- **Validazione** con le varianti `*_spectral` di Mitsuba 3; costo atteso +10-30% per campione.
+Una fase a sé perché tocca l'API di tutti i materiali, delle luci e dei mezzi: non è un passo di
+architettura ma un cambio del modello del colore, da validare per intero contro Mitsuba.
+
+**Dimensione dei file (3.16).** Sul codice della Fase 10 (che aveva già diviso `SceneLoader` in
+8 parti): `Renderer.cs` (1591 righe) in 6 file `partial` (639 il principale; NEE, pesi MIS,
+cattura, clamp, normal e bump map), `SceneData.cs` (1309) in 8 per sezione,
+`SceneLoader.Entities.cs` (1240) in 3 (mesh, transform), `Program.cs` (1219) in 4 con
+`Program.Main` da 770 righe a 36: lettura delle impostazioni (`RunSettings`, un metodo per
+gruppo di flag), stampa, render e salvataggio in passi separati. Spostamenti meccanici, output
+della CLI identico su 39 righe di comando di prova, suite verde.
+
+**Verdetto**: architettura **tenere**, BVH **rifatto** (piatto, iterativo, mesh dedicate),
+I/O delle immagini **rifatto** (codec propri, nessuna dipendenza vulnerabile o a licenza),
+precisione **rifatta** (rendering relativo alla camera, posizioni in double). Spettrale deciso
+con un progetto, in una fase dedicata. Le prestazioni dello shading (73-86% del tempo) sono il
+prossimo margine: `HitRecord` più snello, copie dei record, profilo per scena (PLANNING).
 
 ---
 
@@ -1348,7 +1479,7 @@ Basato sulla sezione 3, aggiornato con le misure delle Fasi 0, 1 e 3: da conferm
 |---|---|---|
 | Core math, noise, solver | **tenere** (Fase 1) | verificati e corretti (offset, basi, AABB, cubica); resta il Perlin (Fase 4) |
 | Sampler | **rifatto** (Fase 1) | Sobol "padded" con dimensioni per vertice: stratificato in 2D su ogni decisione |
-| Geometria e BVH | tenere / correggere | ampia e testata; triangolo watertight |
+| Geometria e BVH | **tenere** (Fase 2), BVH **rifatto** (Fase 11) | ampia e testata; triangolo watertight; BVH piatto e iterativo, mesh con BVH dedicato; rendering relativo alla camera |
 | Camera | **tenere** (Fase 3) | modello verificato; aggiunte camera fisica, bokeh a lamelle e anamorfico, filtro di ricostruzione |
 | Tone mapping e colore | **rifatto** (Fase 3) | AgX, ACES 1.x verificato con OpenColorIO, sRGB esatto, bilanciamento del bianco; resta l'esposizione fisica (Fase 6) |
 | Texture | correggere | `color_space`, sRGB esatto, MikkTSpace |
@@ -1359,6 +1490,8 @@ Basato sulla sezione 3, aggiornato con le misure delle Fasi 0, 1 e 3: da conferm
 | Volumi e SSS | verificare | da confrontare con Mitsuba prima di giudicare |
 | Denoiser | **fatto** (Fase 9): OIDN di default + NFOR | OIDN nei preset (errore da 1.2 a 90 volte più basso di NFOR); NFOR resta come ripiego senza librerie native, con la varianza corretta |
 | Formato scene | evolvere a v2 | semantica (unità, colore, render) più che sintassi |
+| I/O immagini | **rifatto** (Fase 11) | codec propri PNG/JPEG/BMP/TGA, ImageSharp tolto |
+| Colore spettrale | **deciso** (Fase 11) | hero wavelength e sollevamento RGB → spettro, fase dedicata dopo la 11 |
 
 ## 7. Ordine di lavoro consigliato
 
@@ -1370,7 +1503,8 @@ Basato sulla sezione 3, aggiornato con le misure delle Fasi 0, 1 e 3: da conferm
    dove serve.
 6. Fase 10 (formato v2) quando materiali, luci e camera nuovi sono stabili, così il formato
    descrive il motore definitivo e le scene si adeguano una volta sola.
-7. Fase 11.
+7. Fase 11 (chiusa il 2026-11-01).
+7b. Rendering spettrale (deciso nella Fase 11), fase dedicata.
 8. **Revisione delle scene** (§2.0), alla fine: ogni scena del repo (`scenes/`, `showcases/`,
    `presets/`, i tutorial) si confronta con il motore definitivo. Si corregge dove usa chiavi,
    materiali, proprietà o oggetti cambiati; si riscrive se non regge più; altrimenti si sposta in

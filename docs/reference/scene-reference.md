@@ -56,6 +56,7 @@ it:
 
 **Conventions:**
 - **Coordinates**: right-handed, **Y** up (as Mitsuba, glTF and OBJ). A camera at −Z looking at +Z sees +X on its left.
+- **Positions** (`position`, `look_at`, `center`, `translate`, `corner`, vertices, bounds...) are lists of three numbers, read in double precision. The engine renders in a space centred on the camera, so a scene far from the origin (a terrain kilometres away, a city in real coordinates) keeps full precision where the camera looks: no need to move it near the origin.
 - **Lengths** in scene units (`units.length` metres each); **angles** in degrees.
 - **Colours** `[R, G, B]` are linear Rec.709; `"#rrggbb"` is an sRGB colour, decoded to linear (`"#808080"` = 0.2158). Any colour may also be one grey number.
 - **Light** is in photometric units: radiance in nits (cd/m²). Without an exposure 1 nit is the linear value 1 the view transform receives; the camera's `ev100` exposes like a real camera.

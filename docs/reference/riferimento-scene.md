@@ -57,6 +57,7 @@ indica:
 
 **Convenzioni:**
 - **Coordinate**: destrorse, **Y** in alto (come Mitsuba, glTF e OBJ). Una camera in −Z che guarda verso +Z vede +X alla sua sinistra.
+- **Posizioni** (`position`, `look_at`, `center`, `translate`, `corner`, vertici, limiti...) sono liste di tre numeri, lette in doppia precisione. Il motore renderizza in uno spazio centrato sulla camera, quindi una scena lontana dall'origine (un terreno a chilometri, una città in coordinate reali) conserva la precisione piena dove guarda la camera: non serve spostarla vicino all'origine.
 - **Lunghezze** in unità di scena (`units.length` metri ciascuna); **angoli** in gradi.
 - **Colori** `[R, G, B]` sono Rec.709 lineari; `"#rrggbb"` è un colore sRGB, decodificato in lineare (`"#808080"` = 0.2158). Ogni colore può essere anche un solo numero di grigio.
 - **La luce** è in unità fotometriche: radianza in nit (cd/m²). Senza esposizione 1 nit è il valore lineare 1 che riceve la trasformazione di visualizzazione; l'`ev100` della camera espone come una camera reale.
