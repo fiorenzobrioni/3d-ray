@@ -1014,6 +1014,13 @@ public sealed class OpenPbr : IMaterial
 
     // ── IMaterial: emission and guides ──────────────────────────────────────
 
+    /// <inheritdoc/>
+    public bool MayEmit => !(Parameters.EmissionLuminance.IsConstant && Parameters.EmissionLuminance.ConstantValue <= 0f)
+                           && !(Parameters.GeometryOpacity.IsConstant && Parameters.GeometryOpacity.ConstantValue <= 0f);
+
+    /// <inheritdoc/>
+    public bool EmitsFromBack => MayEmit && Parameters.ThinWalled;
+
     public Vector3 Emit(float u, float v, Vector3 point, int objectSeed, bool frontFace)
     {
         var p = Parameters;

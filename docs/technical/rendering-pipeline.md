@@ -72,7 +72,7 @@ Il loader deserializza il file YAML in strutture dati intermedie (`SceneData`, `
 La scena si costruisce in uno **spazio di render**: il mondo traslato di −posizione della camera (`SceneLoader.RenderSpace.cs`). L'errore float di un punto d'intersezione è proporzionale alle sue coordinate, e con lui gli offset dei raggi (`MathUtils.OffsetOrigin`): con la camera nell'origine la geometria che vede ha coordinate piccole e precisione piena, comunque lontana dall'origine del mondo sia la scena.
 
 - Le posizioni (`List<double>` nelle classi del formato) si leggono in double e si traslano prima di diventare float, **in un solo punto per entità** (`Pos()`): un'entità con un transform (o `motion`, un'`instance`, un `box`) tiene le sue coordinate e ha la traslazione spostata (`BuildPlaced`, `ComputeTransformMatrix(e, shift)`); un'entità senza transform ha spostate le sue coordinate (centro, angolo, vertici, limiti, i vertici di un file modello). Lo stesso vale per i figli di un gruppo o di una CSG senza transform.
-- Non cambia nulla che dipenda dal posto: una texture legge il punto dello spazio originale (`Mesh.LocalPointOffset` per mesh e triangoli, `GeometryLight.TextureOffset` per i campioni della NEE, `CoordinateTexture.WorldOffset`), nebbia d'altezza, atmosfera e mezzi procedurali leggono quota e posizione originali, la suddivisione adattiva misura nello spazio originale.
+- Non cambia nulla che dipenda dal posto: una texture legge il punto dello spazio originale (`Mesh.LocalPointOffset` per mesh e triangoli, che vale anche per i campioni della NEE perché leggono la texture al punto locale di un hit (`ISamplable.LocalPointAt`), `CoordinateTexture.WorldOffset`), nebbia d'altezza, atmosfera e mezzi procedurali leggono quota e posizione originali, la suddivisione adattiva misura nello spazio originale.
 - Camera, luci e mezzi sono nello stesso spazio; `SceneLoader.LastRenderOrigin` dà l'origine dell'ultima scena caricata sul thread (un punto del mondo p è p − origine nella scena costruita), per i test che sondano il mondo caricato.
 - Limite: un'entità posta da un transform le cui coordinate locali sono a loro volta enormi resta in float, come i vertici dei file modello letti in float.
 
@@ -122,7 +122,7 @@ Le entità `type: "instance"` vengono costruite da `CreateInstanceEntity()`:
 
 Le luci esplicite dal YAML vengono create tramite `CreateLight()`. Poi due passaggi automatici:
 
-1. **`ExtractGeometryLights()`** — scansiona tutte le geometrie cercando primitive `ISamplable` con materiale `Emissive`. Per ognuna crea un `GeometryLight` e lo aggiunge alla lista luci. La scansione avviene tramite `ExtractGeometryLightsRecursive()`, che naviga l'albero della scena gestendo tre casi:
+1. **`ExtractGeometryLights()`**: scansiona tutte le geometrie cercando primitive `ISamplable` il cui materiale può emettere (`IMaterial.MayEmit`: `Emissive`, `OpenPbr` con emissione, un `MixMaterial` con un lato che emette). Per ognuna crea un `GeometryLight` con il materiale della superficie e lo aggiunge alla lista luci. Un campione della luce valuta lo stesso `Emit` di un raggio BSDF che colpisce quel punto: alle UV del campione, al punto locale che un hit lì riporta (`ISamplable.LocalPointAt`), con il seme dell'entità e la faccia vista (entrambe per un emettitore thin-walled, `IMaterial.EmitsFromBack`); altrimenti le due strategie MIS stimerebbero integrandi diversi. La scansione avviene tramite `ExtractGeometryLightsRecursive()`, che naviga l'albero della scena gestendo tre casi:
    - **Group nudo**: itera i figli ricorsivamente.
    - **Transform wrapping Group**: compone e propaga la matrice del Transform esterno su ogni figlio emissivo per garantirne il posizionamento in world space.
    - **Tutto il resto**: delega a `ResolveEmissiveSamplable()`. I singoli `Transform` sono gestiti come `ISamplable` (delegano a `Sample()` sulla primitiva interna correggendo l'area con il Jacobian e convertendo in world space).
@@ -178,7 +178,7 @@ Formula per tipo di luce (tutti i risultati sono moltiplicati per `Luminance(Col
 | `SpotLight` | `I · (Ω_core + Ω_fall/3)` | `Ω_core = 2π(1−cosInner)`, `Ω_fall = 2π(cosInner−cosOuter)` |
 | `AreaLight` | `π · I · A` | Emettitore lambertiano, `A = |U × V|` |
 | `SphereLight` | `4π · I` | Intensità radiante (W/sr) integrata su 4π |
-| `GeometryLight` | `π · emission · A` | Lambertiano dal materiale `Emissive`, area dal Sample() |
+| `GeometryLight` | `π · emission · A` (per faccia che emette) | Lambertiano, `Emit` del materiale al centro, area da `SurfaceArea` |
 | `EnvironmentLight` | `π · L̄_sky · π · R²` | Irradianza emisferica × sezione scena |
 
 > **Nota per futuri sviluppatori:** quando si aggiunge un nuovo tipo di luce, il suo `ApproximatePower` deve rispettare questi tre invarianti. Usare `PointLight` (caso finito) o `DirectionalLight` (caso infinito con `sceneBounds`) come modelli di riferimento.
@@ -550,7 +550,7 @@ Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math
 - Portati da vertice a vertice in `PathState.PrevPdf` / `PathState.PrevIsDelta`.
 - Camera ray → `prevIsDelta = true`, emissione sempre mostrata.
 - Bounce delta (specchio, vetro liscio, lobi lisci di OpenPbr) → `prevIsDelta = true`, emissione mostrata.
-- Sample non-delta → `prevIsDelta = false`, `prevBsdfPdf = pdf dal BsdfSample`, emissione dei `Emissive` registrati e cielo campionato dalla NEE pesati con l'euristica MIS al prossimo hit; gli altri emettitori passano integri.
+- Sample non-delta → `prevIsDelta = false`, `prevBsdfPdf = pdf dal BsdfSample`, emissione delle superfici registrate come luci e cielo campionato dalla NEE pesati con l'euristica MIS al prossimo hit; gli altri emettitori passano integri.
 - Evento di scattering in un mezzo → `prevIsDelta = false`, `prevBsdfPdf = pdf della phase function`.
 
 ---

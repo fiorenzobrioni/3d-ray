@@ -153,6 +153,12 @@ public sealed class MixMaterial : IMaterial
     /// between emissive and non-emissive regions (e.g. lava cooling to rock,
     /// neon tube with partial damage).
     /// </summary>
+    /// <inheritdoc/>
+    public bool MayEmit => MaterialA.MayEmit || MaterialB.MayEmit;
+
+    /// <inheritdoc/>
+    public bool EmitsFromBack => MaterialA.EmitsFromBack || MaterialB.EmitsFromBack;
+
     public Vector3 Emit(float u, float v, Vector3 point, int objectSeed, bool frontFace)
     {
         float t = EvaluateBlendFactor(u, v, point, objectSeed);

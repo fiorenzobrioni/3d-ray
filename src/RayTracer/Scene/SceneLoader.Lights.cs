@@ -90,8 +90,7 @@ public partial class SceneLoader
             // ── Leaf primitive: try to register it
             default:
             {
-                if (!TryGetSamplableEmissive(obj, out ISamplable? samplable, out Emissive? emissive,
-                                             out IMaterial? surfaceMaterial))
+                if (!TryGetSamplableEmitter(obj, out ISamplable? samplable, out IMaterial? material))
                     return;
 
                 // Wrap in a Transform only when there is an accumulated outer transform.
@@ -101,111 +100,55 @@ public partial class SceneLoader
                     ? new Transform(obj, outerMatrix)
                     : samplable;
 
-                lights.Add(new GeometryLight(finalSamplable, emissive, shadowSamples,
-                                             surfaceMaterial: surfaceMaterial)
-                {
-                    // Emission textures read where the sample stands in the world.
-                    TextureOffset = _renderOrigin.ToVector3(),
-                });
+                // The light evaluates the material's own Emit at the texture point
+                // its hits report (ISamplable.LocalPointAt): the same emission as
+                // a BSDF ray that hits the surface.
+                lights.Add(new GeometryLight(finalSamplable, material, shadowSamples));
                 break;
             }
         }
     }
 
     /// <summary>
-    /// Returns <c>true</c> and sets the ISamplable / Emissive pair when
-    /// <paramref name="obj"/> is a primitive with either:
-    ///   • a direct <see cref="Emissive"/> material, or
-    ///   • a <see cref="MixMaterial"/> whose blend contains an Emissive component.
-    ///
-    /// For the Mix case the returned Emissive is a wrapper whose average emission
-    /// is the blend of the two sub-materials' emissions — matching what
-    /// <see cref="MixMaterial.Emit"/> returns. This lets NEE fire on surfaces such
-    /// as "cooling lava" (Emissive + Lambertian) or "partial neon" (Emissive + Metal).
+    /// The material of a leaf primitive's surface, or null for anything else
+    /// (groups, transforms and CSG are walked by the callers).
     /// </summary>
-    private static bool TryGetSamplableEmissive(
-        IHittable obj,
-        [NotNullWhen(true)] out ISamplable? samplable,
-        [NotNullWhen(true)] out Emissive? material,
-        out IMaterial? surfaceMaterial)
+    private static IMaterial? SurfaceMaterialOf(IHittable obj) => obj switch
     {
-        samplable = null;
-        material = null;
-        surfaceMaterial = null;
-
-        if (obj is not ISamplable s)
-            return false;
-
-        IMaterial? mat = obj switch
-        {
-            Sphere         sp => sp.Material,
-            Quad           q  => q.Material,
-            Triangle       tr => tr.Material,
-            SmoothTriangle st => st.Material,
-            Disk           d  => d.Material,
-            Box            b  => b.Material,
-            Cylinder       cy => cy.Material,
-            Cone           co => co.Material,
-            Torus          to => to.Material,
-            Capsule        ca => ca.Material,
-            Annulus        an => an.Material,
-            Mesh           ms => ms.Material,
-            _ => null
-        };
-
-        surfaceMaterial = mat;
-        switch (mat)
-        {
-            // Proxy emissives back a sphere/area light's visible primitive —
-            // they're already registered as the parent ILight in the renderer's
-            // emitter map, so registering them again as a GeometryLight would
-            // double-count NEE on those surfaces.
-            case Emissive { IsLightProxy: true }:
-                return false;
-
-            case Emissive em:
-                samplable = s;
-                material = em;
-                return true;
-
-            case MixMaterial mix when ExtractMixEmissive(mix) is Emissive mixEm:
-                samplable = s;
-                material = mixEm;
-                return true;
-
-            default:
-                return false;
-        }
-    }
+        Sphere         sp => sp.Material,
+        Quad           q  => q.Material,
+        Triangle       tr => tr.Material,
+        SmoothTriangle st => st.Material,
+        Disk           d  => d.Material,
+        Box            b  => b.Material,
+        Cylinder       cy => cy.Material,
+        Cone           co => co.Material,
+        Torus          to => to.Material,
+        Capsule        ca => ca.Material,
+        Annulus        an => an.Material,
+        Mesh           ms => ms.Material,
+        Lathe          la => la.Material,
+        Extrusion      ex => ex.Material,
+        _ => null
+    };
 
     /// <summary>
-    /// Produces a synthetic <see cref="Emissive"/> representing the effective
-    /// emission of a MixMaterial. For a Mix(A, B) the emission is
-    /// <c>lerp(A.Emit, B.Emit, t)</c> where t is the blend factor. We cannot
-    /// evaluate t analytically without UV/world coords, so we use the documented
-    /// neutral mid-value (t = 0.5) of the blend texture and the center-texel
-    /// approximation for the two sub-emissives.
-    /// Returns null when the mix contains no emissive sub-material.
+    /// A samplable leaf whose material may emit (<see cref="IMaterial.MayEmit"/>:
+    /// an emissive, an OpenPBR material with emission, also from a glTF or MTL
+    /// file, a mix with an emitting side) becomes a light for next-event
+    /// estimation. Proxy emissives back a sphere/area light's visible primitive:
+    /// they are already the parent light in the renderer's emitter map, and a
+    /// second registration would double-count NEE on those surfaces.
     /// </summary>
-    private static Emissive? ExtractMixEmissive(MixMaterial mix)
+    private static bool TryGetSamplableEmitter(
+        IHittable obj,
+        [NotNullWhen(true)] out ISamplable? samplable,
+        [NotNullWhen(true)] out IMaterial? material)
     {
-        Emissive? a = mix.MaterialA as Emissive;
-        Emissive? b = mix.MaterialB as Emissive;
-        if (a is null && b is null) return null;
-
-        // Representative emission of each sub-material at the centre texel.
-        Vector3 ea = a is not null ? a.EmissionAt(0.5f, 0.5f, Vector3.Zero) : Vector3.Zero;
-        Vector3 eb = b is not null ? b.EmissionAt(0.5f, 0.5f, Vector3.Zero) : Vector3.Zero;
-
-        // Blend factor neutral assumption: t = 0.5.
-        Vector3 blended = 0.5f * (ea + eb);
-        float maxC = MathF.Max(blended.X, MathF.Max(blended.Y, blended.Z));
-        if (maxC <= 1e-6f) return null;
-
-        // Encode as (colour, intensity) with intensity = max channel luminance,
-        // matching the SolidColor(colour) × intensity representation of Emissive.
-        Vector3 normalised = blended / maxC;
-        return new Emissive(normalised, maxC);
+        samplable = obj as ISamplable;
+        material = SurfaceMaterialOf(obj);
+        return samplable != null && material != null && material.MayEmit
+               && material is not Emissive { IsLightProxy: true };
     }
 
     /// <summary>
@@ -238,19 +181,7 @@ public partial class SceneLoader
             VisibilityFilteredHittable v => ContainsEmissive(v.Inner),
             AnimatedTransform at => ContainsEmissive(at.Inner),
             Group g          => g.Children.Any(ContainsEmissive),
-            Sphere s         => s.Material is Emissive,
-            Quad q           => q.Material is Emissive,
-            Triangle tr      => tr.Material is Emissive,
-            SmoothTriangle st=> st.Material is Emissive,
-            Disk d           => d.Material is Emissive,
-            Box b            => b.Material is Emissive,
-            Cylinder cy      => cy.Material is Emissive,
-            Cone co          => co.Material is Emissive,
-            Torus to         => to.Material is Emissive,
-            Capsule ca       => ca.Material is Emissive,
-            Annulus an       => an.Material is Emissive,
-            Mesh ms          => ms.Material is Emissive,
-            _ => false
+            _ => SurfaceMaterialOf(obj)?.MayEmit == true
         };
     }
 

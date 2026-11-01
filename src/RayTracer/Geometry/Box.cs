@@ -138,6 +138,9 @@ public class Box : IHittable, ISamplable
     // Transform wrapper's Jacobian — see Transform.SurfaceArea.
     public float SurfaceArea => 6f;
 
+    /// <inheritdoc/>
+    public Vector3 LocalPointAt(Vector3 point) => point;
+
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         int face = (int)(MathUtils.RandomFloat() * 6f);

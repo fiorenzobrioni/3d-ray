@@ -154,6 +154,9 @@ public class Cylinder : IHittable, ISamplable
     // a uniform point is sampled on that part.
     // ═════════════════════════════════════════════════════════════════════════
 
+    /// <inheritdoc/>
+    public Vector3 LocalPointAt(Vector3 point) => point - Center;
+
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         float part = MathUtils.RandomFloat();

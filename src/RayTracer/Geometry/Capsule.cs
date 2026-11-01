@@ -224,6 +224,9 @@ public class Capsule : IHittable, ISamplable
     // The two hemispheres together form one complete sphere.
     // ═════════════════════════════════════════════════════════════════════════
 
+    /// <inheritdoc/>
+    public Vector3 LocalPointAt(Vector3 point) => point - Center;
+
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         float part = MathUtils.RandomFloat();

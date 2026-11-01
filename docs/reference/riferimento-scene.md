@@ -808,7 +808,7 @@ Il modello, lobo per lobo:
 - **Coat**: una lacca chiara o tinta di `coat_ior` sopra tutto il resto. `coat_color` è la tinta a incidenza normale e si scurisce verso il radente; `coat_darkening` 1 mantiene lo scurimento fisico dovuto alle riflessioni interne, 0 lo toglie. Un coat ruvido rende ruvida anche la base.
 - **Fuzz**: la lucentezza di fibre o polvere in superficie (velluto, buccia di pesca), tinta da `fuzz_color`.
 - **Thin film**: interferenza iridescente sul riflesso della base (bolle di sapone, olio, metallo anodizzato).
-- **Emissione**: radianza `emission_color × emission_luminance`, sotto il coat; non campionata come luce (usa `emissive` per le sorgenti di luce).
+- **Emissione**: radianza `emission_color × emission_luminance`, sotto il coat. Una superficie con emissione è anche una luce per il campionamento della luce diretta, come una `emissive` (da entrambe le facce con `geometry_thin_walled`), così un emettitore OpenPBR, anche letto da un file glTF o MTL, illumina la scena senza rumore in più.
 - **Thin-walled**: un foglio senza interno (foglie, carta, finestre). La trasmissione è una lastra di vetro; il subsurface diventa riflessione e trasmissione diffuse ripartite da `subsurface_scatter_anisotropy`.
 
 Note:

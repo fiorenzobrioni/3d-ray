@@ -134,7 +134,7 @@ All procedural textures support **offset**, **rotation** and **per-object random
 - 🔦 **Spot Light** - spotlight with inner/outer cone and smooth falloff.
 - 🟧 **Area Light** - rectangular emitter with physically correct soft shadows, sampled uniformly in the solid angle it subtends: little noise even right next to the light.
 - 🟡 **Sphere Light** - spherical light with solid-angle sampling: uniform circular penumbra and zero wasted samples. Ideal for bulbs, lanterns and luminous globes.
-- ✨ **Emissive Objects** - any geometry with an `emissive` material becomes a visible light source with natural indirect illumination.
+- ✨ **Emissive Objects** - any geometry whose material emits (`emissive`, OpenPBR emission, also from glTF/MTL files, or a mix of them) becomes a visible light source, sampled for direct light like the explicit lights, with natural indirect illumination.
 - 🌐 **Environment Light** - all sky types (flat, gradient, physical, HDRI) participate in direct light sampling; the analytic sun is decoupled from the sky body and combinable with any sky type.
 - 🌳 **Many Lights** - with many lights a light BVH sends each sample to the lights that matter for that point (near and facing it), so a street of lamps or a room full of fixtures converges as fast as a scene with a few lights. Every light-selection strategy is unbiased.
 

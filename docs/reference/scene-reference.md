@@ -789,7 +789,7 @@ The model, lobe by lobe:
 - **Coat**: a clear or tinted lacquer of `coat_ior` over everything below. `coat_color` is the tint at normal incidence and darkens towards grazing; `coat_darkening` 1 keeps the physical darkening from internal reflections, 0 removes it. A rough coat also roughens the base.
 - **Fuzz**: the sheen of fibres or dust on top (velvet, peach skin), tinted by `fuzz_color`.
 - **Thin film**: iridescent interference on the base reflection (soap bubbles, oil, anodised metal).
-- **Emission**: radiance `emission_color × emission_luminance`, under the coat; not sampled as a light (use `emissive` for light sources).
+- **Emission**: radiance `emission_color × emission_luminance`, under the coat. A surface with emission is also a light for direct-light sampling, like an `emissive` one (from both faces when `geometry_thin_walled`), so an OpenPBR emitter, also one read from a glTF or MTL file, lights the scene without extra noise.
 - **Thin-walled**: a sheet with no interior (leaves, paper, windows). Transmission is a sheet of glass; subsurface becomes diffuse reflection and transmission split by `subsurface_scatter_anisotropy`.
 
 Notes:
