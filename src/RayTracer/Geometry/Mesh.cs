@@ -10,7 +10,7 @@ namespace RayTracer.Geometry;
 /// A triangle mesh with an internal BVH for O(log N) ray intersection.
 ///
 /// The mesh owns a list of <see cref="SmoothTriangle"/> (or flat <see cref="Triangle"/>)
-/// and wraps them in a <see cref="BvhNode"/> built at construction time.
+/// and indexes them with a <see cref="TriangleBvh"/> built at construction time.
 /// From the outside it behaves like a single <see cref="IHittable"/> — the scene's
 /// top-level BVH sees it as one leaf node with a single AABB, and the internal
 /// BVH handles efficient traversal of the mesh's faces.
@@ -64,6 +64,14 @@ public class Mesh : IHittable, ISamplable
     public IBumpMap? AutoBump { get; set; }
 
     /// <summary>
+    /// Added to the local point of a hit. A triangle's local point is its
+    /// point (the mesh's own coordinates); a mesh whose vertices the loader
+    /// moved into the render space (camera at the origin, PIANO-REVIEW.md
+    /// Phase 11) adds the move back, so its textures stay where they were.
+    /// </summary>
+    public Vector3 LocalPointOffset { get; set; }
+
+    /// <summary>
     /// Constructs a Mesh from a list of triangles and builds the internal BVH.
     /// </summary>
     /// <param name="triangles">The triangles (SmoothTriangle or Triangle) forming the mesh.</param>
@@ -83,20 +91,18 @@ public class Mesh : IHittable, ISamplable
         FaceCount = triangles.Count;
         VertexCount = vertexCount;
 
-        // Build internal BVH. When the caller asks for leaf-AABB inflation
-        // (scalar displacement's safety margin) we wrap each triangle in a
-        // BoundsInflatedHittable so the BVH builder sees the padded box.
-        var bvhInput = leafBoundsInflation > 0f
-            ? WrapInflated(triangles, leafBoundsInflation)
-            : new List<IHittable>(triangles);
-
-        // BVH threshold = 4, matching Group and SceneLoader (CLAUDE.md invariant).
-        // Below that a BvhNode's root fat-leaf would hold every triangle anyway,
-        // so a flat HittableList is cheaper and has identical behaviour.
+        // Internal BVH over the triangles' vertices (flat, Phase 11). The
+        // scalar-displacement safety margin grows every triangle's box.
+        // BVH threshold = 4, matching Group and SceneLoader (CLAUDE.md
+        // invariant): below that a flat list is as cheap.
         const int BvhThreshold = 4;
-        _bvh = triangles.Count > BvhThreshold
-            ? new BvhNode(bvhInput)
-            : new HittableList(bvhInput);
+        if (triangles.Count > BvhThreshold && TriangleBvh.Accepts(triangles))
+            _bvh = new TriangleBvh(triangles, leafBoundsInflation);
+        else if (triangles.Count > BvhThreshold)
+            _bvh = new Bvh(leafBoundsInflation > 0f ? WrapInflated(triangles, leafBoundsInflation) : triangles);
+        else
+            _bvh = new HittableList(leafBoundsInflation > 0f ? WrapInflated(triangles, leafBoundsInflation)
+                                                             : new List<IHittable>(triangles));
 
         // Precompute cumulative area distribution for ISamplable
         _cumulativeAreas = new float[triangles.Count];
@@ -113,9 +119,11 @@ public class Mesh : IHittable, ISamplable
     public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         bool hit = _bvh.Hit(ray, tMin, tMax, ref rec);
-        if (hit && AutoBump != null)
+        if (!hit) return false;
+        if (AutoBump != null)
             rec.AutoBump = AutoBump;
-        return hit;
+        rec.LocalPoint += LocalPointOffset;
+        return true;
     }
 
     /// <inheritdoc/>

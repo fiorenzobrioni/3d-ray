@@ -172,7 +172,7 @@ time onto the ray, so a static camera stays bit-identical.
 | Shutter settings struct | `Rendering/MotionBlurSettings.cs` |
 | Time draw + propagation | `Rendering/Renderer.cs` |
 | Time-aware shadow tests | `Lights/*.cs`, `Geometry/ShadowRay.cs` |
-| YAML schema + keyframe build | `Scene/SceneData.cs`, `Scene/SceneLoader.cs` |
+| YAML schema + keyframe build | `Scene/SceneData.Entities.cs`, `Scene/SceneLoader.Transforms.cs` |
 | Shared time of the bidirectional subpaths | `Rendering/Bidirectional/VertexConnectionMerging.cs` (`PathTime`) |
 | Tests | `RayTracer.Tests/AnimatedTransformTests.cs`, `MotionBlurTests.cs` |
 

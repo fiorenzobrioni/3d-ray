@@ -5,8 +5,6 @@
 //  parziali di campi d'altezza complessi (fBM, Voronoi, ecc.).
 // ═══════════════════════════════════════════════════════════════════════════
 
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using Tools;
 
 string outputDir = "scenes/assets/textures";
@@ -77,7 +75,7 @@ static void GenerateBrickWallNormal(string path)
     const int brickW = 128, brickH = 64;
     const int mortarThick = 6;
 
-    using var img = new Image<Rgba32>(w, h);
+    using var img = new Rgba8Image(w, h);
 
     Func<float, float, float> heightMap = (x, y) =>
     {
@@ -145,7 +143,7 @@ static void GenerateWoodFloorNormal(string path, bool dark)
         plankStagger[i] = rng.Next(0, plankH);
     }
 
-    using var img = new Image<Rgba32>(w, h);
+    using var img = new Rgba8Image(w, h);
 
     Func<float, float, float> heightMap = (x, y) =>
     {
@@ -208,7 +206,7 @@ static void GenerateWoodFloorNormal(string path, bool dark)
 static void GenerateConcreteNormal(string path)
 {
     const int w = 1024, h = 1024;
-    using var img = new Image<Rgba32>(w, h);
+    using var img = new Rgba8Image(w, h);
 
     Func<float, float, float> heightMap = (x, y) =>
     {
@@ -239,7 +237,7 @@ static void GenerateConcreteNormal(string path)
 static void GenerateMetalScratchedNormal(string path)
 {
     const int w = 1024, h = 1024;
-    using var img = new Image<Rgba32>(w, h);
+    using var img = new Rgba8Image(w, h);
 
     var rng = new Random(42);
     var scratches = new List<(float x, float y, float dx, float dy, float len, float depth, float w)>();
@@ -290,7 +288,7 @@ static void GenerateMetalScratchedNormal(string path)
 static void GenerateStoneCobbleNormal(string path)
 {
     const int w = 1024, h = 1024;
-    using var img = new Image<Rgba32>(w, h);
+    using var img = new Rgba8Image(w, h);
 
     Func<float, float, float> heightMap = (x, y) =>
     {
@@ -330,7 +328,7 @@ static void GenerateFabricWeaveNormal(string path)
     const int w = 1024, h = 1024;
     const int weaveSize = 32;
 
-    using var img = new Image<Rgba32>(w, h);
+    using var img = new Rgba8Image(w, h);
 
     Func<float, float, float> heightMap = (x, y) =>
     {
@@ -380,7 +378,7 @@ static void GenerateTilesNormal(string path)
     const int w = 1024, h = 1024;
     const int tileSize = 128, groutW = 6, bevelPx = 8;
 
-    using var img = new Image<Rgba32>(w, h);
+    using var img = new Rgba8Image(w, h);
 
     Func<float, float, float> heightMap = (x, y) =>
     {
@@ -425,7 +423,7 @@ static void GenerateTilesNormal(string path)
 static void GenerateFlatNormal(string path)
 {
     const int w = 1024, h = 1024;
-    using var img = new Image<Rgba32>(w, h);
+    using var img = new Rgba8Image(w, h);
     var flat = new Rgba32(128, 128, 255);
 
     for (int y = 0; y < h; y++)

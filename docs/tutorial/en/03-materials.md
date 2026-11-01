@@ -1453,7 +1453,7 @@ using the object's UV coordinates.
 | `path`     | `string`   | --         | Relative path to image file     |
 | `uv_scale` | `[U, V]`  | `[1, 1]`  | Tile the texture (2.0 = repeat twice) |
 
-Supported formats: PNG, JPEG, BMP, GIF, TIFF, WebP.
+Supported formats: PNG (up to 16 bits per channel), JPEG, BMP, TGA, plus Radiance HDR and OpenEXR.
 
 The path is resolved relative to the scene file's directory. If your scene
 is at `scenes/my-scene.yaml` and the texture is at

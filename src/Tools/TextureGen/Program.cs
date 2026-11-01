@@ -4,8 +4,6 @@
 //  Genera texture fotorealistiche 1024x1024 PBR (Albedo, Roughness, AO, Metallic).
 // ═══════════════════════════════════════════════════════════════════════════
 
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using Tools;
 
 string outputDir = "scenes/assets/textures";
@@ -60,9 +58,9 @@ static void GenerateBrickWall(string dir, string name, bool white)
     const int brickW = 128, brickH = 64;
     const int mortarThick = 6;
 
-    using var imgAlbedo = new Image<Rgba32>(w, h);
-    using var imgRoughness = new Image<Rgba32>(w, h);
-    using var imgAO = new Image<Rgba32>(w, h);
+    using var imgAlbedo = new Rgba8Image(w, h);
+    using var imgRoughness = new Rgba8Image(w, h);
+    using var imgAO = new Rgba8Image(w, h);
 
     var mortarColor = white ? new Rgba32(200, 198, 195) : new Rgba32(180, 175, 165);
 
@@ -162,9 +160,9 @@ static void GenerateWoodFloor(string dir, string name, bool dark)
     const int gapW = 4, gapH = 4;
     int bevel = dark ? 6 : 12;
 
-    using var imgAlbedo = new Image<Rgba32>(w, h);
-    using var imgRoughness = new Image<Rgba32>(w, h);
-    using var imgAO = new Image<Rgba32>(w, h);
+    using var imgAlbedo = new Rgba8Image(w, h);
+    using var imgRoughness = new Rgba8Image(w, h);
+    using var imgAO = new Rgba8Image(w, h);
 
     var rng = new Random(dark ? 42 : 137);
 
@@ -285,9 +283,9 @@ static void GenerateWoodFloor(string dir, string name, bool dark)
 static void GenerateConcrete(string dir, string name)
 {
     const int w = 1024, h = 1024;
-    using var imgAlbedo = new Image<Rgba32>(w, h);
-    using var imgRoughness = new Image<Rgba32>(w, h);
-    using var imgAO = new Image<Rgba32>(w, h);
+    using var imgAlbedo = new Rgba8Image(w, h);
+    using var imgRoughness = new Rgba8Image(w, h);
+    using var imgAO = new Rgba8Image(w, h);
 
     for (int y = 0; y < h; y++)
     {
@@ -334,9 +332,9 @@ static void GenerateConcrete(string dir, string name)
 static void GenerateMetalScratched(string dir, string name)
 {
     const int w = 1024, h = 1024;
-    using var imgAlbedo = new Image<Rgba32>(w, h);
-    using var imgRoughness = new Image<Rgba32>(w, h);
-    using var imgMetallic = new Image<Rgba32>(w, h);
+    using var imgAlbedo = new Rgba8Image(w, h);
+    using var imgRoughness = new Rgba8Image(w, h);
+    using var imgMetallic = new Rgba8Image(w, h);
 
     // Genera graffi lineari matematici ma con fBM path
     var rng = new Random(42);
@@ -402,8 +400,8 @@ static void GenerateMetalScratched(string dir, string name)
 static void GenerateEarthMap(string path)
 {
     const int w = 2048, h = 1024;
-    using var imgAlbedo = new Image<Rgba32>(w, h);
-    using var imgRoughness = new Image<Rgba32>(w, h);
+    using var imgAlbedo = new Rgba8Image(w, h);
+    using var imgRoughness = new Rgba8Image(w, h);
 
     for (int y = 0; y < h; y++)
     {
@@ -466,7 +464,7 @@ static void GenerateCheckerboard(string path)
 {
     const int w = 1024, h = 1024;
     const int cellSize = 128;
-    using var img = new Image<Rgba32>(w, h);
+    using var img = new Rgba8Image(w, h);
 
     for (int y = 0; y < h; y++)
     {
@@ -487,7 +485,7 @@ static void GenerateUVGrid(string path)
 {
     const int w = 1024, h = 1024;
     const int gridSpacing = 64;
-    using var img = new Image<Rgba32>(w, h);
+    using var img = new Rgba8Image(w, h);
 
     for (int y = 0; y < h; y++)
     {
@@ -520,7 +518,7 @@ static void GenerateUVGrid(string path)
 static void GenerateLogo(string path)
 {
     const int w = 1024, h = 768;
-    using var img = new Image<Rgba32>(w, h);
+    using var img = new Rgba8Image(w, h);
 
     string[][] font = [
         [ ".###.", "....#", "....#", "..##.", "....#", "....#", ".###." ], // 3

@@ -6,8 +6,7 @@ using RayTracer.Materials;
 using RayTracer.Rendering;
 using RayTracer.Scene;
 using RayTracer.Textures;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using RayTracer.Imaging;
 using Xunit;
 
 namespace RayTracer.Tests.Validation;
@@ -21,18 +20,26 @@ namespace RayTracer.Tests.Validation;
 [Collection("SceneLoader")]
 public class TextureDataTests
 {
-    private static string TempPng<TPixel>(TPixel pixel) where TPixel : unmanaged, IPixel<TPixel>
+    // A 4×4 RGBA PNG of one colour, at 8 or 16 bits.
+    private static string TempPng(int bitDepth, int r, int g, int b, int a)
     {
         string path = Path.Combine(Path.GetTempPath(), $"3dray-tex-{Guid.NewGuid():N}.png");
-        using var img = new Image<TPixel>(4, 4, pixel);
-        img.SaveAsPng(path);
+        var img = new RasterImage(4, 4, 4, bitDepth);
+        for (int i = 0; i < 16; i++)
+        {
+            img.Samples[4 * i] = (ushort)r;
+            img.Samples[4 * i + 1] = (ushort)g;
+            img.Samples[4 * i + 2] = (ushort)b;
+            img.Samples[4 * i + 3] = (ushort)a;
+        }
+        Png.Save(path, img);
         return path;
     }
 
     [Fact]
     public void EightBitColour_IsDecodedFromSrgb_DataIsNot()
     {
-        string path = TempPng(new Rgba32(128, 64, 10, 255));
+        string path = TempPng(8, 128, 64, 10, 255);
         try
         {
             var srgb = new ImageTexture(path, colorSpace: TextureColorSpace.Srgb).Value(0.5f, 0.5f, Vector3.Zero, 0);
@@ -49,7 +56,7 @@ public class TextureDataTests
     public void SixteenBitData_KeepsItsPrecision()
     {
         // 30001 / 65535: an 8-bit read would land on 117 / 255, 4e-4 away.
-        string path = TempPng(new Rgba64(30001, 30001, 30001, 65535));
+        string path = TempPng(16, 30001, 30001, 30001, 65535);
         try
         {
             var v = new ImageTexture(path, colorSpace: TextureColorSpace.Linear).Value(0.5f, 0.5f, Vector3.Zero, 0);
@@ -191,16 +198,16 @@ public class TextureDataTests
         string path = Path.Combine(Path.GetTempPath(), $"3dray-tex-{Guid.NewGuid():N}.png");
         var rng = new Random(w * 31 + h);
         double sum = 0;
-        using (var img = new Image<Rgba64>(w, h))
         {
+            var img = new RasterImage(w, h, 1, 16);
             for (int y = 0; y < h; y++)
                 for (int x = 0; x < w; x++)
                 {
                     ushort g = (ushort)rng.Next(65536);
-                    img[x, y] = new Rgba64(g, g, g, 65535);
+                    img[x, y, 0] = g;
                     sum += g / 65535.0;
                 }
-            img.SaveAsPng(path);
+            Png.Save(path, img);
         }
         try
         {
@@ -221,12 +228,12 @@ public class TextureDataTests
         // Measuring u in units of the long side saw 64 texels across u and
         // blurred the columns to grey.
         string path = Path.Combine(Path.GetTempPath(), $"3dray-tex-{Guid.NewGuid():N}.png");
-        using (var img = new Image<Rgba64>(4, 256))
         {
+            var img = new RasterImage(4, 256, 1, 16);
             for (int y = 0; y < 256; y++)
                 for (int x = 0; x < 4; x++)
-                    img[x, y] = x % 2 == 1 ? new Rgba64(65535, 65535, 65535, 65535) : new Rgba64(0, 0, 0, 65535);
-            img.SaveAsPng(path);
+                    img[x, y, 0] = (ushort)(x % 2 == 1 ? 65535 : 0);
+            Png.Save(path, img);
         }
         try
         {
@@ -270,7 +277,7 @@ cameras:
     [Fact]
     public void Loader_ReadsColourAsSrgb_AndDataAsRaw_UnlessTold()
     {
-        string img = TempPng(new Rgba32(128, 128, 128, 255));
+        string img = TempPng(8, 128, 128, 128, 255);
         try
         {
             var rec = new HitRecord { U = 0.5f, V = 0.5f };

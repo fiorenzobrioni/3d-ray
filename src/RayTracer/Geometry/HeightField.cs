@@ -122,13 +122,18 @@ public sealed class HeightField : IHittable
     /// a <c>resolution × resolution</c> grid using the texture's RGB
     /// luminance as the height. Used for procedural-mode heightfields where
     /// the YAML supplies a noise definition rather than a baked PNG.
+    /// <paramref name="sampleOffsetX"/>/<paramref name="sampleOffsetZ"/> are
+    /// added to the grid's coordinates where the texture is read: a terrain
+    /// built in the render space (PIANO-REVIEW.md Phase 11) reads the texture
+    /// where it stands in the world.
     /// </summary>
     public static HeightField FromProceduralTexture(
         float xMin, float zMin, float xMax, float zMax,
         ITexture heightTexture, int resolution,
         float heightScale, IMaterial material,
         float? seaLevel = null, IMaterial? seaMaterial = null,
-        IReadOnlyList<StratumBand>? strata = null)
+        IReadOnlyList<StratumBand>? strata = null,
+        float sampleOffsetX = 0f, float sampleOffsetZ = 0f)
     {
         if (resolution < 4) resolution = 4;
         int n = resolution + 1;
@@ -143,7 +148,7 @@ public sealed class HeightField : IHittable
             {
                 float x = xMin + i * dx;
                 float u = (float)i / resolution;
-                var c = heightTexture.Value(u, v, new Vector3(x, 0f, z), 0);
+                var c = heightTexture.Value(u, v, new Vector3(x + sampleOffsetX, 0f, z + sampleOffsetZ), 0);
                 // Luminance — same coefficients used elsewhere in the engine
                 // for greyscale collapse (Rec.709).
                 float h = 0.2126f * c.X + 0.7152f * c.Y + 0.0722f * c.Z;

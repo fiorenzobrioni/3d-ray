@@ -101,6 +101,13 @@ public sealed class CoordinateTexture : ITexture
     /// </summary>
     public Vector3 BoundsMax { get; set; } = new( 1f,  1f,  1f);
 
+    /// <summary>
+    /// Added to the hit point in World mode: a scene built in the render
+    /// space (camera at the origin, PIANO-REVIEW.md Phase 11) shows the world
+    /// coordinates as written.
+    /// </summary>
+    public Vector3 WorldOffset { get; set; }
+
     public Vector3 Value(float u, float v, Vector3 p, int objectSeed)
     {
         // Called via the legacy 4-arg path (e.g. from Emissive.Emit or any
@@ -154,7 +161,7 @@ public sealed class CoordinateTexture : ITexture
 
             case CoordMode.World:
             {
-                Vector3 world = rec.Point * Scale;
+                Vector3 world = (rec.Point + WorldOffset) * Scale;
                 // Debug coordinate display: explicitly never seeded.
                 world = TextureTransform.ApplyManual(world, Offset, Rotation);
                 return Fract(world);

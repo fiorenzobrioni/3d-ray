@@ -102,7 +102,11 @@ public partial class SceneLoader
                     : samplable;
 
                 lights.Add(new GeometryLight(finalSamplable, emissive, shadowSamples,
-                                             surfaceMaterial: surfaceMaterial));
+                                             surfaceMaterial: surfaceMaterial)
+                {
+                    // Emission textures read where the sample stands in the world.
+                    TextureOffset = _renderOrigin.ToVector3(),
+                });
                 break;
             }
         }
@@ -261,7 +265,7 @@ public partial class SceneLoader
             {
                 var ies = LoadIes(l, sceneDir);
                 var (c, i) = LightEmission(l, color, EmissionKind.Intensity, 0f, ies);
-                return new PointLight(ToVector3(l.Position) ?? new Vector3(0, 10, 0), c, i, l.SoftRadius,
+                return new PointLight(Pos(l.Position, new Vector3(0, 10, 0)), c, i, l.SoftRadius,
                                       ies, ToVector3(l.Direction));
             }
             case "directional":
@@ -276,7 +280,7 @@ public partial class SceneLoader
                 var ies = LoadIes(l, sceneDir);
                 var (c, i) = LightEmission(l, color, EmissionKind.Intensity, 0f, ies);
                 return new SpotLight(
-                    ToVector3(l.Position)  ?? new Vector3(0, 10, 0),
+                    Pos(l.Position, new Vector3(0, 10, 0)),
                     ToVector3(l.Direction) ?? new Vector3(0, -1, 0),
                     c, i, l.InnerAngle, l.OuterAngle, l.SoftRadius,
                     shadowSamplesOverride ?? l.ShadowSamples, ies);
@@ -382,7 +386,7 @@ public partial class SceneLoader
     private static PortalLight? CreatePortalLight(LightData l, int? shadowSamplesOverride,
                                                     SkySettings sky)
     {
-        var anchor = ToVector3(l.Corner);
+        var anchor = Pos(l.Corner);
         var u      = ToVector3(l.U);
         var v      = ToVector3(l.V);
 
@@ -409,7 +413,7 @@ public partial class SceneLoader
                                                int? shadowSamplesOverride,
                                                List<IHittable> objects)
     {
-        var corner = ToVector3(l.Corner);
+        var corner = Pos(l.Corner);
         var u      = ToVector3(l.U);
         var v      = ToVector3(l.V);
 
@@ -449,12 +453,12 @@ public partial class SceneLoader
                                                    int? shadowSamplesOverride,
                                                    List<IHittable> objects)
     {
-        var position = ToVector3(l.Position);
+        var position = Pos(l.Position);
 
         if (position == null)
         {
             Warn("Sphere light requires 'position'. Using default [0, 10, 0].");
-            position = new Vector3(0, 10, 0);
+            position = Pos(null, new Vector3(0, 10, 0));
         }
 
         if (l.Radius <= 0f)

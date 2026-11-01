@@ -5,8 +5,7 @@ using RayTracer.Geometry;
 using RayTracer.Geometry.Subdivision;
 using RayTracer.Materials;
 using RayTracer.Scene;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using RayTracer.Imaging;
 using Xunit;
 
 namespace RayTracer.Tests.Validation;
@@ -256,11 +255,12 @@ public sealed class MeshImportTests : IDisposable
     {
         // A 2×2 image: left column red, right column green; alpha 0 on the
         // bottom row (in the image, row 1).
-        using var image = new Image<Rgba32>(2, 2);
-        image[0, 0] = new Rgba32(255, 0, 0, 255); image[1, 0] = new Rgba32(0, 255, 0, 255);
-        image[0, 1] = new Rgba32(255, 0, 0, 0);   image[1, 1] = new Rgba32(0, 255, 0, 0);
+        var image = new RasterImage(2, 2, 4, 8);
+        ushort[] texels = [255, 0, 0, 255,  0, 255, 0, 255,
+                           255, 0, 0, 0,    0, 255, 0, 0];
+        texels.CopyTo(image.Samples, 0);
         var png = new MemoryStream();
-        image.SaveAsPng(png);
+        Png.Encode(png, image);
         string uri = "data:image/png;base64," + Convert.ToBase64String(png.ToArray());
         // The transform swaps left and right: u' = 1 - u... as offset 0.5 on a 2-texel image.
         string material = "{\"pbrMetallicRoughness\":{\"baseColorTexture\":{\"index\":0,\"extensions\":{\"KHR_texture_transform\":{\"offset\":[0.5,0]}}}},\"alphaMode\":\"MASK\"}";

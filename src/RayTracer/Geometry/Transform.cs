@@ -51,7 +51,7 @@ public class Transform : IHittable, ISamplable
     // Cached world-space AABB. Computed once at construction since both the
     // wrapped object's bbox and the matrix are immutable. Avoids the 8-corner
     // re-projection on every BVH build/sort comparison (called O(N log N) times
-    // by BvhNode for Transform-wrapped primitives).
+    // by the BVH builder for Transform-wrapped primitives).
     private readonly AABB _worldBox;
 
     // Scale component of the transform (object-space → world-unit), applied to

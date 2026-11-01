@@ -1351,7 +1351,7 @@ Le texture immagine caricano un'immagine da un file e la avvolgono sulla superfi
 | `path`     | `string`   | --          | Percorso relativo del file immagine            |
 | `uv_scale` | `[U, V]`   | `[1, 1]`    | Ripetizione della texture (2.0 = ripete due volte) |
 
-Formati supportati: PNG, JPEG, BMP, GIF, TIFF, WebP.
+Formati supportati: PNG (fino a 16 bit per canale), JPEG, BMP, TGA, più Radiance HDR e OpenEXR.
 
 Il percorso viene risolto rispetto alla directory del file di scena. Se la scena si trova in `scenes/my-scene.yaml` e la texture è in `scenes/textures/brick.png`, usare `path: "textures/brick.png"`.
 

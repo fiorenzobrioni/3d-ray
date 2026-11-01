@@ -100,7 +100,7 @@ public class Group : IHittable
         var rootObjects = new List<IHittable>();
 
         if (finiteObjects.Count > BvhThreshold)
-            rootObjects.Add(new BvhNode(finiteObjects));
+            rootObjects.Add(new Bvh(finiteObjects));
         else
             rootObjects.AddRange(finiteObjects);
 

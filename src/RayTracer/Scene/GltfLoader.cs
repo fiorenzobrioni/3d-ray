@@ -28,7 +28,7 @@ namespace RayTracer.Scene;
 /// BLEND (stochastic opacity), and the extensions KHR_materials_emissive_strength,
 /// _ior, _transmission, _volume (else transmission is thin-walled, as glTF
 /// defines it), _clearcoat, _sheen, _specular, _iridescence, _anisotropy,
-/// _unlit, KHR_texture_transform and EXT_texture_webp. Occlusion maps are
+/// _unlit and KHR_texture_transform (EXT_texture_webp through its PNG/JPEG fallback). Occlusion maps are
 /// ignored: the path tracer computes occlusion.</para>
 /// </summary>
 public static class GltfLoader
@@ -388,11 +388,15 @@ public static class GltfLoader
         {
             if (!owner.TryGetProperty(property, out var info)) return null;
             var texture = _root.GetProperty("textures")[info.GetProperty("index").GetInt32()];
+            // The plain source (PNG or JPEG): EXT_texture_webp keeps it as the
+            // fallback, and WebP itself is not read.
             int source = -1;
             if (texture.TryGetProperty("source", out var src)) source = src.GetInt32();
-            if (texture.TryGetProperty("extensions", out var ext) && ext.TryGetProperty("EXT_texture_webp", out var webp))
-                source = webp.GetProperty("source").GetInt32();
-            if (source < 0) { Warn("glTF texture without a readable source (KTX2/Basis is not supported)."); return null; }
+            if (source < 0)
+            {
+                Warn("glTF texture without a PNG or JPEG source (WebP and KTX2/Basis are not supported).");
+                return null;
+            }
             if (info.TryGetProperty("texCoord", out var tc) && tc.GetInt32() != 0)
                 Warn("glTF textures on TEXCOORD_1 or above use TEXCOORD_0.");
             ITexture? image = Image(source, cs, ch);

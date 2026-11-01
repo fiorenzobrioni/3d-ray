@@ -13,7 +13,7 @@ namespace RayTracer.Tests.Validation;
 /// Quality of the BVH build (PIANO-REVIEW.md Phase 2): the SAH cost of the
 /// binned build against the cost of a top-down build that tries every
 /// object split on every axis (a full sweep: the best a top-down object-split
-/// build can do, at O(N log² N)). Speed is Phase 11's.
+/// build can do, at O(N log² N)). Speed: Phase 11 (flat BVH).
 /// </summary>
 public class BvhQualityTests
 {
@@ -77,7 +77,8 @@ public class BvhQualityTests
     public void BinnedSah_IsCloseToAFullSweep(string name)
     {
         var prims = Set(name);
-        double binned = new BvhNode(new List<IHittable>(prims)).SahCost();
+        IHittable built = TriangleBvh.Accepts(prims) ? new TriangleBvh(prims) : new Bvh(prims);
+        double binned = built is TriangleBvh t ? t.SahCost() : ((Bvh)built).SahCost();
         var boxes = prims.Select(p => p.BoundingBox()).ToArray();
         AABB root = boxes.Aggregate(AABB.SurroundingBox);
         double sweep = SweepCost(boxes, root.SurfaceArea());
@@ -85,13 +86,14 @@ public class BvhQualityTests
         Assert.True(binned < 1.10 * sweep);
     }
 
-    // Top-down full-sweep SAH, leaves of up to 4 primitives (as the BVH).
+    // Top-down full-sweep SAH with the builder's leaf rule: always a leaf up
+    // to MaxLeafSize primitives, a leaf up to MaxSahLeafSize when cheaper.
     private static double SweepCost(AABB[] boxes, double rootArea)
     {
         AABB box = boxes.Aggregate(AABB.SurroundingBox);
         double p = box.SurfaceArea() / rootArea;
         int n = boxes.Length;
-        if (n <= BvhNode.MaxPrimitivesPerLeaf) return p * n;
+        if (n <= BvhBuilder.MaxLeafSize) return p * n;
 
         double best = double.MaxValue;
         AABB[]? bestLeft = null, bestRight = null;
@@ -110,6 +112,7 @@ public class BvhQualityTests
                 if (cost < best) { best = cost; bestLeft = sorted[..i]; bestRight = sorted[i..]; }
             }
         }
+        if (n <= BvhBuilder.MaxSahLeafSize && best >= n) return p * n;
         return p * TraversalCost + SweepCost(bestLeft!, rootArea) + SweepCost(bestRight!, rootArea);
     }
 

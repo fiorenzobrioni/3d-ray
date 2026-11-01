@@ -3,8 +3,7 @@ using System.Numerics;
 using RayTracer.Core;
 using RayTracer.Materials;
 using RayTracer.Textures;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using RayTracer.Imaging;
 
 namespace RayTracer.Scene;
 
@@ -190,8 +189,7 @@ public static class MtlLoader
     {
         try
         {
-            var info = Image.Identify(path);
-            return info.PixelType.AlphaRepresentation is { } a && a != PixelAlphaRepresentation.None;
+            return ImageFile.Identify(path).HasAlpha;
         }
         catch { return false; }
     }

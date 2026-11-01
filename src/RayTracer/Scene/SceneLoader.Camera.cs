@@ -102,7 +102,7 @@ public partial class SceneLoader
         return list[0];
     }
 
-    private static string FormatVec(List<float>? v) =>
+    private static string FormatVec(List<double>? v) =>
         v is { Count: >= 3 } ? $"[{v[0]:F2}, {v[1]:F2}, {v[2]:F2}]" : "(default)";
 
     // =========================================================================
@@ -214,7 +214,7 @@ public partial class SceneLoader
     /// </summary>
     public static float ComputeFocusDistance(
         Vector3 camPos, Vector3 lookAt,
-        List<float>? focalPos, float fallbackFocalDist)
+        List<double>? focalPos, float fallbackFocalDist, Double3 shift = default)
     {
         if (focalPos == null) return fallbackFocalDist;
 
@@ -235,7 +235,8 @@ public partial class SceneLoader
         }
         forward /= forwardLen;
 
-        var F = new Vector3(focalPos[0], focalPos[1], focalPos[2]);
+        // The point in the space of camPos (the render space: shifted).
+        var F = (new Double3(focalPos[0], focalPos[1], focalPos[2]) - shift).ToVector3();
         float projected = Vector3.Dot(F - camPos, forward);
         if (projected <= 1e-4f)
         {
@@ -278,8 +279,8 @@ public partial class SceneLoader
             }
             byTime[t] = new Camera.CameraKey(
                 t,
-                ToVector3(k.Position) ?? basePos,
-                ToVector3(k.LookAt) ?? baseLookAt,
+                Pos(k.Position) ?? basePos,
+                Pos(k.LookAt) ?? baseLookAt,
                 ToVector3(k.Up) ?? baseVup,
                 k.Fov ?? camData.Fov);
         }

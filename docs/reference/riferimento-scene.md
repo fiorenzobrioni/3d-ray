@@ -57,6 +57,7 @@ indica:
 
 **Convenzioni:**
 - **Coordinate**: destrorse, **Y** in alto (come Mitsuba, glTF e OBJ). Una camera in −Z che guarda verso +Z vede +X alla sua sinistra.
+- **Posizioni** (`position`, `look_at`, `center`, `translate`, `corner`, vertici, limiti...) sono liste di tre numeri, lette in doppia precisione. Il motore renderizza in uno spazio centrato sulla camera, quindi una scena lontana dall'origine (un terreno a chilometri, una città in coordinate reali) conserva la precisione piena dove guarda la camera: non serve spostarla vicino all'origine.
 - **Lunghezze** in unità di scena (`units.length` metri ciascuna); **angoli** in gradi.
 - **Colori** `[R, G, B]` sono Rec.709 lineari; `"#rrggbb"` è un colore sRGB, decodificato in lineare (`"#808080"` = 0.2158). Ogni colore può essere anche un solo numero di grigio.
 - **La luce** è in unità fotometriche: radianza in nit (cd/m²). Senza esposizione 1 nit è il valore lineare 1 che riceve la trasformazione di visualizzazione; l'`ev100` della camera espone come una camera reale.
@@ -1762,8 +1763,10 @@ color:
   uv_scale: [2, 1]                        # Fattore di piastrellatura (tiling)
   color_space: "srgb"                     # Opzionale: srgb | linear | raw
 ```
-- Supporta: PNG, JPEG, BMP, GIF, TIFF, WebP (8 o 16 bit per canale, letti a
-  piena precisione), più Radiance `.hdr` e OpenEXR `.exr` (sempre lineari)
+- Supporta: PNG (da 1 a 16 bit per canale, letti a piena precisione), JPEG
+  (baseline e progressivo), BMP, TGA, più Radiance `.hdr` e OpenEXR `.exr`
+  (sempre lineari). GIF, TIFF e WebP non sono letti: vanno convertiti (un PNG
+  a 16 bit per le mappe dati, EXR per i valori in virgola mobile)
 - `color_space` dice come leggere i valori salvati. Default per ruolo: una texture
   che dà un **colore** (`color`, `base_color`, `transmission_color`, ...) viene
   decodificata da sRGB; una texture che dà un **dato** (roughness, metallic, pesi,
@@ -2211,8 +2214,8 @@ Vedi `docs/technical/motion-blur.md` per l'algoritmo, e le scene
     stocastica), normal map ed emissione, e `KHR_materials_emissive_strength`,
     `_ior`, `_transmission`, `_volume` (senza, la trasmissione è a parete
     sottile), `_clearcoat`, `_sheen`, `_specular`, `_iridescence`,
-    `_anisotropy`, `_unlit`, `KHR_texture_transform`, `EXT_texture_webp`.
-    Non letti: punti e linee, skin e morph target (posa di riposo), colori
+    `_anisotropy`, `_unlit`, `KHR_texture_transform`, `EXT_texture_webp`
+    (attraverso l'immagine PNG o JPEG di riserva). Non letti: immagini WebP, punti e linee, skin e morph target (posa di riposo), colori
     per vertice, compressione Draco e meshopt, texture KTX2, mappe di
     occlusione.
   - **PLY** (ASCII, binario little e big endian): posizioni, normali
@@ -3001,7 +3004,7 @@ entities:
   - `11-lathe-surface-of-revolution.md` - Lathe / superficie di rivoluzione
   - `12-extrusion-2d-profiles.md` - Estrusione lineare di profili 2D
 **Codice Sorgente (Parsing Scene):**
-- `/src/RayTracer/Scene/SceneData.cs` - il formato: ogni chiave, il suo tipo e il suo default
+- `/src/RayTracer/Scene/SceneData*.cs` - il formato (un file per sezione): ogni chiave, il suo tipo e il suo default
 - `/src/RayTracer/Scene/SceneValidator.cs` - la validazione rigorosa (errori e avvisi con riga e colonna)
 - `/src/RayTracer/Scene/SceneLoader*.cs` - costruzione della scena
 - `/src/RayTracer/Materials/` - Implementazioni dei materiali

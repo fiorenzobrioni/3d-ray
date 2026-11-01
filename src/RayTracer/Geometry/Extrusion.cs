@@ -63,7 +63,7 @@ public enum ExtrusionCaps
 /// (smooth-shaded for curved profiles, flat for linear), and the caps are
 /// produced by ear-clipping the polygon — this handles concave shapes
 /// (gears, stars, letters) without manual decomposition. Every triangle goes
-/// into a single internal <see cref="BvhNode"/>, exactly as <see cref="Mesh"/>
+/// into a single internal <see cref="TriangleBvh"/>, exactly as <see cref="Mesh"/>
 /// does, so a complex extrusion costs the outer scene BVH one leaf.
 ///
 /// <b>Smooth normals:</b> for curved profile modes the per-vertex normal is
@@ -418,7 +418,7 @@ public sealed class Extrusion : IHittable, ISamplable
 
         // 9) Internal BVH (same threshold as Mesh).
         _bvh = _triangles.Count > 2
-            ? new BvhNode(new List<IHittable>(_triangles))
+            ? new TriangleBvh(_triangles)
             : new HittableList(_triangles);
 
         // 10) Cumulative area CDF for ISamplable.

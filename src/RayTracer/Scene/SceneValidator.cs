@@ -161,6 +161,13 @@ public static class SceneValidator
             CheckNumbers(node, what, issues, allowHex: true);
             return;
         }
+        if (type == typeof(List<double>))
+        {
+            // A position: a list of numbers, read in double (the render space shifts them).
+            if (node is YamlSequenceNode) CheckNumbers(node, what, issues, allowHex: false);
+            else issues.Add(At(node, true, $"{what}: expected a list of numbers"));
+            return;
+        }
         if (type == typeof(object))
         {
             // A number or a list of numbers (transform and texture 'scale').

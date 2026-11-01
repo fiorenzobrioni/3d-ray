@@ -29,7 +29,7 @@ public class CameraFocalPosTests
     {
         var camPos  = Vector3.Zero;
         var lookAt  = new Vector3(0f, 0f, -1f);
-        var focal   = new List<float> { 0f, 0f, -5f };
+        var focal   = new List<double> { 0f, 0f, -5f };
 
         float d = SceneLoader.ComputeFocusDistance(camPos, lookAt, focal,
                                                     fallbackFocalDist: 99f);
@@ -48,7 +48,7 @@ public class CameraFocalPosTests
     {
         var camPos  = Vector3.Zero;
         var lookAt  = new Vector3(0f, 0f, -1f);
-        var focal   = new List<float> { 3f, 4f, -5f };
+        var focal   = new List<double> { 3f, 4f, -5f };
 
         float d = SceneLoader.ComputeFocusDistance(camPos, lookAt, focal,
                                                     fallbackFocalDist: 99f);
@@ -65,7 +65,7 @@ public class CameraFocalPosTests
     {
         var camPos  = Vector3.Zero;
         var lookAt  = new Vector3(1f, 1f, 1f);   // un-normalized — helper normalizes internally
-        var focal   = new List<float> { 2f, 2f, 2f };
+        var focal   = new List<double> { 2f, 2f, 2f };
 
         float d = SceneLoader.ComputeFocusDistance(camPos, lookAt, focal,
                                                     fallbackFocalDist: 99f);
@@ -83,7 +83,7 @@ public class CameraFocalPosTests
     {
         var camPos  = new Vector3(10f, 5f, 0f);
         var lookAt  = new Vector3(11f, 5f, 0f);
-        var focal   = new List<float> { 15f, 5f, 7f };
+        var focal   = new List<double> { 15f, 5f, 7f };
 
         float d = SceneLoader.ComputeFocusDistance(camPos, lookAt, focal,
                                                     fallbackFocalDist: 99f);
@@ -102,7 +102,7 @@ public class CameraFocalPosTests
     {
         var camPos  = Vector3.Zero;
         var lookAt  = new Vector3(0f, 0f, -1f);   // forward = -Z
-        var focal   = new List<float> { 0f, 0f, 5f };  // BEHIND camera
+        var focal   = new List<double> { 0f, 0f, 5f };  // BEHIND camera
 
         float d = SceneLoader.ComputeFocusDistance(camPos, lookAt, focal,
                                                     fallbackFocalDist: 7f);
@@ -117,7 +117,7 @@ public class CameraFocalPosTests
     {
         var camPos  = new Vector3(2f, 3f, 4f);
         var lookAt  = new Vector3(2f, 3f, 0f);
-        var focal   = new List<float> { 2f, 3f, 4f };  // identical
+        var focal   = new List<double> { 2f, 3f, 4f };  // identical
 
         float d = SceneLoader.ComputeFocusDistance(camPos, lookAt, focal,
                                                     fallbackFocalDist: 8.5f);
@@ -133,7 +133,7 @@ public class CameraFocalPosTests
     {
         var camPos  = new Vector3(1f, 2f, 3f);
         var lookAt  = camPos;
-        var focal   = new List<float> { 0f, 0f, -10f };
+        var focal   = new List<double> { 0f, 0f, -10f };
 
         float d = SceneLoader.ComputeFocusDistance(camPos, lookAt, focal,
                                                     fallbackFocalDist: 4.2f);
@@ -148,7 +148,7 @@ public class CameraFocalPosTests
     {
         var camPos  = Vector3.Zero;
         var lookAt  = new Vector3(0f, 0f, -1f);
-        var focal   = new List<float> { 0f, 0f };  // missing Z
+        var focal   = new List<double> { 0f, 0f };  // missing Z
 
         float d = SceneLoader.ComputeFocusDistance(camPos, lookAt, focal,
                                                     fallbackFocalDist: 6f);

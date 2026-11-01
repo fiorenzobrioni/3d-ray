@@ -38,9 +38,16 @@ public sealed class HeterogeneousProceduralMedium : TrackedMedium
         _noise = new PerlinNoise(seed);
     }
 
+    /// <summary>
+    /// Added to the points the noise is read at: a medium in a scene built in
+    /// the render space (PIANO-REVIEW.md Phase 11) reads it where the point
+    /// stands in the world.
+    /// </summary>
+    public Vector3 WorldOffset { get; init; }
+
     /// <summary>Density in [0, 1] at p.</summary>
     private float Density(Vector3 p)
-        => Math.Clamp(_noise.FbmUnit(p * _frequency, _octaves, _lacunarity, _gain), 0f, 1f);
+        => Math.Clamp(_noise.FbmUnit((p + WorldOffset) * _frequency, _octaves, _lacunarity, _gain), 0f, 1f);
 
     protected override void Coefficients(Vector3 p, out Vector3 sigmaA, out Vector3 sigmaS)
     {

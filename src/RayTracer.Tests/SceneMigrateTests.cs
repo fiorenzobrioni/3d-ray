@@ -23,9 +23,11 @@ namespace RayTracer.Tests;
 [Collection("SceneLoader")]
 public class SceneMigrateTests
 {
+    // The expectations are written with \n: a Windows checkout gives the raw
+    // strings \r\n line endings, which the migrator keeps (tested below).
     private static string Migrate(string v1)
     {
-        var m = new Migrator("test.yaml", v1);
+        var m = new Migrator("test.yaml", v1.ReplaceLineEndings("\n"));
         string v2 = m.Migrate(schemaComment: null);
         var errors = SceneValidator.Validate(v2).Where(i => i.IsError).Select(i => i.Message).ToList();
         Assert.True(errors.Count == 0, string.Join("\n", errors) + "\n---\n" + v2);
@@ -74,6 +76,17 @@ public class SceneMigrateTests
         Assert.StartsWith("# A scene\nformat_version: 2\ncameras:\n  - position: [0, 1, 5]   # eye\n", v2);
         Assert.Contains("    up: [0, 1, 0]", v2);
         Assert.Contains("    focus_distance: 4", v2);
+    }
+
+    [Fact]
+    public void KeepsTheFilesLineEndings()
+    {
+        string v1 = "# A scene\r\ncamera:\r\n  position: [0, 1, 5]\r\nlights: []\r\n";
+        string v2 = new Migrator("test.yaml", v1).Migrate(schemaComment: null);
+        Assert.StartsWith("# A scene\r\nformat_version: 2\r\ncameras:\r\n", v2);
+        Assert.DoesNotContain("\n", v2.Replace("\r\n", ""));
+        // A file with \n stays with \n.
+        Assert.DoesNotContain("\r", new Migrator("test.yaml", v1.ReplaceLineEndings("\n")).Migrate(schemaComment: null));
     }
 
     [Theory]

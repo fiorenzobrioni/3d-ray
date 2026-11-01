@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.Numerics;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
+using RayTracer.Imaging;
 using RayTracer.Core.Sampling;
 using RayTracer.Denoising;
 using RayTracer.Rendering;
@@ -12,7 +10,7 @@ using RayTracer.Volumetrics;
 
 namespace RayTracer;
 
-class Program
+partial class Program
 {
     static void Main(string[] cli)
     {
@@ -22,35 +20,11 @@ class Program
             ShowHelp();
             return;
         }
-
-        string? inputPath = GetArg(cli, "--input", "-i");
-        if (string.IsNullOrEmpty(inputPath))
-        {
-            Console.WriteLine("Error: Missing required argument --input (-i)");
-            Console.WriteLine();
-            ShowHelp();
-            Environment.ExitCode = 1;
-            return;
-        }
-
-        // File existence check — accept the path as-is, or append .yaml/.yml
-        // when the user omitted the extension (e.g. `-i scenes/chess`).
-        if (!File.Exists(inputPath))
-        {
-            if (File.Exists(inputPath + ".yaml"))     inputPath += ".yaml";
-            else if (File.Exists(inputPath + ".yml")) inputPath += ".yml";
-            else
-            {
-                Console.WriteLine($"Error: Scene file not found: {inputPath}");
-                Environment.ExitCode = 1;
-                return;
-            }
-        }
-
+        if (ResolveInput(cli) is not string inputPath) return;
         SceneLoader.SetVerbose(HasFlag(cli, "--verbose", "-v"));
 
         // The scene is read (and validated) first: its `render:` block is the
-        // base of every setting below, the command line overrides it.
+        // base of every setting, the command line overrides it.
         SceneLoader.ParsedScene scene;
         try
         {
@@ -70,712 +44,164 @@ class Program
             return;
         }
 
-        // Effective arguments: the scene's render block as flags, then the
-        // command line (GetArg takes the last occurrence, so the CLI wins).
-        // A -q given on the command line also wins over the scene's keys
-        // that a preset sets.
-        bool cliQuality = GetArg(cli, "--quality", "-q") != null;
-        string[] args = [.. RenderBlock.ToArgs(scene.Data.Render, cliQuality), .. cli];
-        string? outputArg = GetArg(args, "--output", "-o");
-        string outputPath;
+        if (ParseSettings(cli, scene, inputPath) is not RunSettings settings) return;
+        PrintSettings(settings);
+        RenderAndSave(settings, scene);
+    }
 
-        if (outputArg != null)
+    /// <summary>
+    /// The scene file of `-i`, as given or with `.yaml`/`.yml` appended when
+    /// the extension was left out (e.g. `-i scenes/chess`); null after the error.
+    /// </summary>
+    static string? ResolveInput(string[] cli)
+    {
+        string? inputPath = GetArg(cli, "--input", "-i");
+        if (string.IsNullOrEmpty(inputPath))
         {
-            outputPath = outputArg;
+            Console.WriteLine("Error: Missing required argument --input (-i)");
+            Console.WriteLine();
+            ShowHelp();
+            Environment.ExitCode = 1;
+            return null;
         }
-        else if (!string.IsNullOrEmpty(inputPath))
-        {
-            // Default to "renders/render-<scene>.png"
-            string sceneName = Path.GetFileNameWithoutExtension(inputPath);
-            outputPath = Path.Combine("renders", $"render-{sceneName}.png");
-        }
-        else
-        {
-            outputPath = Path.Combine("renders", "render.png");
-        }
+        if (File.Exists(inputPath)) return inputPath;
+        if (File.Exists(inputPath + ".yaml")) return inputPath + ".yaml";
+        if (File.Exists(inputPath + ".yml")) return inputPath + ".yml";
+        Console.WriteLine($"Error: Scene file not found: {inputPath}");
+        Environment.ExitCode = 1;
+        return null;
+    }
 
-        // Quality preset (draft/standard/pre-final/final ladder × tiny/small/full + ultra 4K).
-        // Resolved before the per-flag parsing so individual flags (`-s`, `-d`,
-        // `-w`, `-H`, `-S`) can override any of the preset's values.
-        // When no `-q` is given the renderer falls back to the `draft-small`
-        // preset: a fast, denoised composition check is a far better default
-        // first-run experience than a slow, un-denoised 1200×800 / 16 spp pass.
-        // Any explicit quality knob (`-s`, `-d`, `-w`, `-H`, `-S`, …) still wins.
-        string? qualityArg = GetArg(args, "--quality", "-q");
-        bool qualityIsDefault = qualityArg == null;
-        QualityPreset? quality = QualityPreset.DraftSmall;
-        if (qualityArg != null)
-        {
-            quality = QualityPreset.Parse(qualityArg);
-            if (quality == null)
-            {
-                Console.WriteLine($"Error: Unknown --quality '{qualityArg}'. Valid: {QualityPreset.NamesCsv}.");
-                return;
-            }
-        }
-
-        bool wParsed = int.TryParse(GetArg(args, "--width",   "-w"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var width);
-        bool hParsed = int.TryParse(GetArg(args, "--height",  "-H"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var height);
-        bool sParsed = int.TryParse(GetArg(args, "--samples", "-s"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var samples);
-        bool dParsed = int.TryParse(GetArg(args, "--depth",   "-d"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var depth);
-        // Per-kind bounce limits (PIANO-REVIEW.md Phase 7). Unset = the preset's,
-        // or the total when -d is explicit or in reference mode.
-        int? DepthArg(string name) =>
-            int.TryParse(GetArg(args, name, null), System.Globalization.NumberStyles.Integer,
-                         System.Globalization.CultureInfo.InvariantCulture, out var v) && v >= 0 ? v : null;
-        int? depthDiffuse = DepthArg("--depth-diffuse");
-        int? depthGlossy = DepthArg("--depth-glossy");
-        int? depthTransmission = DepthArg("--depth-transmission");
-        int? depthVolume = DepthArg("--depth-volume");
-        int? depthTransparent = DepthArg("--depth-transparent");
-
-        // Shadow samples CLI override (null = use per-light YAML values)
-        int? shadowSamplesOverride = null;
-        if (int.TryParse(GetArg(args, "--shadow-samples", "-S"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var ssOverride) && ssOverride > 0)
-            shadowSamplesOverride = ssOverride;
-
-        // Firefly clamp, opt-in (null = no clamp; see Renderer.SuggestedMaxSampleRadiance)
-        float? clampOverride = null;
-        if (float.TryParse(GetArg(args, "--clamp", "-C"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cOverride) && cOverride > 0f)
-            clampOverride = cOverride;
-
-        // Camera selector: name or zero-based index
-        string? cameraSelector = GetArg(args, "--camera", "-c");
-
-        // Sampler kind: defaults to Sobol (Burley 2020 hash-based Owen
-        // scrambling) for the 2-5× per-spp convergence improvement; pass
-        // `--sampler prng` to fall back to the legacy thread-local PRNG
-        // for A/B comparisons or to reproduce pre-Sobol golden images.
-        SamplerKind samplerKind = SamplerKind.Sobol;
-        string? samplerArg = GetArg(args, "--sampler", null);
-        if (samplerArg != null)
-        {
-            switch (samplerArg.ToLowerInvariant())
-            {
-                case "prng":
-                    samplerKind = SamplerKind.Prng; break;
-                case "sobol":
-                    samplerKind = SamplerKind.Sobol; break;
-                default:
-                    Console.WriteLine($"Error: Unknown --sampler '{samplerArg}'. Valid: prng, sobol.");
-                    return;
-            }
-        }
-        Sampler.SetKind(samplerKind);
-
-        // MIS combination heuristic (balance / power). See Veach 1997 §9.2.
-        MisHeuristic misHeuristic = MisHeuristic.Balance;
-        string? misArg = GetArg(args, "--mis", null);
-        if (misArg != null)
-        {
-            switch (misArg.ToLowerInvariant())
-            {
-                case "balance": misHeuristic = MisHeuristic.Balance; break;
-                case "power":   misHeuristic = MisHeuristic.Power;   break;
-                default:
-                    Console.WriteLine($"Error: Unknown --mis '{misArg}'. Valid: balance, power.");
-                    return;
-            }
-        }
-
-        // Light selection strategy. See LightSamplingStrategy. A quality preset
-        // may set a default (standard → power); an explicit flag still wins.
-        LightSamplingStrategy lightSampling = quality?.LightSampling ?? LightSamplingStrategy.Auto;
-        string? lightSamplingArg = GetArg(args, "--light-sampling", null);
-        if (lightSamplingArg != null)
-        {
-            switch (lightSamplingArg.ToLowerInvariant())
-            {
-                case "all":     lightSampling = LightSamplingStrategy.All;     break;
-                case "power":   lightSampling = LightSamplingStrategy.Power;   break;
-                case "uniform": lightSampling = LightSamplingStrategy.Uniform; break;
-                case "bvh":     lightSampling = LightSamplingStrategy.Bvh;     break;
-                case "auto":    lightSampling = LightSamplingStrategy.Auto;    break;
-                default:
-                    Console.WriteLine($"Error: Unknown --light-sampling '{lightSamplingArg}'. Valid: auto, all, power, uniform, bvh.");
-                    return;
-            }
-        }
-
-        // Indirect bounce clamp factor (Cycles/Arnold style depth-aware
-        // suppression). A quality preset may set a default (standard → 0.5);
-        // an explicit flag still wins.
-        float indirectClampFactor = quality?.IndirectClampFactor ?? Renderer.DefaultIndirectClampFactor;
-        string? indirectClampArg = GetArg(args, "--indirect-clamp-factor", null);
-        if (float.TryParse(indirectClampArg,
-                           System.Globalization.NumberStyles.Float,
-                           System.Globalization.CultureInfo.InvariantCulture,
-                           out var icf) && icf >= 0f)
-            indirectClampFactor = icf;
-
-        // Photographic exposure compensation, in stops (EV). Default 0 EV =
-        // identity. Negative EV darkens (good for over-bright lighting setups
-        // that ACES would otherwise squash into a near-saturated plateau);
-        // positive EV brightens. The linear gain `2^EV` is applied to each
-        // pixel BEFORE the view transform so the artist slides the scene
-        // along the tone curve. Mirrors Arnold `exposure`,
-        // Cycles "Film → Exposure", RenderMan display-filter `exposure`.
-        float exposureEv = Renderer.DefaultExposureEv;
-        if (float.TryParse(GetArg(args, "--exposure", null),
-                           System.Globalization.NumberStyles.Float,
-                           System.Globalization.CultureInfo.InvariantCulture,
-                           out var ev))
-            exposureEv = ev;
-
-        // Texture filtering — ray differentials drive analytic anti-aliasing
-        // in filtered textures (Perlin/fBm octave clamp, Worley supersampling,
-        // ImageTexture mipmap). Default 'auto' = on; 'off' disables differential
-        // emission entirely for benchmark comparison against the point-sampled
-        // baseline; 'on' is identical to auto and reserved for future heuristics.
-        Renderer.TextureFilteringMode textureFiltering = Renderer.TextureFilteringMode.Auto;
-        string? textureFilteringArg = GetArg(args, "--texture-filtering", null);
-        if (textureFilteringArg != null)
-        {
-            switch (textureFilteringArg.ToLowerInvariant())
-            {
-                case "auto": textureFiltering = Renderer.TextureFilteringMode.Auto; break;
-                case "on":   textureFiltering = Renderer.TextureFilteringMode.On;   break;
-                case "off":  textureFiltering = Renderer.TextureFilteringMode.Off;  break;
-                default:
-                    Console.WriteLine($"Error: Unknown --texture-filtering '{textureFilteringArg}'. Valid: auto, on, off.");
-                    return;
-            }
-        }
-
-        // SSS dispatch toggle. `auto` (default) routes refractions into scattering
-        // interior_medium bindings through the random-walk integrator; `off`
-        // declasses pushed media to absorption-only so the legacy Beer-Lambert
-        // path handles them (preview / A/B comparison knob — see Renderer.SssMode).
-        // A quality preset may force a mode (standard → off); an explicit
-        // --sss-mode flag still wins.
-        SssMode sssMode = quality?.SssModeOverride ?? SssMode.Auto;
-        string? sssModeArg = GetArg(args, "--sss-mode", null);
-        if (sssModeArg != null)
-        {
-            switch (sssModeArg.ToLowerInvariant())
-            {
-                case "auto": sssMode = SssMode.Auto; break;
-                case "off":  sssMode = SssMode.Off;  break;
-                default:
-                    Console.WriteLine($"Error: Unknown --sss-mode '{sssModeArg}'. Valid: auto, off.");
-                    return;
-            }
-        }
-
-
-        // Verbose mode
-        // ── Path guiding ─────────────────────────────────────────────────────
-        // `--guiding on|off`: learn where the light comes from in training
-        // passes, then sample bounces from that as well as from the BSDF
-        // (unbiased, so allowed in --reference). `--guiding-training N` sets the
-        // training budget in samples per pixel, out of -s (default: half).
-        bool guiding = false;
-        string? guidingArg = GetArg(args, "--guiding", null);
-        if (guidingArg != null)
-        {
-            switch (guidingArg.ToLowerInvariant())
-            {
-                case "on":  guiding = true;  break;
-                case "off": guiding = false; break;
-                default:
-                    Console.WriteLine($"Error: Unknown --guiding '{guidingArg}'. Valid: on, off.");
-                    return;
-            }
-        }
-        int? guidingTraining = int.TryParse(GetArg(args, "--guiding-training", null), out var gtArg) && gtArg > 0
-            ? gtArg : null;
-
-        // ── Integrator ───────────────────────────────────────────────────────
-        // `--integrator path|bdpt|vcm`: path tracing (default), bidirectional
-        // path tracing, or vertex connection and merging (BDPT + merging, for
-        // the caustics seen through glass and water).
-        IntegratorKind integrator = IntegratorKind.Path;
-        string? integratorArg = GetArg(args, "--integrator", null);
-        if (integratorArg != null)
-        {
-            switch (integratorArg.ToLowerInvariant())
-            {
-                case "path": integrator = IntegratorKind.Path; break;
-                case "bdpt": integrator = IntegratorKind.Bdpt; break;
-                case "vcm":  integrator = IntegratorKind.Vcm;  break;
-                default:
-                    Console.WriteLine($"Error: Unknown --integrator '{integratorArg}'. Valid: path, bdpt, vcm.");
-                    return;
-            }
-        }
-        float? vcmRadius = float.TryParse(GetArg(args, "--vcm-radius", null), System.Globalization.NumberStyles.Float,
-                                          System.Globalization.CultureInfo.InvariantCulture, out var vrArg) && vrArg > 0f
-            ? vrArg : null;
-        if (integrator != IntegratorKind.Path && guiding)
-        {
-            Console.WriteLine("Error: --guiding is a path tracing option (not with --integrator bdpt|vcm).");
-            return;
-        }
-
-        // ── Denoiser ─────────────────────────────────────────────────────────
-        // `--denoiser none|nlm|nfor|oidn` runs a feature-guided denoiser on the
-        // linear HDR beauty before tone mapping. Quality presets supply a
-        // default (draft/standard/pre-final → oidn); an explicit flag wins.
-        DenoiserKind denoiserKind = quality?.Denoiser ?? DenoiserKind.None;
-        string? denoiserArg = GetArg(args, "--denoiser", null);
-        if (denoiserArg != null)
-        {
-            switch (denoiserArg.ToLowerInvariant())
-            {
-                case "none": denoiserKind = DenoiserKind.None; break;
-                case "nlm":  denoiserKind = DenoiserKind.Nlm;  break;
-                case "nfor": denoiserKind = DenoiserKind.Nfor; break;
-                case "oidn": denoiserKind = DenoiserKind.Oidn; break;
-                default:
-                    Console.WriteLine($"Error: Unknown --denoiser '{denoiserArg}'. Valid: none, nlm, nfor, oidn.");
-                    return;
-            }
-        }
-
-        // A preset's OIDN falls back to NFOR where the native library does not
-        // load (a platform the build does not ship it for); an explicit
-        // `--denoiser oidn` is an error there.
-        if (denoiserKind == DenoiserKind.Oidn && !Oidn.IsAvailable)
-        {
-            if (GetArg(cli, "--denoiser", null) != null)
-            {
-                Console.WriteLine($"Error: --denoiser oidn: Open Image Denoise did not load ({Oidn.LoadError}).");
-                return;
-            }
-            Console.WriteLine($"Note: Open Image Denoise did not load ({Oidn.LoadError}): the preset uses nfor.");
-            denoiserKind = DenoiserKind.Nfor;
-        }
-
-        DenoiseQuality denoiseQuality = quality?.DenoiseQuality ?? DenoiseQuality.High;
-        string? denoiseQualityArg = GetArg(args, "--denoise-quality", null);
-        if (denoiseQualityArg != null)
-        {
-            switch (denoiseQualityArg.ToLowerInvariant())
-            {
-                case "fast": denoiseQuality = DenoiseQuality.Fast; break;
-                case "high": denoiseQuality = DenoiseQuality.High; break;
-                default:
-                    Console.WriteLine($"Error: Unknown --denoise-quality '{denoiseQualityArg}'. Valid: fast, high.");
-                    return;
-            }
-        }
-
-        // ── AOV output (linear HDR, PFM/EXR) ─────────────────────────────────
-        // `--aov albedo,normal,depth,beauty,variance` writes the requested
-        // guide buffers next to the -o output. Any AOV request turns on full
-        // capture (beauty halves + AOVs) in the renderer.
-        var aovs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        string? aovArg = GetArg(args, "--aov", null);
-        if (aovArg != null)
-        {
-            foreach (string raw in aovArg.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                string name = raw.ToLowerInvariant();
-                if (name is not ("albedo" or "normal" or "depth" or "beauty" or "variance"))
-                {
-                    Console.WriteLine($"Error: Unknown --aov '{raw}'. Valid: albedo, normal, depth, beauty, variance.");
-                    return;
-                }
-                aovs.Add(name);
-            }
-        }
-
-        // `--aov-format pfm|exr` forces one file per AOV in that format. When
-        // omitted and -o is .exr, the AOVs are embedded as layers in the main
-        // multilayer EXR instead; otherwise they default to separate PFM files.
-        string? aovFormat = null;
-        string? aovFormatArg = GetArg(args, "--aov-format", null);
-        if (aovFormatArg != null)
-        {
-            switch (aovFormatArg.ToLowerInvariant())
-            {
-                case "pfm": aovFormat = "pfm"; break;
-                case "exr": aovFormat = "exr"; break;
-                default:
-                    Console.WriteLine($"Error: Unknown --aov-format '{aovFormatArg}'. Valid: pfm, exr.");
-                    return;
-            }
-        }
-
-        bool verbose = HasFlag(args, "--verbose", "-v");
-
-        // ── Reference mode ───────────────────────────────────────────────────
-        // `--reference` renders with the pure, unbiased estimator used to
-        // validate the engine (PIANO-REVIEW.md, Phase 0): no clamps, no
-        // straight-through transparent shadows, one depth for every kind of
-        // bounce.
-        // The denoiser and vertex merging are biased by construction, so they
-        // are refused rather than silently mixed into a reference image.
-        bool referenceMode = HasFlag(args, "--reference", null);
-        if (referenceMode)
-        {
-            if (integrator == IntegratorKind.Vcm)
-            {
-                Console.WriteLine("Error: --integrator vcm is biased (it merges nearby vertices): use bdpt with --reference.");
-                return;
-            }
-            if (GetArg(cli, "--denoiser", null) != null && denoiserKind != DenoiserKind.None)
-                Console.WriteLine("Warning: --denoiser ignored in --reference mode.");
-            if (GetArg(cli, "--clamp", "-C") != null || GetArg(cli, "--indirect-clamp-factor", null) != null)
-                Console.WriteLine("Warning: --clamp / --indirect-clamp-factor ignored in --reference mode.");
-            denoiserKind = DenoiserKind.None;
-            clampOverride = null;
-            indirectClampFactor = Renderer.DefaultIndirectClampFactor;
-        }
-
-        // ── Adaptive sampling ────────────────────────────────────────────────
-        // `--adaptive on|off`: pixels stop sampling once their dual-buffer
-        // error is below `--adaptive-threshold` (default 0.01), after
-        // `--adaptive-min-spp` samples (default from the threshold: 64).
-        // Path tracing with the Sobol sampler, without guiding or --reference.
-        bool adaptive = quality?.Adaptive ?? false;
-        string? adaptiveArg = GetArg(args, "--adaptive", null);
-        if (adaptiveArg != null)
-        {
-            switch (adaptiveArg.ToLowerInvariant())
-            {
-                case "on":  adaptive = true;  break;
-                case "off": adaptive = false; break;
-                default:
-                    Console.WriteLine($"Error: Unknown --adaptive '{adaptiveArg}'. Valid: on, off.");
-                    return;
-            }
-        }
-        float adaptiveThreshold = AdaptiveSettings.DefaultThreshold;
-        string? adaptiveThresholdArg = GetArg(args, "--adaptive-threshold", null);
-        if (adaptiveThresholdArg != null)
-        {
-            if (!float.TryParse(adaptiveThresholdArg, System.Globalization.NumberStyles.Float,
-                                System.Globalization.CultureInfo.InvariantCulture, out adaptiveThreshold) || !(adaptiveThreshold > 0f))
-            {
-                Console.WriteLine($"Error: --adaptive-threshold '{adaptiveThresholdArg}' must be a positive number.");
-                return;
-            }
-        }
-        int adaptiveMinSpp = int.TryParse(GetArg(args, "--adaptive-min-spp", null), out var amArg) && amArg > 0 ? amArg : 0;
-        if (adaptive)
-        {
-            string? why = referenceMode ? "--reference (stopping on a pixel's own samples is biased)"
-                : integrator != IntegratorKind.Path ? "--integrator bdpt|vcm (light paths reach every pixel)"
-                : guiding ? "--guiding"
-                : samplerKind != SamplerKind.Sobol ? "--sampler prng"
-                : null;
-            if (why != null)
-            {
-                if (GetArg(cli, "--adaptive", null) != null)
-                {
-                    Console.WriteLine($"Error: --adaptive is not available with {why}.");
-                    return;
-                }
-                adaptive = false;   // the preset's default yields to the explicit choice
-            }
-        }
-
-        // `--transparent-shadows on|off` (default off): straight-through shadows
-        // of glass as an artistic stand-in for the refracted light. Off renders
-        // the physical result (glass casts its shadow and its caustic).
-        bool transparentShadows = false;
-        string? transparentShadowsArg = GetArg(args, "--transparent-shadows", null);
-        if (transparentShadowsArg != null)
-        {
-            switch (transparentShadowsArg.ToLowerInvariant())
-            {
-                case "on":  transparentShadows = true;  break;
-                case "off": transparentShadows = false; break;
-                default:
-                    Console.WriteLine($"Error: Unknown --transparent-shadows '{transparentShadowsArg}'. Valid: on, off.");
-                    return;
-            }
-        }
-        if (referenceMode && transparentShadows)
-        {
-            if (GetArg(cli, "--transparent-shadows", null) != null)
-                Console.WriteLine("Warning: --transparent-shadows on ignored in --reference mode.");
-            transparentShadows = false;
-        }
-
-        // `--filter <box|gaussian|blackman-harris>` (default gaussian): pixel
-        // reconstruction filter, applied by filter importance sampling. The
-        // box is the sharpest and the most aliased.
-        var pixelFilterKind = PixelFilterKind.Gaussian;
-        string? filterArg = GetArg(args, "--filter", null);
-        if (filterArg != null && !PixelFilter.TryParse(filterArg, out pixelFilterKind))
-        {
-            Console.WriteLine($"Error: Unknown --filter '{filterArg}'. Valid: box, gaussian, blackman-harris.");
-            return;
-        }
-
-        // Colour management: `--view <agx|aces|standard>` (default agx) turns
-        // scene-linear radiance into the display image; `--look` picks an AgX look.
-        var view = ViewTransform.AgX;
-        string? viewArg = GetArg(args, "--view", null);
-        if (viewArg != null && !DisplayTransform.TryParseView(viewArg, out view))
-        {
-            Console.WriteLine($"Error: Unknown --view '{viewArg}'. Valid: agx, aces, standard.");
-            return;
-        }
-        var look = ViewLook.None;
-        string? lookArg = GetArg(args, "--look", null);
-        if (lookArg != null && !DisplayTransform.TryParseLook(lookArg, out look))
-        {
-            Console.WriteLine($"Error: Unknown --look '{lookArg}'. Valid: none, punchy, golden.");
-            return;
-        }
-        if (look != ViewLook.None && view != ViewTransform.AgX)
-            Console.WriteLine($"Warning: --look {lookArg} applies to the agx view only; ignored.");
-
-        // `--white-balance <K>`: overrides the camera's `white_balance`.
-        float? whiteBalanceArg = null;
-        string? wbArg = GetArg(args, "--white-balance", null);
-        if (wbArg != null)
-        {
-            if (!float.TryParse(wbArg, System.Globalization.NumberStyles.Float,
-                                System.Globalization.CultureInfo.InvariantCulture, out var wbK)
-                || wbK < WhiteBalance.MinKelvin || wbK > WhiteBalance.MaxKelvin)
-            {
-                Console.WriteLine($"Error: --white-balance '{wbArg}' must be a temperature in {WhiteBalance.MinKelvin}-{WhiteBalance.MaxKelvin} K.");
-                return;
-            }
-            whiteBalanceArg = wbK;
-        }
-
-        // `--bit-depth <8|16>` (16 for PNG only) and `--dither <on|off>` for 8-bit.
-        int bitDepth = 8;
-        string? bitDepthArg = GetArg(args, "--bit-depth", null);
-        if (bitDepthArg != null)
-        {
-            if (bitDepthArg is not ("8" or "16"))
-            {
-                Console.WriteLine($"Error: Unknown --bit-depth '{bitDepthArg}'. Valid: 8, 16.");
-                return;
-            }
-            bitDepth = int.Parse(bitDepthArg);
-        }
-        bool dither = true;
-        string? ditherArg = GetArg(args, "--dither", null);
-        if (ditherArg != null)
-        {
-            switch (ditherArg.ToLowerInvariant())
-            {
-                case "on":  dither = true;  break;
-                case "off": dither = false; break;
-                default:
-                    Console.WriteLine($"Error: Unknown --dither '{ditherArg}'. Valid: on, off.");
-                    return;
-            }
-        }
-
-        // `--seed <n>`: independent sample sequences for the same scene
-        // (0 = the default sequences, bit-identical to a render without it).
-        int seed = 0;
-        string? seedArg = GetArg(args, "--seed", null);
-        if (seedArg != null && !int.TryParse(seedArg, System.Globalization.NumberStyles.Integer,
-                                             System.Globalization.CultureInfo.InvariantCulture, out seed))
-        {
-            Console.WriteLine($"Error: Invalid --seed '{seedArg}' (integer expected).");
-            return;
-        }
-
-        // Default values and validation. A quality preset supplies the baseline
-        // for every value no flag overrides. A scene that sets its resolution
-        // keeps its aspect: the preset scales it (tiny 1/4, small 1/2, ultra 2).
-        if (scene.Data.Render is { Width: int sceneW, Height: int sceneH } && sceneW > 0 && sceneH > 0)
-        {
-            float presetScale = (quality?.Width ?? 1920) / 1920f;
-            if (!wParsed || width <= 0) { width = Math.Max(1, (int)MathF.Round(sceneW * presetScale)); wParsed = true; }
-            if (!hParsed || height <= 0) { height = Math.Max(1, (int)MathF.Round(sceneH * presetScale)); hParsed = true; }
-        }
-        if (!wParsed || width  <= 0) width   = quality?.Width   ?? 1200;
-        if (!hParsed || height <= 0) height  = quality?.Height  ?? 800;
-        if (!sParsed || samples <= 0) samples = quality?.Samples ?? 16;
-        bool depthExplicit = dParsed && depth > 0;
-        if (!depthExplicit) depth = quality?.Depth ?? 8;
-        if (!shadowSamplesOverride.HasValue && quality != null)
-            shadowSamplesOverride = quality.ShadowSamples;
-
+    static void PrintSettings(RunSettings s)
+    {
         Console.WriteLine("╔═══════════════════════════════════════════╗");
         Console.WriteLine("║          3D-Ray RayTracer Engine          ║");
         Console.WriteLine("╚═══════════════════════════════════════════╝");
         Console.WriteLine();
-        Console.WriteLine($"  Scene:       {inputPath}");
-        Console.WriteLine($"  Output:      {outputPath}");
-        if (quality != null)
-            Console.WriteLine($"  Quality:     {quality.Name}{(qualityIsDefault ? " (default)" : "")}");
-        Console.WriteLine($"  Resolution:  {width} \u00d7 {height}");
-        Console.WriteLine($"  Samples/px:  {samples}");
-        // Per-kind limits: the preset's split, unless the total was given (or
-        // the render is a reference): then no kind is cut below the total.
-        PathDepths baseDepths = !depthExplicit && !referenceMode && quality?.Depths is PathDepths qd
-            ? qd
-            : PathDepths.Uniform(depth);
-        var depths = new PathDepths(
-            Math.Min(depthDiffuse ?? baseDepths.Diffuse, depth),
-            Math.Min(depthGlossy ?? baseDepths.Glossy, depth),
-            Math.Min(depthTransmission ?? baseDepths.Transmission, depth),
-            Math.Min(depthVolume ?? baseDepths.Volume, depth),
-            depthTransparent ?? baseDepths.Transparent);
-        Console.WriteLine($"  Max depth:   {depth} (diffuse {depths.Diffuse}, glossy {depths.Glossy}, " +
-                          $"transmission {depths.Transmission}, volume {depths.Volume}, cut-outs {depths.Transparent})");
-        if (shadowSamplesOverride.HasValue)
-            Console.WriteLine($"  Shadow smp:  {shadowSamplesOverride.Value} (override)");
-        if (referenceMode)
+        Console.WriteLine($"  Scene:       {s.InputPath}");
+        Console.WriteLine($"  Output:      {s.OutputPath}");
+        if (s.Quality != null)
+            Console.WriteLine($"  Quality:     {s.Quality.Name}{(s.QualityIsDefault ? " (default)" : "")}");
+        Console.WriteLine($"  Resolution:  {s.Width} \u00d7 {s.Height}");
+        Console.WriteLine($"  Samples/px:  {s.Samples}");
+        Console.WriteLine($"  Max depth:   {s.Depth} (diffuse {s.Depths.Diffuse}, glossy {s.Depths.Glossy}, " +
+                          $"transmission {s.Depths.Transmission}, volume {s.Depths.Volume}, cut-outs {s.Depths.Transparent})");
+        if (s.ShadowSamplesOverride.HasValue)
+            Console.WriteLine($"  Shadow smp:  {s.ShadowSamplesOverride.Value} (override)");
+        if (s.ReferenceMode)
             Console.WriteLine("  Reference:   on (no clamps, no transparent shadows, uniform depths, no denoiser)");
-        if (seed != 0)
-            Console.WriteLine($"  Seed:        {seed}");
-        if (integrator != IntegratorKind.Path)
-            Console.WriteLine($"  Integrator:  {integrator.ToString().ToLowerInvariant()}" +
-                              (integrator == IntegratorKind.Vcm ? $" (radius {vcmRadius ?? 0.003f:0.####} of the scene radius)" : ""));
-        if (adaptive)
-            Console.WriteLine($"  Adaptive:    threshold {adaptiveThreshold:0.####}, " +
-                              $"at least {new AdaptiveSettings { Threshold = adaptiveThreshold, MinSamples = adaptiveMinSpp }.ResolveMinSamples(samples)} spp");
-        if (guiding)
-            Console.WriteLine($"  Guiding:     on (training {guidingTraining ?? GuidingSettings.DefaultTraining(samples)} of the {samples} spp)");
-        if (transparentShadows)
+        if (s.Seed != 0)
+            Console.WriteLine($"  Seed:        {s.Seed}");
+        if (s.Integrator != IntegratorKind.Path)
+            Console.WriteLine($"  Integrator:  {s.Integrator.ToString().ToLowerInvariant()}" +
+                              (s.Integrator == IntegratorKind.Vcm ? $" (radius {s.VcmRadius ?? 0.003f:0.####} of the scene radius)" : ""));
+        if (s.Adaptive)
+            Console.WriteLine($"  Adaptive:    threshold {s.AdaptiveThreshold:0.####}, " +
+                              $"at least {new AdaptiveSettings { Threshold = s.AdaptiveThreshold, MinSamples = s.AdaptiveMinSpp }.ResolveMinSamples(s.Samples)} spp");
+        if (s.Guiding)
+            Console.WriteLine($"  Guiding:     on (training {s.GuidingTraining ?? GuidingSettings.DefaultTraining(s.Samples)} of the {s.Samples} spp)");
+        if (s.TransparentShadows)
             Console.WriteLine("  Shadows:     transparent through glass (approximation, refracted caustics off)");
-        if (clampOverride.HasValue)
+        if (s.ClampOverride.HasValue)
         {
-            Console.WriteLine($"  Clamp:       {clampOverride.Value} (biased: caps every brighter sample)");
-            Console.WriteLine($"  Indir.clamp: ×{indirectClampFactor:F2} ({clampOverride.Value * indirectClampFactor:F1} effective)");
+            Console.WriteLine($"  Clamp:       {s.ClampOverride.Value} (biased: caps every brighter sample)");
+            Console.WriteLine($"  Indir.clamp: ×{s.IndirectClampFactor:F2} ({s.ClampOverride.Value * s.IndirectClampFactor:F1} effective)");
         }
-        if (exposureEv != Renderer.DefaultExposureEv)
-            Console.WriteLine($"  Exposure:    {exposureEv:+0.0;-0.0;0.0} EV (×{MathF.Pow(2f, exposureEv):F2})");
-        if (cameraSelector != null)
-            Console.WriteLine($"  Camera:      {cameraSelector}");
-        Console.WriteLine($"  Sampler:     {samplerKind.ToString().ToLowerInvariant()}");
-        Console.WriteLine($"  MIS:         {misHeuristic.ToString().ToLowerInvariant()} heuristic");
-        if (lightSampling is not (LightSamplingStrategy.All or LightSamplingStrategy.Auto))
-            Console.WriteLine($"  Light pick:  {lightSampling.ToString().ToLowerInvariant()}");
-        if (sssMode != SssMode.Auto)
-            Console.WriteLine($"  SSS mode:    {sssMode.ToString().ToLowerInvariant()}");
-        if (denoiserKind != DenoiserKind.None)
-            Console.WriteLine($"  Denoiser:    {denoiserKind.ToString().ToLowerInvariant()} ({denoiseQuality.ToString().ToLowerInvariant()})");
-
+        if (s.ExposureEv != Renderer.DefaultExposureEv)
+            Console.WriteLine($"  Exposure:    {s.ExposureEv:+0.0;-0.0;0.0} EV (×{MathF.Pow(2f, s.ExposureEv):F2})");
+        if (s.CameraSelector != null)
+            Console.WriteLine($"  Camera:      {s.CameraSelector}");
+        Console.WriteLine($"  Sampler:     {s.SamplerKind.ToString().ToLowerInvariant()}");
+        Console.WriteLine($"  MIS:         {s.MisHeuristic.ToString().ToLowerInvariant()} heuristic");
+        if (s.LightSampling is not (LightSamplingStrategy.All or LightSamplingStrategy.Auto))
+            Console.WriteLine($"  Light pick:  {s.LightSampling.ToString().ToLowerInvariant()}");
+        if (s.SssMode != SssMode.Auto)
+            Console.WriteLine($"  SSS mode:    {s.SssMode.ToString().ToLowerInvariant()}");
+        if (s.DenoiserKind != DenoiserKind.None)
+            Console.WriteLine($"  Denoiser:    {s.DenoiserKind.ToString().ToLowerInvariant()} ({s.DenoiseQuality.ToString().ToLowerInvariant()})");
         // A `.exr` output switches the main image to scene-linear HDR (no
-        // exposure/ACES/gamma) and, unless --aov-format forces separate
-        // files, absorbs any requested AOVs as layers of that same file.
-        bool exrOutput = Path.GetExtension(outputPath).Equals(".exr", StringComparison.OrdinalIgnoreCase);
-        bool embedAovs = exrOutput && aovFormat == null;
-        if (exrOutput)
+        // exposure, view transform or sRGB) and absorbs the AOVs as layers.
+        if (s.ExrOutput)
             Console.WriteLine("  HDR output:  linear EXR (pre-tone-mapping)");
-        if (aovs.Count > 0)
-            Console.WriteLine($"  AOVs:        {string.Join(", ", aovs)} ({(embedAovs ? "EXR layers" : (aovFormat ?? "pfm") + " files")})");
+        if (s.Aovs.Count > 0)
+            Console.WriteLine($"  AOVs:        {string.Join(", ", s.Aovs)} ({(s.EmbedAovs ? "EXR layers" : (s.AovFormat ?? "pfm") + " files")})");
         Console.WriteLine();
+    }
 
-        // Load scene
+    /// <summary>Loads the scene, renders it, denoises it and writes the outputs.</summary>
+    static void RenderAndSave(RunSettings s, SceneLoader.ParsedScene scene)
+    {
         Console.Write("  Loading scene... ");
         var sw = Stopwatch.StartNew();
         try
         {
             var (world, camera, lights, sky, globalMedium, motionBlur) =
-                SceneLoader.Load(scene, width, height, shadowSamplesOverride, cameraSelector);
+                SceneLoader.Load(scene, s.Width, s.Height, s.ShadowSamplesOverride, s.CameraSelector);
 
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
             SceneLoader.FlushMessages();
             Console.WriteLine($"  Lights:      {lights.Count}");
-            string skyDesc = sky.Mode switch
-            {
-                SkySettings.SkyMode.Hdri     => "HDRI environment map" + (sky.HasSun ? " + extracted sun" : ""),
-                SkySettings.SkyMode.Gradient => "gradient" + (sky.HasSun ? " + sun disk" : ""),
-                SkySettings.SkyMode.Physical => sky.LightingModel switch
-                {
-                    RayTracer.Rendering.Sky.NishitaSky  => "physical (nishita)" + (sky.HasSun ? " + sun disk" : ""),
-                    RayTracer.Rendering.Sky.PreethamSky => "physical (preetham)" + (sky.HasSun ? " + sun disk" : ""),
-                    RayTracer.Rendering.Sky.HosekWilkieSky => "physical (hosek-wilkie)" + (sky.HasSun ? " + sun disk" : ""),
-                    _                                   => "physical" + (sky.HasSun ? " + sun disk" : "")
-                },
-                _                            => "flat"
-            };
-            Console.WriteLine($"  Sky:         {skyDesc}");
+            Console.WriteLine($"  Sky:         {DescribeSky(sky)}");
             if (motionBlur.Active)
                 Console.WriteLine($"  Motion blur: shutter [{motionBlur.ShutterOpen:0.##}, {motionBlur.ShutterClose:0.##}]");
-            float? whiteBalanceKelvin = whiteBalanceArg ?? camera.WhiteBalanceKelvin;
-            // The camera's physical exposure (ISO, shutter, f-number) adds to --exposure.
-            if (camera.PhysicalExposureEv is float physicalEv) exposureEv += physicalEv;
-            Console.WriteLine($"  View:        {view.ToString().ToLowerInvariant()}{(look != ViewLook.None ? $" ({look.ToString().ToLowerInvariant()})" : "")}, filter {pixelFilterKind.ToString().ToLowerInvariant()}" +
+            float? whiteBalanceKelvin = s.WhiteBalanceArg ?? camera.WhiteBalanceKelvin;
+            float exposureEv = s.ExposureEv + (camera.PhysicalExposureEv ?? 0f);
+            Console.WriteLine($"  View:        {s.View.ToString().ToLowerInvariant()}{(s.Look != ViewLook.None ? $" ({s.Look.ToString().ToLowerInvariant()})" : "")}, filter {s.PixelFilterKind.ToString().ToLowerInvariant()}" +
                               (whiteBalanceKelvin is float k ? $", white balance {k:0} K" : ""));
 
-            // Render (constructor may print scene analysis info before the blank line)
             var renderer = new Renderer(
-                world, camera, lights, sky, samples, depth, globalMedium,
-                clampOverride, verbose, misHeuristic, lightSampling,
-                indirectClampFactor, textureFiltering, exposureEv,
-                sssMode,
+                world, camera, lights, sky, s.Samples, s.Depth, globalMedium,
+                s.ClampOverride, s.Verbose, s.MisHeuristic, s.LightSampling,
+                s.IndirectClampFactor, s.TextureFiltering, exposureEv,
+                s.SssMode,
                 motionBlur: motionBlur,
-                referenceMode: referenceMode, seed: seed,
-                transparentShadows: transparentShadows,
-                pixelFilter: PixelFilter.Create(pixelFilterKind),
-                displayTransform: new DisplayTransform(view, look,
+                referenceMode: s.ReferenceMode, seed: s.Seed,
+                transparentShadows: s.TransparentShadows,
+                pixelFilter: PixelFilter.Create(s.PixelFilterKind),
+                displayTransform: new DisplayTransform(s.View, s.Look,
                     whiteBalanceKelvin is float wbk ? WhiteBalance.Matrix(wbk) : null),
-                depths: depths);
-            renderer.Integrator = integrator;
-            if (vcmRadius is float vr) renderer.VcmRadiusFactor = vr;
-            if (adaptive)
-                renderer.EnableAdaptive(new AdaptiveSettings { Threshold = adaptiveThreshold, MinSamples = adaptiveMinSpp });
-            if (guiding)
+                depths: s.Depths);
+            renderer.Integrator = s.Integrator;
+            if (s.VcmRadius is float vr) renderer.VcmRadiusFactor = vr;
+            if (s.Adaptive)
+                renderer.EnableAdaptive(new AdaptiveSettings { Threshold = s.AdaptiveThreshold, MinSamples = s.AdaptiveMinSpp });
+            if (s.Guiding)
                 renderer.EnableGuiding(new GuidingSettings
                 {
-                    TrainingSpp = guidingTraining ?? GuidingSettings.DefaultTraining(samples),
+                    TrainingSpp = s.GuidingTraining ?? GuidingSettings.DefaultTraining(s.Samples),
                 });
             Console.WriteLine();
 
-            var captureOptions = denoiserKind != DenoiserKind.None || aovs.Count > 0
+            // Linear capture: everything for the denoiser and the AOVs, the
+            // beauty and its halves for an EXR output, nothing otherwise
+            // (the tone-mapped pixels are identical either way).
+            var captureOptions = s.DenoiserKind != DenoiserKind.None || s.Aovs.Count > 0
                 ? RenderCaptureOptions.Full
-                : exrOutput
+                : s.ExrOutput
                     ? new RenderCaptureOptions { CaptureBeautyHalves = true }
                     : RenderCaptureOptions.None;
 
             sw.Restart();
-            var result = renderer.Render(width, height, captureOptions);
+            var result = renderer.Render(s.Width, s.Height, captureOptions);
             var pixels = result.Pixels;
-            var elapsed = sw.Elapsed;
-            Console.WriteLine($"  Render time: {FormatElapsed(elapsed)}");
+            Console.WriteLine($"  Render time: {FormatElapsed(sw.Elapsed)}");
             if (renderer.LastRenderMeanSamples > 0)
-                Console.WriteLine($"  Samples:     {renderer.LastRenderMeanSamples:F1} spp on average (adaptive, budget {samples})");
+                Console.WriteLine($"  Samples:     {renderer.LastRenderMeanSamples:F1} spp on average (adaptive, budget {s.Samples})");
             if (renderer.LastRenderNonFiniteCount > 0)
                 Console.WriteLine($"  Warning:     {renderer.LastRenderNonFiniteCount:N0} NaN/Inf radiance values were zeroed (engine bug)");
 
-            // Denoise the linear HDR beauty, then re-apply the identical
-            // display transform (exposure \u2192 ACES \u2192 gamma).
+            // The denoiser works on the linear beauty; the display pixels are
+            // re-derived from its output with the same view transform.
             FrameBuffer? denoisedBeauty = null;
-            if (denoiserKind != DenoiserKind.None)
+            if (s.DenoiserKind != DenoiserKind.None)
             {
-                var denoiseOptions = new DenoiserOptions { Kind = denoiserKind, Quality = denoiseQuality };
+                var denoiseOptions = new DenoiserOptions { Kind = s.DenoiserKind, Quality = s.DenoiseQuality };
                 sw.Restart();
                 denoisedBeauty = Denoiser.Denoise(result.Buffers!, denoiseOptions);
                 pixels = renderer.ToneMapToDisplay(denoisedBeauty);
                 Console.WriteLine($"  Denoise time: {FormatElapsed(sw.Elapsed)}");
             }
-
-            // Save image
-            string? outputDir = Path.GetDirectoryName(outputPath);
-            if (!string.IsNullOrEmpty(outputDir))
-            {
-                Directory.CreateDirectory(outputDir);
-            }
-
-            if (exrOutput)
-            {
-                var beauty = denoisedBeauty ?? result.Buffers!.Beauty;
-                int embedded = SaveExrBeauty(outputPath, beauty, result.Buffers!, embedAovs ? aovs : null);
-                Console.WriteLine();
-                Console.WriteLine($"  \u2713 Saved: {Path.GetFullPath(outputPath)} " +
-                                  $"(linear EXR{(embedded > 0 ? $", +{embedded} AOV layers" : "")})");
-            }
-            else
-            {
-                string ext = Path.GetExtension(outputPath).ToLowerInvariant();
-                if (bitDepth == 16 && ext is not (".png" or ""))
-                {
-                    Console.WriteLine($"  Warning: --bit-depth 16 needs a .png output; writing 8-bit {ext}.");
-                    bitDepth = 8;
-                }
-                SaveImage(pixels, width, height, outputPath, bitDepth, dither);
-                Console.WriteLine();
-                Console.WriteLine($"  \u2713 Saved: {Path.GetFullPath(outputPath)}");
-            }
-
-            if (aovs.Count > 0 && !embedAovs)
-                SaveAovs(result.Buffers!, aovs, outputPath, aovFormat ?? "pfm", denoisedBeauty);
+            SaveOutputs(s, result, pixels, denoisedBeauty);
         }
         catch (Exception ex)
         {
@@ -785,266 +211,19 @@ class Program
         }
     }
 
-    static void ShowHelp()
+    static string DescribeSky(SkySettings sky) => sky.Mode switch
     {
-        Console.WriteLine("3D-Ray RayTracer Engine");
-        Console.WriteLine();
-        Console.WriteLine("Usage:");
-        Console.WriteLine("  dotnet run --project src/RayTracer/RayTracer.csproj -- [options]");
-        Console.WriteLine();
-        Console.WriteLine("The scene's 'render:' block sets any of the long options below (same name,");
-        Console.WriteLine("underscores: light_sampling = --light-sampling); the command line wins, and a -q");
-        Console.WriteLine("given here wins over the scene's keys that a preset sets. A scene resolution is");
-        Console.WriteLine("scaled by the preset (-tiny 1/4, -small 1/2, ultra 2) instead of replaced.");
-        Console.WriteLine();
-        Console.WriteLine("Options:");
-        Console.WriteLine("  -i, --input <path>           Scene YAML file (required; .yaml/.yml extension is optional)");
-        Console.WriteLine("  -o, --output <path>          Output image (default: renders/render-<scene>.png).");
-        Console.WriteLine("                                .png/.jpg/.bmp = tone-mapped display image; .exr = scene-linear");
-        Console.WriteLine("                                HDR before exposure/tone-map (multilayer, half RGB + float Z, ZIP)");
-        Console.WriteLine("  -q, --quality <preset>       Render-quality preset that fills -w/-H/-s/-d/-S in one shot.");
-        Console.WriteLine("                                Any explicit flag below wins over the preset's value.");
-        Console.WriteLine("                                Presets: draft-tiny, draft-small, draft,");
-        Console.WriteLine("                                          standard-tiny, standard-small, standard,");
-        Console.WriteLine("                                          pre-final-tiny, pre-final-small, pre-final,");
-        Console.WriteLine("                                          final-tiny, final-small, final,");
-        Console.WriteLine("                                          ultra (4K).");
-        Console.WriteLine("                                standard = final-class quality for classic scenes");
-        Console.WriteLine("                                (no SSS, 512 spp, denoiser).");
-        Console.WriteLine("                                pre-final = faithful preview of final (full feature");
-        Console.WriteLine("                                set, 256 spp + denoiser, ~4-6x faster than final).");
-        Console.WriteLine("  -w, --width <px>             Image width  (default: 960 via draft-small preset)");
-        Console.WriteLine("  -H, --height <px>            Image height (default: 540 via draft-small preset)");
-        Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16 via draft-small preset)");
-        Console.WriteLine("  -d, --depth <n>              Max path vertices (default: 8 via draft-small; 12 standard, 16 final, 32 ultra).");
-        Console.WriteLine("                                Explicit -d lifts the per-kind limits below to the same value");
-        Console.WriteLine("      --depth-diffuse <n>      Max diffuse bounces (presets: 3 draft, 4 standard, 8 final, 16 ultra)");
-        Console.WriteLine("      --depth-glossy <n>       Max glossy/specular reflections (4, 6, 8, 16)");
-        Console.WriteLine("      --depth-transmission <n> Max refractions/transmissions (8, 12, 16, 32)");
-        Console.WriteLine("      --depth-volume <n>       Max scatters in a medium (3, 4, 8, 16)");
-        Console.WriteLine("      --depth-transparent <n>  Max cut-outs crossed, outside the total (16; 32 ultra)");
-        Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override (default 4; perfect squares work best)");
-        Console.WriteLine("  -C, --clamp <n>              Firefly clamp: max per-sample radiance (default: off).");
-        Console.WriteLine("                                Biased: cuts every sample brighter than n (try 10)");
-        Console.WriteLine("      --indirect-clamp-factor  Indirect clamp = -C x factor, only with -C (default: 0.25; 1.0 = off)");
-        Console.WriteLine("      --exposure <EV>          Exposure compensation in stops, applied before the view transform");
-        Console.WriteLine("                                (default: 0 = identity; -1 darkens 2×, +1 brightens 2×)");
-        Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
-        Console.WriteLine("      --sampler <prng|sobol>   Per-pixel sampler (default: sobol — Burley 2020)");
-        Console.WriteLine("      --mis <balance|power>    MIS combination heuristic (default: balance)");
-        Console.WriteLine("      --light-sampling <auto|all|power|uniform|bvh>  NEE light strategy (default: auto = all up to 16 lights, bvh above)");
-        Console.WriteLine("      --texture-filtering <auto|on|off>     Analytic anti-aliasing via ray differentials (default: auto)");
-        Console.WriteLine("      --integrator <path|bdpt|vcm>  Light transport: path tracing (default), bidirectional path tracing,");
-        Console.WriteLine("                               or vertex connection and merging (bdpt + merging: caustics through glass/water)");
-        Console.WriteLine("      --vcm-radius <f>         VCM merging radius at the first iteration, fraction of the scene radius (default: 0.003)");
-        Console.WriteLine("      --guiding <on|off>       Path guiding: learn the incident light in training passes,");
-        Console.WriteLine("                                then sample bounces from it too (unbiased; default: off)");
-        Console.WriteLine("      --guiding-training <n>   Training spp out of -s, passes of 1, 2, 4, ... that join the image (default: -s / 2)");
-        Console.WriteLine("      --denoiser <none|nlm|nfor|oidn>  Denoiser on the linear HDR beauty (oidn: Intel Open Image Denoise)");
-        Console.WriteLine("                                (default: none; draft/standard/pre-final presets use oidn)");
-        Console.WriteLine("      --denoise-quality <fast|high>  Denoiser speed/quality trade-off (default: high)");
-        Console.WriteLine("      --adaptive <on|off>      Adaptive sampling: pixels stop once their noise is below the threshold");
-        Console.WriteLine("                                (path tracing with sobol, not with --guiding or --reference)");
-        Console.WriteLine("      --adaptive-threshold <f> Noise threshold, about the error of a display value (default: 0.01)");
-        Console.WriteLine("      --adaptive-min-spp <n>   Samples before a pixel may stop (default: 4/sqrt(threshold), power of two)");
-        Console.WriteLine("      --aov <list>             Comma list of albedo,normal,depth,beauty,variance —");
-        Console.WriteLine("                                writes linear HDR buffers next to the -o output (as layers");
-        Console.WriteLine("                                of the main file when -o is .exr, else as .pfm files)");
-        Console.WriteLine("      --aov-format <pfm|exr>   Force one file per AOV in the given format, even when");
-        Console.WriteLine("                                -o is .exr (default: embed in .exr output, else pfm)");
-        Console.WriteLine("      --sss-mode <auto|off>    Subsurface-scattering dispatch (default: auto = follow scene)");
-        Console.WriteLine("      --transparent-shadows <on|off>  Glass lets shadow rays through, tinted, instead of");
-        Console.WriteLine("                                casting its physical shadow and caustic (default: off)");
-        Console.WriteLine("      --filter <box|gaussian|blackman-harris>  Pixel reconstruction filter (default: gaussian,");
-        Console.WriteLine("                                sigma 0.5 px; blackman-harris is a little sharper, box the sharpest)");
-        Console.WriteLine("      --view <agx|aces|standard>  View transform from scene-linear to display");
-        Console.WriteLine("                                (default: agx; aces = ACES 1.x SDR; standard = sRGB curve,");
-        Console.WriteLine("                                no tone mapping)");
-        Console.WriteLine("      --look <none|punchy|golden>  Creative look for the agx view (default: none)");
-        Console.WriteLine("      --white-balance <K>      White balance in kelvin: a light of this temperature renders");
-        Console.WriteLine("                                neutral (default: the camera's white_balance, else none)");
-        Console.WriteLine("      --bit-depth <8|16>       Bits per channel of a .png output (default: 8)");
-        Console.WriteLine("      --dither <on|off>        Dither 8-bit output against banding (default: on)");
-        Console.WriteLine("      --reference              Unbiased reference estimator for validation: no clamps,");
-        Console.WriteLine("                                no transparent shadows, uniform depths, no denoiser");
-        Console.WriteLine("      --seed <n>               Independent sample sequence (default 0 = standard sequence)");
-        Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
-        Console.WriteLine("  -v, --verbose                Show detailed loading and scene analysis info");
-        Console.WriteLine("  -h, --help                   Show this help");
-        Console.WriteLine();
-        Console.WriteLine("Examples:");
-        Console.WriteLine("  (the .yaml extension on -i is optional: 'scenes/chess' resolves to 'scenes/chess.yaml')");
-        Console.WriteLine("  from the root of the project: ");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess -q draft-tiny              # instant 480×270 sanity check");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess -q draft-small             # super-fast 960×540 composition check");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess -q standard                # 1920×1080 quality review");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess -q final -o final.png     # 1920×1080 portfolio");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess -q ultra -o cover-4k.png  # 3840×2160 showcase");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess -q final -d 16            # final preset, but bump depth to 16");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess -o render.png -w 1920 -H 1080 -s 128");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess --list-cameras");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess -c top -o top.png");
-        Console.WriteLine("  from the bin/Debug/net10.0 folder: ");
-        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess -q standard");
-        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess -o render.png -w 1920 -H 1080 -s 128");
-        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess --list-cameras");
-    }
-
-    /// <summary>
-    /// Formats a TimeSpan as a human-readable string:
-    /// under 60s  → "42.18s"
-    /// under 60m  → "5m 42.18s"
-    /// 60m+       → "1h 05m 42s"
-    /// </summary>
-    static string FormatElapsed(TimeSpan t)
-    {
-        if (t.TotalMinutes < 1)
-            return $"{t.TotalSeconds:F2}s";
-        if (t.TotalHours < 1)
-            return $"{(int)t.TotalMinutes}m {t.Seconds + t.Milliseconds / 1000.0:F2}s";
-        return $"{(int)t.TotalHours}h {t.Minutes:D2}m {t.Seconds}s";
-    }
-
-    /// <summary>
-    /// Writes the requested AOV planes as one file each next to the main
-    /// output: <c>renders/foo.png</c> → <c>renders/foo.albedo.pfm</c> (or
-    /// <c>.exr</c>) etc. All values are linear, scene-referred (pre-exposure,
-    /// pre-tonemap); the beauty AOV is the denoised buffer when a denoiser is
-    /// active.
-    /// </summary>
-    static void SaveAovs(RenderBuffers buffers, HashSet<string> aovs, string outputPath,
-                         string format, FrameBuffer? denoisedBeauty = null)
-    {
-        string stem = Path.Combine(
-            Path.GetDirectoryName(outputPath) ?? "",
-            Path.GetFileNameWithoutExtension(outputPath));
-
-        foreach (string aov in aovs)
+        SkySettings.SkyMode.Hdri     => "HDRI environment map" + (sky.HasSun ? " + extracted sun" : ""),
+        SkySettings.SkyMode.Gradient => "gradient" + (sky.HasSun ? " + sun disk" : ""),
+        SkySettings.SkyMode.Physical => sky.LightingModel switch
         {
-            string path = $"{stem}.{aov}.{format}";
-            FrameBuffer fb = ResolveAov(buffers, aov, denoisedBeauty);
-            if (format == "exr")
-                ExrImage.Write(path, fb.Width, fb.Height, AovExrChannels(aov, fb, embedded: false));
-            else
-                fb.SavePfm(path);
-            Console.WriteLine($"  ✓ Saved: {Path.GetFullPath(path)}");
-        }
-    }
-
-    static FrameBuffer ResolveAov(RenderBuffers buffers, string aov, FrameBuffer? denoisedBeauty) =>
-        aov switch
-        {
-            "beauty"   => denoisedBeauty ?? buffers.Beauty,
-            "albedo"   => buffers.CombineHalves(buffers.AlbedoA!, buffers.AlbedoB!),
-            "normal"   => buffers.CombineHalves(buffers.NormalA!, buffers.NormalB!),
-            "depth"    => buffers.CombineDepthHalves(),
-            "variance" => buffers.RawBeautyVariance(),
-            _          => throw new InvalidOperationException($"unreachable AOV '{aov}'"),
-        };
-
-    /// <summary>
-    /// Writes the scene-linear (pre-exposure, pre-tonemap) beauty as a
-    /// half-float RGB EXR; when <paramref name="embedAovs"/> is non-null the
-    /// requested AOVs become extra layers of the same multilayer file
-    /// (<c>albedo.R…</c>, <c>normal.X…</c>, float <c>Z</c>,
-    /// <c>variance.R…</c>). Returns the number of embedded AOV layers.
-    /// </summary>
-    static int SaveExrBeauty(string path, FrameBuffer beauty, RenderBuffers buffers,
-                             HashSet<string>? embedAovs)
-    {
-        var channels = new List<ExrImage.Channel>(AovExrChannels("beauty", beauty, embedded: true));
-        int embedded = 0;
-        if (embedAovs != null)
-        {
-            foreach (string aov in embedAovs)
-            {
-                if (aov == "beauty")
-                {
-                    // The main R,G,B channels ARE the (denoised) beauty.
-                    Console.WriteLine("  Note: --aov beauty is already the main EXR output — layer skipped.");
-                    continue;
-                }
-                channels.AddRange(AovExrChannels(aov, ResolveAov(buffers, aov, null), embedded: true));
-                embedded++;
-            }
-        }
-        ExrImage.Write(path, beauty.Width, beauty.Height, channels);
-        return embedded;
-    }
-
-    /// <summary>
-    /// EXR channel layout for one AOV buffer. Embedded layers follow the
-    /// <c>layer.channel</c> convention compositors group on (suffix R/G/B for
-    /// colour data, X/Y/Z for vectors, a bare float <c>Z</c> for depth — the
-    /// no-hit sentinel stays −1); standalone files use plain <c>R,G,B</c> so
-    /// any viewer opens them without layer selection. Colour channels are
-    /// half, depth is float32.
-    /// </summary>
-    static List<ExrImage.Channel> AovExrChannels(string aov, FrameBuffer fb, bool embedded)
-    {
-        int n = fb.Width * fb.Height;
-        var data = fb.Data.AsMemory();
-        if (aov == "depth")
-            return new() { new ExrImage.Channel("Z", ExrPixelType.Float, data.Slice(0, n)) };
-
-        string[] names = aov switch
-        {
-            "normal" when embedded => new[] { "normal.X", "normal.Y", "normal.Z" },
-            "beauty"               => new[] { "R", "G", "B" },
-            _ when embedded        => new[] { $"{aov}.R", $"{aov}.G", $"{aov}.B" },
-            _                      => new[] { "R", "G", "B" },
-        };
-        return new()
-        {
-            new ExrImage.Channel(names[0], ExrPixelType.Half, data.Slice(0, n)),
-            new ExrImage.Channel(names[1], ExrPixelType.Half, data.Slice(n, n)),
-            new ExrImage.Channel(names[2], ExrPixelType.Half, data.Slice(2 * n, n)),
-        };
-    }
-
-    static void SaveImage(Vector3[,] pixels, int width, int height, string path, int bitDepth, bool dither)
-    {
-        string ext = Path.GetExtension(path).ToLowerInvariant();
-        using var stream = File.Create(path);
-        if (bitDepth == 16)
-        {
-            // 16-bit PNG: no dithering needed, 65536 levels do not band.
-            using var image16 = new Image<Rgba64>(width, height);
-            for (int y = 0; y < height; y++)
-                for (int x = 0; x < width; x++)
-                {
-                    var c = pixels[y, x];
-                    image16[x, y] = new Rgba64(DisplayQuantizer.To16Bit(c.X), DisplayQuantizer.To16Bit(c.Y),
-                                               DisplayQuantizer.To16Bit(c.Z), ushort.MaxValue);
-                }
-            image16.SaveAsPng(stream, new PngEncoder { BitDepth = PngBitDepth.Bit16, ColorType = PngColorType.Rgb });
-            return;
-        }
-
-        using var image = new Image<Rgba32>(width, height);
-        for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
-            {
-                var c = pixels[y, x];
-                image[x, y] = new Rgba32(DisplayQuantizer.To8Bit(c.X, x, y, 0, dither),
-                                         DisplayQuantizer.To8Bit(c.Y, x, y, 1, dither),
-                                         DisplayQuantizer.To8Bit(c.Z, x, y, 2, dither), 255);
-            }
-
-        switch (ext)
-        {
-            case ".jpg":
-            case ".jpeg":
-                image.SaveAsJpeg(stream);
-                break;
-            case ".bmp":
-                image.SaveAsBmp(stream);
-                break;
-            default:
-                image.SaveAsPng(stream);
-                break;
-        }
-    }
+            RayTracer.Rendering.Sky.NishitaSky  => "physical (nishita)" + (sky.HasSun ? " + sun disk" : ""),
+            RayTracer.Rendering.Sky.PreethamSky => "physical (preetham)" + (sky.HasSun ? " + sun disk" : ""),
+            RayTracer.Rendering.Sky.HosekWilkieSky => "physical (hosek-wilkie)" + (sky.HasSun ? " + sun disk" : ""),
+            _                                   => "physical" + (sky.HasSun ? " + sun disk" : "")
+        },
+        _                            => "flat"
+    };
 
     /// <summary>
     /// Returns the value of a CLI argument (the token following the flag).
@@ -1074,146 +253,5 @@ class Program
                 return true;
         }
         return false;
-    }
-
-    /// <summary>
-    /// CLI quality preset (`--quality` / `-q`). Each preset fills the five
-    /// quality knobs <c>-w</c>, <c>-H</c>, <c>-s</c>, <c>-d</c>, <c>-S</c> at
-    /// once; any of those flags passed explicitly on the command line wins.
-    /// Tiers follow the Preview/Standard/Final convention shared by Arnold,
-    /// Cycles and RenderMan, with `-small` variants at half resolution, `-tiny`
-    /// variants at quarter resolution (half of small) for instant checks, and
-    /// an `ultra` 4K showcase tier. See `docs/reference/rendering-profiles.md`.
-    /// </summary>
-    sealed class QualityPreset
-    {
-        public string Name { get; }
-        public int Width { get; }
-        public int Height { get; }
-        public int Samples { get; }
-        public int Depth { get; }
-        /// <summary>The tier's split of <see cref="Depth"/> by kind of bounce.</summary>
-        public PathDepths? Depths { get; }
-        public int ShadowSamples { get; }
-        /// <summary>When non-null, the tier forces a <c>--sss-mode</c> value
-        /// (the FINAL-FAST tiers force <see cref="SssMode.Off"/>). An explicit
-        /// <c>--sss-mode</c> flag still wins.</summary>
-        public SssMode? SssModeOverride { get; }
-        /// <summary>When non-null, the tier's default <c>--light-sampling</c>
-        /// strategy (none sets one today: <c>auto</c> fits every tier). An
-        /// explicit <c>--light-sampling</c> flag still wins.</summary>
-        public LightSamplingStrategy? LightSampling { get; }
-        /// <summary>When non-null, the tier's default <c>--indirect-clamp-factor</c>.
-        /// An explicit flag still wins.</summary>
-        public float? IndirectClampFactor { get; }
-        /// <summary>The tier's default denoiser. DRAFT/STANDARD/PRE-FINAL run
-        /// OIDN (NFOR where it does not load): low/mid spp is where denoising
-        /// pays most, standard's 512 spp often leave faint residual noise, and
-        /// pre-final leans on it to cut the final budgets 4×.
-        /// FINAL/ULTRA stay off: converged reference renders keep every
-        /// unfiltered detail. An explicit <c>--denoiser</c> flag wins.</summary>
-        public DenoiserKind Denoiser { get; }
-        /// <summary>The tier's default <c>--denoise-quality</c>.</summary>
-        public DenoiseQuality DenoiseQuality { get; }
-        /// <summary>The tier's default <c>--adaptive</c>. An explicit flag wins.</summary>
-        public bool Adaptive { get; }
-
-        private QualityPreset(string name, int w, int h, int s, int d, int ss,
-                              SssMode? sssModeOverride = null,
-                              LightSamplingStrategy? lightSampling = null,
-                              float? indirectClampFactor = null,
-                              DenoiserKind denoiser = DenoiserKind.None,
-                              DenoiseQuality denoiseQuality = DenoiseQuality.High,
-                              PathDepths? depths = null,
-                              bool adaptive = false)
-        {
-            Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
-            Depths = depths;
-            SssModeOverride = sssModeOverride;
-            LightSampling = lightSampling;
-            IndirectClampFactor = indirectClampFactor;
-            Denoiser = denoiser;
-            DenoiseQuality = denoiseQuality;
-            Adaptive = adaptive;
-        }
-
-        // Bounce budgets by kind (total, then diffuse, glossy, transmission,
-        // volume, cut-outs): glass needs many transmission bounces, diffuse
-        // interreflection few. Russian roulette ends most paths far earlier.
-        private static readonly PathDepths DraftDepths    = new(3, 4, 8, 3, 16);
-        private static readonly PathDepths StandardDepths = new(4, 6, 12, 4, 16);
-        private static readonly PathDepths FinalDepths    = new(8, 8, 16, 8, 16);
-        private static readonly PathDepths UltraDepths    = new(16, 16, 32, 16, 32);
-
-        // Adaptive sampling (threshold 0.01) from standard up: the pixels that
-        // converge early stop, the budget is the cap (PIANO-REVIEW.md Phase 9:
-        // up to 60% fewer samples, 2-27% less time at the same error; the
-        // pixels that stop first are the cheap ones). The draft's 16 spp are
-        // below its first pass (64), so it would change nothing there.
-
-        public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 8, 1,
-            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
-        public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 8, 1,
-            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
-        public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 8, 1,
-            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.Fast, depths: DraftDepths);
-
-        // STANDARD: the day-to-day quality render. Final-class image quality
-        // on a *classic* scene — Lambertian/Disney, non-nested glass,
-        // procedural marble — with the expensive global-illumination extras
-        // stripped:
-        // volumetric SSS OFF, single shadow sample
-        // (512 spp already anti-aliases), relaxed indirect clamp, and the
-        // denoiser absorbing the faint residual grain 512 spp can leave.
-        public static readonly QualityPreset StandardTiny  = new("standard-tiny",  480, 270,  512, 12, 1,
-            sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
-            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.High, depths: StandardDepths, adaptive: true);
-        public static readonly QualityPreset StandardSmall = new("standard-small", 960, 540,  512, 12, 1,
-            sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
-            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.High, depths: StandardDepths, adaptive: true);
-        public static readonly QualityPreset Standard      = new("standard",      1920, 1080, 512, 12, 1,
-            sssModeOverride: SssMode.Off, indirectClampFactor: 0.5f,
-            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.High, depths: StandardDepths, adaptive: true);
-
-        // PRE-FINAL: a faithful preview of `final` — the FULL final feature
-        // set (SSS high, final bounce budgets, default
-        // indirect clamp) with the sampling budgets cut where the denoiser
-        // compensates best: ¼ of the pixel samples and a single shadow
-        // sample (penumbra noise is exactly what feature-guided filtering
-        // removes cleanest). Roughly 4-6× faster than `final`.
-        public static readonly QualityPreset PreFinalTiny  = new("pre-final-tiny",  480, 270,  256, 16, 1,
-            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.High, depths: FinalDepths, adaptive: true);
-        public static readonly QualityPreset PreFinalSmall = new("pre-final-small", 960, 540,  256, 16, 1,
-            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.High, depths: FinalDepths, adaptive: true);
-        public static readonly QualityPreset PreFinal      = new("pre-final",      1920, 1080, 256, 16, 1,
-            denoiser: DenoiserKind.Oidn, denoiseQuality: DenoiseQuality.High, depths: FinalDepths, adaptive: true);
-
-        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 16, 4, depths: FinalDepths, adaptive: true);
-        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 16, 4, depths: FinalDepths, adaptive: true);
-        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 16, 4, depths: FinalDepths, adaptive: true);
-        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 32, 4, depths: UltraDepths, adaptive: true);
-
-        public const string NamesCsv =
-            "draft-tiny, draft-small, draft, standard-tiny, standard-small, standard, " +
-            "pre-final-tiny, pre-final-small, pre-final, final-tiny, final-small, final, ultra";
-
-        public static QualityPreset? Parse(string value) =>
-            value.Trim().ToLowerInvariant() switch
-            {
-                "draft-tiny"      => DraftTiny,
-                "draft-small"     => DraftSmall,
-                "draft"           => Draft,
-                "standard-tiny"   => StandardTiny,
-                "standard-small"  => StandardSmall,
-                "standard"        => Standard,
-                "pre-final-tiny"  => PreFinalTiny,
-                "pre-final-small" => PreFinalSmall,
-                "pre-final"       => PreFinal,
-                "final-tiny"      => FinalTiny,
-                "final-small"     => FinalSmall,
-                "final"           => Final,
-                "ultra"           => Ultra,
-                _                 => null,
-            };
     }
 }

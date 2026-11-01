@@ -378,16 +378,19 @@ public class GeometryAuditTests
     public void FirstHit_MatchesTheReference_FromOutsideAndInside(string name)
     {
         var s = Make(name);
-        var rng = new Random(name.GetHashCode() & 0x7fffffff);
+        var rng = new Random(StableSeed(name));
         int rays = 0, holes = 0, phantoms = 0, wrongT = 0, wrongFace = 0, wrongNormal = 0, offSurface = 0;
         string first = "";
         void Fail(string what) { if (first == "") first = what; }
 
-        for (int i = 0; i < 3000; i++)
+        var replayed = Replayed.TryGetValue(name, out var known) ? known : [];
+        for (int i = 0; i < 3000 + replayed.Length; i++)
         {
             Vector3 o, d;
             bool inside = s.Implicit != null && i % 3 == 2;
-            if (inside)
+            if (i >= 3000)
+                (o, d) = (replayed[i - 3000].O, Vector3.Normalize(replayed[i - 3000].D));
+            else if (inside)
             {
                 // A point inside the solid, a random direction.
                 do o = s.Center + s.Radius * new Vector3(rng.NextSingle() * 2 - 1, rng.NextSingle() * 2 - 1, rng.NextSingle() * 2 - 1);
@@ -418,6 +421,11 @@ public class GeometryAuditTests
             if (tRef == null && hit)
             {
                 bool grazing = s.Implicit != null && minAbs < 1e-3f * s.Radius;
+                // A ray that clips an edge or a corner over less than the scan's
+                // step is an exact hit the coarse scan cannot see: the point is on
+                // the surface and the ray never gets deeper than the tolerance.
+                grazing |= s.Implicit != null && MathF.Abs(s.Implicit(rec.Point)) < 1e-3f * s.Radius
+                           && FineDepth(s.Implicit, ray, rec.T) < 1e-3f * s.Radius;
                 if (!grazing && !(s.PlaneHit != null && MathF.Abs(Vector3.Dot(s.Outward!(rec.Point), d)) < 1e-3f))
                 { phantoms++; Fail($"phantom: o={o} d={d} t={rec.T}"); }
                 continue;
@@ -441,6 +449,54 @@ public class GeometryAuditTests
         Assert.True(holes + phantoms + wrongT + offSurface + wrongFace + wrongNormal == 0, first);
     }
 
+    /// <summary>
+    /// Rays that once failed (found by CI when the seed changed at every run),
+    /// checked at every run with the random ones: a cone ray almost parallel to
+    /// a generator (wrong t, now fixed in Cone.Hit) and a ray clipping an edge
+    /// of the sheared box over 5e-6 (a true hit the coarse scan missed).
+    /// </summary>
+    private static readonly Dictionary<string, (Vector3 O, Vector3 D)[]> Replayed = new()
+    {
+        ["cone"] = [(new(-0.043480076f, 2.0263186f, -1.3636061f), new(0.08247215f, -0.863778f, 0.49707744f))],
+        ["box-sheared"] = [(new(-0.24401857f, 0.9471648f, -2.0659497f), new(-0.0033672033f, -0.56822217f, 0.8228683f))],
+    };
+
+    /// <summary>
+    /// A seed from the name that is the same in every process (string.GetHashCode
+    /// is randomised per process, so the rays changed at every run and a failure
+    /// could not be replayed).
+    /// </summary>
+    private static int StableSeed(string name)
+    {
+        int h = 17;
+        foreach (char ch in name) h = unchecked(h * 31 + ch);
+        return h & 0x7fffffff;
+    }
+
+    /// <summary>
+    /// Rays almost or exactly parallel to a generator of the cone: the quadratic's
+    /// leading coefficient cancels to about zero. The near root must not depend on
+    /// it (a CI run found t 2.3194 for 2.3275 with the former (-b ± √Δ)/a), and
+    /// with a = 0 the single root must still be found.
+    /// </summary>
+    [Fact]
+    public void Cone_RayAlongAGenerator_FindsTheNearRoot()
+    {
+        var cone = new Cone(new Vector3(0f, -0.6f, 0.1f), 0.7f, 1.2f, M);
+        var rec = new HitRecord();
+        // Found by FirstHit_MatchesTheReference (cone); t from the exact quadratic in double.
+        var nearly = new Ray(new Vector3(-0.043480076f, 2.0263186f, -1.3636061f),
+                             Vector3.Normalize(new Vector3(0.08247215f, -0.863778f, 0.49707744f)));
+        Assert.True(cone.Hit(nearly, 1e-4f, 10f, ref rec));
+        Assert.Equal(2.3274688, rec.T, 4);
+        // From inside, along a generator: leaves through the side at t 0.3225.
+        var along = new Ray(new Vector3(-0.2f, -0.3f, 0.1f), Vector3.Normalize(new Vector3(-0.7f, 1.2f, 0f)));
+        rec = new HitRecord();
+        Assert.True(cone.Hit(along, 1e-4f, 10f, ref rec));
+        Assert.Equal(0.3225032, rec.T, 4);
+        Assert.False(rec.FrontFace);
+    }
+
     /// <summary>Away from edges: the implicit's gradient keeps its direction around the point.</summary>
     private static bool Smooth(Spec s, Vector3 p)
     {
@@ -452,6 +508,14 @@ public class GeometryAuditTests
     }
 
     /// <summary>How deep the ray goes below the surface around a root (0 for a tangent touch).</summary>
+    /// <summary>The deepest the ray gets inside within a scan step of t, finely sampled.</summary>
+    private static float FineDepth(Func<Vector3, float> f, Ray ray, float t)
+    {
+        float deepest = 0f;
+        for (int k = -400; k <= 400; k++) deepest = MathF.Min(deepest, f(ray.At(t + k * 5e-6f)));
+        return -deepest;
+    }
+
     private static float ScanDepth(Func<Vector3, float> f, Ray ray, float tRoot)
     {
         float deepest = 0f;

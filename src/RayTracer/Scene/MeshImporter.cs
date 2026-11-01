@@ -91,7 +91,7 @@ public static class MeshImporter
     public static ImportResult? Build(ImportedMesh imported, IMaterial? entityMaterial,
         IReadOnlyDictionary<string, IMaterial>? overrides, IMaterial fallback,
         SubdivisionOptions subdivision, MaterialDisplacement? displacement, int objectSeed,
-        List<string>? warnings)
+        List<string>? warnings, Double3 shift = default)
     {
         var poly = imported.Poly;
         if (poly.FaceCount == 0)
@@ -147,6 +147,14 @@ public static class MeshImporter
                 _ => 0f,
             };
         }
+
+        // Into the render space (a mesh with no transform of its own, PIANO-
+        // REVIEW.md Phase 11), after the displacement read its textures where
+        // the vertices stand in the file. Normals and tangents do not move.
+        // The subtraction in double: the result is the exact relative position.
+        if (!shift.IsZero)
+            for (int i = 0; i < poly.Positions.Count; i++)
+                poly.Positions[i] = (Double3.From(poly.Positions[i]) - shift).ToVector3();
 
         vertexCount = poly.Positions.Count; // after subdivision
         var triangles = iterations > 0 || wantsDisplace

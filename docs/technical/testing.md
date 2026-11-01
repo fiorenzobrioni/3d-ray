@@ -7,7 +7,7 @@ Progetto xUnit dedicato ai test di correttezza dei componenti critici. Vive in `
 Il renderer ha due componenti *accelerati* le cui ottimizzazioni potrebbero introdurre regressioni silenziose — un pixel sbagliato in un angolo della scena è difficile da notare a occhio:
 
 - **`AABB.Hit`** — slab test Kay-Kajiya vettorizzato (`Vector3.Min/Max`) con `InvDirection` precomputato. Deve comportarsi come lo slab test scalare classico, anche nei casi degeneri (raggi assi-allineati → `1/0 = ±∞`).
-- **`BvhNode.Hit`** — BVH con SAH binning, fat leaves e ordered traversal. Deve produrre lo stesso `(hit, rec.T)` della fallback lineare `HittableList.Hit` su ogni raggio.
+- **`Bvh.Hit` e `TriangleBvh.Hit`**: BVH appiattito con SAH binning e traversata iterativa che visita prima il figlio più vicino. Deve produrre lo stesso `(hit, rec.T)` della fallback lineare `HittableList.Hit` su ogni raggio; `TriangleBvh` lo stesso record, bit per bit.
 
 La regola di test è: **differenziale vs oracolo**. Non asseriamo valori numerici precisi — asseriamo uguaglianza con un'implementazione di riferimento semplice e manifestamente corretta.
 
@@ -17,7 +17,7 @@ La regola di test è: **differenziale vs oracolo**. Non asseriamo valori numeric
 src/RayTracer.Tests/
 ├── RayTracer.Tests.csproj    # xunit 2.9.2, Microsoft.NET.Test.Sdk 17.11.1, net10.0
 ├── AabbTests.cs              # Differential test AABB.Hit vs slab scalare
-├── BvhEquivalenceTests.cs    # BvhNode.Hit vs HittableList.Hit
+├── BvhEquivalenceTests.cs    # Bvh/TriangleBvh.Hit vs HittableList.Hit
 ├── ...                       # geometria, materiali, luci, volumi, rendering (circa 50 file)
 ├── TestScenes/               # scene YAML usate dai test di regressione
 └── Validation/               # correttezza fisica (§4.3)
@@ -70,7 +70,7 @@ Contiene una versione scalare `ReferenceHit(box, ray, tMin, tMax)` — trascrizi
 
 ### 4.2 `BvhEquivalenceTests.cs`
 
-Ogni test costruisce due scene con le **stesse primitive** — una usa `HittableList` (fallback lineare), l'altra usa `BvhNode`. Per ogni raggio:
+Ogni test costruisce due scene con le **stesse primitive**: una usa `HittableList` (fallback lineare), l'altra usa `Bvh` (o `TriangleBvh` se sono tutti triangoli). Per ogni raggio:
 
 1.  Entrambe ritornano lo stesso `(hit, miss)`.
 2.  Se hit, entrambe ritornano lo stesso `rec.T` entro `1e-4`.
@@ -105,6 +105,7 @@ soglie fisse).
 | `SamplerQualityTests.cs` | Il sampler: integra funzioni 2D note (una gaussiana liscia e un disco, cioè un bordo d'ombra) su 512 pixel indipendenti e misura la pendenza dell'errore RMS rispetto al numero di campioni. Numeri indipendenti danno N^-0.5; una coppia stratificata in 2D N^-1.4 sul liscio e N^-0.75 sul bordo. Gate su `Sample2D` a varie profondità e sui blocchi di dimensioni per vertice (`Sampler.BeginVertex`). Report opt-in con `RAYTRACER_AUDIT=1` (anche correlazioni fra dimensioni). |
 | `SamplingRoutineTests.cs` | Chi-quadro e integrale della pdf delle routine di base: sfera e emisfero uniformi, cono verso una sfera (anche piccolissima o lontana), le phase function dei volumi, il campionamento importance della HDRI (continuo dentro i texel, pdf coerente con `PdfDirection`), disco concentrico; base ortonormale entro 1e-5 anche vicino a -Z. |
 | `ScaleInvarianceTests.cs` | Lo stesso angolo di stanza scalato a 10 µm e a 1 km, e spostato a 10 km dall'origine, deve dare la stessa luminanza media entro il 2%: gli offset dei raggi seguono la scena. |
+| `RenderSpaceTests.cs` | Rendering relativo alla camera: la stessa scena (primitive, CSG, gruppi, istanze, mesh con e senza transform, terreno procedurale, luci, emissivo con texture, nebbia d'altezza) a 131 km dall'origine e a 8 km di quota, caricata dal loader, deve dare l'immagine della scena nell'origine (rapporto entro 1e-3, relMSE < 1e-4); le posizioni si leggono in double; il punto letto dalle texture non cambia spostando la camera. |
 | `SolverPrecisionTests.cs` | Risolutore quartico e di Sturm su polinomi con radici note; intersezione del toro contro un riferimento in doppia precisione (marcia fitta della funzione implicita più bisezione): nessun hit perso o inventato, errore su t sotto 1e-5. |
 | `NoiseQualityTests.cs` | Perlin: intervallo, zeri sul reticolo, continuità di valore e gradiente attraverso le facce del reticolo (C1), isotropia del gradiente. Worley: F1 è 1-Lipschitz (nessuna cella vicina dimenticata). |
 | `RayDifferentialAccuracyTests.cs` | Footprint delle texture: le derivate UV dalla proiezione sul piano tangente dei differenziali di camera contro la differenza finita ottenuta intersecando davvero i raggi ausiliari. Esatto sul piano; sulla sfera l'errore cala con il pixel (primo ordine). |
@@ -116,7 +117,7 @@ soglie fisse).
 | `AdaptiveSamplingTests.cs` | Adaptive sampling: campioni minimi dalla soglia, errore del pixel dalle metà (con l'esposizione), un pixel rumoroso tiene attivi gli otto vicini, un render che ferma il cielo al primo passo e spinge l'ombra oltre, metà per pixel coerenti con la beauty, energia entro l'1%, rifiutato in `--reference`. |
 | `ColorManagementTests.cs` | Curva sRGB a tratti; ACES 1.x contro OpenColorIO (24 colori, entro 1e-3); AgX e il look punchy contro un'implementazione indipendente; grigi neutri e monotoni in ogni vista. |
 | `WhiteBalanceTests.cs` | Bilanciamento del bianco: 6504 K è l'identità, una luce della temperatura scelta diventa neutra (da 1900 a 9000 K), il luogo dei colori è continuo. |
-| `GeometryAuditTests.cs` | Ogni primitiva (anche scalata non uniformemente, specchiata, inclinata): primo punto colpito contro una funzione implicita marciata e bisezionata, da fuori e da dentro, con normale, `FrontFace` e punto sulla superficie; area con la formula di Cauchy-Crofton (rette isotrope attraverso la sfera che la contiene) contro la forma chiusa e `SurfaceArea`; campionamento d'area (densità `AreaPdf` × area = 1, punti sulla superficie, normale uscente, UV uguali a quelle di `Hit` nello stesso punto, integrale di una funzione come Crofton). |
+| `GeometryAuditTests.cs` | Ogni primitiva (anche scalata non uniformemente, specchiata, inclinata): primo punto colpito contro una funzione implicita marciata e bisezionata, da fuori e da dentro, con normale, `FrontFace` e punto sulla superficie; area con la formula di Cauchy-Crofton (rette isotrope attraverso la sfera che la contiene) contro la forma chiusa e `SurfaceArea`; campionamento d'area (densità `AreaPdf` × area = 1, punti sulla superficie, normale uscente, UV uguali a quelle di `Hit` nello stesso punto, integrale di una funzione come Crofton). I raggi nascono da un seme fisso per primitiva (uguale in ogni processo, così un errore si riproduce) e i raggi che hanno fallito una volta in CI si ripetono a ogni run (`Replayed`); un raggio che sfiora uno spigolo per meno del passo della marcia è riconosciuto con una marcia fine attorno al punto. |
 | `HeightFieldAuditTests.cs` | Il heightfield contro una marcia fitta della superficie bilineare: punto colpito, lato (`FrontFace` dal patch esatto), raggi che entrano dai lati, che sfiorano o corrono lungo la superficie. |
 | `MeshWatertightTests.cs` | Mesh chiusa (icosfera) a raggio 1e-4, 1 e 3000: un raggio mirato a uno spigolo o a un vertice condiviso la colpisce sempre; una retta che entra nella mesh convessa la attraversa esattamente due volte (le rette d'appoggio, classificate con i piani delle facce, escluse). |
 | `CsgAuditTests.cs` | CSG contro gli intervalli esatti di sfere e box (operazioni insiemistiche degli intervalli): primo punto colpito e `FrontFace` in nove casi, facce coincidenti comprese. |
@@ -151,7 +152,7 @@ La tecnica usata in `BvhEquivalenceTests` è riusabile per qualsiasi ottimizzazi
 private static void AssertEquivalent(List<IHittable> primitives, IEnumerable<Ray> rays)
 {
     var reference = new HittableList(new List<IHittable>(primitives));
-    var optimized = new BvhNode(new List<IHittable>(primitives));
+    IHittable optimized = TriangleBvh.Accepts(primitives) ? new TriangleBvh(primitives) : new Bvh(primitives);
 
     foreach (var ray in rays)
     {
@@ -169,7 +170,7 @@ private static void AssertEquivalent(List<IHittable> primitives, IEnumerable<Ray
 
 Punti chiave:
 
-- **Copia della lista** passata ad entrambe le implementazioni: `new BvhNode` può mutare la lista in place durante la build (swap della partizione).
+- **Input intatto**: la build partiziona un array di indici suo, la lista passata non cambia (`Bvh_DoesNotModifyItsInput`).
 - **Tolleranza `1e-4`** su `rec.T`: float, reassociation, ordine di somma → micro-differenze inevitabili.
 - **RNG seeded**: test riproducibili. Se fallisce, il seed è nella stack trace → replay esatto.
 

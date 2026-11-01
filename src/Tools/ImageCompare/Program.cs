@@ -2,8 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using RayTracer.Rendering;
 using RayTracer.Textures;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using RayTracer.Imaging;
 
 namespace ImageCompare;
 
@@ -151,7 +150,7 @@ internal static class Program
 
     private static void WriteDiff(Image t, Image r, int x0, int y0, int w, int h, float scale, string path)
     {
-        using var img = new Image<Rgb24>(w, h);
+        var img = new RasterImage(w, h, 3, 8);
         for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x++)
         {
@@ -160,11 +159,13 @@ internal static class Program
             float k = Math.Clamp(MathF.Abs(rel) / scale, 0f, 1f);
             // White at zero error, saturating to red (brighter) or blue (darker).
             byte fade = (byte)(255 * (1f - k));
-            img[x, y] = rel >= 0 ? new Rgb24(255, fade, fade) : new Rgb24(fade, fade, 255);
+            img[x, y, 0] = rel >= 0 ? (byte)255 : fade;
+            img[x, y, 1] = fade;
+            img[x, y, 2] = rel >= 0 ? fade : (byte)255;
         }
         string? dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-        img.SaveAsPng(path);
+        Png.Save(path, img);
     }
 
     private static string? Option(string[] args, string name)

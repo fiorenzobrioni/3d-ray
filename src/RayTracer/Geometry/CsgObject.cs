@@ -1,4 +1,4 @@
-using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using RayTracer.Core;
@@ -114,29 +114,61 @@ public class CsgObject : IHittable
     }
 
     /// <summary>
-    /// A single surface intersection on a child solid, with the full HitRecord
-    /// preserving material, UV, normal, and TBN from the original primitive.
+    /// Walks the crossings of a ray with one CSG child in ascending t, one
+    /// query at a time: <see cref="Current"/> is the next crossing not yet
+    /// consumed, <see cref="Last"/> the last one consumed. Two record slots
+    /// swap roles, so consuming a crossing copies nothing. FrontFace of a
+    /// record says whether the ray enters (true) or leaves the child there,
+    /// which is the child's state after the crossing.
     /// </summary>
-    private struct SurfaceHit
+    private struct Cursor
     {
-        public float T;
-        public HitRecord Rec;
-    }
-
-    /// <summary>
-    /// The crossings of a ray with one CSG child over the range asked, in
-    /// ascending t, and whether the ray starts inside the child. FrontFace of
-    /// each record says whether the ray enters (true) or leaves the child
-    /// there, which is the child's state after the crossing.
-    ///
-    /// Storage is rented from <see cref="ArrayPool{T}.Shared"/>: SurfaceHit
-    /// holds a managed reference (the material) so it cannot be stackalloc'd.
-    /// </summary>
-    private struct ChildHits
-    {
-        public SurfaceHit[] Hits;
-        public int Count;
+        private HitRecord _slot0, _slot1;
+        private bool _currentIs1;
+        private float _next;
+        private int _count;
+        public bool Has;
         public bool StartsInside;
+
+        [UnscopedRef] public ref HitRecord Current => ref (_currentIs1 ? ref _slot1 : ref _slot0);
+        [UnscopedRef] public ref HitRecord Last => ref (_currentIs1 ? ref _slot0 : ref _slot1);
+
+        /// <summary>
+        /// The first crossing over [tMin, tEnd] and the state at tMin: from
+        /// that crossing (leaving means the ray started inside), or with none
+        /// in the range from one more query past it.
+        /// </summary>
+        public void Start(IHittable child, in Ray ray, float tMin, float tEnd)
+        {
+            _next = tMin;
+            Advance(child, ray, tEnd);
+            if (Has) StartsInside = !Current.FrontFace;
+            else if (float.IsFinite(tEnd))
+            {
+                var probe = new HitRecord();
+                if (child.Hit(ray, tEnd, float.PositiveInfinity, ref probe)) StartsInside = !probe.FrontFace;
+            }
+        }
+
+        /// <summary>Consumes the current crossing and queries the next.</summary>
+        public void Consume(IHittable child, in Ray ray, float tEnd)
+        {
+            _currentIs1 = !_currentIs1; // the current record becomes Last
+            Advance(child, ray, tEnd);
+        }
+
+        private void Advance(IHittable child, in Ray ray, float tEnd)
+        {
+            ref HitRecord rec = ref Current;
+            rec = default;
+            Has = _count < MaxHitsPerChild && child.Hit(ray, _next, tEnd, ref rec);
+            if (!Has) return;
+            _count++;
+            // Just past the crossing (about 8 ulps of t): a longer step skips
+            // the exit of a ray that clips an edge, and the child would stay
+            // "inside" for the rest of the ray.
+            _next = rec.T + MathF.Max(MathUtils.RayEpsilon, MathF.Abs(rec.T) * StepRel);
+        }
     }
 
     // =========================================================================
@@ -152,7 +184,13 @@ public class CsgObject : IHittable
     /// ray). The result has a surface where its state changes, and only there:
     /// the face two touching solids share inside a union, the mouth of a
     /// pocket cut flush with a face, A \ A, all have none.
+    ///
+    /// <para>The crossings are queried lazily, only up to the event that
+    /// decides the result (PIANO-REVIEW.md Phase 11): the queries made and
+    /// their order are those of collecting every crossing first, so the
+    /// result is the same, at a fraction of the cost on a long ray.</para>
     /// </summary>
+    [SkipLocalsInit]
     public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         // _isEmpty must be checked first: AABB.Hit() returns true for
@@ -160,59 +198,49 @@ public class CsgObject : IHittable
         if (_isEmpty || !_boundingBox.Hit(ray, tMin, tMax))
             return false;
 
-        var pool = ArrayPool<SurfaceHit>.Shared;
-        SurfaceHit[] bufA = pool.Rent(MaxHitsPerChild);
-        SurfaceHit[] bufB = pool.Rent(MaxHitsPerChild);
-        try
-        {
-            // Crossings a little past tMax still group with one just before it.
-            float tEnd = float.IsFinite(tMax) ? tMax + GroupTolerance(tMax) : float.PositiveInfinity;
-            ChildHits a = CollectHits(Left, ray, tMin, tEnd, bufA);
-            ChildHits b = CollectHits(Right, ray, tMin, tEnd, bufB);
-            if (a.Count == 0 && b.Count == 0) return false;
+        // Crossings a little past tMax still group with one just before it.
+        float tEnd = float.IsFinite(tMax) ? tMax + GroupTolerance(tMax) : float.PositiveInfinity;
+        var a = new Cursor();
+        var b = new Cursor();
+        a.Start(Left, ray, tMin, tEnd);
+        b.Start(Right, ray, tMin, tEnd);
+        if (!a.Has && !b.Has) return false;
 
-            bool inA = a.StartsInside, inB = b.StartsInside;
-            bool inside = Combine(inA, inB);
-            int i = 0, j = 0;
-            while (i < a.Count || j < b.Count)
+        bool inA = a.StartsInside, inB = b.StartsInside;
+        bool inside = Combine(inA, inB);
+        while (a.Has || b.Has)
+        {
+            bool fromA = a.Has && (!b.Has || a.Current.T <= b.Current.T);
+            ref readonly HitRecord head = ref (fromA ? ref a.Current : ref b.Current);
+            float t = head.T;
+            if (t > tMax) return false;
+            float limit = t + GroupTolerance(ray, head);
+
+            bool tookA = false, tookB = false;
+            while (a.Has && a.Current.T <= limit) { inA = a.Current.FrontFace; tookA = true; a.Consume(Left, ray, tEnd); }
+            while (b.Has && b.Current.T <= limit) { inB = b.Current.FrontFace; tookB = true; b.Consume(Right, ray, tEnd); }
+
+            bool now = Combine(inA, inB);
+            if (now == inside) continue;
+
+            // The record of a child whose crossing goes the way the result
+            // does: entering A (or B in a union or intersection) where the
+            // result is entered; for A \ B, leaving B is entering the result.
+            bool flipB = Operation == CsgOperation.Subtraction;
+            bool aFits = tookA && a.Last.FrontFace == now;
+            bool bFits = tookB && (b.Last.FrontFace != flipB) == now;
+            if (aFits || (!bFits && tookA)) rec = a.Last;
+            else
             {
-                bool fromA = i < a.Count && (j >= b.Count || a.Hits[i].T <= b.Hits[j].T);
-                ref readonly HitRecord head = ref (fromA ? ref a.Hits[i].Rec : ref b.Hits[j].Rec);
-                float t = head.T;
-                if (t > tMax) return false;
-                float limit = t + GroupTolerance(ray, head);
-
-                int lastA = -1, lastB = -1;
-                while (i < a.Count && a.Hits[i].T <= limit) { inA = a.Hits[i].Rec.FrontFace; lastA = i++; }
-                while (j < b.Count && b.Hits[j].T <= limit) { inB = b.Hits[j].Rec.FrontFace; lastB = j++; }
-
-                bool now = Combine(inA, inB);
-                if (now == inside) continue;
-
-                // The record of a child whose crossing goes the way the result
-                // does: entering A (or B in a union or intersection) where the
-                // result is entered; for A \ B, leaving B is entering the result.
-                bool flipB = Operation == CsgOperation.Subtraction;
-                bool aFits = lastA >= 0 && a.Hits[lastA].Rec.FrontFace == now;
-                bool bFits = lastB >= 0 && (b.Hits[lastB].Rec.FrontFace != flipB) == now;
-                if (aFits || (!bFits && lastA >= 0)) rec = a.Hits[lastA].Rec;
-                else
-                {
-                    // B's surface bounds the result. Only FrontFace changes for
-                    // a subtraction: rec.Normal is the shading normal, always
-                    // against the ray, whichever solid owns the face.
-                    rec = b.Hits[lastB].Rec;
-                }
-                rec.FrontFace = now;
-                return rec.T >= tMin && rec.T <= tMax;
+                // B's surface bounds the result. Only FrontFace changes for
+                // a subtraction: rec.Normal is the shading normal, always
+                // against the ray, whichever solid owns the face.
+                rec = b.Last;
             }
-            return false;
+            rec.FrontFace = now;
+            return rec.T >= tMin && rec.T <= tMax;
         }
-        finally
-        {
-            pool.Return(bufA);
-            pool.Return(bufB);
-        }
+        return false;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -222,40 +250,6 @@ public class CsgObject : IHittable
         CsgOperation.Intersection => inA && inB,
         _ => inA && !inB,
     };
-
-    // =========================================================================
-    //  Crossing collection
-    // =========================================================================
-
-    /// <summary>
-    /// Collects the crossings of a child over [tMin, tEnd] by calling Hit()
-    /// again past each one. The state at tMin comes from the first crossing
-    /// (leaving means the ray started inside); with none in the range, one
-    /// more query past it tells.
-    /// </summary>
-    private static ChildHits CollectHits(IHittable child, in Ray ray, float tMin, float tEnd, SurfaceHit[] buffer)
-    {
-        var result = new ChildHits { Hits = buffer, Count = 0, StartsInside = false };
-        float currentT = tMin;
-        int cap = Math.Min(buffer.Length, MaxHitsPerChild);
-        while (result.Count < cap)
-        {
-            var rec = new HitRecord();
-            if (!child.Hit(ray, currentT, tEnd, ref rec)) break;
-            if (result.Count == 0) result.StartsInside = !rec.FrontFace;
-            result.Hits[result.Count++] = new SurfaceHit { T = rec.T, Rec = rec };
-            // Just past the crossing (about 8 ulps of t): a longer step skips
-            // the exit of a ray that clips an edge, and the child would stay
-            // "inside" for the rest of the ray.
-            currentT = rec.T + MathF.Max(MathUtils.RayEpsilon, MathF.Abs(rec.T) * StepRel);
-        }
-        if (result.Count == 0 && float.IsFinite(tEnd))
-        {
-            var rec = new HitRecord();
-            if (child.Hit(ray, tEnd, float.PositiveInfinity, ref rec)) result.StartsInside = !rec.FrontFace;
-        }
-        return result;
-    }
 
     // =========================================================================
     //  Bounding box

@@ -16,6 +16,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="TestImages\**\*" Exclude="TestImages\*.py" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\RayTracer\RayTracer.csproj" />
     <ProjectReference Include="..\Tools\SceneMigrate\SceneMigrate.csproj" />
   </ItemGroup>

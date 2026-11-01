@@ -59,7 +59,7 @@ public partial class SceneLoader
                                            airDensity: md.AirDensity,
                                            dustDensity: md.DustDensity,
                                            ozoneDensity: md.OzoneDensity,
-                                           seaLevelY: md.Y0,
+                                           seaLevelY: (float)(md.Y0 - _renderOrigin.Y),
                                            worldScale: _metersPerUnit);
     }
 
@@ -115,7 +115,8 @@ public partial class SceneLoader
         float H = md.ScaleHeight > 0f ? md.ScaleHeight : 1f;
         Info($"Medium:      height_fog ({md.Phase ?? "isotropic"} phase)");
         Verbose($"Medium det:  \u03c3_a={sigmaA}, \u03c3_s={sigmaS}, y0={md.Y0}, H={H}");
-        return new HeightFogMedium(sigmaA, sigmaS, md.Y0, H, phase);
+        // The base altitude in the render space.
+        return new HeightFogMedium(sigmaA, sigmaS, (float)(md.Y0 - _renderOrigin.Y), H, phase);
     }
 
     private static IMedium BuildProcedural(MediumData md, IPhaseFunction phase)
@@ -125,14 +126,20 @@ public partial class SceneLoader
         float freq = md.Frequency > 0f ? md.Frequency : 1f;
         Info($"Medium:      procedural/fBm ({md.Phase ?? "isotropic"} phase)");
         Verbose($"Medium det:  \u03c3_base_a={sigmaA}, \u03c3_base_s={sigmaS}, freq={freq}, octaves={md.Octaves}");
+        // The noise is read where the render-space point stands in the world.
         return new HeterogeneousProceduralMedium(
-            sigmaA, sigmaS, freq, md.Octaves, md.Lacunarity, md.Gain, md.Seed, phase);
+            sigmaA, sigmaS, freq, md.Octaves, md.Lacunarity, md.Gain, md.Seed, phase)
+        {
+            WorldOffset = _renderOrigin.ToVector3(),
+        };
     }
 
     private static IMedium? BuildGrid(MediumData md, IPhaseFunction phase, string sceneDir)
     {
-        var boundsMin = ToVector3(md.BoundsMin);
-        var boundsMax = ToVector3(md.BoundsMax);
+        // Media are not transformed with entities: their box is in the world,
+        // moved into the render space.
+        var boundsMin = Double3.From(md.BoundsMin) is { } bmin ? (bmin - _renderOrigin).ToVector3() : (Vector3?)null;
+        var boundsMax = Double3.From(md.BoundsMax) is { } bmax ? (bmax - _renderOrigin).ToVector3() : (Vector3?)null;
         if (boundsMin is null || boundsMax is null)
         {
             Warn("Medium 'grid' requires bounds_min and bounds_max. Ignoring.");
