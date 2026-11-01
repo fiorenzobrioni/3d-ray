@@ -5,6 +5,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- [SkipLocalsInit] on the BVH traversals: their stackalloc'd stacks are
+         written before they are read, zeroing them cost a quarter of a ray. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DefaultItemExcludes>$(DefaultItemExcludes);tools\**</DefaultItemExcludes>
     <!-- The XML summaries of Scene/ become the descriptions of the scene JSON
          Schema (SceneSchema); the rest of the code is not held to doc rules. -->

@@ -399,7 +399,7 @@ public partial class SceneLoader
 
             var bvhObjects = new List<IHittable>();
             if (finiteObjects.Count > 0)
-                bvhObjects.Add(new BvhNode(finiteObjects));
+                bvhObjects.Add(new Bvh(finiteObjects));
             bvhObjects.AddRange(infiniteObjects);
             world = new HittableList(bvhObjects);
         }
@@ -407,6 +407,8 @@ public partial class SceneLoader
         {
             world = new HittableList(objects);
         }
+
+        WarnIfFarFromOrigin(objects);
 
         float aspect  = (float)imageWidth / imageHeight;
         var camUp     = ToVector3(camData.Up) ?? Vector3.UnitY;
@@ -575,6 +577,30 @@ public partial class SceneLoader
     // =========================================================================
     // Utility helpers
     // =========================================================================
+
+    /// <summary>
+    /// Ray offsets are relative to the coordinates (MathUtils.RelativeOffset,
+    /// 2^-15: the float error of a hit point grows with its distance from the
+    /// origin). A scene far from the origin compared with its own size gets
+    /// offsets that are a visible part of it: contact shadows and thin parts
+    /// leak (PIANO-REVIEW.md Phase 11: at 100 km a 2-unit scene loses 6% of
+    /// its light). Warns from 1% of the scene radius.
+    /// </summary>
+    private static void WarnIfFarFromOrigin(List<IHittable> objects)
+    {
+        AABB box = AABB.Empty;
+        foreach (var o in objects)
+            if (!IsInfinitePlane(o)) box = AABB.SurroundingBox(box, o.BoundingBox());
+        if (box.Min.X > box.Max.X) return;
+        Vector3 far = Vector3.Max(Vector3.Abs(box.Min), Vector3.Abs(box.Max));
+        float distance = MathF.Max(far.X, MathF.Max(far.Y, far.Z));
+        float radius = MathF.Max(0.5f * (box.Max - box.Min).Length(), 1e-3f);
+        float offset = distance * MathUtils.RelativeOffset;
+        if (float.IsFinite(distance) && offset > 0.01f * radius)
+            Warn($"The scene lies up to {distance:N0} units from the origin, {distance / radius:F0} times its radius: "
+               + $"ray offsets grow with the coordinates ({offset:G3} units here) and can leak light through "
+               + "contacts and thin parts. Move the scene near the origin.");
+    }
 
     private static bool IsInfinitePlane(IHittable obj) => obj switch
     {

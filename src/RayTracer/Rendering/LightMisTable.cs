@@ -169,7 +169,7 @@ internal sealed class LightMisTable
             var tagged = new List<IHittable>(_owners.Count);
             for (int i = 0; i < _owners.Count; i++)
                 if (_owners[i].Surface is { } s) tagged.Add(new Tagged(s, i));
-            _search = tagged.Count > 4 ? new BvhNode(tagged) : new HittableList(tagged);
+            _search = tagged.Count > 4 ? new Bvh(tagged) : new HittableList(tagged);
         }
 
         public ILight? Find(in Ray ray, float t)

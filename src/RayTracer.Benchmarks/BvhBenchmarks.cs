@@ -15,7 +15,7 @@ namespace RayTracer.Benchmarks;
 [MemoryDiagnoser]
 public class BvhBenchmarks
 {
-    private BvhNode _bvh = null!;
+    private Bvh _bvh = null!;
     private Ray[] _rays = null!;
 
     [Params(100, 1_000, 10_000)]
@@ -40,7 +40,7 @@ public class BvhBenchmarks
             float radius = 0.05f + (float)(rng.NextDouble() * 0.2);
             objects.Add(new Sphere(center, radius, material));
         }
-        _bvh = new BvhNode(objects);
+        _bvh = new Bvh(objects);
 
         _rays = new Ray[RayCount];
         for (int i = 0; i < RayCount; i++)
